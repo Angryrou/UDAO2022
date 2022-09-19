@@ -1,10 +1,10 @@
-## Describe your changes
+## Describe your changes (short and to the point)
 
 
 ## Issue ticket number and link
 
 
-## What packages or componments are involved?
+## What packages or components are involved?
 - [ ] traces
 - [ ] model
 - [ ] optimization
@@ -16,4 +16,6 @@
 - [ ] I have performed a self-review of my code
 - [ ] I have fixed all the code conflicts
 - [ ] Add corresponded README.md under `doc`
-- [ ] Add corresponded examples under `example`
+- [ ] Add corresponded runnable examples under `example`
+
+## Example code for running
