@@ -10,9 +10,9 @@ from optimization.moo.weighted_sum import WeightedSum
 import numpy as np
 from matplotlib import pyplot as plt
 
-class ExampleWSWithGridSearch(WeightedSum):
-    def __init__(self, gs_params, n_objs, debug):
-        super().__init__(gs_params, n_objs, debug)
+class ExampleWSWithRandomSample(WeightedSum):
+    def __init__(self, rs_params, n_objs, debug):
+        super().__init__(rs_params, n_objs, debug)
 
     def _obj_function(self, vars, obj):
         # https://en.wikipedia.org/wiki/Test_functions_for_optimization#Test_functions_for_multi-objective_optimization_problems
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     rs_params = {}
     rs_params["n_samples_per_param"] = 10000
     other_params["rs_params"] = rs_params
-    example = ExampleWSWithGridSearch(other_params, n_objs=2, debug=False)
+    example = ExampleWSWithRandomSample(other_params, n_objs=2, debug=False)
     po_objs, po_vars = example.solve(bounds, var_types, n_objs=2)
     print(po_objs)
     print(po_vars)
