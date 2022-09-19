@@ -31,10 +31,10 @@ class GridSearch(BaseSolver):
         grids_list = []
         for i, [lower, upper] in enumerate(bounds):
             if upper == np.inf:
-                upper = 1e10
+                upper = 1e1
 
             if lower == -np.inf:
-                lower = -1e10
+                lower = -1e1
 
             n_grids_per_var = self.n_grids_per_param
 
