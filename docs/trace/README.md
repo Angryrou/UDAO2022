@@ -78,7 +78,8 @@ bash examples/trace/spark/1.query_generation_tpch.sh $PWD/resources/tpch-kit $PW
 
 4. Generate configurations via LHS and BO. Check the example below 
 ```bash
-python examples/traces/spark/2.knob_sampling.py
+export PYTHONPATH="$PWD"
+python examples/trace/spark/2.knob_sampling.py
 ```
 
 5. Trigger trace collection.
