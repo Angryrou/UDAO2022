@@ -208,7 +208,7 @@ class SparkKnobs:
         # k8: set among 0.50-0.75, default 0.6, precision:2
         df["k8"] = df["k8"].astype(float)
         # s4: set spark.sql.shuffle.partitions = spark.default.parallelism when true, > 2000 when False.
-        df["s4"] = [s4_ <= 2000 for s4_ in df["s4"]]
+        df["s4"] = [int(s4_) <= 2000 for s4_ in df["s4"]]
 
         # convert Integer parameter to the knob values
         for k in self.knobs:
