@@ -3,97 +3,100 @@
 # Created at 9/16/22
 
 from utils.parameters import VarTypes
-import utils.common as uc
+from utils.common import JsonUtils
 import numpy as np
 import pandas as pd
 
 
-def knob_normalize(df, knobs):
-    """
-    map the knob values in DataFrame to 0-1 range 2d np.array
-    :param df: a DataFrame of knob values
-    :param knobs: a list of Knob objects
-    :return: a 2D-array of all knobs within 0-1.
-    """
-    df = df.copy()
-    knobs_min = np.array([k.min for k in knobs])
-    knobs_max = np.array([k.max for k in knobs])
+class KnobUtils(object):
 
-    for k in knobs:
-        if k.type == VarTypes.INTEGER:
-            df[k.id] = df[k.id].round().astype(float)
-        elif k.type == VarTypes.ENUM:
-            df[k.id] = [k.enum.index(k_) for k_ in df[k.id]]
-        elif k.type == VarTypes.BOOL:
-            df[k.id] = [k.bools.index(k_) for k_ in df[k.id]]
-        elif k.type == VarTypes.FLOAT:
-            df[k.id] = df[k.id].asfloat(float)
-        else:
-            raise Exception(f"unsupported VarType {k.type}")
-    samples = (df.values - knobs_min) / (knobs_max - knobs_min)
-    return samples
+    @staticmethod
+    def knob_normalize(df, knobs):
+        """
+        map the knob values in DataFrame to 0-1 range 2d np.array
+        :param df: a DataFrame of knob values
+        :param knobs: a list of Knob objects
+        :return: a 2D-array of all knobs within 0-1.
+        """
+        df = df.copy()
+        knobs_min = np.array([k.min for k in knobs])
+        knobs_max = np.array([k.max for k in knobs])
 
+        for k in knobs:
+            if k.type == VarTypes.INTEGER:
+                df[k.id] = df[k.id].round().astype(float)
+            elif k.type == VarTypes.ENUM:
+                df[k.id] = [k.enum.index(k_) for k_ in df[k.id]]
+            elif k.type == VarTypes.BOOL:
+                df[k.id] = [k.bools.index(k_) for k_ in df[k.id]]
+            elif k.type == VarTypes.FLOAT:
+                df[k.id] = df[k.id].asfloat(float)
+            else:
+                raise Exception(f"unsupported VarType {k.type}")
+        samples = (df.values - knobs_min) / (knobs_max - knobs_min)
+        return samples
 
-def knob_denormalize(samples, knobs):
-    """
-    map the 0-1 range 2d np.array to its knob values in DataFrame
-    :param samples: a 2D-array of all knobs within 0-1
-    :param knobs: a list of Knob objects
-    :return: a DataFrame of dict for raw knob values
-    """
-    knob_names = [k.id for k in knobs]
-    knob_min = np.array([k.min for k in knobs])
-    knob_max = np.array([k.max for k in knobs])
+    @staticmethod
+    def knob_denormalize(samples, knobs):
+        """
+        map the 0-1 range 2d np.array to its knob values in DataFrame
+        :param samples: a 2D-array of all knobs within 0-1
+        :param knobs: a list of Knob objects
+        :return: a DataFrame of dict for raw knob values
+        """
+        knob_names = [k.id for k in knobs]
+        knob_min = np.array([k.min for k in knobs])
+        knob_max = np.array([k.max for k in knobs])
 
-    # map to the min-max space
-    samples = samples * (knob_max - knob_min) + knob_min
-    # convert to the raw knob values
-    df = pd.DataFrame(samples, columns=knob_names)
+        # map to the min-max space
+        samples = samples * (knob_max - knob_min) + knob_min
+        # convert to the raw knob values
+        df = pd.DataFrame(samples, columns=knob_names)
 
-    for k in knobs:
-        if k.type == VarTypes.INTEGER:
-            df[k.id] = df[k.id].round().astype(int)
-        elif k.type == VarTypes.ENUM:
-            df[k.id] = np.array(k.enum)[df[k.id].round().astype(int)]
-        elif k.type == VarTypes.BOOL:
-            df[k.id] = np.array(k.bools)[df[k.id].round().astype(int)]
-        elif k.type == VarTypes.FLOAT:
-            df[k.id] = df[k.id].astype(float)
-        else:
-            raise Exception(f"unsupported VarType {k.type}")
+        for k in knobs:
+            if k.type == VarTypes.INTEGER:
+                df[k.id] = df[k.id].round().astype(int)
+            elif k.type == VarTypes.ENUM:
+                df[k.id] = np.array(k.enum)[df[k.id].round().astype(int)]
+            elif k.type == VarTypes.BOOL:
+                df[k.id] = np.array(k.bools)[df[k.id].round().astype(int)]
+            elif k.type == VarTypes.FLOAT:
+                df[k.id] = df[k.id].astype(float)
+            else:
+                raise Exception(f"unsupported VarType {k.type}")
 
-    df.index = df.apply(lambda x: knobs2sign(x, knobs), axis=1)
-    return df
+        df.index = df.apply(lambda x: KnobUtils.knobs2sign(x, knobs), axis=1)
+        return df
 
+    @staticmethod
+    def knobs2sign(knob_values, knobs):
+        """
+        serialize a sequence of knob values into a string
+        :param knob_values: a sequence of knob values (e.g., a list of knobs)
+        :param knobs: a list of Knob objects
+        :return: the sign of the knob values
+        """
+        assert len(knob_values) == len(knobs), "dismatch the number of knobs"
+        return ",".join([str(v) for v in knob_values])
 
-def knobs2sign(knob_values, knobs):
-    """
-    serialize a sequence of knob values into a string
-    :param knob_values: a sequence of knob values (e.g., a list of knobs)
-    :param knobs: a list of Knob objects
-    :return: the sign of the knob values
-    """
-    assert len(knob_values) == len(knobs), "dismatch the number of knobs"
-    return ",".join([str(v) for v in knob_values])
-
-
-def sign2knobs(knob_sign, knobs):
-    """
-    deserialize the sign of knob values to their knob values
-    :param knob_sign: the sign of the knob values
-    :param knobs: a list of Knob objects
-    :return:
-    """
-    knob_values_str = knob_sign.split(",")
-    knob_values = [
-        int(v_str) if k.type == VarTypes.INTEGER else (
-            float(v_str) if k.type == VarTypes.FLOAT else (
-                bool(v_str) if k.type == VarTypes.BOOL else v_str
+    @staticmethod
+    def sign2knobs(knob_sign, knobs):
+        """
+        deserialize the sign of knob values to their knob values
+        :param knob_sign: the sign of the knob values
+        :param knobs: a list of Knob objects
+        :return:
+        """
+        knob_values_str = knob_sign.split(",")
+        knob_values = [
+            int(v_str) if k.type == VarTypes.INTEGER else (
+                float(v_str) if k.type == VarTypes.FLOAT else (
+                    bool(v_str) if k.type == VarTypes.BOOL else v_str
+                )
             )
-        )
-        for v_str, k in zip(knob_values_str, knobs)
-    ]
-    return knob_values
+            for v_str, k in zip(knob_values_str, knobs)
+        ]
+        return knob_values
 
 
 class Knob:
@@ -123,7 +126,7 @@ class Knob:
 
 class SparkKnobs:
     def __init__(self, meta_file="resources/knob-meta/spark.json"):
-        meta = uc.load_json(meta_file)
+        meta = JsonUtils.load_json(meta_file)
         knobs = [
             Knob(
                 k["id"],

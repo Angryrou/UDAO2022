@@ -6,7 +6,7 @@
 import pandas as pd
 
 from trace.collect.sampler import LHSSampler, BOSampler
-from utils.data.configurations import SparkKnobs, knob_normalize, knob_denormalize
+from utils.data.configurations import SparkKnobs, KnobUtils
 import numpy as np
 
 SEED = 42
@@ -40,9 +40,9 @@ print()
 print(f"3. get {N_SAMPLES_BO} configurations via BO...")
 print(f"3.1 parse and normalize all parameters to 0-1")
 knob_df2 = spark_knobs.df_conf2knob(conf_df)
-samples2 = knob_normalize(knob_df2, knobs)
+samples2 = KnobUtils.knob_normalize(knob_df2, knobs)
 assert (knob_df2 == knob_df).all().all()
-assert (knob_df2 == knob_denormalize(samples2, knobs)).all().all()
+assert (knob_df2 == KnobUtils.knob_denormalize(samples2, knobs)).all().all()
 
 bo_sampler = BOSampler(knobs, seed=SEED)
 print(f"3.2 iteratively get the configurations via BO...")
@@ -54,7 +54,7 @@ while True:
     print(f"trial {bo_trial} starts...")
     reco_sample = bo_sampler.get_samples(1, observed_inputs=samples2, observed_outputs=bo_objs)
     # get the recommended knob values based on reco_samples by denormalizing and rounding
-    reco_knob_df = knob_denormalize(reco_sample, knobs)
+    reco_knob_df = KnobUtils.knob_denormalize(reco_sample, knobs)
     assert reco_knob_df.shape == (1, len(knobs))
     # get the signature of the recommended knob values
     reco_knob_sign = reco_knob_df.index.values[0]

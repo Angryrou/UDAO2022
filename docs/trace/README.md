@@ -58,9 +58,11 @@ git clone git@github.com:Angryrou/spark-sql-perf.git
 bin/run --help # testing env
 sbt +package
 
+
 # an example of running in our cluster, look into `my_set_benchmark.sh` for more details
 bm=TPCH
-bash ~/chenghao/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_benchmark.sh TPCH 100
+sf=100
+bash ~/chenghao/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_benchmark.sh $bm $sf
 ```
 
 2. Prepare the codebase for query generation (clone, compile and validate).
@@ -82,7 +84,10 @@ export PYTHONPATH="$PWD"
 python examples/trace/spark/2.knob_sampling.py
 ```
 
-5. Trigger trace collection.
+5. Trigger trace collection. 
+     - an example in the single-query environment
+     - an example in the multi-query environment
+   
 
 TPCDS
 -----     
