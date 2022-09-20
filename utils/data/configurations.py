@@ -221,14 +221,27 @@ class SparkKnobs:
                     raise Exception(f"unsupported scale attribute {k.scale}")
         return df
 
-    def knobs2conf(self, knob_values):
+    def knobs2conf(self, knob_dict: dict) -> dict:
         """
-        convert a sequence of knob values to a configuration DataFrame
-        :param knob_values: a sequence of knob values (e.g., a list of knobs)
-        :return: configuration in DataFrame.
+        convert a dict of knob values to a dict of configuration parameter values
+        :param knob_dict: a dict of knob values
+        :return: a dict of configuration parameter values
         """
-        df = pd.DataFrame(knob_values, columns=self.knob_names)
-        return self.df_knob2conf(df)
+        df = pd.DataFrame.from_records([knob_dict])
+        assert df.columns.to_list() == [k.id for k in self.knobs]
+        conf_df = self.df_knob2conf(df)
+        return conf_df.to_dict(orient="records")[0]
+
+    def conf2knobs(self, conf_dict: dict) -> dict:
+        """
+        convert a dict of configuration parameter values to a dict of knob values
+        :param conf_dict: a dict of configuration parameter values
+        :return: a dict of knob values
+        """
+        df = pd.DataFrame.from_records([conf_dict])
+        assert df.columns.to_list() == [k.name for k in self.knobs]
+        knob_df = self.df_conf2knob(df)
+        return knob_df.to_dict(orient="records")[0]
 
 
 class PostgresKnobs:

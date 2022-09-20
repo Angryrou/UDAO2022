@@ -6,7 +6,7 @@
 
 from abc import ABCMeta, abstractmethod
 from utils.parameters import UCB_BETA
-from utils.data.configurations import knob_denormalize, knobs2sign
+from utils.data.configurations import KnobUtils
 import random
 import numpy as np
 import torch as th
@@ -53,10 +53,10 @@ class LHSSampler(BaseSampler):
         samples = lhs(self.n_knobs, samples=n_samples, criterion=criterion)
         samples = shuffle(samples, random_state=self.seed)
         # get decoded configurations in a DataFrame
-        knob_df = knob_denormalize(samples, self.knobs)
+        knob_df = KnobUtils.knob_denormalize(samples, self.knobs)
         # drop duplicated configurations after rounding in the decoding
         knob_df = knob_df.drop_duplicates()
-        knob_df.index = knob_df.apply(lambda x: knobs2sign(x, self.knobs), axis=1)
+        knob_df.index = knob_df.apply(lambda x: KnobUtils.knobs2sign(x, self.knobs), axis=1)
         if debug:
             return samples, knob_df
         else:
