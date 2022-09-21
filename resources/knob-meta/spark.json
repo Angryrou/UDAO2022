@@ -12,7 +12,7 @@
     "enum": null,
     "bools": null,
     "default": "16g",
-    "desc": "set among 8G-64G. Default: 16g"
+    "desc": "set among 4g-32g. Default: 16g"
   },
   {
     "id": "k2",
@@ -72,7 +72,7 @@
     "enum": null,
     "bools": null,
     "default": "48m",
-    "desc": "factor * (base ^ k5), set among 12M-384M. Default: 48M when k5 = 2"
+    "desc": "factor * (base ^ k5), set among 12M-384M. Default: 48m when k5 = 2"
   },
   {
     "id": "k6",
