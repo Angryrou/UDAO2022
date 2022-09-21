@@ -4,11 +4,13 @@
 #
 # Created at 9/20/22
 import os
-from trace.collect.framework import SparkCollect
-from utils.data.configurations import SparkKnobs, KnobUtils
-from utils.common import JsonUtils
+import time
 
-SEED=42
+from trace.collect.framework import SparkCollect
+from utils.common import JsonUtils
+from utils.data.configurations import SparkKnobs, KnobUtils
+
+SEED = 42
 spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
 knobs = spark_knobs.knobs
 conf_dict = {k.name: k.default for k in knobs}
@@ -33,11 +35,13 @@ spark_script = spark_collect.make_script(
     conf_dict=conf_dict,
     out_path=out_path
 )
-
+print(spark_script)
 with open(f"{out_path}/{file_name}", "w") as f:
     f.write(spark_script)
 
 try:
+    start = time.time()
     os.system(f"bash {out_path}/{file_name}")
+    print(f"finished running, takes {time.time() - start}s")
 except Exception as e:
     print(f"failed to run due to {e}")
