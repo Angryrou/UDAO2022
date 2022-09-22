@@ -20,6 +20,7 @@ bash examples/trace/1.setup_tpch.sh MACOS
 ```bash
 cd resources/
 git clone git@github.com:Angryrou/spark-sql-perf.git
+cd spark-sql-perf
 bin/run --help # testing env
 sbt +package
 

@@ -63,11 +63,12 @@ TPCH
 
 ```bash
 git clone git@github.com:Angryrou/spark-sql-perf.git
+cd spark-sql-perf
 bin/run --help # testing env
 sbt +package
 
 
-# an example of running in our cluster, look into `my_set_benchmark.sh` for more details
+# an example of running in our Ercilla Spark cluster, look into `my_set_benchmark.sh` for more details
 bm=TPCH
 sf=100
 bash ~/chenghao/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_benchmark.sh $bm $sf
@@ -96,7 +97,7 @@ python examples/trace/spark/2.knob_sampling.py
 ```
 
 5. Trigger trace collection.
-   - an example of running single query in Spark
+   - an example of running single query in our Ercilla Spark cluster.
     ```bash
     export PYTHONPATH="$PWD"
     python examples/trace/spark/3.run_one.py
