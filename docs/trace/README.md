@@ -62,7 +62,7 @@ TPCH
 1. Setup TPCH benchmark over a Spark cluster
 
 ```bash
-git clone git@github.com:Angryrou/spark-sql-perf.git
+git clone https://github.com/Angryrou/spark-sql-perf.git
 cd spark-sql-perf
 bin/run --help # testing env
 sbt +package
