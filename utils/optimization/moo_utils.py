@@ -1,7 +1,9 @@
 # Author(s): Qi FAN <qi dot fan at polytechnique dot edu>
+#            Chenghao Lyu <chenghao at cs dot umass dot edu>
 #
 # Description: common methods used in MOO
-#
+# reuse some code in VLDB2022
+
 # Created at 15/09/2022
 
 import numpy as np
@@ -50,3 +52,29 @@ def _summarize_ret(po_obj_list, po_var_list):
         po_objs = po_objs_cand[po_inds]
         po_vars = po_vars_cand[po_inds]
         return po_objs, po_vars
+
+# generate even weights for 2D and 3D
+def even_weights(stepsize, m):
+    if m == 2:
+        w1 = np.hstack([np.arange(0, 1, stepsize), 1])
+        w2 = 1 - w1
+        ws_pairs = [[w1, w2] for w1, w2 in zip(w1, w2)]
+
+    elif m == 3:
+        w_steps = np.linspace(0, 1, num=1 / stepsize + 1, endpoint=True)
+        for i, w in enumerate(w_steps):
+            # use round to avoid case of floating point limitations in Python
+            # the limitation: 1- 0.9 = 0.09999999999998 rather than 0.1
+            other_ws_range = round((1 - w), 10)
+            w2 = np.linspace(0, other_ws_range, num=round(other_ws_range/stepsize + 1), endpoint=True)
+            w3 = other_ws_range - w2
+            num = w2.shape[0]
+            w1 = np.array([w] * num)
+            ws = np.hstack([w1.reshape([num, 1]), w2.reshape([num, 1]), w3.reshape([num, 1])])
+            if i == 0:
+                ws_pairs = ws
+            else:
+                ws_pairs = np.vstack([ws_pairs, ws])
+
+    assert all(np.sum(ws_pairs, axis=1) == 1)
+    return ws_pairs

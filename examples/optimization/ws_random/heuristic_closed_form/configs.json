@@ -1,0 +1,35 @@
+{
+  "moo_algo": "weighted_sum",
+  "solver": "random_sampler",
+  "variables": [
+    {
+      "name": "v1",
+      "type": "FLOAT",
+      "min": -20,
+      "max": 10
+    },
+    {
+      "name": "v2",
+      "type": "FLOAT",
+      "min": -10,
+      "max": 20
+    }
+  ],
+  "objectives": [
+    {
+      "name": "obj_1",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
+    },
+    {
+      "name": "obj_2",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
+    }
+  ],
+  "additional_params":
+    {
+      "ws_steps": 0.1,
+      "solver_params": 10000
+    }
+}
