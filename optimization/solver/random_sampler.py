@@ -8,9 +8,9 @@ import numpy as np
 from optimization.solver.base_solver import BaseSolver
 
 class RandomSampler(BaseSolver):
-    def __init__(self, rs_params, debug: bool):
+    def __init__(self, rs_params):
         super().__init__()
-        self.n_samples_per_param = rs_params["n_samples_per_param"]
+        self.n_samples_per_param = rs_params
         self.seed = 0
 
     def _rand_float(self, lower, upper, n_samples):
@@ -29,7 +29,6 @@ class RandomSampler(BaseSolver):
         :param var_types: list, type of each variable
         :return: array, vararibles (n_samples * n_vars)
         '''
-
         if any((bounds[:, 0] - bounds[:, 1]) > 0):
             print("ERROR: lower bound is greater than the upper bound!")
             raise ValueError(bounds)
@@ -37,16 +36,10 @@ class RandomSampler(BaseSolver):
         x = np.zeros([self.n_samples_per_param, n_vars])
         np.random.seed(self.seed)
         for i, [lower, upper] in enumerate(bounds):
-            if upper == np.inf:
-                upper = 1e1
-
-            if lower == -np.inf:
-                lower = -1e1
-
             # randomly sample n_samples within the range
-            if var_types[i] == "float":
+            if var_types[i] == "FLOAT":
                 x[:, i] = self._rand_float(lower, upper, self.n_samples_per_param)
-            elif var_types[i] == "int":
+            elif var_types[i] == "INTEGER" or var_types[i] == "BINARY":
                 x[:, i] = np.random.randint(lower, upper + 1, size=self.n_samples_per_param)
             else:
                 raise ValueError(var_types[i])
@@ -59,11 +52,10 @@ if __name__ == '__main__':
     lower = np.array([[1], [2], [3]])
     upper = np.array([[6], [6], [8]])
     bounds = np.hstack([lower, upper])
-    var_types = ["float", "float", "int"]
+    var_types = ["FLOAT", "FLOAT", "INTEGER"]
 
-    rs_params = {}
-    rs_params["n_samples_per_param"] = 1000
+    rs_params = 1000
 
-    test_vars = RandomSampler(rs_params, debug=False)
+    test_vars = RandomSampler(rs_params)
     vars = test_vars._get_input(bounds, var_types)
     print(vars)

@@ -10,35 +10,31 @@ import itertools
 from optimization.solver.base_solver import BaseSolver
 
 class GridSearch(BaseSolver):
-    def __init__(self, gs_params, debug: bool):
+    def __init__(self, gs_params):
         super().__init__()
-        self.n_grids_per_param = gs_params["n_grids_per_param"]
+        self.n_grids_per_param = gs_params
 
     def _get_input(self, bounds, var_types):
         '''
-
+        grid search on each variable
         :param bounds: array (2 * n_vars), 2 refers to the lower and upper bounds
         :param var_types: list, type of each variable
         :return: array, vararibles (n_grids * n_vars)
         '''
-        ## grid_search
+
         if any((bounds[:, 0] - bounds[:, 1]) > 0):
             print("ERROR: lower bound is greater than the upper bound!")
             raise ValueError(bounds)
 
-
         ## generate grids for each variable
         grids_list = []
         for i, [lower, upper] in enumerate(bounds):
-            if upper == np.inf:
-                upper = 1e1
-
-            if lower == -np.inf:
-                lower = -1e1
-
+            # the number of points generated for each variable
             n_grids_per_var = self.n_grids_per_param
 
-            if var_types[i] == "int":
+            # make sure the grid point is the same with the type
+            # e.g., if int x.min=0, x.max=5, n_grids_per_var=10, ONLY points[0, 1, 2, 3, 4, 5] are feasible
+            if var_types[i] == "INTEGER" or var_types[i] == "BINARY":
                 if self.n_grids_per_param > (upper - lower + 1):
                     n_grids_per_var = upper - lower + 1
 
@@ -57,11 +53,10 @@ if __name__ == '__main__':
     lower = np.array([[1], [2], [3]])
     upper = np.array([[6], [6], [8]])
     bounds = np.hstack([lower, upper])
-    var_types = ["float", "float", "int"]
+    var_types = ["FLOAT", "FLOAT", "INTEGER"]
 
-    gs_params = {}
-    gs_params["n_grids_per_param"] = 10
+    gs_params = 10
 
-    test_vars = GridSearch(gs_params, debug=False)
+    test_vars = GridSearch(gs_params)
     vars = test_vars._get_input(bounds, var_types)
     print(vars)
