@@ -13,7 +13,7 @@ import numpy as np
 
 class WeightedSum(BaseMOO):
 
-    def __init__(self, ws_pairs, inner_solver, solver_params, n_objs: int, obj_funcs, opt_type, const_funcs):
+    def __init__(self, ws_pairs, inner_solver, solver_params, n_objs: int, obj_funcs, opt_type, const_funcs, const_types):
         super().__init__()
         self.inner_sovler = inner_solver
         self.ws_pairs = ws_pairs
@@ -21,6 +21,7 @@ class WeightedSum(BaseMOO):
         self.obj_funcs = obj_funcs
         self.opt_type = opt_type
         self.const_funcs = const_funcs
+        self.const_types = const_types
         if self.inner_sovler == "grid_search":
             self.gs = GridSearch(solver_params)
         elif self.inner_sovler == "random_sampler":
@@ -45,7 +46,13 @@ class WeightedSum(BaseMOO):
             n_const = const_violation.shape[1]
             available_indices = range(const_violation.shape[0])
             for i in range(n_const):
-                available_indice = np.where(const_violation[:, i] < 0)
+                if self.const_types[i] == "<":
+                    available_indice = np.where(const_violation[:, i] < 0)
+                elif self.const_types[i] == "<=":
+                    available_indice = np.where(const_violation[:, i] <= 0)
+                else:
+                    print("ERROR: No feasible constraints provided! Please check constraint type settings in configurations")
+                    raise ValueError(self.const_types)
                 available_indices = np.intersect1d(available_indice, available_indices)
             vars_after_const_check = vars[available_indices]
         else:
@@ -99,4 +106,3 @@ class WeightedSum(BaseMOO):
             return 1
         else:
             return -1
-
