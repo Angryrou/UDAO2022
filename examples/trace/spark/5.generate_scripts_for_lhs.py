@@ -7,6 +7,8 @@
 # Created at 9/23/22
 import argparse
 import os
+import time
+
 import numpy as np
 from multiprocessing import Pool
 
@@ -57,11 +59,13 @@ if __name__ ==  '__main__':
         seed=seed
     )
 
+    start = time.time()
     query_conf_dict = {
         q: spark_knobs.df_knob2conf(spark_collect.lhs_sampler.get_samples(qpt, random_state=q)).to_dict("records")
         for q in range(1, n_templates + 1)
     }
-    
+    print(f"Preparing configurations took {time.time() - start}s")
+
     arg_list = [
         (str(tid), str(qid), query_conf_dict[tid][qid-1], f"{out_header}/{tid}", )
         for tid in range(1, n_templates + 1)
