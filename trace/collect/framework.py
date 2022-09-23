@@ -5,6 +5,9 @@
 # Created at 9/19/22
 import os
 from abc import ABCMeta, abstractmethod
+
+import pandas as pd
+
 from trace.collect.sampler import LHSSampler, BOSampler
 from utils.data.configurations import KnobUtils, SparkKnobs
 
@@ -59,6 +62,21 @@ class SparkCollect(Collection):
     def save_trace(self):
         pass
 
+    def make_commands_worker_system_states(self, workers: list, duration: int, tmp_path:str,
+                                         out_path:str, name_suffix: str):
+
+        nmon_reset = "\n".join(f"""ssh {workers} rm -f {tmp_path}/*.nmon""")
+
+        nmon_start = "\n".join(f"""ssh {worker} "nmon -s1 -c{duration} -F {worker}.nmon -m {tmp_path}" """
+                               for worker in workers)
+
+        nmon_stop = "\n".join(f"""ssh {worker} kill $(ssh {worker} ps -ef | grep nmon | tr -s ' '| cut -d ' ' -f2)"""
+                              for worker in workers)
+
+        nmon_agg = "\n".join(f"""scp {worker}:{tmp_path}/{worker}.nmon {out_path}/{worker}{name_suffix}.nmon"""
+                             for worker in workers)
+        return nmon_reset, nmon_start, nmon_stop, nmon_agg
+
     def make_script(self, tid: str, qid: str, knob_sign:str, conf_dict: dict, out_path:str,
                     spath="/opt/hex_users/$USER/chenghao/spark-sql-perf",
                     jpath="/opt/hex_users/$USER/spark-3.2.1-hadoop3.3.0/jdk1.8") -> str:
@@ -102,3 +120,25 @@ $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
 """
 
 
+class MultiQueryEnvironment(object):
+
+    def __init__(self, cpu_guide_str = "resources/system-guide/A_system_prior.csv"):
+        df = pd.read_csv(cpu_guide_str, header=None, names=[
+            "timestep",
+            "cpu_utils_avg",
+            "cpu_utils_std",
+            "cpu_utils_avg_daily",
+            "cpu_utils_std_daily",
+            "mem_utils_avg",
+            "mem_utils_std",
+            "mem_utils_avg_daily",
+            "mem_utils_std_daily",
+            "io_bytes_avg",
+            "io_bytes_std",
+            "io_bytes_avg_daily",
+            "io_bytes_std_daily",
+            "io_rqs_avg",
+            "io_rqs_std",
+            "io_rqs_avg_daily",
+            "io_rqs_std_daily",
+        ]).set_index("timestep").sort_index()
