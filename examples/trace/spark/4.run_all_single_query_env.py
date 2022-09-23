@@ -15,7 +15,7 @@ from utils.data.feature import NmonUtils
 
 SEED = 42
 workers = ["node2", "node3", "node4", "node5", "node6"]
-out_path = "examples/trace/spark/4.run_all_single_query_env"
+OUT_HEADER = "examples/trace/spark/4.run_all_single_query_env"
 qid = "1"
 REMOTE_HEADER = "~/chenghao"
 
@@ -42,17 +42,16 @@ for tid in range(1, 23):
         qid=qid,
         knob_sign=knob_sign,
         conf_dict=conf_dict,
-        out_path=out_path
+        out_path=OUT_HEADER
     )
-    with open(f"{out_path}/{file_name}", "w") as f:
+    with open(f"{OUT_HEADER}/{file_name}", "w") as f:
         f.write(spark_script)
     print(f"script {tid}-{qid} prepared for running")
 
-
 nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=REMOTE_HEADER)
-nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=REMOTE_HEADER, duration=3600, freq=1)
+nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=REMOTE_HEADER, name_suffix="", duration=3600, freq=1)
 nmon_stop = NmonUtils.nmon_remote_stop(workers)
-nmon_agg = NmonUtils.nmon_remote_agg(workers, remote_header=REMOTE_HEADER, local_header=out_path, name_suffix="")
+nmon_agg = NmonUtils.nmon_remote_agg(workers, remote_header=REMOTE_HEADER, local_header=OUT_HEADER, name_suffix="")
 
 try:
     os.system(nmon_reset)
@@ -61,7 +60,7 @@ try:
     for tid in range(1, 23):
         start = time.time()
         file_name = f"q{tid}-{qid}.sh"
-        os.system(f"bash {out_path}/{file_name}")
+        os.system(f"bash {OUT_HEADER}/{file_name}")
         print(f"finished running, takes {time.time() - start}s")
     os.system(nmon_stop)
     os.system(nmon_agg)

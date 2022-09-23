@@ -16,8 +16,9 @@ class NmonUtils(object):
 
     @staticmethod
     def nmon_remote_start(workers, remote_header, name_suffix, duration, freq):
-        return "\n".join(f"""ssh {worker} "nmon -s{freq} -c{duration} -F {worker}{name_suffix}.nmon -m {remote_header}" """
-                         for worker in workers)
+        return "\n".join(
+            f"""ssh {worker} "nmon -s{freq} -c{duration} -F {worker}{name_suffix}.nmon -m {remote_header}""""
+            for worker in workers)
 
     @staticmethod
     def nmon_remote_stop(workers):
@@ -26,5 +27,7 @@ class NmonUtils(object):
 
     @staticmethod
     def nmon_remote_agg(workers, remote_header, local_header, name_suffix):
-         return "\n".join(f"""scp {worker}:{remote_header}/{workers}{name_suffix}.nmon {local_header}"""
+        cmd = f"mkdir -p {local_header}/nmon" + "\n"
+        cmd += "\n".join(f"""scp {worker}:{remote_header}/{workers}{name_suffix}.nmon {local_header}/nmon"""
                          for worker in workers)
+        return cmd
