@@ -11,11 +11,13 @@ import time
 from trace.collect.framework import SparkCollect
 from utils.common import JsonUtils
 from utils.data.configurations import SparkKnobs, KnobUtils
+from utils.data.feature import NmonUtils
 
 SEED = 42
 workers = ["node2", "node3", "node4", "node5", "node6"]
 out_path = "examples/trace/spark/4.run_all_single_query_env"
 qid = "1"
+REMOTE_HEADER = "~/chenghao"
 
 spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
 knobs = spark_knobs.knobs
@@ -32,16 +34,6 @@ spark_collect = SparkCollect(
 knob_dict = spark_knobs.conf2knobs(conf_dict)
 knob_sign = KnobUtils.knobs2sign([knob_dict[k.id] for k in knobs], knobs)
 
-# prepare scripts to start and stop nmon over all the worker nodes.
-nmon_reset, nmon_start, nmon_stop, nmon_agg = spark_collect.make_commands_worker_system_states(
-    workers=workers,
-    duration=10,
-    tmp_path="~/chenghao",
-    out_path=out_path,
-    name_suffix=""
-)
-print("nmon commands prepared.")
-
 # prepare scripts for running
 for tid in range(1, 23):
     file_name = f"q{tid}-{qid}.sh"
@@ -52,14 +44,26 @@ for tid in range(1, 23):
         conf_dict=conf_dict,
         out_path=out_path
     )
-    print(spark_script)
     with open(f"{out_path}/{file_name}", "w") as f:
         f.write(spark_script)
     print(f"script {tid}-{qid} prepared for running")
 
-# try:
-#     start = time.time()
-#     os.system(f"bash {out_path}/{file_name}")
-#     print(f"finished running, takes {time.time() - start}s")
-# except Exception as e:
-#     print(f"failed to run due to {e}")
+
+nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=REMOTE_HEADER)
+nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=REMOTE_HEADER, duration=3600, freq=1)
+nmon_stop = NmonUtils.nmon_remote_stop(workers)
+nmon_agg = NmonUtils.nmon_remote_agg(workers, remote_header=REMOTE_HEADER, local_header=out_path, name_suffix="")
+
+try:
+    os.system(nmon_reset)
+    os.system(nmon_start)
+    time.sleep(10)
+    for tid in range(1, 23):
+        start = time.time()
+        file_name = f"q{tid}-{qid}.sh"
+        os.system(f"bash {out_path}/{file_name}")
+        print(f"finished running, takes {time.time() - start}s")
+    os.system(nmon_stop)
+    os.system(nmon_agg)
+except Exception as e:
+    print(f"failed to run due to {e}")
