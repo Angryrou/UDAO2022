@@ -35,18 +35,15 @@ knob_dict = spark_knobs.conf2knobs(conf_dict)
 knob_sign = KnobUtils.knobs2sign([knob_dict[k.id] for k in knobs], knobs)
 
 # prepare scripts for running
-for tid in range(1, 23):
-    file_name = f"q{tid}-{qid}.sh"
-    spark_script = spark_collect.make_script(
+file_names = [
+    spark_collect.save_one_script(
         tid=str(tid),
-        qid=qid,
-        knob_sign=knob_sign,
+        qid="1",
         conf_dict=conf_dict,
-        out_path=OUT_HEADER
+        out_header=OUT_HEADER
     )
-    with open(f"{OUT_HEADER}/{file_name}", "w") as f:
-        f.write(spark_script)
-    print(f"script {tid}-{qid} prepared for running")
+    for tid in range(1, 23)
+]
 
 nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=REMOTE_HEADER)
 nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=REMOTE_HEADER, name_suffix="", duration=3600, freq=1)
@@ -57,11 +54,10 @@ try:
     os.system(nmon_reset)
     os.system(nmon_start)
     time.sleep(10)
-    for tid in range(1, 23):
+    for file_name in file_names:
         start = time.time()
-        file_name = f"q{tid}-{qid}.sh"
-        os.system(f"bash {OUT_HEADER}/{file_name}")
-        print(f"finished running, takes {time.time() - start}s")
+        os.system(f"bash {OUT_HEADER}/{file_name} > {OUT_HEADER}/{file_name}.log 2>&1")
+        print(f"finished running for {file_name}, takes {time.time() - start}s")
     os.system(nmon_stop)
     os.system(nmon_agg)
 except Exception as e:

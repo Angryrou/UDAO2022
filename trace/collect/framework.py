@@ -62,12 +62,12 @@ class SparkCollect(Collection):
     def save_trace(self):
         pass
 
-    def make_script(self, tid: str, qid: str, knob_sign: str, conf_dict: dict, out_path: str,
+    def make_script(self, tid: str, qid: str, knob_sign: str, conf_dict: dict,
                     spath="/opt/hex_users/$USER/chenghao/spark-sql-perf",
                     jpath="/opt/hex_users/$USER/spark-3.2.1-hadoop3.3.0/jdk1.8") -> str:
         conf_str = "\n".join(f"--conf {k}={v} \\" for k, v in conf_dict.items())
         bm, sf = self.benchmark, self.scale_factor
-        os.makedirs(out_path, exist_ok=True)
+        name = f"{self.benchmark}{self.scale_factor}_q{tid}-{qid}_{knob_sign}"
 
         return f"""\
 # {tid}-{qid}
@@ -76,10 +76,11 @@ class SparkCollect(Collection):
 spath={spath}
 jpath={jpath}
 lpath={spath}/src/main/resources/log4j.properties
-        
+name={name}
+
 ~/spark/bin/spark-submit \\
 --class com.databricks.spark.sql.perf.MyRunTemplateQuery \\
---name {self.benchmark}{self.scale_factor}_q{tid}-{qid} \\
+--name {name} \\
 --master yarn \\
 --deploy-mode client \\
 --conf spark.executorEnv.JAVA_HOME=${{jpath}} \\
@@ -100,9 +101,27 @@ lpath={spath}/src/main/resources/log4j.properties
 --files "$lpath" \\
 --jars ~/spark/examples/jars/scopt_2.12-3.7.1.jar \\
 $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
--b {bm} -t {tid} -q {qid} -s {sf} -l {self.query_header} > {out_path}/{tid}-{qid}.log 2>&1
+-b {bm} -t {tid} -q {qid} -s {sf} -l {self.query_header} 
 
 """
+
+    def save_one_script(self, tid: str, qid: str, conf_dict: dict, out_header: str):
+        knob_dict = self.spark_knobs.conf2knobs(conf_dict)
+        knob_sign = KnobUtils.knobs2sign([knob_dict[k.id] for k in self.knobs], self.knobs)
+        # dropped > {log_header}/{name}.log 2>&1
+        spark_script = self.make_script(
+            tid=str(tid),
+            qid=str(qid),
+            knob_sign=knob_sign,
+            conf_dict=conf_dict
+        )
+        file_name = f"q{tid}-{qid}_{knob_sign}.sh"
+        os.makedirs(f"{out_header}/{tid}", exist_ok=True)
+        with open(f"{out_header}/{tid}/{file_name}", "w") as f:
+            f.write(spark_script)
+        print(f"script {tid}-{qid} prepared for running")
+        return file_name
+
 
 
 class MultiQueryEnvironment(object):
