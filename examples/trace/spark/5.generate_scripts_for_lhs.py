@@ -58,11 +58,12 @@ if __name__ ==  '__main__':
     )
 
     query_conf_dict = {
-        q: spark_knobs.df_knob2conf(spark_collect.lhs_sampler.get_samples(qpt, random_state=q))
+        q: spark_knobs.df_knob2conf(spark_collect.lhs_sampler.get_samples(qpt, random_state=q)).to_dict("records")
         for q in range(1, n_templates + 1)
     }
+    
     arg_list = [
-        (str(tid), str(qid), query_conf_dict[tid].iloc[qid-1].to_dict(), f"{out_header}/{tid}", )
+        (str(tid), str(qid), query_conf_dict[tid][qid-1], f"{out_header}/{tid}", )
         for tid in range(1, n_templates + 1)
         for qid in range(1, qpt + 1)
     ]
