@@ -17,7 +17,7 @@ class NmonUtils(object):
     @staticmethod
     def nmon_remote_start(workers, remote_header, name_suffix, duration, freq):
         return "\n".join(
-            f"""ssh {worker} "nmon -s{freq} -c{duration} -F {worker}{name_suffix}.nmon -m {remote_header}""""
+            f"""ssh {worker} "nmon -s{freq} -c{duration} -F {worker}{name_suffix}.nmon -m {remote_header}" """
             for worker in workers)
 
     @staticmethod
