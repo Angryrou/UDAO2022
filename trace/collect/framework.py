@@ -116,8 +116,8 @@ $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
             conf_dict=conf_dict
         )
         file_name = f"q{tid}-{qid}_{knob_sign}.sh"
-        os.makedirs(f"{out_header}/{tid}", exist_ok=True)
-        with open(f"{out_header}/{tid}/{file_name}", "w") as f:
+        os.makedirs(f"{out_header}", exist_ok=True)
+        with open(f"{out_header}/{file_name}", "w") as f:
             f.write(spark_script)
         print(f"script {tid}-{qid} prepared for running")
         return file_name
