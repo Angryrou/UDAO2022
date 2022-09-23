@@ -28,6 +28,6 @@ class NmonUtils(object):
     @staticmethod
     def nmon_remote_agg(workers, remote_header, local_header, name_suffix):
         cmd = f"mkdir -p {local_header}/nmon" + "\n"
-        cmd += "\n".join(f"""scp {worker}:{remote_header}/{workers}{name_suffix}.nmon {local_header}/nmon"""
+        cmd += "\n".join(f"""scp {worker}:{remote_header}/{worker}{name_suffix}.nmon {local_header}/nmon"""
                          for worker in workers)
         return cmd
