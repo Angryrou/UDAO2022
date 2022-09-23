@@ -59,19 +59,19 @@ if __name__ ==  '__main__':
         seed=seed
     )
 
-    start = time.time()
-    query_conf_dict = {
-        q: spark_knobs.df_knob2conf(spark_collect.lhs_sampler.get_samples(qpt, random_state=q)).to_dict("records")
-        for q in range(1, n_templates + 1)
-    }
-    print(f"Preparing configurations took {time.time() - start}s")
+    start1 = time.time()
 
-    arg_list = [
-        (str(tid), str(qid), query_conf_dict[tid][qid-1], f"{out_header}/{tid}", )
-        for tid in range(1, n_templates + 1)
-        for qid in range(1, qpt + 1)
-    ]
-    with Pool(processes=n_processes) as pool:
-        res = pool.starmap_async(spark_collect.save_one_script, arg_list)
-        res.get()
+    for tid in range(1, n_templates + 1):
+        start2 = time.time()
+        print(f"start working on template {tid}")
+        conf_dict_list = spark_knobs.df_knob2conf(
+            spark_collect.lhs_sampler.get_samples(qpt, random_state=tid)).to_dict("records")
+        print(f"configurations generated, cost {time.time() - start2}s")
+        arg_list = [(str(tid), str(qid), conf_dict_list[qid-1], f"{out_header}/{tid}", ) for qid in range(1, qpt + 1)]
+        with Pool(processes=n_processes) as pool:
+            res = pool.starmap_async(spark_collect.save_one_script, arg_list)
+            res.get()
+        print(f"prepared for template {tid}, cost {time.time() - start2}s")
+
+    print(f"finished prepared {n_templates * qpt} scripts, cost {time.time() - start1}s")
 
