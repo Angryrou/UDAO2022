@@ -38,7 +38,7 @@ knob_sign = KnobUtils.knobs2sign([knob_dict[k.id] for k in knobs], knobs)
 for tid in range(1, 23):
     file_name = f"q{tid}-{qid}.sh"
     spark_script = spark_collect.make_script(
-        tid=tid,
+        tid=str(tid),
         qid=qid,
         knob_sign=knob_sign,
         conf_dict=conf_dict,
