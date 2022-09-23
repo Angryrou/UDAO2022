@@ -17,10 +17,10 @@ Example:
     python examples/optimization/ws_grid/heuristic_closed_form/ws_grid_hcf.py -c examples/optimization/ws_grid/heuristic_closed_form/configs.json
 """
 
-moo_algo, solver, var_types, var_bounds, obj_names, opt_types, add_params = ConfigsParser().parse_details()
+moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
 
-moo = GenericMOO(moo_algo, solver, obj_names, obj_funcs=[func_def.obj_func1, func_def.obj_func2], opt_type=opt_types,
-                 const_funcs=[func_def.const_func1, func_def.const_func2], var_types=var_types, var_bounds=var_bounds,
+moo = GenericMOO(moo_algo, solver, obj_names, obj_funcs=[func_def.obj_func1, func_def.obj_func2], opt_types=opt_types,
+                 const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_bounds=var_bounds,
                  add_confs=add_params)
 
 po_objs, po_vars = moo.solve()

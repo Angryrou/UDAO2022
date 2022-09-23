@@ -27,6 +27,16 @@
       "type": "FLOAT"
     }
   ],
+  "constraints": [
+    {
+      "name": "g1",
+      "type": "<="
+    },
+    {
+      "name": "g2",
+      "type": "<="
+    }
+  ],
   "additional_params":
     {
       "ws_steps": 0.1,

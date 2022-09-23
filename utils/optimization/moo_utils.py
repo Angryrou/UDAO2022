@@ -78,3 +78,10 @@ def even_weights(stepsize, m):
 
     assert all(np.sum(ws_pairs, axis=1) == 1)
     return ws_pairs
+
+# common functions used in moo
+def _get_direction(opt_type, obj_index):
+    if opt_type[obj_index] == "MIN":
+        return 1
+    else:
+        return -1
