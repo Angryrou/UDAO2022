@@ -108,6 +108,10 @@ python examples/trace/spark/2.knob_sampling.py
    python examples/trace/spark/4.run_all_single_query_env.py
    ```
    - an example in the multi-query environment
+   ```bash
+   export PYTHONPATH="$PWD"
+   python examples/trace/spark/5.generate_scripts_for_lhs.py --num-processes 30
+   ```
 
 TPCDS
 -----     
