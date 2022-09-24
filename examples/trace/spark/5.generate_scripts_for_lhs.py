@@ -13,7 +13,7 @@ import numpy as np
 from multiprocessing import Pool
 
 from trace.collect.framework import SparkCollect
-from utils.data.configurations import SparkKnobs, KnobUtils
+from utils.data.configurations import SparkKnobs
 
 
 class Args():
