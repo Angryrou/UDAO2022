@@ -46,7 +46,7 @@ file_names = [
 ]
 
 nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=REMOTE_HEADER)
-nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=REMOTE_HEADER, name_suffix="", duration=3600, freq=1)
+nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=REMOTE_HEADER, name_suffix="", counts=3600, freq=1)
 nmon_stop = NmonUtils.nmon_remote_stop(workers)
 nmon_agg = NmonUtils.nmon_remote_agg(workers, remote_header=REMOTE_HEADER, local_header=OUT_HEADER, name_suffix="")
 

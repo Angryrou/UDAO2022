@@ -19,7 +19,7 @@ from utils.data.configurations import SparkKnobs
 class Args():
     def __init__(self):
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument("-b", "--benchmark", type=str, default="tpch")
+        self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
         self.parser.add_argument("-k", "--knob-meta-file", type=str, default="resources/knob-meta/spark.json")
         self.parser.add_argument("-s", "--seed", type=int, default=42)
         self.parser.add_argument("-q", "--query-header", type=str, default="resources/tpch-kit/spark-sqls")

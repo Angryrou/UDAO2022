@@ -4,12 +4,34 @@
 #
 # Created at 9/19/22
 import os
+import time
 from abc import ABCMeta, abstractmethod
 
+import numpy as np
 import pandas as pd
 
 from trace.collect.sampler import LHSSampler, BOSampler
+from utils.common import PickleUtils
 from utils.data.configurations import KnobUtils, SparkKnobs
+
+
+class QueryQueue(object):
+    def __init__(self, n_templates, qpt: int, seed: int):
+        np.random.seed(seed)
+        queries = np.tile(np.arange(1, n_templates + 1), [qpt, 1])
+        self.queries = np.apply_along_axis(np.random.permutation, axis=1, arr=queries).flatten()
+        self.total = n_templates * qpt
+        self.n_templates = n_templates
+        self.qpt = qpt
+
+    def index_to_tid_and_qid(self, i):
+        if i >= self.total:
+            print(f"no more queries")
+            return -1, -1
+        else:
+            tid = self.queries[i]
+            qid = i // self.n_templates
+            return tid, qid
 
 
 class Collection(object, metaclass=ABCMeta):
@@ -19,13 +41,14 @@ class Collection(object, metaclass=ABCMeta):
         self.knobs = knobs
         self.lhs_sampler = LHSSampler(knobs, seed=seed)
         self.bo_sampler = BOSampler(knobs, seed=seed)
+        self.seed = seed
 
     @abstractmethod
-    def get_queries(self, templates: list, template_query_counts: list):
+    def get_queries(self, n_templates: int, qpt: int):
         pass
 
     @abstractmethod
-    def get_configurations_lhs(self, n_samples: int):
+    def get_configurations_lhs(self, n_templates: int, qpt: int, cache_header: str):
         pass
 
     @abstractmethod
@@ -47,11 +70,27 @@ class SparkCollect(Collection):
         self.spark_knobs = spark_knobs
         self.query_header = query_header
 
-    def get_queries(self, templates: list, template_query_counts: list):
-        pass
+    def get_queries(self, n_templates: int, qpt: int):
+        """
+        get 2D query list, each row is a permutation of full template queries.
+        :param n_templates: number of templates
+        :param qpt: number of queries per templates
+        :return:
+        """
+        return QueryQueue(n_templates=n_templates, qpt=qpt, seed=self.seed)
 
-    def get_configurations_lhs(self, n_samples: int):
-        pass
+    def get_configurations_lhs(self, n_templates, qpt: int, cache_header: str):
+        file_name = f"lhs_{n_templates}x{qpt}.pkl"
+        try:
+            conf_df_dict = PickleUtils.load(cache_header, file_name)
+        except:
+            conf_df_dict = {}
+            for tid in range(1, n_templates + 1):
+                start = time.time()
+                conf_df_dict[tid] = self.spark_knobs.df_knob2conf(self.lhs_sampler.get_samples(qpt, random_state=tid))
+                print(f"generated {qpt} configurations for {tid}, cost {time.time() - start} s")
+            PickleUtils.save(conf_df_dict, cache_header, file_name)
+        return conf_df_dict
 
     def get_configurations_bo(self):
         pass
@@ -121,7 +160,6 @@ $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
             f.write(spark_script)
         print(f"script {tid}-{qid} prepared for running")
         return file_name
-
 
 
 class MultiQueryEnvironment(object):
