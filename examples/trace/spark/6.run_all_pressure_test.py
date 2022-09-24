@@ -28,18 +28,19 @@ class Args():
         return self.parser.parse_args()
 
 
-def run_one_batch(tid, qid):
+def run_one_script(tid, qid, script_header, log_header):
     files = glob(f"{script_header}/{tid}/q{tid}-{qid}_*")
-    assert len(files) == 1
+    assert len(files) == 1, f"tid={tid}, qid={qid}, {files}"
     file = files[0]
     file_name = file.split("/")[-1].split(".")[0]
     print(f"start running {file_name}")
     start = time.time()
-    os.system(f"bash {file} >> {log_header}/q{tid}-{qid}.log")
+    os.system(f"bash {file} >> {log_header}/q{tid}-{qid}.log 2>&1")
     print(f"finished running for {file_name}, takes {time.time() - start}s")
 
 
 if __name__ == '__main__':
+
     REMOTE_HEADER = "~/chenghao"
 
     args = Args().parse()
@@ -51,16 +52,17 @@ if __name__ == '__main__':
     n_templates = args.num_templates
     n_processes = args.num_processes
     qpt = args.num_queries_per_template_to_run
-    total_cores = args.cluster_cores
     workers = ["node2", "node3", "node4", "node5", "node6"]
 
     log_header = f"{out_header}/log"
     nmon_header = f"{out_header}/nmon"
+    os.makedirs(log_header, exist_ok=True)
+    os.makedirs(nmon_header, exist_ok=True)
 
-    if benchmark == "tpch":
+    if benchmark == "TPCH":
         assert n_templates == 22
         qpt_total = 4545
-    elif benchmark == "tpcds":
+    elif benchmark == "TPCDS":
         assert n_templates == 105
         qpt_total = 952
     else:
@@ -75,8 +77,8 @@ if __name__ == '__main__':
 
     # prepare the query list
     qq = QueryQueue(n_templates=n_templates, qpt=qpt_total, seed=seed)
-    total_queries = n_templates * qpt_total
-    arg_list = [qq.index_to_tid_and_qid(i) for i in range(total_queries)]
+    total_queries = n_templates * qpt
+    arg_list = [qq.index_to_tid_and_qid(i) + (script_header, log_header, ) for i in range(total_queries)]
 
     try:
         os.system(nmon_reset)
@@ -87,7 +89,7 @@ if __name__ == '__main__':
         # (2) cores for a spark sql: 8-50
         # (3) at most spark sqls running: 150 / 8 = 18, n_processes >= 18
         with Pool(processes=n_processes) as pool:
-            res = pool.starmap(run_one_batch, arg_list)
+            res = pool.starmap(run_one_script, arg_list)
 
         os.system(nmon_stop)
         os.system(nmon_agg)

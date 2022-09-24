@@ -30,7 +30,7 @@ class QueryQueue(object):
             return -1, -1
         else:
             tid = self.queries[i]
-            qid = i // self.n_templates
+            qid = (i // self.n_templates) + 1
             return tid, qid
 
 

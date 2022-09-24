@@ -111,6 +111,8 @@ python examples/trace/spark/2.knob_sampling.py
    ```bash
    export PYTHONPATH="$PWD"
    python examples/trace/spark/5.generate_scripts_for_lhs.py --num-processes 30
+   # pressure test
+   python examples/trace/spark/6.run_all_pressure_test.py --num-processes 22 --num-queries-per-template-to-run 400 
    ```
 
 TPCDS
