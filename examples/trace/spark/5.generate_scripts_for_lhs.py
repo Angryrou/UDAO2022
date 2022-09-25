@@ -13,6 +13,7 @@ import numpy as np
 from multiprocessing import Pool
 
 from trace.collect.framework import SparkCollect
+from utils.common import PickleUtils
 from utils.data.configurations import SparkKnobs
 
 
@@ -23,7 +24,8 @@ class Args():
         self.parser.add_argument("-k", "--knob-meta-file", type=str, default="resources/knob-meta/spark.json")
         self.parser.add_argument("-s", "--seed", type=int, default=42)
         self.parser.add_argument("-q", "--query-header", type=str, default="resources/tpch-kit/spark-sqls")
-        self.parser.add_argument("-o", "--out-header", type=str, default="resources/scripts/tpch-lhs")
+        self.parser.add_argument("--script-header", type=str, default="resources/scripts/tpch-lhs")
+        self.parser.add_argument("--cache-header", type=str, default="examples/trace/spark/cache")
         self.parser.add_argument("--num-templates", type=int, default=22)
         self.parser.add_argument("--num-queries-per-template", type=int, default=3637)
         self.parser.add_argument("--num-processes", type=int, default=6)
@@ -38,7 +40,8 @@ if __name__ ==  '__main__':
 
     seed = args.seed
     query_header = args.query_header
-    out_header = args.out_header
+    script_header = args.script_header
+    cache_header = args.cache_header
     n_templates = args.num_templates
     n_processes = args.num_processes
     # the number of queries per template for LHS, 100K / 22 * 0.8 = 3637
@@ -47,7 +50,8 @@ if __name__ ==  '__main__':
     qpt = args.num_queries_per_template
 
     np.random.seed(seed)
-    os.makedirs(out_header, exist_ok=True)
+    os.makedirs(script_header, exist_ok=True)
+    os.makedirs(cache_header, exist_ok=True)
     spark_knobs = SparkKnobs(meta_file=args.knob_meta_file)
     knobs = spark_knobs.knobs
 
@@ -61,17 +65,19 @@ if __name__ ==  '__main__':
 
     start1 = time.time()
 
+    conf_df_dict = {}
     for tid in range(1, n_templates + 1):
         start2 = time.time()
         print(f"start working on template {tid}")
-        conf_dict_list = spark_knobs.df_knob2conf(
-            spark_collect.lhs_sampler.get_samples(qpt, random_state=tid)).to_dict("records")
+        conf_df = spark_knobs.df_knob2conf(spark_collect.lhs_sampler.get_samples(qpt, random_state=tid))
+        conf_dict_list = conf_df.to_dict("records")
+        conf_df_dict[tid] = conf_df
         print(f"configurations generated, cost {time.time() - start2}s")
-        arg_list = [(str(tid), str(qid), conf_dict_list[qid-1], f"{out_header}/{tid}", ) for qid in range(1, qpt + 1)]
+        arg_list = [(str(tid), str(qid), conf_dict_list[qid-1], f"{script_header}/{tid}", ) for qid in range(1, qpt + 1)]
         with Pool(processes=n_processes) as pool:
             res = pool.starmap_async(spark_collect.save_one_script, arg_list)
             res.get()
         print(f"prepared for template {tid}, cost {time.time() - start2}s")
 
     print(f"finished prepared {n_templates * qpt} scripts, cost {time.time() - start1}s")
-
+    PickleUtils.save(conf_df_dict, cache_header, f"lhs_{n_templates}x{qpt}.pkl")

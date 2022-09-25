@@ -37,6 +37,6 @@ class PickleUtils(object):
         path = f"{header}/{file_name}"
         if not os.path.exists(path):
             raise FileNotFoundError(path)
-        with open(path) as f:
+        with open(path, "rb") as f:
             return pickle.load(f)
 
