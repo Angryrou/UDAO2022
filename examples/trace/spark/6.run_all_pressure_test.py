@@ -85,10 +85,10 @@ if __name__ == '__main__':
 
     if benchmark == "TPCH":
         assert n_templates == 22
-        qpt_total = 4545
+        qpt_total = 3637
     elif benchmark == "TPCDS":
         assert n_templates == 105
-        qpt_total = 952
+        qpt_total = 762
     else:
         raise ValueError(benchmark)
     if debug:
