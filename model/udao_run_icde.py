@@ -1,7 +1,7 @@
 ##################
 import yaml
 import numpy as np
-import utils as ut
+import model.utils as ut
 import itertools as itools
 from model.udao import UDAOrunner
 from model.utils import DataManager

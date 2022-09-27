@@ -23,8 +23,9 @@ Batch Objective Prediction
     - `Batch_model` has a `predict` method which can take `zmesg` as input and return a predicted objective value
     - The `predict` method will check whether the `zmesg` is legal. If `zmesg` is illegal, it will return `-1`. 
     
-4. Run model predcition test
-    ```batsh
+    
+4. Run model prediction test
+    ```bash
     python batch_predict_test.py
     ``` 
 
