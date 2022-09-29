@@ -7,6 +7,7 @@
 # Created at 15/09/2022
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 # a quite efficient way to get the indexes of pareto points
@@ -85,3 +86,19 @@ def _get_direction(opt_type, obj_index):
         return 1
     else:
         return -1
+
+
+def plot_po(po, n_obj=2):
+    # po: ndarray (n_solutions * n_objs)
+    ## for 2D
+    po_obj1 = po[:, 0]
+    po_obj2 = po[:, 1]
+
+    fig, ax = plt.subplots()
+    ax.scatter(po_obj1, po_obj2, marker='o', color="blue")
+
+    ax.set_xlabel('Obj 1')
+    ax.set_ylabel('Obj 2')
+
+    plt.tight_layout()
+    plt.show()

@@ -14,6 +14,17 @@ import numpy as np
 class WeightedSum(BaseMOO):
 
     def __init__(self, ws_pairs, inner_solver, solver_params, n_objs: int, obj_funcs, opt_type, const_funcs, const_types):
+        '''
+        parameters used in Weighted Sum
+        :param ws_pairs: list, even weight settings for all objectives, e.g. for 2D, [[0, 1], [0.1, 0.9], ... [1, 0]]
+        :param inner_solver: str, the name of the solver used in Weighted Sum
+        :param solver_params: int, parameter used in solver, e.g. in grid-search, it is the number of grids for each variable
+        :param n_objs: int, the number of objectives
+        :param obj_funcs: list, objective functions
+        :param opt_type: list, objectives to minimize or maximize
+        :param const_funcs: list, constraint functions
+        :param const_types: list, constraint types ("<=" or "<", e.g. g1(x1, x2, ...) - c <= 0)
+        '''
         super().__init__()
         self.inner_sovler = inner_solver
         self.ws_pairs = ws_pairs
@@ -30,6 +41,13 @@ class WeightedSum(BaseMOO):
             raise ValueError(self.inner_sovler)
 
     def solve(self, bounds, var_types):
+        '''
+        solve MOO by Weighted Sum
+        :param bounds: ndarray(n_vars, 2), lower and upper bounds of variables
+        :param var_types: list, variable types (float, integer, binary)
+        :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
+                 po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
+        '''
         n_objs = self.n_objs
         if self.inner_sovler == "grid_search":
             vars = self.gs._get_input(bounds, var_types)
@@ -64,45 +82,47 @@ class WeightedSum(BaseMOO):
         else:
             po_obj_list, po_var_list = [], []
 
-            # get n_dim objective values
-            objs, po_soo_inds = [], []
+            # # get n_dim objective values
+            objs = []
             for i, obj_func in enumerate(self.obj_funcs):
-                obj = obj_func(vars_after_const_check) * self._get_direction(i)
+                obj = obj_func(vars_after_const_check) * moo_ut._get_direction(self.opt_type, i)
                 objs.append(obj)
-                # find the index of optimal value for the current obj
-                po_soo_ind = np.argmin(obj)
-                po_soo_inds.append(po_soo_ind)
 
             # transform objs to array: (n_samples/grids * n_objs)
             objs = np.array(objs).T
 
-            for i in range(n_objs):
-                po_obj_list.append(objs[po_soo_inds[i]])
-                po_var_list.append(vars_after_const_check[po_soo_inds[i]])
-
             # normalization
             objs_min, objs_max = objs.min(0), objs.max(0)
+
             if all((objs_min - objs_max) < 0):
                 objs_norm = (objs - objs_min) / (objs_max - objs_min)
                 for ws in self.ws_pairs:
                     po_ind = self.get_soo_index(objs_norm, ws)
                     po_obj_list.append(objs[po_ind])
                     po_var_list.append(vars_after_const_check[po_ind])
+
+                # only keep non-dominated solutions
                 return moo_ut._summarize_ret(po_obj_list, po_var_list)
 
     def get_soo_index(self, objs, ws_pairs):
+        '''
+        reuse code in VLDB2022
+        :param objs: ndarray(n_feasible_samples/grids, 2)
+        :param ws_pairs: list, one weight setting for all objectives, e.g. [0, 1]
+        :return: int, index of the minimum weighted sum
+        '''
         obj = np.sum(objs * ws_pairs, axis=1)
         return np.argmin(obj)
 
     def _get_const_violation(self, vars):
+        '''
+        get violation of each constraint
+        :param vars: ndarray(n_grids/n_samples, 2), variables
+        :return: ndarray(n_samples/grids, n_const), constraint violations
+        '''
 
         g_list = [const_func(vars) for const_func in self.const_funcs]
 
         # shape (n_samples/grids, n_const)
         return np.array(g_list).T
 
-    def _get_direction(self, obj_index):
-        if self.opt_type[obj_index] == "MIN":
-            return 1
-        else:
-            return -1

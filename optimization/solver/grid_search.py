@@ -11,15 +11,19 @@ from optimization.solver.base_solver import BaseSolver
 
 class GridSearch(BaseSolver):
     def __init__(self, gs_params):
+        '''
+
+        :param gs_params: int, the number of grids for each variable
+        '''
         super().__init__()
         self.n_grids_per_param = gs_params
 
     def _get_input(self, bounds, var_types):
         '''
         grid search on each variable
-        :param bounds: array (2 * n_vars), 2 refers to the lower and upper bounds
+        :param bounds: ndarray (n_vars, 2), 2 refers to the lower and upper bounds
         :param var_types: list, type of each variable
-        :return: array, vararibles (n_grids * n_vars)
+        :return: array, variables (n_grids * n_vars)
         '''
 
         if any((bounds[:, 0] - bounds[:, 1]) > 0):

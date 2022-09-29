@@ -7,8 +7,7 @@
 from optimization.moo.generic_moo import GenericMOO
 from utils.optimization.configs_parser import ConfigsParser
 import utils.optimization.functions_def as func_def
-
-from matplotlib import pyplot as plt
+import utils.optimization.moo_utils as moo_ut
 
 HELP = """
 Format: python ws_grid_hcf.py -c <config> -h
@@ -19,27 +18,17 @@ Example:
 
 moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
 
-moo = GenericMOO(moo_algo, solver, obj_names, obj_funcs=[func_def.obj_func1, func_def.obj_func2], opt_types=opt_types,
-                 const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_bounds=var_bounds,
-                 add_confs=add_params)
+moo = GenericMOO()
 
-po_objs, po_vars = moo.solve()
+moo.problem_setup(obj_names=obj_names, obj_funcs=[func_def.obj_func1, func_def.obj_func2], opt_types=opt_types,
+                  const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_bounds=var_bounds)
+
+po_objs, po_vars = moo.solve(moo_algo, solver, add_params)
+
+print("Pareto solutions:")
 print(po_objs)
+print("Variables:")
 print(po_vars)
 
-def plot_po(po):
-    # po: ndarray (n_solutions * n_objs)
-    ## for 2D
-    po_obj1 = po[:, 0]
-    po_obj2 = po[:, 1]
-
-    fig, ax = plt.subplots()
-    ax.scatter(po_obj1, po_obj2, marker='o', color="blue")
-
-    ax.set_xlabel('Obj 1')
-    ax.set_ylabel('Obj 2')
-
-    plt.tight_layout()
-    plt.show()
-
-plot_po(po_objs)
+if po_objs is not None:
+    moo_ut.plot_po(po_objs, n_obj=2)

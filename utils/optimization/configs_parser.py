@@ -19,7 +19,7 @@ class ConfigsParser():
     def parse(self):
         return self.parser.parse_args()
 
-    def parse_details(self):
+    def parse_details(self, option=None):
         args = self.parse()
         try:
             with open(args.config) as f:
@@ -27,36 +27,52 @@ class ConfigsParser():
         except:
             raise Exception(f"{args.config} does not exist")
 
-        # Load the configuration information correctly
-        try:
-            moo_algo = configs['moo_algo']
-            solver = configs['solver']
-            var_types, var_bounds = self.get_vars_conf(configs['variables'])
-            obj_names, opt_types = self.get_objs_conf(configs['objectives'])
-            const_types = self.get_const_types(configs['constraints'])
-            add_params = []
-            if moo_algo == "weighted_sum":
-                ws_steps = configs['additional_params']['ws_steps']
-                add_params.append(ws_steps)
-                solver_params = configs['additional_params']['solver_params'] # the number of grids/samples per variables
-                add_params.append(solver_params)
-            elif moo_algo == "evolutionary":
-                inner_algo = configs['additional_params']['inner_algo']
-                add_params.append(inner_algo)
-                pop_size = configs['additional_params']['pop_size']
-                add_params.append(pop_size)
-                nfe = configs['additional_params']['nfe']
-                add_params.append(nfe)
-                flag = configs['additional_params']['fix_randomness_flag']
-                add_params.append(flag)
+        if option == None:
+            # Load the configuration information correctly
+            try:
+                moo_algo = configs['moo_algo']
+                solver = configs['solver']
+                var_types, var_bounds = self.get_vars_conf(configs['variables'])
+                obj_names, opt_types = self.get_objs_conf(configs['objectives'])
+                const_types = self.get_const_types(configs['constraints'])
+                add_params = []
+                if moo_algo == "weighted_sum":
+                    ws_steps = configs['additional_params']['ws_steps']
+                    add_params.append(ws_steps)
+                    solver_params = configs['additional_params'][
+                        'solver_params']  # the number of grids/samples per variables
+                    add_params.append(solver_params)
+                elif moo_algo == "progressive_frontier":
+                    pf_option = configs['additional_params']["pf_option"]
+                    add_params.append(pf_option)
+                    n_probes = configs['additional_params']["n_probes"]
+                    add_params.append(n_probes)
+                    n_grids = configs['additional_params']["n_grids"]
+                    add_params.append(n_grids)
 
-            else:
-                raise Exception(f"Algorithm {moo_algo} is not configured")
+                    mogd_params = configs['additional_params']["mogd_params"]
+                    add_params.append(mogd_params)
 
-        except:
-            raise Exception(f"configurations are not well specified.")
+                elif moo_algo == "evolutionary":
+                    inner_algo = configs['additional_params']['inner_algo']
+                    add_params.append(inner_algo)
+                    pop_size = configs['additional_params']['pop_size']
+                    add_params.append(pop_size)
+                    nfe = configs['additional_params']['nfe']
+                    add_params.append(nfe)
+                    flag = configs['additional_params']['fix_randomness_flag']
+                    add_params.append(flag)
 
-        return [moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params]
+                else:
+                    raise Exception(f"Algorithm {moo_algo} is not configured")
+
+            except:
+                raise Exception(f"configurations are not well specified.")
+
+            return [moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params]
+        else:
+            model_params = configs["model"]
+            return model_params
 
     def get_vars_conf(self, var_params):
         var_types = [var["type"] for var in var_params]

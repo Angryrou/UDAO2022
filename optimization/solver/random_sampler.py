@@ -9,12 +9,22 @@ from optimization.solver.base_solver import BaseSolver
 
 class RandomSampler(BaseSolver):
     def __init__(self, rs_params):
+        '''
+
+        :param rs_params: int, the number of samples per variable
+        '''
         super().__init__()
         self.n_samples_per_param = rs_params
         self.seed = 0
 
     def _rand_float(self, lower, upper, n_samples):
-        ## generate n_samples random float values within the lower and upper bounds
+        '''
+        generate n_samples random float values within the lower and upper bounds
+        :param lower: int, lower bound
+        :param upper: int upper bound
+        :param n_samples: int, the number of samples
+        :return: ndarray(n_samples, ), n_samples random float
+        '''
         if lower > upper:
             return None
         else:
@@ -24,10 +34,10 @@ class RandomSampler(BaseSolver):
 
     def _get_input(self, bounds, var_types):
         '''
-
-        :param bounds: array (2 * n_vars), 2 refers to the lower and upper bounds
+        generate samples of variables
+        :param bounds: array (n_vars, 2), 2 refers to the lower and upper bounds
         :param var_types: list, type of each variable
-        :return: array, vararibles (n_samples * n_vars)
+        :return: array, variables (n_samples * n_vars)
         '''
         if any((bounds[:, 0] - bounds[:, 1]) > 0):
             print("ERROR: lower bound is greater than the upper bound!")
