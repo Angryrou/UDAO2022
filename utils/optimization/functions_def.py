@@ -13,7 +13,7 @@
 ## subject to:
 ##          g1(x, y) = x * x + y * y <= 225
 ##          g2(x, y) = x - 3 * y + 10 <= 0
-##          x in [-20, inf], y in [-inf, 20]
+##          x in [-20, 20], y in [-20, 20]
 
 def obj_func1(vars):
     '''

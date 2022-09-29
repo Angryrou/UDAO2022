@@ -6,12 +6,12 @@
       "name": "v1",
       "type": "FLOAT",
       "min": -20,
-      "max": 10
+      "max": 20
     },
     {
       "name": "v2",
       "type": "FLOAT",
-      "min": -10,
+      "min": -20,
       "max": 20
     }
   ],
