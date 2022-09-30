@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-import utils as ut
-import model.architecture.utils as utils
+import utils.model.model_utils as ut
+import utils.model.utils as utils
 
 class AENetNNRNetAdaptor:
     def __init__(self, ae):

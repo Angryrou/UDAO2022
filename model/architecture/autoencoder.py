@@ -3,8 +3,8 @@ import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 import copy
 import numpy as np
-import utils as ut
-import model.architecture.utils as utils
+import utils.model.model_utils as ut
+import utils.model.utils as utils
 from .ae_net import AENet
 
 class AutoEncoder:

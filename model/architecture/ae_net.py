@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import utils as ut
+import utils.model.model_utils as ut
 
 class AENet(nn.Module):
     def __init__(self, W_dim=12, C_dim=12, O_dim=358, cap_list=None, cap_from=512, cap_to=32, cap_facotr=0.25):

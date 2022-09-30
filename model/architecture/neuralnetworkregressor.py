@@ -4,8 +4,8 @@ from torch.utils.data import TensorDataset, DataLoader
 import copy
 import numpy as np
 from .nnr_net import NNRNet
-import model.architecture.utils as utils
-import utils as ut
+import utils.model.utils as utils
+import utils.model.model_utils as ut
 
 class NeuralNetworkRegressor:
     def __init__(self, cap_list, W_dim=12, C_dim=12, l_dim=1):

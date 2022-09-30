@@ -1,5 +1,5 @@
 import torch
-import utils as ut
+import utils.model.model_utils as ut
 
 
 #### WL_DIST ####

@@ -1,10 +1,10 @@
 ##################
 import yaml
 import numpy as np
-import model.utils as ut
+import utils.model.model_utils as ut
 import itertools as itools
-from model.udao import UDAOrunner
-from model.utils import DataManager
+from model.architecture.udao import UDAOrunner
+from utils.model.model_utils import DataManager
 import time
 from sys import exit
 import os
@@ -23,16 +23,16 @@ if index == -1:
 datman_ = DataManager(data_)
 
 #distributed execution hyper-parameters
-l_p_all_0_ae_lr = [1e-4, 3e-4, 1e-3, 3e-3, 1e-2]#defines min number of nodes req
-l_p_all_0_ae_bs = [64, 128, 256]
-l_p_all_0_nnr_lr = [1e-4, 3e-4, 1e-3, 3e-3, 1e-2]
-l_p_all_0_nnr_bs = [64, 128, 256]
+# l_p_all_0_ae_lr = [1e-4, 3e-4, 1e-3, 3e-3, 1e-2]#defines min number of nodes req
+# l_p_all_0_ae_bs = [64, 128, 256]
+# l_p_all_0_nnr_lr = [1e-4, 3e-4, 1e-3, 3e-3, 1e-2]
+# l_p_all_0_nnr_bs = [64, 128, 256]
 
 #1-node test cases
-#l_p_all_0_ae_lr = [1e-4]
-#l_p_all_0_ae_bs = [64, 128]
-#l_p_all_0_nnr_lr = [1e-4]
-#l_p_all_0_nnr_bs = [64]
+l_p_all_0_ae_lr = [1e-4]
+l_p_all_0_ae_bs = [64, 128]
+l_p_all_0_nnr_lr = [1e-4]
+l_p_all_0_nnr_bs = [64]
 
 # if len(l_p_all_0_ae_lr)>len(l_p_all_0_nnr_lr):
 #     req_workers = len(l_p_all_0_ae_lr)

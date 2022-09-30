@@ -48,7 +48,8 @@ workloads:
     test_cases: true
     test_data: ./data/test/reco_30_icde.csv
     #worker_nodes: ["node11", "node12", "node13", "node14", "node15", "node16", "node17"]
-    worker_nodes: ["node11", "node12", "node13", "node14"]
+    #worker_nodes: ["node11", "node12", "node13", "node14"]
+    worker_nodes: ["Machine_Nodename"]
     #train_order: ["tr", "inc", "inc", "inc", "inc", "inc"]
     train_order: ["tr", "inc", "inc", "tr"]
     #train_order: ["tr", "inc", "inc", "inc", "inc", "inc", "inc", "tr", "inc", "inc", "inc", "inc", "inc", "inc", "tr", "inc", "inc", "inc", "inc", "inc", "inc"]

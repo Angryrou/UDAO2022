@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import utils as ut
+import utils.model.model_utils as ut
 
 class NNRNet(nn.Module):
     def __init__(self, input_dim, output_dim, cap_list):

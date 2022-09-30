@@ -21,7 +21,7 @@ scp node19:/mnt/disk8/repo_cache_files/batch_confs/*.pkl UDAO2022/examples/model
 
 2. Copy files into [model](../../model)
 ```bash
-scp -r node19:/mnt/disk8/repo_cache_files/data UDAO2022/model/
+scp -r node19:/mnt/disk8/repo_cache_files/data UDAO2022/examples/model/spark/
 ``` 
 
 3. The [examples](../../examples/model/spark) directory contains executables that demonstrate the batch and streaming models taken from the UDAO repo. Brief description of code:

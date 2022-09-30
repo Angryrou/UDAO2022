@@ -7,8 +7,8 @@ from sklearn.preprocessing import MinMaxScaler
 from model.architecture.autoencoder import AutoEncoder
 from model.architecture.ae_nnr_adaptor import AENetNNRNetAdaptor
 from model.architecture.neuralnetworkregressor import NeuralNetworkRegressor
-import model.architecture.utils as utils
-import utils as ut
+import utils.model.utils as utils
+import utils.model.model_utils as ut
 
 class UDAOrunner:
     def __init__(self, data, max_seen_size, ckp_path="checkpoints/udao"):
