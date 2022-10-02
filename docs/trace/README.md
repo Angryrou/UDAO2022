@@ -1,27 +1,43 @@
 Traces
 ======
 
+From the `trace` package and examples, we describe and point out how we handle the trace collection in different benchmarks and system settings, including
+
 <!--ts-->
-
-* [Spark](#spark)
-  * [Configurations](#configurations)
-  * [TPCH](#tpch)
-  * [TPCDS](#tpcds)
-  * [TPCxBB](#tpcxbb)
-* [Postgres](#postgres)
-  * [Configurations](#configurations)
-  * [TPCH](#tpch)
-  * [TPCDS](#tpcds)
-
+* [Single-query environment](#single-query-environment)
+  - [Spark 2.3.1](#spark-231)
+    - [Spark-TPCxBB](#spark-tpcxbb)
+  - [Postgres 12.4](#postgres-124)
+    - [PSQL-TPCH](#psql-tpch)
+    - [PSQL-TPCDS](#psql-tpcds)
+* [Multi-query environment](#multi-query-envir)
+  - [Spark 3.2.1](#spark-321)
+    - [Spark-TPCH](#spark-tpch)
+    - [Spark-TPCDS](#spark-tpcds)
+  - MaxCompute (confidential)
 <!--te-->
 
-Spark
-=====
 
-Configurations
---------------
+## Single-query environment
 
-List of the selected Spark knobs (when `spark.dynamicAllocation.enabled` is disabled)
+### Spark 2.3.1
+
+#### Spark-TPCxBB
+
+### Postgres 12.4
+
+#### PSQL-TPCH
+
+#### PSQL-TPCDS
+
+## Multi-query environment
+
+Our traces from the multi-query environment are either from the production workloads or the workloads mimicing the production.
+Although the real traces from the industry world is confidential, we run TPCH and TPCDs over Spark 3.2.1 to mimicinng the real world system states.
+
+### Spark 3.2.1
+
+Here is the list of the selected Spark knobs (when `spark.dynamicAllocation.enabled` is disabled)
 
 ```yaml
 k1: spark.executor.memory
@@ -55,12 +71,25 @@ EMR.
 12. s4 takes `{ON, OFF}` to control either the knob choose `parallelism` or `2001` (highly compressed data
     when `s4>2000`)
 
+We also fixed some knobs according to the [best practice][1]. E.g., we have the following lines in `spark-defaults.conf` 
+```bash
+spark.serializer=org.apache.spark.serializer.KryoSerializer
+spark.kryoserializer.buffer.max=512m
+spark.sql.adaptive.enabled=false
+spark.sql.cbo.enabled=true
+spark.sql.cbo.joinReorder.dp.star.filter=true
+spark.sql.cbo.joinReorder.enabled=true
+spark.sql.cbo.planStats.enabled=true
+spark.sql.cbo.starSchemaDetection=true
+```
+
 [1]: https://aws.amazon.com/blogs/big-data/best-practices-for-successfully-managing-memory-for-apache-spark-applications-on-amazon-emr/
 
 [2]: https://spoddutur.github.io/spark-notes/distribution_of_executors_cores_and_memory_for_spark_application.html
 
-TPCH
-----
+#### Spark-TPCH
+
+Here are the sketch steps for the trace collection.
 
 1. Setup TPCH benchmark over a Spark cluster
 
@@ -118,6 +147,7 @@ python examples/trace/spark/2.knob_sampling.py
    python examples/trace/spark/6.run_all_pressure_test.py --num-processes 22 --num-queries-per-template-to-run 100 
    ```
 
-TPCDS
------     
+#### Spark-TPCDS
+
+ 
 
