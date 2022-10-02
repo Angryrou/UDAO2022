@@ -10,7 +10,7 @@ From the `trace` package and examples, we describe and point out how we handle t
   - [Postgres 12.4](#postgres-124)
     - [PSQL-TPCH](#psql-tpch)
     - [PSQL-TPCDS](#psql-tpcds)
-* [Multi-query environment](#multi-query-envir)
+* [Multi-query environment](#multi-query-environment)
   - [Spark 3.2.1](#spark-321)
     - [Spark-TPCH](#spark-tpch)
     - [Spark-TPCDS](#spark-tpcds)
