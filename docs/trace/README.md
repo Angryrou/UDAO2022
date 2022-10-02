@@ -3,12 +3,15 @@ Traces
 
 <!--ts-->
 
-* [Spark_TPCH](#spark_tpch)
-    * [collection](#collection)
-    * [parsing](#parsing)
-* [Spark_TPCDS](#spark_tpch)
-    * [collection](#collection)
-    * [parsing](#parsing)
+* [Spark](#spark)
+  * [Configurations](#configurations)
+  * [TPCH](#tpch)
+  * [TPCDS](#tpcds)
+  * [TPCxBB](#tpcxbb)
+* [Postgres](#postgres)
+  * [Configurations](#configurations)
+  * [TPCH](#tpch)
+  * [TPCDS](#tpcds)
 
 <!--te-->
 
@@ -21,18 +24,18 @@ Configurations
 List of the selected Spark knobs (when `spark.dynamicAllocation.enabled` is disabled)
 
 ```yaml
-k1 -> spark.executor.memory
-k2 -> spark.executor.cores
-k3 -> spark.executor.instances
-k4 -> spark.defalut.parallelism
-k5 -> spark.reducer.maxSizeInFlight
-k6 -> spark.shuffle.sort.bypassMergeThreshold
-k7 -> spark.shuffle.compress
-k8 -> spark.memory.fraction
-s1 -> spark.sql.inMemoryColumnarStorage.batchSize
-s2 -> spark.sql.files.maxPartitionBytes
-s3 -> spark.sql.autoBroadcastJoinThreshold
-s4 -> spark.sql.shuffle.partitions
+k1: spark.executor.memory
+k2: spark.executor.cores
+k3: spark.executor.instances
+k4: spark.defalut.parallelism
+k5: spark.reducer.maxSizeInFlight
+k6: spark.shuffle.sort.bypassMergeThreshold
+k7: spark.shuffle.compress
+k8: spark.memory.fraction
+s1: spark.sql.inMemoryColumnarStorage.batchSize
+s2: spark.sql.files.maxPartitionBytes
+s3: spark.sql.autoBroadcastJoinThreshold
+s4: spark.sql.shuffle.partitions
 ```
 
 Internal Knobs over the 6-node Spark cluster (each with 30 cores and 680G memory) with the [best practice][1] at Amazon
@@ -117,3 +120,4 @@ python examples/trace/spark/2.knob_sampling.py
 
 TPCDS
 -----     
+
