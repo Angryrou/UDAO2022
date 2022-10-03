@@ -55,7 +55,7 @@ HELP = """
 Format: python ws_hcf.py -c <config> -h
     - c : The configuration file location. Default is "examples/optimization/ws/heuristic_closed_form/grid_search/configs.json"
 Example:
-    python examples/optimization/ws/grid_search/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/grid_search/configs.json
+    python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/grid_search/configs.json
 """
 # get input parameters
 moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
@@ -323,7 +323,7 @@ Within the method, it supports to call the solver `random_sampler` or `grid_sear
    3). run the following command
    ```bash
    # Format: python ws_hcf.py -c <config> -h
-   python examples/optimization/ws_grid/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/grid_search/configs.json
+   python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/grid_search/configs.json
 ```
 
 [1]: https://web.archive.org/web/20190801183649/https://pdfs.semanticscholar.org/cf68/41a6848ca2023342519b0e0e536b88bdea1d.pdf
