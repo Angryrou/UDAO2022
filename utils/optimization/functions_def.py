@@ -17,8 +17,7 @@
 
 def obj_func1(vars):
     '''
-
-    :param vars: array:
+    :param vars: array
     :return:
     '''
     value = 2 + (vars[:, 0] - 2) * (vars[:, 0] - 2) + (vars[:, 1] - 1) * (vars[:, 1] - 1)

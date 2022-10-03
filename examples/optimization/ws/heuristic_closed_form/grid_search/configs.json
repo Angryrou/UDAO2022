@@ -1,17 +1,17 @@
 {
-  "moo_algo": "evolutionary",
-  "solver": "",
+  "moo_algo": "weighted_sum",
+  "solver": "grid_search",
   "variables": [
     {
       "name": "v1",
       "type": "FLOAT",
       "min": -20,
-      "max": 10
+      "max": 20
     },
     {
       "name": "v2",
       "type": "FLOAT",
-      "min": -10,
+      "min": -20,
       "max": 20
     }
   ],
@@ -39,9 +39,7 @@
   ],
   "additional_params":
     {
-      "inner_algo": "NSGA-II",
-      "pop_size": 10,
-      "nfe": 100,
-      "fix_randomness_flag": true
+      "ws_steps": 0.1,
+      "solver_params": [100, 200]
     }
 }

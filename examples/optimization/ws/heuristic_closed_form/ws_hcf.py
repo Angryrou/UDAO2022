@@ -10,10 +10,10 @@ import utils.optimization.functions_def as func_def
 import utils.optimization.moo_utils as moo_ut
 
 HELP = """
-Format: python ws_grid_hcf.py -c <config> -h
-    - c : The configuration file location. Default is "examples/optimization/ws_grid/heuristic_closed_form/configs.json"
+Format: python ws_hcf.py -c <config> -h
+    - c : The configuration file location. Default is "examples/optimization/ws/heuristic_closed_form/grid_search/configs.json"
 Example:
-    python examples/optimization/ws_grid/heuristic_closed_form/ws_grid_hcf.py -c examples/optimization/ws_grid/heuristic_closed_form/configs.json
+    python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/grid_search/configs.json
 """
 
 moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
