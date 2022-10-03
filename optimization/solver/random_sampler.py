@@ -14,8 +14,8 @@ class RandomSampler(BaseSolver):
         :param rs_params: int, the number of samples per variable
         '''
         super().__init__()
-        self.n_samples_per_param = rs_params
-        self.seed = 0
+        self.n_samples_per_param = rs_params["n_samples"]
+        self.seed = rs_params["seed"]
 
     def _rand_float(self, lower, upper, n_samples):
         '''
@@ -39,33 +39,22 @@ class RandomSampler(BaseSolver):
         :param var_types: list, type of each variable
         :return: array, variables (n_samples * n_vars)
         '''
-        if any((bounds[:, 0] - bounds[:, 1]) > 0):
-            print("ERROR: lower bound is greater than the upper bound!")
-            raise ValueError(bounds)
         n_vars = bounds.shape[0]
         x = np.zeros([self.n_samples_per_param, n_vars])
         np.random.seed(self.seed)
-        for i, [lower, upper] in enumerate(bounds):
+        for i, values in enumerate(bounds):
+            upper, lower = values[1], values[0]
+            if (lower - upper) > 0:
+                print("ERROR: lower bound is greater than the upper bound!")
+                raise ValueError(bounds)
             # randomly sample n_samples within the range
             if var_types[i] == "FLOAT":
                 x[:, i] = self._rand_float(lower, upper, self.n_samples_per_param)
             elif var_types[i] == "INTEGER" or var_types[i] == "BINARY":
                 x[:, i] = np.random.randint(lower, upper + 1, size=self.n_samples_per_param)
+            elif var_types[i] == "ENUM":
+                inds = np.random.randint(0, len(values), size=self.n_samples_per_param)
+                x[:, i] = np.array(values)[inds]
             else:
                 raise ValueError(var_types[i])
         return x
-
-## a test on _get_input
-if __name__ == '__main__':
-    ## for variables
-    n_vars = 3
-    lower = np.array([[1], [2], [3]])
-    upper = np.array([[6], [6], [8]])
-    bounds = np.hstack([lower, upper])
-    var_types = ["FLOAT", "FLOAT", "INTEGER"]
-
-    rs_params = 1000
-
-    test_vars = RandomSampler(rs_params)
-    vars = test_vars._get_input(bounds, var_types)
-    print(vars)

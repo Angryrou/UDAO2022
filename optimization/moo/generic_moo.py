@@ -5,8 +5,8 @@
 # Created at 21/09/2022
 
 from optimization.moo.weighted_sum import WeightedSum
-from optimization.moo.progressive_frontier import ProgressiveFrontier
-from optimization.moo.evolutionary import EVO
+# from optimization.moo.progressive_frontier import ProgressiveFrontier
+# from optimization.moo.evolutionary import EVO
 import utils.optimization.moo_utils as moo_ut
 
 class GenericMOO:
@@ -24,7 +24,7 @@ class GenericMOO:
         :param const_funcs: list, constraint functions
         :param const_types: list, constraint types ("<=" or "<", e.g. g1(x1, x2, ...) - c <= 0)
         :param var_types: list, variable types (float, integer, binary)
-        :param var_bounds: ndarray(n_vars, 2), lower and upper bounds of variables
+        :param var_bounds: ndarray(n_vars, ), lower and upper bounds of variables(non-ENUM), and values of ENUM variables
         :return:
         '''
         self.obj_names = obj_names
@@ -53,26 +53,13 @@ class GenericMOO:
                              self.const_funcs, self.const_types)
             po_objs, po_vars = ws.solve(self.var_bounds, self.var_types)
         elif moo_algo == 'progressive_frontier':
-            pf_option = add_params[0]
-            n_probes = add_params[1]
-            n_grids = add_params[2]
-            mogd_params = add_params[3]
-            pf = ProgressiveFrontier(pf_option, solver, mogd_params, self.obj_funcs, self.opt_types, self.const_funcs, self.const_types)
-            po_objs, po_vars = pf.solve(self.var_bounds, self.var_types, n_probes, n_grids=n_grids)
+            raise NotImplementedError
         elif moo_algo == 'evolutionary':
-            inner_algo = add_params[0]
-            pop_size = add_params[1]
-            # the number of function evaluations
-            nfe = add_params[2]
-            flag = add_params[3]
-            evo = EVO(inner_algo, self.obj_funcs, self.opt_types, self.const_funcs, self.const_types, pop_size, nfe,
-                      fix_randomness_flag=flag)
-            po_objs, po_vars = evo.solve(self.var_bounds, self.var_types)
-
+            raise NotImplementedError
         elif moo_algo == "mobo":
-            pass
+            raise NotImplementedError
         elif moo_algo == "normalized_normal_constraint":
-            pass
+            raise NotImplementedError
         else:
             raise NotImplementedError
 

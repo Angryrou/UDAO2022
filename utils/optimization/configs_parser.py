@@ -76,8 +76,16 @@ class ConfigsParser():
 
     def get_vars_conf(self, var_params):
         var_types = [var["type"] for var in var_params]
-        var_bounds = [[var["min"], var["max"]] for var in var_params]
+        # var_bounds = [[var["min"], var["max"]] for var in var_params if var["type"] != "ENUM"]
+        var_bounds = []
+        for var in var_params:
+            if var["type"] != "ENUM":
+                var_bounds.append([var["min"], var["max"]])
+            else:
+                enum_values = var["values"]
+                var_bounds.append(enum_values)
 
+        # return var_types, np.array(var_bounds, dtype=object)
         return var_types, np.array(var_bounds)
 
     def get_objs_conf(self, obj_params):
