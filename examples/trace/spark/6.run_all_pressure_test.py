@@ -25,6 +25,8 @@ class Args():
         self.parser.add_argument("--num-queries-per-template-to-run", type=int, default=400)
         self.parser.add_argument("--num-processes", type=int, default=6)
         self.parser.add_argument("--cluster-cores", type=int, default=150)
+        self.parser.add_argument("--counts", type=int, default=864000)
+        self.parser.add_argument("--freq", type=int, default=5)
         self.parser.add_argument("--debug", type=int, default=0)
 
     def parse(self):
@@ -75,6 +77,8 @@ if __name__ == '__main__':
     n_processes = args.num_processes
     qpt = args.num_queries_per_template_to_run
     cluster_cores = args.cluster_cores
+    counts = args.counts
+    freq = args.freq
     workers = ["node2", "node3", "node4", "node5", "node6"]
     debug = False if args.debug == 0 else True
 
@@ -97,7 +101,7 @@ if __name__ == '__main__':
     # prepare nmon commands
     nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=REMOTE_HEADER)
     nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=REMOTE_HEADER, name_suffix="",
-                                             counts=86400, freq=5)
+                                             counts=counts, freq=freq)
     nmon_stop = NmonUtils.nmon_remote_stop(workers)
     nmon_agg = NmonUtils.nmon_remote_agg(workers, remote_header=REMOTE_HEADER, local_header=nmon_header, name_suffix="")
 
