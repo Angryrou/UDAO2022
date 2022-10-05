@@ -89,63 +89,20 @@ spark.sql.cbo.starSchemaDetection=true
 
 #### Spark-TPCH
 
-Here are the sketch steps for the trace collection.
-
-1. Setup TPCH benchmark over a Spark cluster
+Here are the key steps for the trace collection. For more details, please refer to [3.Spark-TPCH-and-TPCDS.md](./3.Spark-TPCH-and-TPCDS.md)
 
 ```bash
-git clone https://github.com/Angryrou/spark-sql-perf.git
-cd spark-sql-perf
-bin/run --help # testing env
-sbt +package
-
-
-# an example of running in our Ercilla Spark cluster, look into `my_set_benchmark.sh` for more details
-bm=TPCH
-sf=100
-bash ~/chenghao/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_benchmark.sh $bm $sf
+# generate ~100K queries
+bash examples/trace/spark/1.query_generation_tpch.sh $PWD/resources/tpch-kit $PWD/resources/tpch-kit/spark-sqls 4545
+# 80% collected in LHS
+# generate and run LHS configurations
+python examples/trace/spark/5.generate_scripts_for_lhs.py -b TPCH -q resources/tpch-kit/spark-sqls --num-processes 30 --num-templates 22 --num-queries-per-template 3637
+python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --num-processes 22 --num-templates 22 --num-queries-per-template-to-run 3637 
+# 10% in BO-latency
+# todo
+# 10% in BO-cost
+# todo
 ```
-
-2. Prepare the codebase for query generation (clone, compile and validate).
-
-```bash
-# add tpch-kit under `resources`
-OS=MACOS # or LINUX, for both Spark and Postgres
-bash examples/trace/1.setup_tpch.sh MACOS
-```
-
-3. Generate SparkSQLs. Check the example below
-
-```bash
-# bash examples/trace/spark/1.query_generation_tpch.sh <tpch-kit path> <query-out path> <#queries per template> <SF-100 by default>
-bash examples/trace/spark/1.query_generation_tpch.sh $PWD/resources/tpch-kit $PWD/resources/tpch-kit/spark-sqls 3  
-```
-
-4. Generate configurations via LHS and BO. Check the example below
-
-```bash
-export PYTHONPATH="$PWD"
-python examples/trace/spark/2.knob_sampling.py
-```
-
-5. Trigger trace collection.
-   - an example of running single query in our Ercilla Spark cluster.
-    ```bash
-    export PYTHONPATH="$PWD"
-    python examples/trace/spark/3.run_one.py
-    ```
-   - an example in the single-query environment
-   ```bash
-   export PYTHONPATH="$PWD"
-   python examples/trace/spark/4.run_all_single_query_env.py
-   ```
-   - an example in the multi-query environment
-   ```bash
-   export PYTHONPATH="$PWD"
-   python examples/trace/spark/5.generate_scripts_for_lhs.py --num-processes 30
-   # pressure test
-   python examples/trace/spark/6.run_all_pressure_test.py --num-processes 22 --num-queries-per-template-to-run 3637 
-   ```
 
 #### Spark-TPCDS
 
