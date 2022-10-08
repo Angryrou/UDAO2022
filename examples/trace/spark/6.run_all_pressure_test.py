@@ -8,7 +8,7 @@ import random
 
 from multiprocessing import Pool, Manager
 from trace.collect.framework import QueryQueue
-from utils.common import PickleUtils
+from utils.common import PickleUtils, BenchmarkUtils
 from utils.data.feature import NmonUtils
 
 
@@ -34,7 +34,8 @@ class Args():
 
 
 def extract(qq, conf_df_dict, i):
-    tid, qid = qq.index_to_tid_and_qid(i)
+    tiid, qid = qq.index_to_tid_and_qid(i)
+    tid = templates[tiid]
     conf_df = conf_df_dict[tid].iloc[qid - 1]
     knob_sign = conf_df.name
     cores = int(conf_df["spark.executor.cores"]) * (int(conf_df["spark.executor.instances"]) + 1)
@@ -79,8 +80,9 @@ if __name__ == '__main__':
     cluster_cores = args.cluster_cores
     counts = args.counts
     freq = args.freq
-    workers = ["node2", "node3", "node4", "node5", "node6"]
+    workers = BenchmarkUtils.get_workers(benchmark)
     debug = False if args.debug == 0 else True
+    templates = BenchmarkUtils.get(benchmark)
 
     log_header = f"{out_header}/log"
     nmon_header = f"{out_header}/nmon"
@@ -91,8 +93,8 @@ if __name__ == '__main__':
         assert n_templates == 22
         qpt_total = 3637
     elif benchmark == "TPCDS":
-        assert n_templates == 105
-        qpt_total = 762
+        assert n_templates == 103
+        qpt_total = 777
     else:
         raise ValueError(benchmark)
     if debug:

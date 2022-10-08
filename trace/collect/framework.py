@@ -18,7 +18,7 @@ from utils.data.configurations import KnobUtils, SparkKnobs
 class QueryQueue(object):
     def __init__(self, n_templates, qpt: int, seed: int):
         np.random.seed(seed)
-        queries = np.tile(np.arange(1, n_templates + 1), [qpt, 1])
+        queries = np.tile(np.arange(n_templates), [qpt, 1])
         self.queries = np.apply_along_axis(np.random.permutation, axis=1, arr=queries).flatten()
         self.total = n_templates * qpt
         self.n_templates = n_templates
@@ -29,9 +29,9 @@ class QueryQueue(object):
             print(f"no more queries")
             return -1, -1
         else:
-            tid = self.queries[i]
+            tiid = self.queries[i]
             qid = (i // self.n_templates) + 1
-            return tid, qid
+            return tiid, qid
 
 
 class Collection(object, metaclass=ABCMeta):
