@@ -28,14 +28,13 @@ class Args():
         return self.parser.parse_args()
 
 args = Args().parse()
-workers = ["node2", "node3", "node4", "node5", "node6"]
-
 seed = args.seed
 benchmark = args.benchmark
 query_header = args.query_header
 qid = "1"
 OUT_HEADER = "examples/trace/spark/4.run_all_single_query_env"
 REMOTE_HEADER = "~/chenghao"
+workers = BenchmarkUtils.get_workers(benchmark)
 
 spark_knobs = SparkKnobs(meta_file=args.knob_meta_file)
 knobs = spark_knobs.knobs
