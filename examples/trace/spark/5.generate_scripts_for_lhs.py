@@ -13,7 +13,7 @@ import numpy as np
 from multiprocessing import Pool
 
 from trace.collect.framework import SparkCollect
-from utils.common import PickleUtils
+from utils.common import PickleUtils, BenchmarkUtils
 from utils.data.configurations import SparkKnobs
 
 
@@ -39,14 +39,22 @@ if __name__ ==  '__main__':
     args = Args().parse()
 
     seed = args.seed
+    benchmark = args.benchmark
     query_header = args.query_header
     script_header = args.script_header
     cache_header = args.cache_header
     n_templates = args.num_templates
     n_processes = args.num_processes
+    templates = BenchmarkUtils.get(benchmark)
+    assert n_templates == len(templates)
+    # TPCH
     # the number of queries per template for LHS, 100K / 22 * 0.8 = 3637
     # Each template we generate 4545 queries and configurations.
     # Each template we reserve 3637(80%), 454(10%), 454(10%) configurations respectively for LHS, BO(latency), BO(cost)
+    # TPCDS
+    # the number of queries per template for LHS, 100k / 103 * 0.8 = 777
+    # Each template we generate 971 queries and configurations.
+    # Each template we reserve 777(80%), 97(10%), 97(10%) configurations respectively for LHS, BO(latency), BO(cost)
     qpt = args.num_queries_per_template
 
     np.random.seed(seed)
@@ -56,7 +64,7 @@ if __name__ ==  '__main__':
     knobs = spark_knobs.knobs
 
     spark_collect = SparkCollect(
-        benchmark="TPCH",
+        benchmark=benchmark,
         scale_factor=100,
         spark_knobs=spark_knobs,
         query_header=query_header,
@@ -66,10 +74,10 @@ if __name__ ==  '__main__':
     start1 = time.time()
 
     conf_df_dict = {}
-    for tid in range(1, n_templates + 1):
+    for i, tid in enumerate(templates):
         start2 = time.time()
         print(f"start working on template {tid}")
-        conf_df = spark_knobs.df_knob2conf(spark_collect.lhs_sampler.get_samples(qpt, random_state=tid))
+        conf_df = spark_knobs.df_knob2conf(spark_collect.lhs_sampler.get_samples(qpt, random_state=i+1))
         conf_dict_list = conf_df.to_dict("records")
         conf_df_dict[tid] = conf_df
         print(f"configurations generated, cost {time.time() - start2}s")
