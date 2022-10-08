@@ -5,44 +5,64 @@
 #              and we trigger the system monitor in each worker nodes.
 #
 # Created at 9/23/22
+import argparse
 import os
 import time
 
 from trace.collect.framework import SparkCollect
-from utils.common import JsonUtils
+from utils.common import JsonUtils, BenchmarkUtils
 from utils.data.configurations import SparkKnobs, KnobUtils
 from utils.data.feature import NmonUtils
 
-SEED = 42
+class Args():
+    def __init__(self):
+        self.parser = argparse.ArgumentParser()
+        self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
+        self.parser.add_argument("-k", "--knob-meta-file", type=str, default="resources/knob-meta/spark.json")
+        self.parser.add_argument("-s", "--seed", type=int, default=42)
+        self.parser.add_argument("-q", "--query-header", type=str, default="resources/tpch-kit/spark-sqls")
+        self.parser.add_argument("--num-templates", type=int, default=22)
+        self.parser.add_argument("--num-processes", type=int, default=6)
+
+    def parse(self):
+        return self.parser.parse_args()
+
+args = Args().parse()
 workers = ["node2", "node3", "node4", "node5", "node6"]
-OUT_HEADER = "examples/trace/spark/4.run_all_single_query_env"
+
+seed = args.seed
+benchmark = args.benchmark
+query_header = args.query_header
 qid = "1"
+OUT_HEADER = "examples/trace/spark/4.run_all_single_query_env"
 REMOTE_HEADER = "~/chenghao"
 
-spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
+spark_knobs = SparkKnobs(meta_file=args.knob_meta_file)
 knobs = spark_knobs.knobs
 conf_dict = {k.name: k.default for k in knobs}
 JsonUtils.print_dict(conf_dict)
 
 spark_collect = SparkCollect(
-    benchmark="TPCH",
+    benchmark=benchmark,
     scale_factor=100,
     spark_knobs=spark_knobs,
-    query_header="resources/tpch-kit/spark-sqls",
-    seed=SEED
+    query_header=query_header,
+    seed=seed
 )
 knob_dict = spark_knobs.conf2knobs(conf_dict)
 knob_sign = KnobUtils.knobs2sign([knob_dict[k.id] for k in knobs], knobs)
 
 # prepare scripts for running
+templates = BenchmarkUtils.get(benchmark)
+assert len(templates) == args.num_templates
 file_names = [
     spark_collect.save_one_script(
-        tid=str(tid),
+        tid=tid,
         qid="1",
         conf_dict=conf_dict,
         out_header=OUT_HEADER
     )
-    for tid in range(1, 23)
+    for tid in templates
 ]
 
 nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=REMOTE_HEADER)
