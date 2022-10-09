@@ -9,6 +9,8 @@
 import argparse, json
 import numpy as np
 
+from utils.parameters import VarTypes
+
 class ConfigsParser():
     def __init__(self):
         parser = argparse.ArgumentParser(description="ConfigsParser")
@@ -75,17 +77,27 @@ class ConfigsParser():
             return model_params
 
     def get_vars_conf(self, var_params):
-        var_types = [var["type"] for var in var_params]
-        # var_bounds = [[var["min"], var["max"]] for var in var_params if var["type"] != "ENUM"]
-        var_bounds = []
+        # var_types = [var["type"] for var in var_params]
+        var_types, var_bounds = [], []
+
         for var in var_params:
-            if var["type"] != "ENUM":
+            if var["type"] == "FLOAT":
+                var_types.append(VarTypes.FLOAT)
                 var_bounds.append([var["min"], var["max"]])
-            else:
+            elif (var["type"] == "INTEGER"):
+                var_types.append(VarTypes.INTEGER)
+                var_bounds.append([var["min"], var["max"]])
+            elif (var["type"] == "BINARY"):
+                var_types.append(VarTypes.BOOL)
+                var_bounds.append([var["min"], var["max"]])
+            elif var["type"] == VarTypes.ENUM:
                 enum_values = var["values"]
                 var_bounds.append(enum_values)
+            else:
+                error_var_type = var["type"]
+                Exception(f"Variable type {error_var_type} is not supported!")
+                raise ValueError(error_var_type)
 
-        # return var_types, np.array(var_bounds, dtype=object)
         return var_types, np.array(var_bounds)
 
     def get_objs_conf(self, obj_params):

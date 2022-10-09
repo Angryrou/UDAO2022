@@ -5,12 +5,13 @@
 # Created at 15/09/2022
 
 import numpy as np
+
 from optimization.solver.base_solver import BaseSolver
+from utils.parameters import VarTypes
 
 class RandomSampler(BaseSolver):
     def __init__(self, rs_params):
         '''
-
         :param rs_params: int, the number of samples per variable
         '''
         super().__init__()
@@ -48,11 +49,11 @@ class RandomSampler(BaseSolver):
                 print("ERROR: lower bound is greater than the upper bound!")
                 raise ValueError(bounds)
             # randomly sample n_samples within the range
-            if var_types[i] == "FLOAT":
+            if var_types[i] == VarTypes.FLOAT:
                 x[:, i] = self._rand_float(lower, upper, self.n_samples_per_param)
-            elif var_types[i] == "INTEGER" or var_types[i] == "BINARY":
+            elif var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
                 x[:, i] = np.random.randint(lower, upper + 1, size=self.n_samples_per_param)
-            elif var_types[i] == "ENUM":
+            elif var_types[i] == VarTypes.ENUM:
                 inds = np.random.randint(0, len(values), size=self.n_samples_per_param)
                 x[:, i] = np.array(values)[inds]
             else:

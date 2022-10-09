@@ -53,9 +53,9 @@ import utils.optimization.moo_utils as moo_ut
 
 HELP = """
 Format: python ws_hcf.py -c <config> -h
-    - c : The configuration file location. Default is "examples/optimization/ws/heuristic_closed_form/grid_search/configs.json"
+    - c : The configuration file location. Default is "examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json"
 Example:
-    python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/grid_search/configs.json
+    python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
 """
 # get input parameters
 moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
@@ -72,7 +72,7 @@ print("Variables:")
 print(po_vars)
 
 if po_objs is not None:
-    moo_ut.plot_po(po_objs, n_obj=2)
+    moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1])
 ```
 
 The results are as follows. 
@@ -102,6 +102,7 @@ Variables:
 ```
 The following figure shows the Pareto solutions. The axes show values of 2 objectives. 
 Blue points are the Pareto solutions returned by the Weighted Sum method with Grid-Search solver.
+
 ![img.png](img.png)
 
 ## Overview of optimization package
@@ -306,7 +307,7 @@ Within the `solver` package, the base_solver provides the base API includes abst
 ## **MOO Algrithms with Examples**
 ### **Weighted Sum**
 
-Weighted Sum (WS) method adds different weights on different objectives to show preferences or importance over all objectives. It transforms a MOO problem into a single-objective optimziation problem. 
+Weighted Sum (WS) [[3]] method adds different weights on different objectives to show preferences or importance over all objectives. It transforms a MOO problem into a single-objective optimziation problem. 
 
 In the packages `optimization.moo`, it calls the method `weighted_sum`. 
 Within the method, it supports to call the solver `random_sampler` or `grid_search`.
@@ -323,8 +324,9 @@ Within the method, it supports to call the solver `random_sampler` or `grid_sear
    3). run the following command
    ```bash
    # Format: python ws_hcf.py -c <config> -h
-   python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/grid_search/configs.json
+   python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
 ```
 
 [1]: https://web.archive.org/web/20190801183649/https://pdfs.semanticscholar.org/cf68/41a6848ca2023342519b0e0e536b88bdea1d.pdf
 [2]: https://en.wikipedia.org/wiki/Test_functions_for_optimization#cite_note-Binh97-5
+[3]: https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.404.9971&rep=rep1&type=pdf

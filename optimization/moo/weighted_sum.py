@@ -13,12 +13,13 @@ import numpy as np
 
 class WeightedSum(BaseMOO):
 
-    def __init__(self, ws_pairs, inner_solver, solver_params, n_objs: int, obj_funcs, opt_type, const_funcs, const_types):
+    def __init__(self, ws_pairs: list, inner_solver: str, solver_params: dict, n_objs: int, obj_funcs: list,
+                 opt_type: list, const_funcs: list, const_types: list):
         '''
         parameters used in Weighted Sum
         :param ws_pairs: list, even weight settings for all objectives, e.g. for 2D, [[0, 1], [0.1, 0.9], ... [1, 0]]
         :param inner_solver: str, the name of the solver used in Weighted Sum
-        :param solver_params: int, parameter used in solver, e.g. in grid-search, it is the number of grids for each variable
+        :param solver_params: dict, parameter used in solver, e.g. in grid-search, it is the number of grids for each variable
         :param n_objs: int, the number of objectives
         :param obj_funcs: list, objective functions
         :param opt_type: list, objectives to minimize or maximize
@@ -26,35 +27,37 @@ class WeightedSum(BaseMOO):
         :param const_types: list, constraint types ("<=" or "<", e.g. g1(x1, x2, ...) - c <= 0)
         '''
         super().__init__()
-        self.inner_sovler = inner_solver
+        self.inner_solver = inner_solver
         self.ws_pairs = ws_pairs
         self.n_objs = n_objs
         self.obj_funcs = obj_funcs
         self.opt_type = opt_type
         self.const_funcs = const_funcs
         self.const_types = const_types
-        if self.inner_sovler == "grid_search":
+        if self.inner_solver == "grid_search":
             self.gs = GridSearch(solver_params)
-        elif self.inner_sovler == "random_sampler":
+        elif self.inner_solver == "random_sampler":
             self.rs = RandomSampler(solver_params)
         else:
-            raise ValueError(self.inner_sovler)
+            Exception(f"WS does not support {self.inner_solver}")
+            raise ValueError(self.inner_solver)
 
     def solve(self, bounds, var_types):
         '''
         solve MOO by Weighted Sum
         :param bounds: ndarray(n_vars, 2), lower and upper bounds of variables
-        :param var_types: list, variable types (float, integer, binary)
+        :param var_types: list, variable types (float, integer, binary, enum)
         :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
                  po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
         '''
         n_objs = self.n_objs
-        if self.inner_sovler == "grid_search":
+        if self.inner_solver == "grid_search":
             vars = self.gs._get_input(bounds, var_types)
-        elif self.inner_sovler == "random_sampler":
+        elif self.inner_solver == "random_sampler":
             vars = self.rs._get_input(bounds, var_types)
         else:
-            raise ValueError(self.inner_sovler)
+            Exception(f"WS does not support {self.inner_solver}")
+            raise ValueError(self.inner_solver)
 
         const_violation = self._get_const_violation(vars)
 
@@ -82,7 +85,7 @@ class WeightedSum(BaseMOO):
         else:
             po_obj_list, po_var_list = [], []
 
-            # # get n_dim objective values
+            # get n_dim objective values
             objs = []
             for i, obj_func in enumerate(self.obj_funcs):
                 obj = obj_func(vars_after_const_check) * moo_ut._get_direction(self.opt_type, i)
