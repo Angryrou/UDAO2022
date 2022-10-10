@@ -89,7 +89,7 @@ spark.sql.cbo.starSchemaDetection=true
 
 #### Spark-TPCH
 
-Here are the key steps for the trace collection. For more details, please refer to [3.Spark-TPCH-and-TPCDS.md](./3.Spark-TPCH-and-TPCDS.md)
+Here are the key steps for the TPCH trace collection. For more details, please refer to [3.Spark-TPCH-and-TPCDS.md](./3.Spark-TPCH-and-TPCDS.md)
 
 ```bash
 # generate ~100K queries
@@ -105,6 +105,8 @@ python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --script-header r
 ```
 
 #### Spark-TPCDS
+
+Here are the key steps for the TPCDS trace collection. For more details, please refer to [3.Spark-TPCH-and-TPCDS.md](./3.Spark-TPCH-and-TPCDS.md)
 
 ```bash
 # generate ~100K queries
