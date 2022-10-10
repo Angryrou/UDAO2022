@@ -96,8 +96,8 @@ Here are the key steps for the trace collection. For more details, please refer 
 bash examples/trace/spark/1.query_generation_tpch.sh $PWD/resources/tpch-kit $PWD/resources/tpch-kit/spark-sqls 4545
 # 80% collected in LHS
 # generate and run LHS configurations
-python examples/trace/spark/5.generate_scripts_for_lhs.py -b TPCH -q resources/tpch-kit/spark-sqls --num-processes 30 --num-templates 22 --num-queries-per-template 3637
-python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --num-processes 22 --num-templates 22 --num-queries-per-template-to-run 3637 
+python examples/trace/spark/5.generate_scripts_for_lhs.py -b TPCH -q resources/tpch-kit/spark-sqls --script-header resources/scripts/tpch-lhs --num-processes 30 --num-templates 22 --num-queries-per-template 3637
+python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --script-header resources/scripts/tpch-lhs --num-processes 22 --num-templates 22 --num-queries-per-template-to-run 3637 
 # 10% in BO-latency
 # todo
 # 10% in BO-cost
@@ -106,5 +106,15 @@ python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --num-processes 2
 
 #### Spark-TPCDS
 
- 
-
+```bash
+# generate ~100K queries
+bash examples/trace/spark/1.query_generation_tpcds.sh $PWD/resources/tpcds-kit $PWD/resources/tpcds-kit/spark-sqls 971
+# 80% collected in LHS
+# generate and run LHS configurations
+python examples/trace/spark/5.generate_scripts_for_lhs.py -b TPCDS -q resources/tpcds-kit/spark-sqls --script-header resources/scripts/tpcds-lhs --num-processes 30 --num-templates 22 --num-queries-per-template 777
+python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --script-header resources/scripts/tpcds-lhs --num-processes 22 --num-templates 22 --num-queries-per-template-to-run 777 
+# 10% in BO-latency
+# todo
+# 10% in BO-cost
+# todo
+```
