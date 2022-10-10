@@ -28,18 +28,18 @@ Constraints include inequality and equaility types.
 Common types of variables include `FLOAT`, `INTEGER`, `BINARY` and `ENUM`, where `BINARY` only includes values 0 and 1, `ENUM` type is for multiple (2+) categorical values.
 
 ## Quick Start
-The following shows an MOO problem example(Chankong and Haimes function [[1], [2]]) with 2 objectives, 2 constraints and 2 variables.
+The following shows an MOO problem example(Binh and Korn function [[1], [2]]) with 2 objectives, 2 constraints and 2 variables.
 
-$$ \mathop{\rm{Minimize}}\limits_{\rm{\bf{x}}} \\ \\ \mathit{F}_1(\mathbf{x}) = (x_1 - 2)^2 + (x_2 - 1)^2 + 2 $$
+$$ \mathop{\rm{Minimize}}\limits_{\rm{\bf{x}}} \\ \\ \mathit{F}_1(\mathbf{x}) = 4 {x_1}^2 + 4 {x_2}^2 $$
 
-$$ \mathit{F}_2(\mathbf{x}) = 9x_1 - (x_2 - 1)^2 $$
+$$ \mathit{F}_2(\mathbf{x}) = (x_1 - 5)^2 - (x_2 - 5)^2 $$
 
 &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; &ensp; 
-subject to   $\\ x_1^2 + x_2^2 - 225 \leq 0 $
+subject to   $\\ (x_1 - 5)^2 + x_2^2 \leq 25 $
 
-$$ x_1 - 3x_2 + 10 \leq 0 &ensp; &ensp;$$
+$$ (x_1 - 5)^2 + (x_2 + 5)^2 \geq 7.7 &ensp; &ensp;$$
 
-$$ &ensp; &ensp; -20 \le x_i \le 20, \forall i = 1, 2 $$
+$$ &ensp; &ensp; 0 \le x_1 \le 5, 0 \le x_2 \le 3 $$
 
 The optimization package allows users to define their problems from Python. 
 For the details of how to set up problems and how the APIs works internally, please see sections of [how to run MOO](#how-to-run-moo) and [APIs in Optimization package](#apis-in-optimization-package) in the later content.
@@ -77,33 +77,41 @@ if po_objs is not None:
 
 The results are as follows. 
 Rows of Pareto solutions show the number of solutions, and the columns show the objective values. 
-Like in the following, there are `7` solutions. In the first solution, `224.99816345` is the value of objective 1, and `-216.51882461` is the value of objective 2.
+Like in the following, there are `11` solutions. In the first solution, `136` is the value of objective 1, and `4` is the value of objective 2.
 
 Variables are the configurations to achieve the Pareto solutions. Rows of variables show the number of solutions as well, and the columns show the variable values. 
-Like in the following, $x_1 = -5.45454545, x_2 = 13.93939394$ is the configuration of solution `[224.99816345, -216.51882461]`
+Like in the following, $x_1 = 5, x_2 = 3$ is the configuration of solution `[136, 4]`
 
 ```python
 Pareto solutions:
-[[ 224.99816345 -216.51882461]
- [ 219.0151005  -216.22905826]
- [ 212.39536782 -212.62942557]
- [  22.47189062  -22.64473013]
- [  15.18283849  -13.21303949]
- [  11.15875931   -4.10784614]
- [  10.3996531     4.67084991]]
+[[136.           4.        ]
+ [111.46168758   4.43107846]
+ [ 91.87184981   5.59422508]
+ [ 76.49586777   7.30578512]
+ [ 55.11196287  11.28420868]
+ [ 36.07134342  16.54943324]
+ [ 21.91174746  22.37910939]
+ [ 11.69498623  28.74223293]
+ [  4.75380386  35.77349741]
+ [  1.22116206  42.49604225]
+ [  0.          50.        ]]
 Variables:
-[[-5.45454545 13.93939394]
- [-4.24242424 14.34343434]
- [-2.62626263 14.74747475]
- [-2.22222222  2.62626263]
- [-1.01010101  3.03030303]
- [ 0.2020202   3.43434343]
- [ 1.41414141  3.83838384]]
+[[5.         3.        ]
+ [4.34343434 3.        ]
+ [3.73737374 3.        ]
+ [3.18181818 3.        ]
+ [2.62626263 2.62311558]
+ [2.12121212 2.12562814]
+ [1.66666667 1.64321608]
+ [1.21212121 1.20603015]
+ [0.75757576 0.7839196 ]
+ [0.4040404  0.37688442]
+ [0.         0.        ]]
 ```
 The following figure shows the Pareto solutions. The axes show values of 2 objectives. 
 Blue points are the Pareto solutions returned by the Weighted Sum method with Grid-Search solver.
 
-![img.png](img.png)
+![img_1.png](img_1.png)
 
 ## Overview of optimization package
 The `optimization` package includes the `optimization.moo` package and the `optimization.solver` package. The `optimization.moo` package provides APIs to access all Multi-Objective Optimization (MOO) algorithms.
@@ -181,14 +189,14 @@ where it setups all the input parameters.
         {
           "name": "v1",
           "type": "FLOAT",
-          "min": -20,
-          "max": 20
+          "min": 0,
+          "max": 5
         },
         {
           "name": "v2",
           "type": "FLOAT",
-          "min": -20,
-          "max": 20
+          "min": 0,
+          "max": 3
         }
       ],
       "objectives": [
@@ -210,7 +218,7 @@ where it setups all the input parameters.
         },
         {
           "name": "g2",
-          "type": "<="
+          "type": ">="
         }
       ],
       "additional_params":
@@ -229,34 +237,33 @@ The following shows details of the example in [Quick Start](#quick-start).
     ```python
     # An example
     # https://en.wikipedia.org/wiki/Test_functions_for_optimization#Test_functions_for_multi-objective_optimization_problems
-    # Chankong and Haimes function:
+    # Binh and Korn function:
     ## minimize:
-    ##          f1(x, y) = 2 + (x - 2) * (x - 2) + (y - 1) * (y - 1)
-    ##          f2(x, y) = 9 * x - (y - 1) * (y - 1)
+    ##          f1(x1, x2) = 4 * x_1 * x_1 + 4 * x_2 * x_2
+    ##          f2(x1, x2) = (x_1 - 5) * (x_1 - 5) + (x_2 - 5) * (x_2 - 5)
     ## subject to:
-    ##          g1(x, y) = x * x + y * y <= 225
-    ##          g2(x, y) = x - 3 * y + 10 <= 0
-    ##          x in [-20, 20], y in [-20, 20]
+    ##          g1(x_1, x_2) = (x_1 - 5) * (x_1 - 5) + x_2 * x_2 <= 25
+    ##          g2(x_1, x_2) = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) >= 7.7
+    ##          x_1 in [0, 5], x_2 in [0, 3]
     
     def obj_func1(vars):
         '''
         :param vars: array
         :return:
         '''
-        value = 2 + (vars[:, 0] - 2) * (vars[:, 0] - 2) + (vars[:, 1] - 1) * (vars[:, 1] - 1)
+        value = 4 * vars[:, 0] * vars[:, 0] +  4 * vars[:, 1] * vars[:, 1]
         return value
     
     def obj_func2(vars):
-        value = 9 * vars[:, 0] - (vars[:, 1] - 1) * (vars[:, 1] - 1)
+        value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + (vars[:, 1] - 5) * (vars[:, 1] - 5)
         return value
     
-    # assume g(x1, x2, ...) <= c
     def const_func1(vars):
-        value = vars[:, 0] * vars[:, 0] + vars[:, 1] * vars[:, 1] - 225
+        value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + vars[:, 1] * vars[:, 1] - 25
         return value
     
     def const_func2(vars):
-        value = vars[:, 0] - 3 * vars[:, 1] + 10 - 0
+        value = (vars[:, 0] - 8) * (vars[:, 0] - 8) + (vars[:, 1] + 3) * (vars[:, 1] + 3) - 7.7
         return value
     ```
 
@@ -316,7 +323,7 @@ Within the method, it supports to call the solver `random_sampler` or `grid_sear
    The following example calls Weighted Sum algorithm with solver Grid-Search. The functions of objectives and constraints are represented by the heuristic closed form.
    
    1). problem settings shown in 
-      `"examples/optimization/ws/heuristic_closed_form/grid_search/configs.json"` and `utils/optimization/functions_def.py`
+      `"examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json"` and `utils/optimization/functions_def.py`
 
    2). set the python path
    `export PYTHONPATH=~/your_path_to/UDAO2022`
@@ -326,6 +333,8 @@ Within the method, it supports to call the solver `random_sampler` or `grid_sear
    # Format: python ws_hcf.py -c <config> -h
    python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
 ```
+
+Note: we will compare the current WS implementation with the existing WS numerical solver in the future, and the one with better performance will be kept in the package.
 
 [1]: https://web.archive.org/web/20190801183649/https://pdfs.semanticscholar.org/cf68/41a6848ca2023342519b0e0e536b88bdea1d.pdf
 [2]: https://en.wikipedia.org/wiki/Test_functions_for_optimization#cite_note-Binh97-5

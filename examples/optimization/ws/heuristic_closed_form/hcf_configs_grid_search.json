@@ -5,14 +5,14 @@
     {
       "name": "v1",
       "type": "FLOAT",
-      "min": -20,
-      "max": 20
+      "min": 0,
+      "max": 5
     },
     {
       "name": "v2",
       "type": "FLOAT",
-      "min": -20,
-      "max": 20
+      "min": 0,
+      "max": 3
     }
   ],
   "objectives": [
@@ -34,7 +34,7 @@
     },
     {
       "name": "g2",
-      "type": "<="
+      "type": ">="
     }
   ],
   "additional_params":

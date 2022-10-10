@@ -43,13 +43,13 @@ class WeightedSum(BaseMOO):
 
     def solve(self, bounds, var_types):
         '''
-        solve MOO by Weighted Sum
+        solve MOO by Weighted Sum (WS)
         :param bounds: ndarray(n_vars, 2), lower and upper bounds of variables
         :param var_types: list, variable types (float, integer, binary, enum)
         :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
                  po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
         '''
-        n_objs = self.n_objs
+        # TODO: we will compare the current WS implementation with the existing WS numerical solver in the future, and the one with better performance will be kept in the package.
         if self.inner_solver == "grid_search":
             vars = self.gs._get_input(bounds, var_types)
         elif self.inner_solver == "random_sampler":
@@ -65,10 +65,12 @@ class WeightedSum(BaseMOO):
             n_const = const_violation.shape[1]
             available_indices = range(const_violation.shape[0])
             for i in range(n_const):
-                if self.const_types[i] == "<":
-                    available_indice = np.where(const_violation[:, i] < 0)
-                elif self.const_types[i] == "<=":
+                if self.const_types[i] == "<=":
                     available_indice = np.where(const_violation[:, i] <= 0)
+                elif self.const_types[i] == ">=":
+                    available_indice = np.where(const_violation[:, i] >= 0)
+                elif self.const_types[i] == "==":
+                    available_indice = np.where(const_violation[:, i] == 0)
                 else:
                     raise Exception(f"No feasible constraints provided! Please check constraint type settings in configurations. We do not support {self.const_types}.")
                 available_indices = np.intersect1d(available_indice, available_indices)

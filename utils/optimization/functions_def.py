@@ -6,33 +6,32 @@
 
 # An example
 # https://en.wikipedia.org/wiki/Test_functions_for_optimization#Test_functions_for_multi-objective_optimization_problems
-# Chankong and Haimes function:
+# Binh and Korn function:
 ## minimize:
-##          f1(x, y) = 2 + (x - 2) * (x - 2) + (y - 1) * (y - 1)
-##          f2(x, y) = 9 * x - (y - 1) * (y - 1)
+##          f1(x1, x2) = 4 * x_1 * x_1 + 4 * x_2 * x_2
+##          f2(x1, x2) = (x_1 - 5) * (x_1 - 5) + (x_2 - 5) * (x_2 - 5)
 ## subject to:
-##          g1(x, y) = x * x + y * y <= 225
-##          g2(x, y) = x - 3 * y + 10 <= 0
-##          x in [-20, 20], y in [-20, 20]
+##          g1(x_1, x_2) = (x_1 - 5) * (x_1 - 5) + x_2 * x_2 <= 25
+##          g2(x_1, x_2) = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) >= 7.7
+##          x_1 in [0, 5], x_2 in [0, 3]
 
 def obj_func1(vars):
     '''
     :param vars: array
     :return:
     '''
-    value = 2 + (vars[:, 0] - 2) * (vars[:, 0] - 2) + (vars[:, 1] - 1) * (vars[:, 1] - 1)
+    value = 4 * vars[:, 0] * vars[:, 0] +  4 * vars[:, 1] * vars[:, 1]
     return value
 
 def obj_func2(vars):
-    value = 9 * vars[:, 0] - (vars[:, 1] - 1) * (vars[:, 1] - 1)
+    value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + (vars[:, 1] - 5) * (vars[:, 1] - 5)
     return value
 
-# assume g(x1, x2, ...) <= c
 def const_func1(vars):
-    value = vars[:, 0] * vars[:, 0] + vars[:, 1] * vars[:, 1] - 225
+    value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + vars[:, 1] * vars[:, 1] - 25
     return value
 
 def const_func2(vars):
-    value = vars[:, 0] - 3 * vars[:, 1] + 10 - 0
+    value = (vars[:, 0] - 8) * (vars[:, 0] - 8) + (vars[:, 1] + 3) * (vars[:, 1] + 3) - 7.7
     return value
 
