@@ -39,8 +39,7 @@ class WeightedSum(BaseMOO):
         elif self.inner_solver == "random_sampler":
             self.rs = RandomSampler(solver_params)
         else:
-            Exception(f"WS does not support {self.inner_solver}")
-            raise ValueError(self.inner_solver)
+            raise Exception(f"WS does not support {self.inner_solver}!")
 
     def solve(self, bounds, var_types):
         '''
@@ -56,8 +55,7 @@ class WeightedSum(BaseMOO):
         elif self.inner_solver == "random_sampler":
             vars = self.rs._get_input(bounds, var_types)
         else:
-            Exception(f"WS does not support {self.inner_solver}")
-            raise ValueError(self.inner_solver)
+            raise Exception(f"WS does not support {self.inner_solver}")
 
         const_violation = self._get_const_violation(vars)
 
@@ -72,8 +70,7 @@ class WeightedSum(BaseMOO):
                 elif self.const_types[i] == "<=":
                     available_indice = np.where(const_violation[:, i] <= 0)
                 else:
-                    print("ERROR: No feasible constraints provided! Please check constraint type settings in configurations")
-                    raise ValueError(self.const_types)
+                    raise Exception(f"No feasible constraints provided! Please check constraint type settings in configurations. We do not support {self.const_types}.")
                 available_indices = np.intersect1d(available_indice, available_indices)
             vars_after_const_check = vars[available_indices]
         else:

@@ -46,8 +46,8 @@ class RandomSampler(BaseSolver):
         for i, values in enumerate(bounds):
             upper, lower = values[1], values[0]
             if (lower - upper) > 0:
-                print("ERROR: lower bound is greater than the upper bound!")
-                raise ValueError(bounds)
+                raise Exception(f"ERROR: the lower bound of variable {i} is greater than its upper bound!")
+
             # randomly sample n_samples within the range
             if var_types[i] == VarTypes.FLOAT:
                 x[:, i] = self._rand_float(lower, upper, self.n_samples_per_param)
@@ -56,6 +56,7 @@ class RandomSampler(BaseSolver):
             elif var_types[i] == VarTypes.ENUM:
                 inds = np.random.randint(0, len(values), size=self.n_samples_per_param)
                 x[:, i] = np.array(values)[inds]
+            #TODO: extend to a matrix variable for the assignment problem in the future
             else:
-                raise ValueError(var_types[i])
+                raise Exception(f"Random-Sampler solver does not support variable type {var_types[i]}!")
         return x

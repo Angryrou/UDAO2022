@@ -34,8 +34,7 @@ class GridSearch(BaseSolver):
             if (var_types[i] == VarTypes.FLOAT) or (var_types[i] == VarTypes.INTEGER) or (var_types[i] == VarTypes.BOOL):
                 upper, lower = values[1], values[0]
                 if (lower - upper) > 0:
-                    print("ERROR: lower bound is greater than the upper bound!")
-                    raise ValueError(bounds)
+                    raise Exception(f"ERROR: the lower bound of variable {i} is greater than its upper bound!")
 
                 # make sure the grid point is the same with the type
                 # e.g., if int x.min=0, x.max=5, n_grids_per_var=10, ONLY points[0, 1, 2, 3, 4, 5] are feasible
@@ -47,8 +46,7 @@ class GridSearch(BaseSolver):
             elif var_types[i] == VarTypes.ENUM:
                 grids_per_var = values
             else:
-                Exception((f"Grid-Search does not support {var_types[i]}"))
-                raise ValueError(var_types[i])
+                raise Exception(f"Grid-Search solver does not support variable type {var_types[i]}!")
 
             grids_list.append(grids_per_var)
 

@@ -95,8 +95,7 @@ class ConfigsParser():
                 var_bounds.append(enum_values)
             else:
                 error_var_type = var["type"]
-                Exception(f"Variable type {error_var_type} is not supported!")
-                raise ValueError(error_var_type)
+                raise Exception(f"Variable type {error_var_type} is not supported!")
 
         return var_types, np.array(var_bounds)
 
