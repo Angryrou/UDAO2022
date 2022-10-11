@@ -24,7 +24,7 @@ class WeightedSum(BaseMOO):
         :param obj_funcs: list, objective functions
         :param opt_type: list, objectives to minimize or maximize
         :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types ("<=" or "<", e.g. g1(x1, x2, ...) - c <= 0)
+        :param const_types: list, constraint types ("<=", "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
         '''
         super().__init__()
         self.inner_solver = inner_solver
@@ -41,26 +41,27 @@ class WeightedSum(BaseMOO):
         else:
             raise Exception(f"WS does not support {self.inner_solver}!")
 
-    def solve(self, bounds, var_types):
+    def solve(self, var_ranges, var_types):
         '''
         solve MOO by Weighted Sum (WS)
-        :param bounds: ndarray(n_vars, 2), lower and upper bounds of variables
+        :param var_ranges: ndarray(n_vars,), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
         :param var_types: list, variable types (float, integer, binary, enum)
         :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
                  po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
         '''
         # TODO: we will compare the current WS implementation with the existing WS numerical solver in the future, and the one with better performance will be kept in the package.
         if self.inner_solver == "grid_search":
-            vars = self.gs._get_input(bounds, var_types)
+            vars = self.gs._get_input(var_ranges, var_types)
         elif self.inner_solver == "random_sampler":
-            vars = self.rs._get_input(bounds, var_types)
+            vars = self.rs._get_input(var_ranges, var_types)
         else:
             raise Exception(f"WS does not support {self.inner_solver}")
 
         const_violation = self._get_const_violation(vars)
 
         # remove vars who lead to constraint violation
-        if (const_violation.size != 0) & (const_violation.max() > 0):
+        if const_violation.size != 0:
+        # if (const_violation.size != 0) & (const_violation.max() > 0):
             ## find the var index which violate the constraint
             n_const = const_violation.shape[1]
             available_indices = range(const_violation.shape[0])

@@ -18,16 +18,16 @@ class GridSearch(BaseSolver):
         super().__init__()
         self.n_grids_per_var = gs_params["n_grids_per_var"]
 
-    def _get_input(self, bounds, var_types):
+    def _get_input(self, var_ranges, var_types):
         '''
         generate grids for each variable
-        :param bounds: ndarray (n_vars,), the lower and upper bounds of non-ENUM variables, and values of ENUM variables
+        :param var_ranges: ndarray (n_vars,), the lower and upper var_ranges of non-ENUM variables, and values of ENUM variables
         :param var_types: list, type of each variable
         :return: array, variables (n_grids * n_vars)
         '''
 
         grids_list = []
-        for i, values in enumerate(bounds):
+        for i, values in enumerate(var_ranges):
             # the number of points generated for each variable
             n_grids_per_var = self.n_grids_per_var[i]
 

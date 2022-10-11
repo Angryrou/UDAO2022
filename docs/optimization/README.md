@@ -45,6 +45,7 @@ The optimization package allows users to define their problems from Python.
 For the details of how to set up problems and how the APIs works internally, please see sections of [how to run MOO](#how-to-run-moo) and [APIs in Optimization package](#apis-in-optimization-package) in the later content.
 
 The following is the code for the above example solving by the Weighted Sum method with Grid-Search solver. Before running code, please export the PYTHONPATH as `export PYTHONPATH=~/your_path_to/UDAO2022`.
+
 ```python
 from optimization.moo.generic_moo import GenericMOO
 from utils.optimization.configs_parser import ConfigsParser
@@ -58,11 +59,11 @@ Example:
     python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
 """
 # get input parameters
-moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
+moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
 # problem setup
 moo = GenericMOO()
 moo.problem_setup(obj_names=obj_names, obj_funcs=[func_def.obj_func1, func_def.obj_func2], opt_types=opt_types,
-                  const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_bounds=var_bounds)
+                  const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_ranges=var_ranges)
 # solve MOO problem
 po_objs, po_vars = moo.solve(moo_algo, solver, add_params)
 
@@ -126,17 +127,17 @@ class GenericMOO:
     def __init__(self):
         pass
 
-    def problem_setup(self,obj_names: list, obj_funcs: list, opt_types: list, const_funcs: list, const_types: list,
-                      var_types: list, var_bounds: list):
+    def problem_setup(self, obj_names: list, obj_funcs: list, opt_types: list, const_funcs: list, const_types: list,
+                      var_types: list, var_ranges: list):
         '''
         setup common input paramters for MOO problems
         :param obj_names: list, objective names
         :param obj_funcs: list, objective functions
         :param opt_types: list, objectives to minimize or maximize
         :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types ("<=" or "<", e.g. g1(x1, x2, ...) - c <= 0)
-        :param var_types: list, variable types (float, integer, binary)
-        :param var_bounds: ndarray(n_vars, 2), lower and upper bounds of variables
+        :param const_types: list, constraint types ("<=" "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
+        :param var_types: list, variable types (float, integer, binary, enum)
+        :param var_ranges: ndarray(n_vars, ), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
         :return:
         '''
         self.obj_names = obj_names
@@ -145,7 +146,7 @@ class GenericMOO:
         self.const_funcs = const_funcs
         self.const_types = const_types
         self.var_types = var_types
-        self.var_bounds = var_bounds
+        self.var_ranges = var_ranges
 
     def solve(self, moo_algo: str, solver: str, add_params: list):
         '''
@@ -276,11 +277,11 @@ The following shows details of the example in [Quick Start](#quick-start).
     import utils.optimization.functions_def as func_def
     
     # get input parameters
-    moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
-    moo = GenericMOO()
+    moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
     # problem setup
+    moo = GenericMOO()
     moo.problem_setup(obj_names=obj_names, obj_funcs=[func_def.obj_func1, func_def.obj_func2], opt_types=opt_types,
-                      const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_bounds=var_bounds)
+                      const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_ranges=var_ranges)
     # solve MOO problem, return Pareto solutions and its variables
     po_objs, po_vars = moo.solve(moo_algo, solver, add_params)
     ```

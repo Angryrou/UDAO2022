@@ -34,7 +34,7 @@ class ConfigsParser():
             try:
                 moo_algo = configs['moo_algo']
                 solver = configs['solver']
-                var_types, var_bounds = self.get_vars_conf(configs['variables'])
+                var_types, var_ranges = self.get_vars_conf(configs['variables'])
                 obj_names, opt_types = self.get_objs_conf(configs['objectives'])
                 const_types = self.get_const_types(configs['constraints'])
                 add_params = []
@@ -64,20 +64,20 @@ class ConfigsParser():
                     add_params.append(nfe)
                     flag = configs['additional_params']['fix_randomness_flag']
                     add_params.append(flag)
-
+                    seed = configs['additional_params']['seed']
+                    add_params.append(seed)
                 else:
                     raise Exception(f"Algorithm {moo_algo} is not configured")
 
             except:
                 raise Exception(f"configurations are not well specified.")
 
-            return [moo_algo, solver, var_types, var_bounds, obj_names, opt_types, const_types, add_params]
+            return [moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params]
         else:
             model_params = configs["model"]
             return model_params
 
     def get_vars_conf(self, var_params):
-        # var_types = [var["type"] for var in var_params]
         var_types, var_bounds = [], []
 
         for var in var_params:
@@ -90,7 +90,8 @@ class ConfigsParser():
             elif (var["type"] == "BINARY"):
                 var_types.append(VarTypes.BOOL)
                 var_bounds.append([var["min"], var["max"]])
-            elif var["type"] == VarTypes.ENUM:
+            elif var["type"] == "ENUM":
+                var_types.append(VarTypes.ENUM)
                 enum_values = var["values"]
                 var_bounds.append(enum_values)
             else:

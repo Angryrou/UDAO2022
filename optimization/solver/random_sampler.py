@@ -20,7 +20,7 @@ class RandomSampler(BaseSolver):
 
     def _rand_float(self, lower, upper, n_samples):
         '''
-        generate n_samples random float values within the lower and upper bounds
+        generate n_samples random float values within the lower and upper var_ranges
         :param lower: int, lower bound
         :param upper: int upper bound
         :param n_samples: int, the number of samples
@@ -33,17 +33,17 @@ class RandomSampler(BaseSolver):
             out = np.random.rand(n_samples) * scale + lower
             return out
 
-    def _get_input(self, bounds, var_types):
+    def _get_input(self, var_ranges, var_types):
         '''
         generate samples of variables
-        :param bounds: array (n_vars, 2), 2 refers to the lower and upper bounds
+        :param var_ranges: array (n_vars,), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
         :param var_types: list, type of each variable
         :return: array, variables (n_samples * n_vars)
         '''
-        n_vars = bounds.shape[0]
+        n_vars = var_ranges.shape[0]
         x = np.zeros([self.n_samples_per_param, n_vars])
         np.random.seed(self.seed)
-        for i, values in enumerate(bounds):
+        for i, values in enumerate(var_ranges):
             upper, lower = values[1], values[0]
             if (lower - upper) > 0:
                 raise Exception(f"ERROR: the lower bound of variable {i} is greater than its upper bound!")
