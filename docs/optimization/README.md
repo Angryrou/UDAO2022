@@ -6,9 +6,10 @@
     * [Problem setup](#problem-setup)
     * [Run MOO](#run-moo)
 * [APIs in Optimization package](#apis-in-optimization-package)
-* [MOO Algrithms with Examples](#moo-algrithms-with-examples)
+* [MOO Algrithms with Examples](#moo-algorithms-with-examples)
     * [Weighed Sum](#weighted-sum)
-        * [Run Weighted Sum Example](#run-weighted-sum-example)
+        * [Run with the heuristic closed form](#run-with-the-heuristic-closed-form)
+        * [TODOs in the next release](#todos-in-the-next-release)
 
 ## Multi-Objective Optimization Problem
 
@@ -122,20 +123,7 @@ class GenericMOO:
         :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
                  po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
         '''
-        po_objs, po_vars = None, None
-        if moo_algo == "weighted_sum":
-            ...
-        elif moo_algo == 'progressive_frontier':
-            ...
-        elif moo_algo == 'evolutionary':
-            ...
-        elif moo_algo == "mobo":
-            ...
-        elif moo_algo == "normalized_normal_constraint":
-            ...
-        else:
-            raise NotImplementedError
-
+        ...
         return po_objs, po_vars
 ```
 
@@ -143,61 +131,61 @@ class GenericMOO:
 
 ### Problem setup
 
-First, create a directory under `example/optimization/<moo-method>`, e.g., `example/optimization/ws`.
+1. create a directory under `example/optimization/<moo-method>`, e.g., `example/optimization/ws`.
 
-Second, add a **configuration file** to set up all the parameters for the MOO method. E.g., [Here](../../examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json) is 
+2. add a **configuration file** to set up all the parameters for the MOO method. E.g., [Here](../../examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json) is 
 the configuration file for the example in the [Quick Start](#quick-start).   
   
-```json
-{
-  "moo_algo": "weighted_sum", /* name of MOO algorithms */
-  "solver": "grid_search", /* name of the solver */
-  "variables": [
+    ```json
     {
-      "name": "v1",
-      "type": "FLOAT",
-      "min": 0,
-      "max": 5
-    },
-    {
-      "name": "v2",
-      "type": "FLOAT",
-      "min": 0,
-      "max": 3
+      "moo_algo": "weighted_sum", /* name of MOO algorithms */
+      "solver": "grid_search", /* name of the solver */
+      "variables": [
+        {
+          "name": "v1",
+          "type": "FLOAT",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "v2",
+          "type": "FLOAT",
+          "min": 0,
+          "max": 3
+        }
+      ],
+      "objectives": [
+        {
+          "name": "obj_1",
+          "optimize_trend": "MIN", /* to minimize the objective  */
+          "type": "FLOAT"
+        },
+        {
+          "name": "obj_2",
+          "optimize_trend": "MIN",
+          "type": "FLOAT"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "g1",
+          "type": "<="
+        },
+        {
+          "name": "g2",
+          "type": ">="
+        }
+      ],
+      "additional_params":
+        {
+          "ws_steps": 0.1, /* the weight of one objective changes as [0, 0.1, ..., 1]  */
+          "solver_params": [100, 200] /* the number of grids per variable  */
+        }
     }
-  ],
-  "objectives": [
-    {
-      "name": "obj_1",
-      "optimize_trend": "MIN", /* to minimize the objective  */
-      "type": "FLOAT"
-    },
-    {
-      "name": "obj_2",
-      "optimize_trend": "MIN",
-      "type": "FLOAT"
-    }
-  ],
-  "constraints": [
-    {
-      "name": "g1",
-      "type": "<="
-    },
-    {
-      "name": "g2",
-      "type": ">="
-    }
-  ],
-  "additional_params":
-    {
-      "ws_steps": 0.1, /* the weight of one objective changes as [0, 0.1, ..., 1]  */
-      "solver_params": [100, 200] /* the number of grids per variable  */
-    }
-}
-```
-NOTE: if the bounds of variables is infinity, please set it to a concrete number rather than setting it as `inf`
+    ```
+    NOTE: if the bounds of variables is infinity, please set it to a concrete number rather than setting it as `inf`
 
-Third, define the functions of objectives and constraints. The functions need to be subdifferentiable, e.g., a close-form formula or a Neural Network model. 
+3. define the functions of objectives and constraints. The functions need to be subdifferentiable, e.g., a close-form formula or a Neural Network model. 
 The [Quick Start](#quick-start) example uses [Binh and Korn function][2] provided by our [package](../../utils/optimization/pre_defined_funtions.py).
 
 ### Run MOO
@@ -227,9 +215,9 @@ The following shows a tree structure of APIs in `optimization` package, where `m
 │   ├── progressive_frontier.py
 │   └── weighted_sum.py
 └── solver
+    ├── __init__.py
     ├── base_solver.py
     ├── grid_search.py
-    ├── __init__.py
     ├── mogd.py
     └── random_sampler.py
 ```
@@ -240,7 +228,7 @@ Within the `moo` package, the `generic_moo` provides the entry point of all moo 
 Within the `solver` package, the base_solver provides the base API includes abstract methods, and all solver APIs extend this API.
 `grid_search`, `random_sampler`, `mogd` (Multi-Objective Gradient Descent (MOGD)) are solvers supported in the `optimization` package.
 
-## MOO Algrithms with Examples
+## MOO Algorithms with Examples
 
 ### Weighted Sum
 
@@ -249,7 +237,7 @@ It transforms an MOO problem into a single-objective optimization problem.
 
 Our weighted sum works with the solver `grid_search` and `random_sampler`.
 
-#### run with the heuristic closed form.
+#### Run with the heuristic closed form
 
 The following [example](../../examples/optimization/ws/heuristic_closed_form) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
 The functions of objectives and constraints are represented by the heuristic closed form as you can find in the folder.
@@ -262,8 +250,10 @@ python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimi
 python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_random_sampler.json
 ```   
 
+#### TODOs in the next release
+1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
+2. support a more sophisticated weighted sum approach. The current method only supports uniform weight picking for 2D and 3D. we need ways to randomly generate weights for 2+ objectives.
 
-Note: we will compare the current WS implementation with the existing WS numerical solver in the future, and the one with better performance will be kept in the package.
 
 [1]: https://web.archive.org/web/20190801183649/https://pdfs.semanticscholar.org/cf68/41a6848ca2023342519b0e0e536b88bdea1d.pdf
 [2]: https://en.wikipedia.org/wiki/Test_functions_for_optimization#cite_note-Binh97-5
