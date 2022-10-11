@@ -24,6 +24,7 @@ class Args():
         self.parser.add_argument("--script-header", type=str, default="resources/scripts/tpch-lhs")
         self.parser.add_argument("--out-header", type=str, default="examples/trace/spark/6.run_all_pressure_test")
         self.parser.add_argument("--cache-header", type=str, default="examples/trace/spark/cache")
+        self.parser.add_argument("--remote-header", type=str, default="~/chenghao")
         self.parser.add_argument("--num-templates", type=int, default=22)
         self.parser.add_argument("--num-queries-per-template-to-run", type=int, default=400)
         self.parser.add_argument("--num-processes", type=int, default=6)
@@ -69,8 +70,6 @@ def error_handler(e):
 
 if __name__ == '__main__':
 
-    REMOTE_HEADER = "~/chenghao"
-
     args = Args().parse()
 
     benchmark = args.benchmark
@@ -78,6 +77,7 @@ if __name__ == '__main__':
     script_header = args.script_header
     out_header = args.out_header
     cache_header = args.cache_header
+    remote_header = args.remote_header
     n_templates = args.num_templates
     n_processes = args.num_processes
     qpt = args.num_queries_per_template_to_run
@@ -105,11 +105,11 @@ if __name__ == '__main__':
         qpt_total = qpt
 
     # prepare nmon commands
-    nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=REMOTE_HEADER)
-    nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=REMOTE_HEADER, name_suffix="",
+    nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=remote_header)
+    nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=remote_header, name_suffix="",
                                              counts=counts, freq=freq)
     nmon_stop = NmonUtils.nmon_remote_stop(workers)
-    nmon_agg = NmonUtils.nmon_remote_agg(workers, remote_header=REMOTE_HEADER, local_header=nmon_header, name_suffix="")
+    nmon_agg = NmonUtils.nmon_remote_agg(workers, remote_header=remote_header, local_header=nmon_header, name_suffix="")
 
     # prepare the query list
     qq = QueryQueue(n_templates=n_templates, qpt=qpt_total, seed=seed)
