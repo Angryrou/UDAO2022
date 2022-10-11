@@ -13,7 +13,7 @@
 
 ## Multi-Objective Optimization Problem
 
-The Multi-Objective Optimization (MOO) problem could be represented as follows, which includes ```k``` objectives to be optimized, where along with ```m``` inequality and ```e``` equality constraints. The variables **x** are set with lower and upper bounds by $\mathbf{l}$ and $\mathbf{u}$.
+The Multi-Objective Optimization (MOO) problem could be represented as follows, which includes `k` objectives to be optimized, where along with `m` inequality and `e` equality constraints. The variables **x** are set with lower and upper bounds by $\mathbf{l}$ and $\mathbf{u}$.
 
 $$ \mathop{\rm{Minimize}}\limits_{\rm{\bf{x}}} \\ \\ \mathbf{F(\mathbf{x}}) = [\mathit{F}_1(\mathbf{x}), \mathit{F}_2(\mathbf{x}), ..., \mathit{F}_k(\mathbf{x})]^\mathit{T}$$ 
 
