@@ -6,7 +6,7 @@
 
 from optimization.moo.weighted_sum import WeightedSum
 # from optimization.moo.progressive_frontier import ProgressiveFrontier
-from optimization.moo.evolutionary import EVO
+# from optimization.moo.evolutionary import EVO
 import utils.optimization.moo_utils as moo_ut
 
 class GenericMOO:
