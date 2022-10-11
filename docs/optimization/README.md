@@ -250,6 +250,10 @@ python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimi
 python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_random_sampler.json
 ```   
 
+#### Run with our predictive model
+
+[TODO]
+
 #### TODOs in the next release
 1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
 2. support a more sophisticated weighted sum approach. The current method only supports uniform weight picking for 2D and 3D. we need ways to randomly generate weights for 2+ objectives.
