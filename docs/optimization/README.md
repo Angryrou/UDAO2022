@@ -44,82 +44,53 @@ $$ &ensp; &ensp; 0 \le x_1 \le 5, 0 \le x_2 \le 3 $$
 The optimization package allows users to define their problems from Python. 
 For the details of how to set up problems and how the APIs works internally, please see sections of [how to run MOO](#how-to-run-moo) and [APIs in Optimization package](#apis-in-optimization-package) in the later content.
 
-The following is the code for the above example solving by the Weighted Sum method with Grid-Search solver. Before running code, please export the PYTHONPATH as `export PYTHONPATH=~/your_path_to/UDAO2022`.
+Here is an [example](../../examples/optimization/ws/heuristic_closed_form/main.py) for solving the above problem by the Weighted Sum method with the `grid_search` solver. 
 
-```python
-from optimization.moo.generic_moo import GenericMOO
-from utils.optimization.configs_parser import ConfigsParser
-import utils.optimization.functions_def as func_def
-import utils.optimization.moo_utils as moo_ut
+```bash
+export PYTHONPATH=$PWD # export PYTHONPATH=~/your_path_to/UDAO2022
+python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
 
-HELP = """
-Format: python ws_hcf.py -c <config> -h
-    - c : The configuration file location. Default is "examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json"
-Example:
-    python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
-"""
-# get input parameters
-moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
-# problem setup
-moo = GenericMOO()
-moo.problem_setup(obj_names=obj_names, obj_funcs=[func_def.obj_func1, func_def.obj_func2], opt_types=opt_types,
-                  const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_ranges=var_ranges)
-# solve MOO problem
-po_objs, po_vars = moo.solve(moo_algo, solver, add_params)
-
-print("Pareto solutions:")
-print(po_objs)
-print("Variables:")
-print(po_vars)
-
-if po_objs is not None:
-    moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1])
+# output
+# 
+# Pareto solutions:
+# [[136.           4.        ]
+#  [111.46168758   4.43107846]
+#  [ 91.87184981   5.59422508]
+#  [ 76.49586777   7.30578512]
+#  [ 55.11196287  11.28420868]
+#  [ 36.07134342  16.54943324]
+#  [ 21.91174746  22.37910939]
+#  [ 11.69498623  28.74223293]
+#  [  4.75380386  35.77349741]
+#  [  1.22116206  42.49604225]
+#  [  0.          50.        ]]
+# Variables:
+# [[5.         3.        ]
+#  [4.34343434 3.        ]
+#  [3.73737374 3.        ]
+#  [3.18181818 3.        ]
+#  [2.62626263 2.62311558]
+#  [2.12121212 2.12562814]
+#  [1.66666667 1.64321608]
+#  [1.21212121 1.20603015]
+#  [0.75757576 0.7839196 ]
+#  [0.4040404  0.37688442]
+#  [0.         0.        ]]
 ```
 
-The results are as follows. 
-Rows of Pareto solutions show the number of solutions, and the columns show the objective values. 
-Like in the following, there are `11` solutions. In the first solution, `136` is the value of objective 1, and `4` is the value of objective 2.
+The output includes the Pareto solutions and the corresponding variables. The `Pareto solutions` is stacked by a set of Pareto solutions with each column representing the value of one objective.
+The `Variables` is stacked by a set of configurations with each column representing the value of one input parameter.
+In the above example, we got 11 Pareto solutions and the first Pareto solution is `(136, 4)` in the 2D objective space, corresponding to the 2D variable `(x_1, x_2) = (5, 3)`
 
-Variables are the configurations to achieve the Pareto solutions. Rows of variables show the number of solutions as well, and the columns show the variable values. 
-Like in the following, $x_1 = 5, x_2 = 3$ is the configuration of solution `[136, 4]`
-
-```python
-Pareto solutions:
-[[136.           4.        ]
- [111.46168758   4.43107846]
- [ 91.87184981   5.59422508]
- [ 76.49586777   7.30578512]
- [ 55.11196287  11.28420868]
- [ 36.07134342  16.54943324]
- [ 21.91174746  22.37910939]
- [ 11.69498623  28.74223293]
- [  4.75380386  35.77349741]
- [  1.22116206  42.49604225]
- [  0.          50.        ]]
-Variables:
-[[5.         3.        ]
- [4.34343434 3.        ]
- [3.73737374 3.        ]
- [3.18181818 3.        ]
- [2.62626263 2.62311558]
- [2.12121212 2.12562814]
- [1.66666667 1.64321608]
- [1.21212121 1.20603015]
- [0.75757576 0.7839196 ]
- [0.4040404  0.37688442]
- [0.         0.        ]]
-```
-The following figure shows the Pareto solutions. The axes show values of 2 objectives. 
-Blue points are the Pareto solutions returned by the Weighted Sum method with Grid-Search solver.
+The results are also shown in the figure below, where the blue points are the Pareto solutions returned by the Weighted Sum method with te `grid_search` solver in the 2D objective space.
 
 ![img_1.png](img_1.png)
 
 ## Overview of optimization package
-The `optimization` package includes the `optimization.moo` package and the `optimization.solver` package. The `optimization.moo` package provides APIs to access all Multi-Objective Optimization (MOO) algorithms.
+The `optimization` package includes the `optimization.moo` package and the `optimization.solver` package. The `optimization.moo` package provides APIs to access all Multi-Objective Optimization (MOO) methods.
 The `optimization.solver` package is called by MOO methods internally in `optimization.moo` package. 
 
-
-The `optimization.moo` package provides an entry point API `optimization.moo.generic_moo.GenericMOO` to solve MOO problems. It specifies input parameters for an optimization problem and an MOO algorithm. Based on the choice parameter, the appropriate MOO algorithms run internally which are described in details later in the README.md.
+The `optimization.moo` package provides an entry point API `optimization.moo.generic_moo.GenericMOO` to solve MOO problems. It specifies input parameters for an optimization problem and an MOO algorithm. Based on the choice parameter, the appropriate MOO algorithms run internally which are described in details later.
 
 ```python
 class GenericMOO:
@@ -140,13 +111,7 @@ class GenericMOO:
         :param var_ranges: ndarray(n_vars, ), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
         :return:
         '''
-        self.obj_names = obj_names
-        self.obj_funcs = obj_funcs
-        self.opt_types = opt_types
-        self.const_funcs = const_funcs
-        self.const_types = const_types
-        self.var_types = var_types
-        self.var_ranges = var_ranges
+        ...
 
     def solve(self, moo_algo: str, solver: str, add_params: list):
         '''
@@ -157,6 +122,7 @@ class GenericMOO:
         :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
                  po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
         '''
+        po_objs, po_vars = None, None
         if moo_algo == "weighted_sum":
             ...
         elif moo_algo == 'progressive_frontier':
@@ -174,127 +140,88 @@ class GenericMOO:
 ```
 
 ## How to run MOO
-### **Problem setup**
 
-- ##### **Configuration file**:
-   
-   A `.json` file is necessary for the configurations used in problem setting, 
-where it setups all the input parameters. 
-  The following shows details of the example in [Quick Start](#quick-start).   
+### Problem setup
+
+First, create a directory under `example/optimization/<moo-method>`, e.g., `example/optimization/ws`.
+
+Second, add a **configuration file** to set up all the parameters for the MOO method. E.g., [Here](../../examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json) is 
+the configuration file for the example in the [Quick Start](#quick-start).   
   
-    ```json
+```json
+{
+  "moo_algo": "weighted_sum", /* name of MOO algorithms */
+  "solver": "grid_search", /* name of the solver */
+  "variables": [
     {
-      "moo_algo": "weighted_sum", /* name of MOO algorithms */
-      "solver": "grid_search", /* name of the solver */
-      "variables": [
-        {
-          "name": "v1",
-          "type": "FLOAT",
-          "min": 0,
-          "max": 5
-        },
-        {
-          "name": "v2",
-          "type": "FLOAT",
-          "min": 0,
-          "max": 3
-        }
-      ],
-      "objectives": [
-        {
-          "name": "obj_1",
-          "optimize_trend": "MIN", /* to minimize the objective  */
-          "type": "FLOAT"
-        },
-        {
-          "name": "obj_2",
-          "optimize_trend": "MIN",
-          "type": "FLOAT"
-        }
-      ],
-      "constraints": [
-        {
-          "name": "g1",
-          "type": "<="
-        },
-        {
-          "name": "g2",
-          "type": ">="
-        }
-      ],
-      "additional_params":
-        {
-          "ws_steps": 0.1, /* the weight of one objective changes as [0, 0.1, ..., 1]  */
-          "solver_params": [100, 200] /* the number of grids per variable  */
-        }
+      "name": "v1",
+      "type": "FLOAT",
+      "min": 0,
+      "max": 5
+    },
+    {
+      "name": "v2",
+      "type": "FLOAT",
+      "min": 0,
+      "max": 3
     }
-    ```
-   NOTE: if the bounds of variables is inifite, please set it to a concrete number rather than setting it as `inf`
+  ],
+  "objectives": [
+    {
+      "name": "obj_1",
+      "optimize_trend": "MIN", /* to minimize the objective  */
+      "type": "FLOAT"
+    },
+    {
+      "name": "obj_2",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "g1",
+      "type": "<="
+    },
+    {
+      "name": "g2",
+      "type": ">="
+    }
+  ],
+  "additional_params":
+    {
+      "ws_steps": 0.1, /* the weight of one objective changes as [0, 0.1, ..., 1]  */
+      "solver_params": [100, 200] /* the number of grids per variable  */
+    }
+}
+```
+NOTE: if the bounds of variables is infinity, please set it to a concrete number rather than setting it as `inf`
 
-- ##### **Define functions of objectives and constraints**:
-   The use-defined optimization problem is set in the file `utils/optimization/functions_def.py`.
-The functions of objectives and constraints can either be represented as heuristic closed forms or predictive models (e.g. based on Neural Network).
-The following shows details of the example in [Quick Start](#quick-start).
-    ```python
-    # An example
-    # https://en.wikipedia.org/wiki/Test_functions_for_optimization#Test_functions_for_multi-objective_optimization_problems
-    # Binh and Korn function:
-    ## minimize:
-    ##          f1(x1, x2) = 4 * x_1 * x_1 + 4 * x_2 * x_2
-    ##          f2(x1, x2) = (x_1 - 5) * (x_1 - 5) + (x_2 - 5) * (x_2 - 5)
-    ## subject to:
-    ##          g1(x_1, x_2) = (x_1 - 5) * (x_1 - 5) + x_2 * x_2 <= 25
-    ##          g2(x_1, x_2) = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) >= 7.7
-    ##          x_1 in [0, 5], x_2 in [0, 3]
-    
-    def obj_func1(vars):
-        '''
-        :param vars: array
-        :return:
-        '''
-        value = 4 * vars[:, 0] * vars[:, 0] +  4 * vars[:, 1] * vars[:, 1]
-        return value
-    
-    def obj_func2(vars):
-        value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + (vars[:, 1] - 5) * (vars[:, 1] - 5)
-        return value
-    
-    def const_func1(vars):
-        value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + vars[:, 1] * vars[:, 1] - 25
-        return value
-    
-    def const_func2(vars):
-        value = (vars[:, 0] - 8) * (vars[:, 0] - 8) + (vars[:, 1] + 3) * (vars[:, 1] + 3) - 7.7
-        return value
-    ```
+Third, define the functions of objectives and constraints. The functions need to be subdifferentiable, e.g., a close-form formula or a Neural Network model. 
+The [Quick Start](#quick-start) example uses [Binh and Korn function][2] provided by our [package](../../utils/optimization/pre_defined_funtions.py).
 
-### **Run MOO**
-- First parse the configuration file to obtain input parameters, and then call `optimization.moo.generic_moo.GenericMOO` to return Pareto solutions and the corresponding variables.
+### Run MOO
 
-    ```python
-    from optimization.moo.generic_moo import GenericMOO
-    from utils.optimization.configs_parser import ConfigsParser
-    import utils.optimization.functions_def as func_def
-    
-    # get input parameters
-    moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
-    # problem setup
-    moo = GenericMOO()
-    moo.problem_setup(obj_names=obj_names, obj_funcs=[func_def.obj_func1, func_def.obj_func2], opt_types=opt_types,
-                      const_funcs=[func_def.const_func1, func_def.const_func2], const_types=const_types, var_types=var_types, var_ranges=var_ranges)
-    # solve MOO problem, return Pareto solutions and its variables
-    po_objs, po_vars = moo.solve(moo_algo, solver, add_params)
-    ```
-- The results of MOO include Pareto solutions and its variables. Please refer to [Quick Start](#quick-start) for results explanation in detail. 
-## **APIs in Optimization package**
+To run the MOO over the defined problem, construct a python file to invoke `optimization.moo.generic_moo.GenericMOO` with 
+the pre-defined functions for the objectives and constraints, and run it with the configuration file.
+
+```bash
+export PYTHONPATH=$PWD
+# python example/optimization/<moo-method>/main.py -c <configuration-file>
+python example/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+```
+
+
+## APIs in Optimization package
+
 The following shows a tree structure of APIs in `optimization` package, where `moo` and `solver` are two packages for MOO algorithms and solvers respectively.
 ```bash
 ├── __init__.py
 ├── moo
+│   ├── __init__.py
 │   ├── base_moo.py
 │   ├── evolutionary.py
 │   ├── generic_moo.py
-│   ├── __init__.py
 │   ├── mobo.py
 │   ├── normalized_normal_constraint.py
 │   ├── progressive_frontier.py
@@ -306,34 +233,35 @@ The following shows a tree structure of APIs in `optimization` package, where `m
     ├── mogd.py
     └── random_sampler.py
 ```
+
 Within the `moo` package, the `generic_moo` provides the entry point of all moo algorithms. The `base_moo` is the base API includes abstract methods, and all APIs of MOO algorithms extend this API. 
 `weighted_sum`, `progressive_frontier`, `evolutionary`, `mobo`(Multi-Objective Bayesian Optimization (MOBO), `normalized_normal_constraint` are MOO algorithms supported in the `optimization` package.
 
 Within the `solver` package, the base_solver provides the base API includes abstract methods, and all solver APIs extend this API.
 `grid_search`, `random_sampler`, `mogd` (Multi-Objective Gradient Descent (MOGD)) are solvers supported in the `optimization` package.
 
-## **MOO Algrithms with Examples**
-### **Weighted Sum**
+## MOO Algrithms with Examples
 
-Weighted Sum (WS) [[3]] method adds different weights on different objectives to show preferences or importance over all objectives. It transforms a MOO problem into a single-objective optimziation problem. 
+### Weighted Sum
 
-In the packages `optimization.moo`, it calls the method `weighted_sum`. 
-Within the method, it supports to call the solver `random_sampler` or `grid_search`.
+Weighted Sum (WS) [[3]] method adds different weights on different objectives to show the preferences or importance over all objectives. 
+It transforms an MOO problem into a single-objective optimization problem. 
 
-#### **Run Weighted Sum Example**
-   The following example calls Weighted Sum algorithm with solver Grid-Search. The functions of objectives and constraints are represented by the heuristic closed form.
-   
-   1). problem settings shown in 
-      `"examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json"` and `utils/optimization/functions_def.py`
+Our weighted sum works with the solver `grid_search` and `random_sampler`.
 
-   2). set the python path
-   `export PYTHONPATH=~/your_path_to/UDAO2022`
+#### run with the heuristic closed form.
 
-   3). run the following command
-   ```bash
-   # Format: python ws_hcf.py -c <config> -h
-   python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
-```
+The following [example](../../examples/optimization/ws/heuristic_closed_form) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
+The functions of objectives and constraints are represented by the heuristic closed form as you can find in the folder.
+    
+```bash
+export PYTHONPATH=$PWD
+# WS with the grid_search solver
+python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+# WS with the random_sampler solver 
+python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_random_sampler.json
+```   
+
 
 Note: we will compare the current WS implementation with the existing WS numerical solver in the future, and the one with better performance will be kept in the package.
 
