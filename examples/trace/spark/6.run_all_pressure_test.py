@@ -7,6 +7,9 @@ import argparse, os, time
 import random
 
 from multiprocessing import Pool, Manager
+import threading
+from multiprocessing.managers import ValueProxy
+
 from trace.collect.framework import QueryQueue
 from utils.common import PickleUtils, BenchmarkUtils
 from utils.data.feature import NmonUtils
@@ -39,10 +42,11 @@ def extract(qq, conf_df_dict, i):
     conf_df = conf_df_dict[tid].iloc[qid - 1]
     knob_sign = conf_df.name
     cores = int(conf_df["spark.executor.cores"]) * (int(conf_df["spark.executor.instances"]) + 1)
-    return tid, qid, knob_sign, cores
+    return tid, str(qid), knob_sign, cores
 
 
-def submit(lock, current_cores, cores, tid, qid, knob_sign, debug, script_header, log_header):
+def submit(lock: threading.RLock, current_cores: ValueProxy, cores: int, tid: str, qid: str,
+           knob_sign: str, debug: bool, script_header: str, log_header: str):
     script_file = f"{script_header}/{tid}/q{tid}-{qid}_{knob_sign}.sh"
     assert os.path.exists(script_file), FileNotFoundError(script_file)
     log_file = f"{log_header}/q{tid}-{qid}.log"
