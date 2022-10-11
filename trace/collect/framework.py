@@ -26,8 +26,7 @@ class QueryQueue(object):
 
     def index_to_tid_and_qid(self, i):
         if i >= self.total:
-            print(f"no more queries")
-            return -1, -1
+            raise Exception(f"no more queries")
         else:
             tiid = self.queries[i]
             qid = (i // self.n_templates) + 1
