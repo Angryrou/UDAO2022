@@ -39,19 +39,25 @@ class LHSSampler(BaseSampler):
     def __init__(self, knobs, seed=42):
         super(LHSSampler, self).__init__(knobs, seed)
 
-    def get_samples(self, n_samples, criterion="maximin", debug=False):
+    def get_samples(self, n_samples, criterion="maximin", debug=False, random_state=None):
         """
         generate n_samples samples via LHS
         :param n_samples:
         :param criterion:
         :param debug:
+        :param random_state:
         :return:
         """
         assert n_samples > 1
+        if random_state is None:
+            random_state = self.seed
+        else:
+            assert isinstance(random_state, int)
+            np.random.seed(random_state)
 
         # get the internal samples
         samples = lhs(self.n_knobs, samples=n_samples, criterion=criterion)
-        samples = shuffle(samples, random_state=self.seed)
+        samples = shuffle(samples, random_state=random_state)
         # get decoded configurations in a DataFrame
         knob_df = KnobUtils.knob_denormalize(samples, self.knobs)
         # drop duplicated configurations after rounding in the decoding

@@ -1,38 +1,57 @@
 Traces
 ======
 
+From the `trace` package and examples, we describe and point out how we handle the trace collection in different benchmarks and system settings, including
+
 <!--ts-->
-
-* [Spark_TPCH](#spark_tpch)
-    * [collection](#collection)
-    * [parsing](#parsing)
-* [Spark_TPCDS](#spark_tpch)
-    * [collection](#collection)
-    * [parsing](#parsing)
-
+* [Single-query environment](#single-query-environment)
+  - [Spark 2.3.1](#spark-231)
+    - [Spark-TPCxBB](#spark-tpcxbb)
+  - [Postgres 12.4](#postgres-124)
+    - [PSQL-TPCH](#psql-tpch)
+    - [PSQL-TPCDS](#psql-tpcds)
+* [Multi-query environment](#multi-query-environment)
+  - [Spark 3.2.1](#spark-321)
+    - [Spark-TPCH](#spark-tpch)
+    - [Spark-TPCDS](#spark-tpcds)
+  - MaxCompute (confidential)
 <!--te-->
 
-Spark
-=====
 
-Configurations
---------------
+## Single-query environment
 
-List of the selected Spark knobs (when `spark.dynamicAllocation.enabled` is disabled)
+### Spark 2.3.1
+
+#### Spark-TPCxBB
+
+### Postgres 12.4
+
+#### PSQL-TPCH
+
+#### PSQL-TPCDS
+
+## Multi-query environment
+
+Our traces from the multi-query environment are either from the production workloads or the workloads mimicing the production.
+Although the real traces from the industry world is confidential, we run TPCH and TPCDs over Spark 3.2.1 to mimicinng the real world system states.
+
+### Spark 3.2.1
+
+Here is the list of the selected Spark knobs (when `spark.dynamicAllocation.enabled` is disabled)
 
 ```yaml
-k1 -> spark.executor.memory
-k2 -> spark.executor.cores
-k3 -> spark.executor.instances
-k4 -> spark.defalut.parallelism
-k5 -> spark.reducer.maxSizeInFlight
-k6 -> spark.shuffle.sort.bypassMergeThreshold
-k7 -> spark.shuffle.compress
-k8 -> spark.memory.fraction
-s1 -> spark.sql.inMemoryColumnarStorage.batchSize
-s2 -> spark.sql.files.maxPartitionBytes
-s3 -> spark.sql.autoBroadcastJoinThreshold
-s4 -> spark.sql.shuffle.partitions
+k1: spark.executor.memory
+k2: spark.executor.cores
+k3: spark.executor.instances
+k4: spark.defalut.parallelism
+k5: spark.reducer.maxSizeInFlight
+k6: spark.shuffle.sort.bypassMergeThreshold
+k7: spark.shuffle.compress
+k8: spark.memory.fraction
+s1: spark.sql.inMemoryColumnarStorage.batchSize
+s2: spark.sql.files.maxPartitionBytes
+s3: spark.sql.autoBroadcastJoinThreshold
+s4: spark.sql.shuffle.partitions
 ```
 
 Internal Knobs over the 6-node Spark cluster (each with 30 cores and 680G memory) with the [best practice][1] at Amazon
@@ -52,58 +71,52 @@ EMR.
 12. s4 takes `{ON, OFF}` to control either the knob choose `parallelism` or `2001` (highly compressed data
     when `s4>2000`)
 
+We also fixed some knobs according to the [best practice][1]. E.g., we have the following lines in `spark-defaults.conf` 
+```bash
+spark.serializer=org.apache.spark.serializer.KryoSerializer
+spark.kryoserializer.buffer.max=512m
+spark.sql.adaptive.enabled=false
+spark.sql.cbo.enabled=true
+spark.sql.cbo.joinReorder.dp.star.filter=true
+spark.sql.cbo.joinReorder.enabled=true
+spark.sql.cbo.planStats.enabled=true
+spark.sql.cbo.starSchemaDetection=true
+```
+
 [1]: https://aws.amazon.com/blogs/big-data/best-practices-for-successfully-managing-memory-for-apache-spark-applications-on-amazon-emr/
 
 [2]: https://spoddutur.github.io/spark-notes/distribution_of_executors_cores_and_memory_for_spark_application.html
 
-TPCH
-----
+#### Spark-TPCH
 
-1. Setup TPCH benchmark over a Spark cluster
-
-```bash
-git clone https://github.com/Angryrou/spark-sql-perf.git
-cd spark-sql-perf
-bin/run --help # testing env
-sbt +package
-
-
-# an example of running in our Ercilla Spark cluster, look into `my_set_benchmark.sh` for more details
-bm=TPCH
-sf=100
-bash ~/chenghao/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_benchmark.sh $bm $sf
-```
-
-2. Prepare the codebase for query generation (clone, compile and validate).
+Here are the key steps for the TPCH trace collection. For more details, please refer to [3.Spark-TPCH-and-TPCDS.md](./3.Spark-TPCH-and-TPCDS.md)
 
 ```bash
-# add tpch-kit under `resources`
-OS=MACOS # or LINUX, for both Spark and Postgres
-bash examples/trace/1.setup_tpch.sh MACOS
+# generate ~100K queries
+bash examples/trace/spark/1.query_generation_tpch.sh $PWD/resources/tpch-kit $PWD/resources/tpch-kit/spark-sqls 4545
+# 80% collected in LHS
+# generate and run LHS configurations
+python examples/trace/spark/5.generate_scripts_for_lhs.py -b TPCH -q resources/tpch-kit/spark-sqls --script-header resources/scripts/tpch-lhs --num-processes 30 --num-templates 22 --num-queries-per-template 3637
+python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --script-header resources/scripts/tpch-lhs --num-processes 22 --num-templates 22 --num-queries-per-template-to-run 3637 
+# 10% in BO-latency
+# todo
+# 10% in BO-cost
+# todo
 ```
 
-3. Generate SparkSQLs. Check the example below
+#### Spark-TPCDS
+
+Here are the key steps for the TPCDS trace collection. For more details, please refer to [3.Spark-TPCH-and-TPCDS.md](./3.Spark-TPCH-and-TPCDS.md)
 
 ```bash
-# bash examples/trace/spark/1.query_generation_tpch.sh <tpch-kit path> <query-out path> <#queries per template> <SF-100 by default>
-bash examples/trace/spark/1.query_generation_tpch.sh $PWD/resources/tpch-kit $PWD/resources/tpch-kit/spark-sqls 3  
+# generate ~100K queries
+bash examples/trace/spark/1.query_generation_tpcds.sh $PWD/resources/tpcds-kit $PWD/resources/tpcds-kit/spark-sqls 971
+# 80% collected in LHS
+# generate and run LHS configurations
+python examples/trace/spark/5.generate_scripts_for_lhs.py -b TPCDS -q resources/tpcds-kit/spark-sqls --script-header resources/scripts/tpcds-lhs --num-processes 30 --num-templates 22 --num-queries-per-template 777
+python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --script-header resources/scripts/tpcds-lhs --num-processes 22 --num-templates 22 --num-queries-per-template-to-run 777 
+# 10% in BO-latency
+# todo
+# 10% in BO-cost
+# todo
 ```
-
-4. Generate configurations via LHS and BO. Check the example below
-
-```bash
-export PYTHONPATH="$PWD"
-python examples/trace/spark/2.knob_sampling.py
-```
-
-5. Trigger trace collection.
-   - an example of running single query in our Ercilla Spark cluster.
-    ```bash
-    export PYTHONPATH="$PWD"
-    python examples/trace/spark/3.run_one.py
-    ```
-   - an example in the single-query environment
-   - an example in the multi-query environment
-
-TPCDS
------     
