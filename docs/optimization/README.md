@@ -250,9 +250,18 @@ python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimi
 python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_random_sampler.json
 ```   
 
-#### Run with our predictive model
+#### Run with predictive model
 
-[TODO]
+The following [example](../../examples/optimization/ws/predictive_model) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
+The functions of objectives and constraints are represented by the Gaussian Process Regressor (GPR) or Neural Network ([TODO]) models as you can find in the folder.
+    
+```bash
+export PYTHONPATH=$PWD
+# WS with the grid_search solver
+python examples/optimization/ws/predictive_model/gpr/main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_grid_search.json
+# WS with the random_sampler solver 
+python examples/optimization/ws/predictive_model/gpr/main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_random_sampler.json
+```   
 
 #### TODOs in the next release
 1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.

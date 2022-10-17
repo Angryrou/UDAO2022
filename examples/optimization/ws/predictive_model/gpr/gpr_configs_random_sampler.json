@@ -1,0 +1,56 @@
+{
+  "moo_algo": "weighted_sum",
+  "solver": "random_sampler",
+  "variables": [
+    {
+      "name": "v1",
+      "type": "FLOAT",
+      "min": 0,
+      "max": 5
+    },
+    {
+      "name": "v2",
+      "type": "FLOAT",
+      "min": 0,
+      "max": 3
+    }
+  ],
+  "objectives": [
+    {
+      "name": "obj_1",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
+    },
+    {
+      "name": "obj_2",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "g1",
+      "type": "<="
+    },
+    {
+      "name": "g2",
+      "type": ">="
+    }
+  ],
+  "model": {
+    "name": "gpr",
+    "random_state": 1,
+    "n_training": 6,
+    "n_restarts_optimizer": 9,
+    "length_scale": 1,
+    "length_scale_bounds": [1e-2, 1e2]
+  },
+  "additional_params":
+    {
+      "ws_steps": 0.1,
+      "solver_params": {
+        "n_samples": 10000,
+        "seed": 0
+      }
+    }
+}
