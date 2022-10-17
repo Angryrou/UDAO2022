@@ -1,26 +1,26 @@
 # Author(s): Qi FAN <qi dot fan at polytechnique dot edu>
 #
-# Description: An example on running Weighted Sum with Grid-Search solver (with GPR predictive model)
+# Description: An example on running Weighted Sum with Grid-Search solver
 #
-# Created at 14/10/2022
+# Created at 22/09/2022
 
 from optimization.moo.generic_moo import GenericMOO
 from utils.optimization.configs_parser import ConfigsParser
-from utils.optimization.pre_defined_funtions import GPRPredictiveModels
+from utils.optimization.pre_defined_nn_functions import NNPredictiveModels
 import utils.optimization.moo_utils as moo_ut
 
 HELP = """
-Format: python main.py -c <config> -h
-    - c : The configuration file location. Default is "examples/optimization/ws/predictive_model/gpr/gpr_configs_grid_search.json"
+Format: python nn_main.py -c <config> -h
+    - c : The configuration file location. Default is "examples/optimization/ws/predictive_model/nn/nn_configs_grid_search.json"
 Example:
-    python examples/optimization/ws/predictive_model/gpr/main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_grid_search.json
+    python examples/optimization/ws/predictive_model/nn/nn_main.py -c examples/optimization/ws/predictive_model/nn/nn_configs_grid_search.json
 """
 
 # get input parameters
 moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
 
 # model set up
-predictive_model = GPRPredictiveModels()
+predictive_model = NNPredictiveModels()
 
 # problem setup
 moo = GenericMOO()

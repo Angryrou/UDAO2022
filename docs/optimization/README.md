@@ -49,7 +49,7 @@ Here is an [example](../../examples/optimization/ws/heuristic_closed_form/main.p
 
 ```bash
 export PYTHONPATH=$PWD # export PYTHONPATH=~/your_path_to/UDAO2022
-python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+python examples/optimization/ws/heuristic_closed_form/nn_main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
 
 # output
 # 
@@ -195,14 +195,14 @@ the pre-defined functions for the objectives and constraints, and run it with th
 
 ```bash
 export PYTHONPATH=$PWD
-# python example/optimization/<moo-method>/main.py -c <configuration-file>
-python example/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+# python example/optimization/<moo-method>/nn_main.py -c <configuration-file>
+python example/optimization/ws/heuristic_closed_form/nn_main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
 ```
-
 
 ## APIs in Optimization package
 
-The following shows a tree structure of APIs in `optimization` package, where `moo` and `solver` are two packages for MOO algorithms and solvers respectively.
+The following shows a tree structure of APIs in `optimization` package, where `moo` and `solver` are two packages for MOO algorithms and solvers respectively;
+`model` provides a general API for user to inherit.
 ```bash
 ├── __init__.py
 ├── moo
@@ -214,6 +214,9 @@ The following shows a tree structure of APIs in `optimization` package, where `m
 │   ├── normalized_normal_constraint.py
 │   ├── progressive_frontier.py
 │   └── weighted_sum.py
+├── model
+│   ├── __init__.py
+│   └── base_model.py
 └── solver
     ├── __init__.py
     ├── base_solver.py
@@ -245,22 +248,30 @@ The functions of objectives and constraints are represented by the heuristic clo
 ```bash
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
-python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+python examples/optimization/ws/heuristic_closed_form/nn_main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
 # WS with the random_sampler solver 
-python examples/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_random_sampler.json
+python examples/optimization/ws/heuristic_closed_form/nn_main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_random_sampler.json
 ```   
 
 #### Run with predictive model
 
 The following [example](../../examples/optimization/ws/predictive_model) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
-The functions of objectives and constraints are represented by the Gaussian Process Regressor (GPR) or Neural Network ([TODO]) models as you can find in the folder.
+The functions of objectives and constraints are represented by the Gaussian Process Regressor (GPR) or Neural Network (NN) models as you can find in the folder.
     
 ```bash
+# Simple GPR models for objective functions
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
-python examples/optimization/ws/predictive_model/gpr/main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_grid_search.json
+python examples/optimization/ws/predictive_model/gpr/gpr_main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_grid_search.json
 # WS with the random_sampler solver 
-python examples/optimization/ws/predictive_model/gpr/main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_random_sampler.json
+python examples/optimization/ws/predictive_model/gpr/gpr_main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_random_sampler.json
+
+# Simple NN models for one objective function and one constraint function
+export PYTHONPATH=$PWD
+# WS with the grid_search solver
+python examples/optimization/ws/predictive_model/nn/nn_main.py -c examples/optimization/ws/predictive_model/nn/nn_configs_grid_search.json
+# WS with the random_sampler solver 
+python examples/optimization/ws/predictive_model/nn/nn_main.py -c examples/optimization/ws/predictive_model/nn/nn_configs_random_sampler.json
 ```   
 
 #### TODOs in the next release

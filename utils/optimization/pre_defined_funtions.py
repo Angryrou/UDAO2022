@@ -1,10 +1,9 @@
 # Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
 #            Qi FAN <qi dot fan at polytechnique dot edu>
 #
-# Description: pre-define functions.
+# Description: pre-define functions of Heuristic Closed Form (HCF).
 #
 # Created at 10/12/22
-from examples.optimization.ws.predictive_model.gpr.gpr import GPR
 
 class HCF:
     """
@@ -32,33 +31,6 @@ class HCF:
     @staticmethod
     def obj_func2(vars):
         value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + (vars[:, 1] - 5) * (vars[:, 1] - 5)
-        return value
-
-    @staticmethod
-    def const_func1(vars):
-        value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + vars[:, 1] * vars[:, 1] - 25
-        return value
-
-    @staticmethod
-    def const_func2(vars):
-        value = (vars[:, 0] - 8) * (vars[:, 0] - 8) + (vars[:, 1] + 3) * (vars[:, 1] + 3) - 7.7
-        return value
-
-
-class GPRPredictiveModels:
-    # initialize model
-    gpr = GPR()
-
-    @classmethod
-    def predict_obj1(cls, vars):
-        obj = "obj_1"
-        value = cls.gpr.predict(obj, vars)
-        return value
-
-    @classmethod
-    def predict_obj2(cls, vars):
-        obj = "obj_2"
-        value = cls.gpr.predict(obj, vars)
         return value
 
     @staticmethod

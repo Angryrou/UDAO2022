@@ -4,7 +4,7 @@
 #
 # Created at 17/10/2022
 from utils.optimization.configs_parser import ConfigsParser
-from utils.optimization.base_model import BaseModel
+from optimization.model.base_model import BaseModel
 
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
