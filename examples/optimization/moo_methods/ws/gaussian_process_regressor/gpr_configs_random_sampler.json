@@ -39,11 +39,9 @@
   ],
   "model": {
     "name": "gpr",
-    "random_state": 1,
-    "n_training": 6,
-    "n_restarts_optimizer": 9,
     "length_scale": 1,
-    "length_scale_bounds": [1e-2, 1e2]
+    "magnitude": 1.0,
+    "ridge": 1.0
   },
   "additional_params":
     {

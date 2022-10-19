@@ -20,7 +20,7 @@ Example:
 moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
 
 # model set up
-training_vars =moo_ut.get_training_input(var_types, var_ranges, n_samples=10)
+training_vars =moo_ut.get_training_input(var_types, var_ranges, n_samples=50)
 predictive_model = GPRPredictiveModels(obj_names, training_vars)
 
 # problem setup
