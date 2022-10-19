@@ -4,7 +4,7 @@
 #
 # Created at 17/10/2022
 
-from examples.optimization.ws.predictive_model.nn.nn import NN
+from examples.optimization.moo_methods.ws.neural_network.nn import NN
 
 class NNPredictiveModels:
     # initialize model

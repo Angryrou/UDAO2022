@@ -27,6 +27,7 @@ class NN(BaseModel):
 
     def predict(self, name, vars):
         # one-layer NN
+        th.manual_seed(1)
         vars = th.Tensor(vars)
         if name == "obj_1":
             fc = nn.Linear(self.in_features, 1)

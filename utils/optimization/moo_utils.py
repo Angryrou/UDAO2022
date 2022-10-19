@@ -9,6 +9,8 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+from utils.parameters import VarTypes
+
 
 # a quite efficient way to get the indexes of pareto points
 # https://stackoverflow.com/a/40239615
@@ -102,3 +104,47 @@ def plot_po(po, n_obj=2):
 
     plt.tight_layout()
     plt.show()
+
+# generate training inputs for GPR, reuse code in RandomSampler solver
+def get_training_input(var_types, var_ranges, n_samples):
+    '''
+    generate samples of variables
+    :param var_ranges: array (n_vars,), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
+    :param var_types: list, type of each variable
+    :param n_samples: int, the number of input samples to train GPR models
+    :return: array, variables (n_samples * n_vars)
+    '''
+    n_vars = var_ranges.shape[0]
+    x = np.zeros([n_samples, n_vars])
+    np.random.seed(0)
+    for i, values in enumerate(var_ranges):
+        upper, lower = values[1], values[0]
+        if (lower - upper) > 0:
+            raise Exception(f"ERROR: the lower bound of variable {i} is greater than its upper bound!")
+
+        # randomly sample n_samples within the range
+        if var_types[i] == VarTypes.FLOAT:
+            x[:, i] = rand_float(lower, upper, n_samples)
+        elif var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
+            x[:, i] = np.random.randint(lower, upper + 1, size=n_samples)
+        elif var_types[i] == VarTypes.ENUM:
+            inds = np.random.randint(0, len(values), size=n_samples)
+            x[:, i] = np.array(values)[inds]
+        else:
+            raise Exception(f"Variable type {var_types[i]} is not supported!")
+    return x
+
+def rand_float(lower, upper, n_samples):
+    '''
+    generate n_samples random float values within the lower and upper var_ranges
+    :param lower: int, lower bound
+    :param upper: int upper bound
+    :param n_samples: int, the number of samples
+    :return: ndarray(n_samples, ), n_samples random float
+    '''
+    if lower > upper:
+        return None
+    else:
+        scale = upper - lower
+        out = np.random.rand(n_samples) * scale + lower
+        return out

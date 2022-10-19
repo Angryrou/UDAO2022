@@ -4,22 +4,27 @@
 #
 # Created at 17/10/2022
 
-from examples.optimization.ws.predictive_model.gpr.gpr import GPR
+from examples.optimization.moo_methods.ws.gaussian_process_regressor.gpr import GPR
 
 class GPRPredictiveModels:
-    # initialize model
-    gpr = GPR()
 
-    @classmethod
-    def predict_obj1(cls, vars):
+    def __init__(self, objs: list, training_vars):
+        '''
+        initialization
+        :param objs: list, name of objectives
+        :param training_vars: ndarray(n_samples, n_vars), input used to train GPR model.
+        '''
+        self.training_vars = training_vars
+        self.gpr = GPR(objs, training_vars)
+
+    def predict_obj1(self, vars):
         obj = "obj_1"
-        value = cls.gpr.predict(obj, vars)
+        value = self.gpr.predict(obj, vars)
         return value
 
-    @classmethod
-    def predict_obj2(cls, vars):
+    def predict_obj2(self, vars):
         obj = "obj_2"
-        value = cls.gpr.predict(obj, vars)
+        value = self.gpr.predict(obj, vars)
         return value
 
     @staticmethod

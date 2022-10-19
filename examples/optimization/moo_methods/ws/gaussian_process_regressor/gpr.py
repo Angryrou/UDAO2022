@@ -6,16 +6,21 @@
 from utils.optimization.configs_parser import ConfigsParser
 from optimization.model.base_model import BaseModel
 
+
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 
 # an example of noise-free model by following: https://scikit-learn.org/stable/auto_examples/gaussian_process/plot_gpr_noisy_targets.html
 class GPR(BaseModel):
-    def __init__(self):
+    def __init__(self, objs, training_vars):
         super().__init__()
         self.model_params = ConfigsParser().parse_details(option="model")
         self.initialize()
+
+        self.gpr_models = {}
+        for obj in objs:
+            self.gpr_models[obj] = self.fit(obj, training_vars)
 
     def initialize(self):
         random_state = self.model_params["random_state"]
@@ -41,11 +46,12 @@ class GPR(BaseModel):
         assert X_train.shape[1] == vars.shape[1]
 
         kernel = 1 * RBF(length_scale=self.length_scale, length_scale_bounds=self.length_scale_bounds)
-        self.gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=self.n_restarts_optimizer)
-        self.gpr.fit(X_train, y_train)
+        gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=self.n_restarts_optimizer)
+        gpr.fit(X_train, y_train)
+
+        return gpr
 
     def predict(self, obj, vars):
-        self.fit(obj, vars)
-        mean_prediction, std_prediction = self.gpr.predict(vars, return_std=True)
+        mean_prediction, std_prediction = self.gpr_models[obj].predict(vars, return_std=True)
 
         return mean_prediction

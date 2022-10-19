@@ -45,11 +45,11 @@ $$ &ensp; &ensp; 0 \le x_1 \le 5, 0 \le x_2 \le 3 $$
 The optimization package allows users to define their problems from Python. 
 For the details of how to set up problems and how the APIs works internally, please see sections of [how to run MOO](#how-to-run-moo) and [APIs in Optimization package](#apis-in-optimization-package) in the later content.
 
-Here is an [example](../../examples/optimization/ws/heuristic_closed_form/main.py) for solving the above problem by the Weighted Sum method with the `grid_search` solver. 
+Here is an [example](../../examples/optimization/moo_methods/ws/heuristic_closed_form/main.py) for solving the above problem by the Weighted Sum method with the `grid_search` solver. 
 
 ```bash
 export PYTHONPATH=$PWD # export PYTHONPATH=~/your_path_to/UDAO2022
-python examples/optimization/ws/heuristic_closed_form/nn_main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+python examples/optimization/moo_methods/ws/heuristic_closed_form/main.py -c examples/optimization/moo_methods/ws/heuristic_closed_form/hcf_configs_grid_search.json
 
 # output
 # 
@@ -131,9 +131,9 @@ class GenericMOO:
 
 ### Problem setup
 
-1. create a directory under `example/optimization/<moo-method>`, e.g., `example/optimization/ws`.
+1. create a directory under `example/optimization/moo_methods/<moo-method>`, e.g., `example/optimization/moo_methods/ws`.
 
-2. add a **configuration file** to set up all the parameters for the MOO method. E.g., [Here](../../examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json) is 
+2. add a **configuration file** to set up all the parameters for the MOO method. E.g., [Here](../../examples/optimization/moo_methods/ws/heuristic_closed_form/hcf_configs_grid_search.json) is 
 the configuration file for the example in the [Quick Start](#quick-start).   
   
     ```json
@@ -186,7 +186,7 @@ the configuration file for the example in the [Quick Start](#quick-start).
     NOTE: if the bounds of variables is infinity, please set it to a concrete number rather than setting it as `inf`
 
 3. define the functions of objectives and constraints. The functions need to be subdifferentiable, e.g., a close-form formula or a Neural Network model. 
-The [Quick Start](#quick-start) example uses [Binh and Korn function][2] provided by our [package](../../utils/optimization/pre_defined_funtions.py).
+The [Quick Start](#quick-start) example uses [Binh and Korn function][2] provided by our [package](../../examples/optimization/models/heuristic_closed_form/pre_defined_funtions.py).
 
 ### Run MOO
 
@@ -195,8 +195,8 @@ the pre-defined functions for the objectives and constraints, and run it with th
 
 ```bash
 export PYTHONPATH=$PWD
-# python example/optimization/<moo-method>/nn_main.py -c <configuration-file>
-python example/optimization/ws/heuristic_closed_form/nn_main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+# python example/optimization/moo_methods/<moo-method>/main.py -c <configuration-file>
+python example/optimization/ws/heuristic_closed_form/main.py -c examples/optimization/moo_methods/ws/heuristic_closed_form/hcf_configs_grid_search.json
 ```
 
 ## APIs in Optimization package
@@ -228,8 +228,10 @@ The following shows a tree structure of APIs in `optimization` package, where `m
 Within the `moo` package, the `generic_moo` provides the entry point of all moo algorithms. The `base_moo` is the base API includes abstract methods, and all APIs of MOO algorithms extend this API. 
 `weighted_sum`, `progressive_frontier`, `evolutionary`, `mobo`(Multi-Objective Bayesian Optimization (MOBO), `normalized_normal_constraint` are MOO algorithms supported in the `optimization` package.
 
-Within the `solver` package, the base_solver provides the base API includes abstract methods, and all solver APIs extend this API.
+Within the `solver` package, the `base_solver` provides the base API includes abstract methods, and all solver APIs extend this API.
 `grid_search`, `random_sampler`, `mogd` (Multi-Objective Gradient Descent (MOGD)) are solvers supported in the `optimization` package.
+
+Within the `model` package, the `base_model` provides the base API includes abstract methods used in predictive models.
 
 ## MOO Algorithms with Examples
 
@@ -242,36 +244,36 @@ Our weighted sum works with the solver `grid_search` and `random_sampler`.
 
 #### Run with the heuristic closed form
 
-The following [example](../../examples/optimization/ws/heuristic_closed_form) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
+The following [example](../../examples/optimization/moo_methods/ws/heuristic_closed_form) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
 The functions of objectives and constraints are represented by the heuristic closed form as you can find in the folder.
     
 ```bash
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
-python examples/optimization/ws/heuristic_closed_form/nn_main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+python examples/optimization/moo_methods/ws/heuristic_closed_form/main.py -c examples/optimization/moo_methods/ws/heuristic_closed_form/hcf_configs_grid_search.json
 # WS with the random_sampler solver 
-python examples/optimization/ws/heuristic_closed_form/nn_main.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_random_sampler.json
+python examples/optimization/moo_methods/ws/heuristic_closed_form/main.py -c examples/optimization/moo_methods/ws/heuristic_closed_form/hcf_configs_random_sampler.json
 ```   
 
 #### Run with predictive model
 
-The following [example](../../examples/optimization/ws/predictive_model) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
+The following [example](../../examples/optimization/moo_methods/ws/gaussian_process_regressor) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
 The functions of objectives and constraints are represented by the Gaussian Process Regressor (GPR) or Neural Network (NN) models as you can find in the folder.
     
 ```bash
 # Simple GPR models for objective functions
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
-python examples/optimization/ws/predictive_model/gpr/gpr_main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_grid_search.json
+python examples/optimization/moo_methods/ws/gaussian_process_regressor/main.py -c examples/optimization/moo_methods/ws/gaussian_process_regressor/gpr_configs_grid_search.json
 # WS with the random_sampler solver 
-python examples/optimization/ws/predictive_model/gpr/gpr_main.py -c examples/optimization/ws/predictive_model/gpr/gpr_configs_random_sampler.json
+python examples/optimization/moo_methods/ws/gaussian_process_regressor/main.py -c examples/optimization/moo_methods/ws/gaussian_process_regressor/gpr_configs_random_sampler.json
 
 # Simple NN models for one objective function and one constraint function
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
-python examples/optimization/ws/predictive_model/nn/nn_main.py -c examples/optimization/ws/predictive_model/nn/nn_configs_grid_search.json
+python examples/optimization/moo_methods/ws/neural_network/main.py -c examples/optimization/moo_methods/ws/neural_network/nn_configs_grid_search.json
 # WS with the random_sampler solver 
-python examples/optimization/ws/predictive_model/nn/nn_main.py -c examples/optimization/ws/predictive_model/nn/nn_configs_random_sampler.json
+python examples/optimization/moo_methods/ws/neural_network/main.py -c examples/optimization/moo_methods/ws/neural_network/nn_configs_random_sampler.json
 ```   
 
 #### TODOs in the next release
