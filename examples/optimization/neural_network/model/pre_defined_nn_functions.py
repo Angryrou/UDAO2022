@@ -4,7 +4,7 @@
 #
 # Created at 17/10/2022
 
-from examples.optimization.models.neural_network.nn import NN
+from examples.optimization.neural_network.model.nn import NN
 
 class NNPredictiveModels:
     # initialize model

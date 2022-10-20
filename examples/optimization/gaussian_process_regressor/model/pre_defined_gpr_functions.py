@@ -4,7 +4,7 @@
 #
 # Created at 17/10/2022
 
-from examples.optimization.models.gaussian_process_regressor.gpr import GPR
+from examples.optimization.gaussian_process_regressor.model.gpr import GPR
 
 class GPRPredictiveModels:
 

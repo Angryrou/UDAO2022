@@ -1,26 +1,27 @@
 # Author(s): Qi FAN <qi dot fan at polytechnique dot edu>
 #
-# Description: An example on running Weighted Sum with Grid-Search solver
+# Description: An example on running Weighted Sum with Grid-Search solver (with GPR predictive model)
 #
-# Created at 22/09/2022
+# Created at 14/10/2022
 
 from optimization.moo.generic_moo import GenericMOO
 from utils.optimization.configs_parser import ConfigsParser
-from examples.optimization.models.neural_network.pre_defined_nn_functions import NNPredictiveModels
+from examples.optimization.gaussian_process_regressor.model.pre_defined_gpr_functions import GPRPredictiveModels
 import utils.optimization.moo_utils as moo_ut
 
 HELP = """
 Format: python main.py -c <config> -h
-    - c : The configuration file location. Default is "examples/optimization/moo_methods/ws/neural_network/nn_configs_grid_search.json"
+    - c : The configuration file location. Default is "examples/optimization/moo_methods/ws/gaussian_process_regressor/gpr_configs_grid_search.json"
 Example:
-    python examples/optimization/moo_methods/ws/neural_network/main.py -c examples/optimization/moo_methods/ws/neural_network/nn_configs_grid_search.json
+    python examples/optimization/gaussian_process_regressor/moo_methods/ws/main.py -c examples/optimization/gaussian_process_regressor/moo_methods/ws/gpr_configs_grid_search.json
 """
 
 # get input parameters
 moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params = ConfigsParser().parse_details()
 
 # model set up
-predictive_model = NNPredictiveModels()
+training_vars =moo_ut.get_training_input(var_types, var_ranges, n_samples=50)
+predictive_model = GPRPredictiveModels(obj_names, training_vars)
 
 # problem setup
 moo = GenericMOO()
