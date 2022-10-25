@@ -7,9 +7,21 @@
     * [Run MOO](#run-moo)
 * [APIs in Optimization package](#apis-in-optimization-package)
 * [MOO Algrithms with Examples](#moo-algorithms-with-examples)
-    * [Weighed Sum](#weighted-sum)
-        * [Run with the heuristic closed form](#run-with-the-heuristic-closed-form)
-        * [TODOs in the next release](#todos-in-the-next-release)
+    * [Description of MOO algorithms](#description-of-moo-algorithms)
+    * [Examples based on different models](#examples-based-on-different-models)
+        * [Heuristic Closed Form](#heuristic-closed-form)
+            * [Weighted Sum](#weighted-sum)
+            * [[TODO] other MOO algorithms](#todo-other-moo-algorithms)
+            * [[TODO] performance comparison of all MOO algorithms](#todo-performance-comparison-of-all-moo-algorithms)
+        * [Gaussian Process Regressor](#gaussian-process-regressor)
+            * [Weighted Sum](#weighted-sum-1)
+            * [[TODO] other MOO algorithms](#todo-other-moo-algorithms-1)
+            * [[TODO] performance comparison of all MOO algorithms](#todo-performance-comparison-of-all-moo-algorithms-1)
+        * [Neural Network](#neural-network)
+            * [Weighted Sum](#weighted-sum-2)
+            * [[TODO] other MOO algorithms](#todo-other-moo-algorithms-2)
+            * [[TODO] performance comparison of all MOO algorithms](#todo-performance-comparison-of-all-moo-algorithms-2)
+* [TODOs in the next release](#todos-in-the-next-release)
 
 ## Multi-Objective Optimization Problem
 
@@ -235,17 +247,21 @@ Within the `model` package, the `base_model` provides the base API includes abst
 
 ## MOO Algorithms with Examples
 
-### Weighted Sum
+### Description of MOO algorithms
 
 Weighted Sum (WS) [[3]] method adds different weights on different objectives to show the preferences or importance over all objectives. 
-It transforms an MOO problem into a single-objective optimization problem. 
-
+It transforms an MOO problem into a single-objective optimization problem.
 Our weighted sum works with the solver `grid_search` and `random_sampler`.
 
-#### Run with the heuristic closed form
 
-The following [example](../../examples/optimization/heuristic_closed_form/ws.py) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
-The functions of objectives and constraints are represented by the heuristic closed form as you can find in the folder.
+### Examples based on different models
+#### Heuristic Closed Form
+Under this model, all the objective functions and constraints are represented as the heuristic closed form. 
+
+###### Weighted Sum
+
+The following [example](../../examples/optimization/heuristic_closed_form/ws.py) calls Weighted Sum (WS) algorithm 
+  with the `grid_search` solver and `random_sampler` solver respectively.
     
 ```bash
 export PYTHONPATH=$PWD
@@ -253,14 +269,18 @@ export PYTHONPATH=$PWD
 python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
 # WS with the random_sampler solver 
 python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_random_sampler.json
-```   
+```
+###### [TODO] other MOO algorithms
 
-#### Run with predictive model
+###### [TODO] performance comparison of all MOO algorithms
 
-The functions of objectives and constraints could be represented by the Gaussian Process Regressor (GPR) or Neural Network (NN) models as you can find in the folder.
-The following [example of GPR](../../examples/optimization/gaussian_process_regressor/ws.py) and 
-[example of NN](../../examples/optimization/neural_network/ws.py)
-calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
+#### Gaussian Process Regressor
+Under this model, the functions of objectives and constraints could be represented by the Gaussian Process Regressor (GPR).
+
+###### Weighted Sum
+
+The following [examples of GPR](../../examples/optimization/gaussian_process_regressor/ws.py)
+call Weighted Sum (WS) algorithm with the `grid_search` solver and `random_sampler` solver respectively.
     
 ```bash
 # Simple GPR models for objective functions
@@ -269,7 +289,21 @@ export PYTHONPATH=$PWD
 python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_grid_search.json
 # WS with the random_sampler solver 
 python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_random_sampler.json
+```  
 
+###### [TODO] other MOO algorithms
+
+###### [TODO] performance comparison of all MOO algorithms
+
+#### Neural Network
+Under this model, the functions of objectives and constraints could be represented by the Neural Network (NN).
+
+###### Weighted Sum
+
+The following [examples of NN](../../examples/optimization/neural_network/ws.py)
+call Weighted Sum (WS) algorithm with the `grid_search` solver and `random_sampler` solver respectively.
+
+```bash
 # Simple NN models for one objective function and one constraint function
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
@@ -278,7 +312,11 @@ python examples/optimization/neural_network/ws.py -c examples/optimization/neura
 python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_random_sampler.json
 ```   
 
-#### TODOs in the next release
+###### [TODO] other MOO algorithms
+
+###### [TODO] performance comparison of all MOO algorithms
+
+### TODOs in the next release
 1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
 2. support a more sophisticated weighted sum approach. The current method only supports uniform weight picking for 2D and 3D. we need ways to randomly generate weights for 2+ objectives.
 
