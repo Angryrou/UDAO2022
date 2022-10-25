@@ -6,21 +6,11 @@
     * [Problem setup](#problem-setup)
     * [Run MOO](#run-moo)
 * [APIs in Optimization package](#apis-in-optimization-package)
-* [MOO Algrithms with Examples](#moo-algorithms-with-examples)
-    * [Description of MOO algorithms](#description-of-moo-algorithms)
-    * [Examples based on different models](#examples-based-on-different-models)
-        * [Heuristic Closed Form](#heuristic-closed-form)
-            * [Weighted Sum](#weighted-sum)
-            * [[TODO] other MOO algorithms](#todo-other-moo-algorithms)
-            * [[TODO] performance comparison of all MOO algorithms](#todo-performance-comparison-of-all-moo-algorithms)
-        * [Gaussian Process Regressor](#gaussian-process-regressor)
-            * [Weighted Sum](#weighted-sum-1)
-            * [[TODO] other MOO algorithms](#todo-other-moo-algorithms-1)
-            * [[TODO] performance comparison of all MOO algorithms](#todo-performance-comparison-of-all-moo-algorithms-1)
-        * [Neural Network](#neural-network)
-            * [Weighted Sum](#weighted-sum-2)
-            * [[TODO] other MOO algorithms](#todo-other-moo-algorithms-2)
-            * [[TODO] performance comparison of all MOO algorithms](#todo-performance-comparison-of-all-moo-algorithms-2)
+* [MOO Algorithms](#moo-algorithms)
+* [Examples](#examples)
+  * [Heuristic Closed Form](#heuristic-closed-form)
+  * [Gaussian Process Regressor](#gaussian-process-regressor)
+  * [Neural Network](#neural-network)
 * [TODOs in the next release](#todos-in-the-next-release)
 
 ## Multi-Objective Optimization Problem
@@ -327,7 +317,7 @@ python examples/optimization/neural_network/ws.py -c examples/optimization/neura
 
 [TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
-### TODOs in the next release
+## TODOs in the next release
 1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
 2. support a more sophisticated weighted sum approach. The current method only supports uniform weight picking for 2D and 3D. we need ways to randomly generate weights for 2+ objectives.
 
