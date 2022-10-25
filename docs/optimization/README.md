@@ -8,10 +8,10 @@
 * [APIs in Optimization package](#apis-in-optimization-package)
 * [MOO Algorithms](#moo-algorithms)
 * [Examples](#examples)
-  * [Heuristic Closed Form](#heuristic-closed-form)
-  * [Gaussian Process Regressor](#gaussian-process-regressor)
-  * [Neural Network](#neural-network)
-* [TODOs in the next release](#todos-in-the-next-release)
+  * [Heuristic Closed Form - 2D](#heuristic-closed-form---2d)
+  * [Gaussian Process Regressor - 2D](#gaussian-process-regressor---2d)
+  * [Neural Network - 2D](#neural-network---2d)
+* [Features in the next release](#features-in-the-next-release)
 
 ## Multi-Objective Optimization Problem
 
@@ -246,12 +246,12 @@ The package provides MOO algorithms including:
 
 ## Examples
 
-We provide three examples to do MOO in the 2D objective space, including
-- when two objectives are both in the form of heuristic closed form (HCF)
-- when two objectives are both from gaussian process regressors (GPR)
-- when one objective is a neural network (NN) and the other is HCF.
+We provide three examples to do MOO, including
+- [2D] when two objectives are both in the form of heuristic closed form (HCF)
+- [2D] when two objectives are both from gaussian process regressors (GPR)
+- [2D] when one objective is a neural network (NN) and the other objective is HCF.
 
-### Heuristic Closed Form
+### Heuristic Closed Form - 2D 
 
 When the predictive functions (and constraints) are in the 2D objective space,  
 [heuristic closed form (Binh and Korn function)](../../examples/optimization/heuristic_closed_form/model.py), 
@@ -273,7 +273,7 @@ python examples/optimization/heuristic_closed_form/ws.py -c examples/optimizatio
 
 [TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
-### Gaussian Process Regressor
+### Gaussian Process Regressor - 2D
 
 When the predictive functions (and constraints) are 
 [GPR models](../../examples/optimization/gaussian_process_regressor/model.py) in the 2D objective space, 
@@ -295,7 +295,7 @@ python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimi
 
 [TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
-### Neural Network
+### Neural Network - 2D
 
 When the predictive functions (and constraints) include 
 [NN models](../../examples/optimization/neural_network/model.py) in the 2D objective space (one NN and one HCF), 
@@ -317,7 +317,7 @@ python examples/optimization/neural_network/ws.py -c examples/optimization/neura
 
 [TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
-## TODOs in the next release
+## Features in the next release
 1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
 2. support a more sophisticated weighted sum approach. The current method only supports uniform weight picking for 2D and 3D. we need ways to randomly generate weights for 2+ objectives.
 
