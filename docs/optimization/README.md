@@ -96,7 +96,10 @@ The results are also shown in the figure below, where the blue points are the Pa
 The `optimization` package includes the `optimization.moo` package and the `optimization.solver` package. The `optimization.moo` package provides APIs to access all Multi-Objective Optimization (MOO) methods.
 The `optimization.solver` package is called by MOO methods internally in `optimization.moo` package. 
 
-The `optimization.moo` package provides an entry point API `optimization.moo.generic_moo.GenericMOO` to solve MOO problems. It specifies input parameters for an optimization problem and an MOO algorithm. Based on the choice parameter, the appropriate MOO algorithms run internally which are described in details later.
+The `optimization.moo` package provides an entry point API `optimization.moo.generic_moo.GenericMOO` to solve MOO problems. It specifies input parameters for an optimization problem and an MOO algorithm. Based on the choice parameter, the appropriate MOO algorithms run internally.
+
+<details>
+<summary>Detailed code snippet.</summary>
 
 ```python
 class GenericMOO:
@@ -131,6 +134,7 @@ class GenericMOO:
         ...
         return po_objs, po_vars
 ```
+</details>
 
 ## How to run MOO
 
@@ -138,58 +142,60 @@ class GenericMOO:
 
 1. create a directory under `example/optimization/<model>`, e.g., `example/optimization/heuristic_closed_form/`.
 
-2. add a **configuration file** to set up all the parameters for the MOO method. E.g., [Here](../../examples/optimization/heuristic_closed_form/configs/ws_grid_search.json) is 
-the configuration file for the example in the [Quick Start](#quick-start).   
-  
-    ```json
-    {
-      "moo_algo": "weighted_sum", /* name of MOO algorithms */
-      "solver": "grid_search", /* name of the solver */
-      "variables": [
-        {
-          "name": "v1",
-          "type": "FLOAT",
-          "min": 0,
-          "max": 5
-        },
-        {
-          "name": "v2",
-          "type": "FLOAT",
-          "min": 0,
-          "max": 3
-        }
-      ],
-      "objectives": [
-        {
-          "name": "obj_1",
-          "optimize_trend": "MIN", /* to minimize the objective  */
-          "type": "FLOAT"
-        },
-        {
-          "name": "obj_2",
-          "optimize_trend": "MIN",
-          "type": "FLOAT"
-        }
-      ],
-      "constraints": [
-        {
-          "name": "g1",
-          "type": "<="
-        },
-        {
-          "name": "g2",
-          "type": ">="
-        }
-      ],
-      "additional_params":
-        {
-          "ws_steps": 0.1, /* the weight of one objective changes as [0, 0.1, ..., 1]  */
-          "solver_params": [100, 200] /* the number of grids per variable  */
-        }
-    }
-    ```
-    NOTE: if the bounds of variables is infinity, please set it to a concrete number rather than setting it as `inf`
-
+2. add a **configuration file** to set up all the parameters for the MOO method.
+   <details>
+    <summary><a href="./../../examples/optimization/heuristic_closed_form/configs/ws_grid_search.json">Here</a> is 
+      the configuration file for the example in the <a href="#quick-start">Quick Start</a>.</summary>
+   
+      ```json
+      {
+        "moo_algo": "weighted_sum", /* name of MOO algorithms */
+        "solver": "grid_search", /* name of the solver */
+        "variables": [
+          {
+            "name": "v1",
+            "type": "FLOAT",
+            "min": 0,
+            "max": 5
+          },
+          {
+            "name": "v2",
+            "type": "FLOAT",
+            "min": 0,
+            "max": 3
+          }
+        ],
+        "objectives": [
+          {
+            "name": "obj_1",
+            "optimize_trend": "MIN", /* to minimize the objective  */
+            "type": "FLOAT"
+          },
+          {
+            "name": "obj_2",
+            "optimize_trend": "MIN",
+            "type": "FLOAT"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "g1",
+            "type": "<="
+          },
+          {
+            "name": "g2",
+            "type": ">="
+          }
+        ],
+        "additional_params":
+          {
+            "ws_steps": 0.1, /* the weight of one objective changes as [0, 0.1, ..., 1]  */
+            "solver_params": [100, 200] /* the number of grids per variable  */
+          }
+      }
+      ```
+      NOTE: if the bounds of variables is infinity, please set it to a concrete number rather than setting it as `inf`
+    </details>
 3. define the functions of objectives and constraints. The functions need to be subdifferentiable, e.g., a close-form formula or a Neural Network model. 
 The [Quick Start](#quick-start) example uses [Binh and Korn function][2] provided by our [package](../../examples/optimization/heuristic_closed_form/model.py).
 
