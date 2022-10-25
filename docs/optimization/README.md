@@ -41,7 +41,7 @@ Constraints include inequality and equaility types.
 Common types of variables include `FLOAT`, `INTEGER`, `BINARY` and `ENUM`, where `BINARY` only includes values 0 and 1, `ENUM` type is for multiple (2+) categorical values.
 
 ## Quick Start
-The following shows an MOO problem example(Binh and Korn function [[1], [2]]) with 2 objectives, 2 constraints and 2 variables.
+The following shows an MOO problem example (Binh and Korn function [[1], [2]]) with 2 objectives, 2 constraints and 2 variables.
 
 $$ \mathop{\rm{Minimize}}\limits_{\rm{\bf{x}}} \\ \\ \mathit{F}_1(\mathbf{x}) = 4 {x_1}^2 + 4 {x_2}^2 $$
 
@@ -211,7 +211,7 @@ export PYTHONPATH=$PWD
 python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
 ```
 
-## APIs in Optimization package
+## APIs in optimization package
 
 The following shows a tree structure of APIs in `optimization` package, where `moo` and `solver` are two packages for MOO algorithms and solvers respectively;
 `model` provides a general API for user to inherit.
@@ -245,76 +245,87 @@ Within the `solver` package, the `base_solver` provides the base API includes ab
 
 Within the `model` package, the `base_model` provides the base API includes abstract methods used in predictive models.
 
-## MOO Algorithms with Examples
+## MOO Algorithms
 
-### Description of MOO algorithms
+The package provides MOO algorithms including:
 
-Weighted Sum (WS) [[3]] method adds different weights on different objectives to show the preferences or importance over all objectives. 
-It transforms an MOO problem into a single-objective optimization problem.
-Our weighted sum works with the solver `grid_search` and `random_sampler`.
+- [Weighted Sum (WS)][3] method adds different weights on different objectives to show the preferences or importance over all objectives. It transforms an MOO problem into a single-objective optimization problem. Our weighted sum works with the solver `grid_search` and `random_sampler`.
+- [todo] Progressive Frontier (PF) method ...
+- [todo] Evolutionary (Evo) algorithm ...
 
 
-### Examples based on different models
-#### Heuristic Closed Form
-Under this model, all the objective functions and constraints are represented as the heuristic closed form. 
+## Examples
 
-###### Weighted Sum
+We provide three examples to do MOO in the 2D objective space, including
+- when two objectives are both in the form of heuristic closed form (HCF)
+- when two objectives are both from gaussian process regressors (GPR)
+- when one objective is a neural network (NN) and the other is HCF.
 
-The following [example](../../examples/optimization/heuristic_closed_form/ws.py) calls Weighted Sum (WS) algorithm 
-  with the `grid_search` solver and `random_sampler` solver respectively.
-    
+### Heuristic Closed Form
+
+When the predictive functions (and constraints) are in the 2D objective space,  
+[heuristic closed form (Binh and Korn function)](../../examples/optimization/heuristic_closed_form/model.py), 
+we show the execution code and results of different MOO methods with solvers below.
+ 
 ```bash
 export PYTHONPATH=$PWD
+
+# 1. WS 
 # WS with the grid_search solver
 python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
 # WS with the random_sampler solver 
 python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_random_sampler.json
+
+# [todo] 2. PF
+
+# [todo] ...
 ```
-###### [TODO] other MOO algorithms
 
-###### [TODO] performance comparison of all MOO algorithms
+[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
-#### Gaussian Process Regressor
-Under this model, the functions of objectives and constraints could be represented by the Gaussian Process Regressor (GPR).
+### Gaussian Process Regressor
 
-###### Weighted Sum
+When the predictive functions (and constraints) are 
+[GPR models](../../examples/optimization/gaussian_process_regressor/model.py) in the 2D objective space, 
+we show the execution code and results of different MOO methods with solvers below.
 
-The following [examples of GPR](../../examples/optimization/gaussian_process_regressor/ws.py)
-call Weighted Sum (WS) algorithm with the `grid_search` solver and `random_sampler` solver respectively.
-    
 ```bash
-# Simple GPR models for objective functions
 export PYTHONPATH=$PWD
+
+# 1. WS 
 # WS with the grid_search solver
 python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_grid_search.json
 # WS with the random_sampler solver 
 python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_random_sampler.json
+
+# [todo] 2. PF
+
+# [todo] ...
 ```  
 
-###### [TODO] other MOO algorithms
+[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
-###### [TODO] performance comparison of all MOO algorithms
+### Neural Network
 
-#### Neural Network
-Under this model, the functions of objectives and constraints could be represented by the Neural Network (NN).
-
-###### Weighted Sum
-
-The following [examples of NN](../../examples/optimization/neural_network/ws.py)
-call Weighted Sum (WS) algorithm with the `grid_search` solver and `random_sampler` solver respectively.
+When the predictive functions (and constraints) include 
+[NN models](../../examples/optimization/neural_network/model.py) in the 2D objective space (one NN and one HCF), 
+we show the execution code and results of different MOO methods with solvers below.
 
 ```bash
-# Simple NN models for one objective function and one constraint function
 export PYTHONPATH=$PWD
+
+# 1. WS 
 # WS with the grid_search solver
 python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_grid_search.json
 # WS with the random_sampler solver 
 python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_random_sampler.json
+
+# [todo] 2. PF
+
+# [todo] ...
 ```   
 
-###### [TODO] other MOO algorithms
-
-###### [TODO] performance comparison of all MOO algorithms
+[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
 ### TODOs in the next release
 1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
