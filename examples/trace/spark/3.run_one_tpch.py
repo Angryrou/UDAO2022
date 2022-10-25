@@ -25,23 +25,18 @@ spark_collect = SparkCollect(
 )
 knob_dict = spark_knobs.conf2knobs(conf_dict)
 knob_sign = KnobUtils.knobs2sign([knob_dict[k.id] for k in knobs], knobs)
-out_path = "examples/trace/spark/3.run_one_outs"
-tid, qid = "1", "1"
-file_name = f"q{tid}-{qid}.sh"
-spark_script = spark_collect.make_script(
+out_header = "examples/trace/spark/3.run_one_outs"
+
+file_name = spark_collect.save_one_script(
     tid="1",
     qid="1",
-    knob_sign=knob_sign,
     conf_dict=conf_dict,
-    out_path=out_path
+    out_header=out_header
 )
-print(spark_script)
-with open(f"{out_path}/{file_name}", "w") as f:
-    f.write(spark_script)
 
 try:
     start = time.time()
-    os.system(f"bash {out_path}/{file_name}")
+    os.system(f"bash {out_header}/{file_name}")
     print(f"finished running, takes {time.time() - start}s")
 except Exception as e:
     print(f"failed to run due to {e}")
