@@ -1,11 +1,11 @@
 ## Optimization
 * [Multi-Objective Optimization Problem](#multi-objective-optimization-problem)
 * [Quick Start](#quick-start)
-* [Overview of optimization package](#overview-of-optimization-package)
+* [Overview of the package](#overview-of-the-package)
 * [How to run MOO](#how-to-run-moo)
     * [Problem setup](#problem-setup)
     * [Run MOO](#run-moo)
-* [APIs in Optimization package](#apis-in-optimization-package)
+* [APIs in the package](#apis-in-the-package)
 * [MOO Algorithms](#moo-algorithms)
 * [Examples](#examples)
   * [Heuristic Closed Form - 2D](#heuristic-closed-form---2d)
@@ -92,7 +92,7 @@ The results are also shown in the figure below, where the blue points are the Pa
 
 </details>
 
-## Overview of optimization package
+## Overview of the Package
 The `optimization` package includes the `optimization.moo` package and the `optimization.solver` package. The `optimization.moo` package provides APIs to access all Multi-Objective Optimization (MOO) methods.
 The `optimization.solver` package is called by MOO methods internally in `optimization.moo` package. 
 
@@ -136,9 +136,9 @@ class GenericMOO:
 ```
 </details>
 
-## How to run MOO
+## How to Run MOO
 
-### Problem setup
+### Problem Setup
 
 1. create a directory under `example/optimization/<model>`, e.g., `example/optimization/heuristic_closed_form/`.
 
@@ -210,7 +210,7 @@ export PYTHONPATH=$PWD
 python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
 ```
 
-## APIs in optimization package
+## APIs in the Package
 
 The following shows a tree structure of APIs in `optimization` package, where `moo` and `solver` are two packages for MOO algorithms and solvers respectively;
 `model` provides a general API for user to inherit.
@@ -326,7 +326,7 @@ python examples/optimization/neural_network/ws.py -c examples/optimization/neura
 
 [TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
-## Features in the next release
+## Features in the Next Release
 1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
 2. support a more sophisticated weighted sum approach. The current method only supports uniform weight picking for 2D and 3D. we need ways to randomly generate weights for 2+ objectives.
 
