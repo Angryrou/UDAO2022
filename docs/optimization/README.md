@@ -262,9 +262,9 @@ We provide three examples to do MOO, including
 
 ### Heuristic Closed Form - 2D 
 
-When the predictive functions (and constraints) are in the 2D objective space,  
-[heuristic closed form (Binh and Korn function)](../../examples/optimization/heuristic_closed_form/model.py), 
-we show the execution code and results of different MOO methods with solvers below.
+When the predictive functions (and constraints) are  
+[heuristic closed form (Binh and Korn function)](../../examples/optimization/heuristic_closed_form/model.py) 
+in the 2D objective space, we show the execution code and results of different MOO methods with solvers below.
  
 ```bash
 export PYTHONPATH=$PWD
