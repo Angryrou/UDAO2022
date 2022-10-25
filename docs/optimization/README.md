@@ -47,7 +47,8 @@ $$ &ensp; &ensp; 0 \le x_1 \le 5, 0 \le x_2 \le 3 $$
 The optimization package allows users to define their problems from Python. 
 For the details of how to set up problems and how the APIs works internally, please see sections of [how to run MOO](#how-to-run-moo) and [APIs in Optimization package](#apis-in-optimization-package) in the later content.
 
-Here is an [example](../../examples/optimization/heuristic_closed_form/ws.py) for solving the above problem by the Weighted Sum method with the `grid_search` solver. 
+<details>
+<summary>Here is an example for solving the above problem by the Weighted Sum method with the `grid_search` solver.</summary> 
 
 ```bash
 export PYTHONPATH=$PWD # export PYTHONPATH=~/your_path_to/UDAO2022
@@ -88,6 +89,8 @@ In the above example, we got 11 Pareto solutions and the first Pareto solution i
 The results are also shown in the figure below, where the blue points are the Pareto solutions returned by the Weighted Sum method with te `grid_search` solver in the 2D objective space.
 
 ![img_1.png](img_1.png)
+
+</details>
 
 ## Overview of optimization package
 The `optimization` package includes the `optimization.moo` package and the `optimization.solver` package. The `optimization.moo` package provides APIs to access all Multi-Objective Optimization (MOO) methods.
