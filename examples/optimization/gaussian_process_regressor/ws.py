@@ -6,14 +6,14 @@
 
 from optimization.moo.generic_moo import GenericMOO
 from utils.optimization.configs_parser import ConfigsParser
-from examples.optimization.gaussian_process_regressor.model.pre_defined_gpr_functions import GPRPredictiveModels
+from examples.optimization.gaussian_process_regressor.model import GPRPredictiveModels
 import utils.optimization.moo_utils as moo_ut
 
 HELP = """
-Format: python main.py -c <config> -h
-    - c : The configuration file location. Default is "examples/optimization/moo_methods/ws/gaussian_process_regressor/gpr_configs_grid_search.json"
+Format: python ws.py -c <config> -h
+    - c : The configuration file location. Default is "examples/optimization/gaussian_process_regressor/configs/ws_grid_search.json"
 Example:
-    python examples/optimization/gaussian_process_regressor/moo_methods/ws/main.py -c examples/optimization/gaussian_process_regressor/moo_methods/ws/gpr_configs_grid_search.json
+    python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_grid_search.json
 """
 
 # get input parameters

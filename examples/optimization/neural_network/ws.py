@@ -1,19 +1,19 @@
 # Author(s): Qi FAN <qi dot fan at polytechnique dot edu>
 #
-# Description: An example on running Weighted Sum with Grid-Search solver
+# Description: An example on running Weighted Sum with Grid-Search solver (with NN predictive model)
 #
 # Created at 22/09/2022
 
 from optimization.moo.generic_moo import GenericMOO
 from utils.optimization.configs_parser import ConfigsParser
-from examples.optimization.neural_network.model.pre_defined_nn_functions import NNPredictiveModels
+from examples.optimization.neural_network.model import NNPredictiveModels
 import utils.optimization.moo_utils as moo_ut
 
 HELP = """
-Format: python main.py -c <config> -h
-    - c : The configuration file location. Default is "examples/optimization/neural_network/moo_methods/ws/nn_configs_grid_search.json"
+Format: python ws.py -c <config> -h
+    - c : The configuration file location. Default is "examples/optimization/neural_network/configs/ws_grid_search.json"
 Example:
-    python examples/optimization/neural_network/moo_methods/ws/main.py -c examples/optimization/neural_network/moo_methods/ws/nn_configs_grid_search.json
+    python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_grid_search.json
 """
 
 # get input parameters

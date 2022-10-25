@@ -2,8 +2,10 @@
 #            Chenghao Lyu <chenghao at cs dot umass dot edu>
 #
 # Description: An example of Gaussian Process Regressor (GPR) model (reuse code in ICDE paper)
+#              and pre-define functions (objectives and constraints) based on GPR
 #
 # Created at 17/10/2022
+
 from utils.optimization.configs_parser import ConfigsParser
 from optimization.model.base_model import BaseModel
 
@@ -184,3 +186,34 @@ class GPR(BaseModel):
         if not np.all(finite_els):
             raise Exception("Input contains non-finite values: {}"
                             .format(X[~finite_els]))
+
+class GPRPredictiveModels:
+
+    def __init__(self, objs: list, training_vars):
+        '''
+        initialization
+        :param objs: list, name of objectives
+        :param training_vars: ndarray(n_samples, n_vars), input used to train GPR model.
+        '''
+        self.training_vars = training_vars
+        self.gpr = GPR(objs, training_vars)
+
+    def predict_obj1(self, vars):
+        obj = "obj_1"
+        value = self.gpr.predict(obj, vars)
+        return value
+
+    def predict_obj2(self, vars):
+        obj = "obj_2"
+        value = self.gpr.predict(obj, vars)
+        return value
+
+    @staticmethod
+    def const_func1(vars):
+        value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + vars[:, 1] * vars[:, 1] - 25
+        return value
+
+    @staticmethod
+    def const_func2(vars):
+        value = (vars[:, 0] - 8) * (vars[:, 0] - 8) + (vars[:, 1] + 3) * (vars[:, 1] + 3) - 7.7
+        return value

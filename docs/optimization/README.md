@@ -45,11 +45,11 @@ $$ &ensp; &ensp; 0 \le x_1 \le 5, 0 \le x_2 \le 3 $$
 The optimization package allows users to define their problems from Python. 
 For the details of how to set up problems and how the APIs works internally, please see sections of [how to run MOO](#how-to-run-moo) and [APIs in Optimization package](#apis-in-optimization-package) in the later content.
 
-Here is an [example](../../examples/optimization/heuristic_closed_form/moo_methods/ws/main.py) for solving the above problem by the Weighted Sum method with the `grid_search` solver. 
+Here is an [example](../../examples/optimization/heuristic_closed_form/ws.py) for solving the above problem by the Weighted Sum method with the `grid_search` solver. 
 
 ```bash
 export PYTHONPATH=$PWD # export PYTHONPATH=~/your_path_to/UDAO2022
-python examples/optimization/moo_methods/ws/heuristic_closed_form/main.py -c examples/optimization/moo_methods/ws/heuristic_closed_form/hcf_configs_grid_search.json
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
 
 # output
 # 
@@ -131,9 +131,9 @@ class GenericMOO:
 
 ### Problem setup
 
-1. create a directory under `example/optimization/moo_methods/<moo-method>`, e.g., `example/optimization/moo_methods/ws`.
+1. create a directory under `example/optimization/<model>`, e.g., `example/optimization/heuristic_closed_form/`.
 
-2. add a **configuration file** to set up all the parameters for the MOO method. E.g., [Here](../../examples/optimization/moo_methods/ws/heuristic_closed_form/hcf_configs_grid_search.json) is 
+2. add a **configuration file** to set up all the parameters for the MOO method. E.g., [Here](../../examples/optimization/heuristic_closed_form/configs/ws_grid_search.json) is 
 the configuration file for the example in the [Quick Start](#quick-start).   
   
     ```json
@@ -186,7 +186,7 @@ the configuration file for the example in the [Quick Start](#quick-start).
     NOTE: if the bounds of variables is infinity, please set it to a concrete number rather than setting it as `inf`
 
 3. define the functions of objectives and constraints. The functions need to be subdifferentiable, e.g., a close-form formula or a Neural Network model. 
-The [Quick Start](#quick-start) example uses [Binh and Korn function][2] provided by our [package](../../examples/optimization/models/heuristic_closed_form/pre_defined_funtions.py).
+The [Quick Start](#quick-start) example uses [Binh and Korn function][2] provided by our [package](../../examples/optimization/heuristic_closed_form/model.py).
 
 ### Run MOO
 
@@ -195,8 +195,8 @@ the pre-defined functions for the objectives and constraints, and run it with th
 
 ```bash
 export PYTHONPATH=$PWD
-# python example/optimization/<model>/moo_methods/<moo-method>/main.py -c <configuration-file>
-python examples/optimization/heuristic_closed_form/moo_methods/ws/main.py -c examples/optimization/heuristic_closed_form/moo_methods/ws/hcf_configs_grid_search.json
+# python example/optimization/<model>/<moo-method>.py -c <configuration-file>
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
 ```
 
 ## APIs in Optimization package
@@ -244,38 +244,38 @@ Our weighted sum works with the solver `grid_search` and `random_sampler`.
 
 #### Run with the heuristic closed form
 
-The following [example](../../examples/optimization/heuristic_closed_form/moo_methods/ws/) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
+The following [example](../../examples/optimization/heuristic_closed_form/ws.py) calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
 The functions of objectives and constraints are represented by the heuristic closed form as you can find in the folder.
     
 ```bash
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
-python examples/optimization/heuristic_closed_form/moo_methods/ws/main.py -c examples/optimization/heuristic_closed_form/moo_methods/ws/hcf_configs_grid_search.json
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
 # WS with the random_sampler solver 
-python examples/optimization/heuristic_closed_form/moo_methods/ws/main.py -c examples/optimization/heuristic_closed_form/moo_methods/ws/hcf_configs_random_sampler.json
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_random_sampler.json
 ```   
 
 #### Run with predictive model
 
 The functions of objectives and constraints could be represented by the Gaussian Process Regressor (GPR) or Neural Network (NN) models as you can find in the folder.
-The following [example of GPR](../../examples/optimization/gaussian_process_regressor/moo_methods/ws/) and 
-[example of NN](../../examples/optimization/neural_network/moo_methods/ws/)
+The following [example of GPR](../../examples/optimization/gaussian_process_regressor/ws.py) and 
+[example of NN](../../examples/optimization/neural_network/ws.py)
 calls Weighted Sum algorithm with the `grid_search` solver and `random_sampler` solver respectively.
     
 ```bash
 # Simple GPR models for objective functions
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
-python examples/optimization/gaussian_process_regressor/moo_methods/ws/main.py -c examples/optimization/gaussian_process_regressor/moo_methods/ws/gpr_configs_grid_search.json
+python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_grid_search.json
 # WS with the random_sampler solver 
-python examples/optimization/gaussian_process_regressor/moo_methods/ws/main.py -c examples/optimization/gaussian_process_regressor/moo_methods/ws/gpr_configs_random_sampler.json
+python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_random_sampler.json
 
 # Simple NN models for one objective function and one constraint function
 export PYTHONPATH=$PWD
 # WS with the grid_search solver
-python examples/optimization/neural_network/moo_methods/ws/main.py -c examples/optimization/neural_network/moo_methods/ws/nn_configs_grid_search.json
+python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_grid_search.json
 # WS with the random_sampler solver 
-python examples/optimization/neural_network/moo_methods/ws/main.py -c examples/optimization/neural_network/moo_methods/ws/nn_configs_random_sampler.json
+python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_random_sampler.json
 ```   
 
 #### TODOs in the next release
