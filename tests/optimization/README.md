@@ -9,14 +9,15 @@ which is the same as the one used in ICDE2021 paper.
       1) download it from the `hex3@node13` on ercilla under the path `/opt/hex_users/hex3/common/test_mogd/checkpoints`.
       2) create directory `tests/optimization/checkpoints`
       3) copy the `data_gpr_batch.pkl` to the path `tests/optimization/checkpoints` in `UDAO2022` repository.
-- `solver/model_configs_modg.json`: 
+- `tests/optimization/solver/model_configs_modg.json`: 
   The configuration file to feed in GPR.
-- `solver/models_def.py`: 
+- `tests/optimization/solver/models_def.py`: 
   The script to initialize the GPR model and to get objective predictions, which is the same as what we used in the ICDE2021 paper.
-- `test_mogd`: 
+- `tests/optimization/solver/test_mogd.py`: 
   The script to run correctness test over MOGD solver. It provides tests under two conda environments, 
  i.e. `py36-solvers` used in ICDE paper, and the `udao2022` environment for the current code release.
-    - NOTE: Both `py36-solvers` and `udao2022` have already been installed in `hex3@node13` on ercilla.
+    - NOTE: The expected results in this script are obtained from my laptop. I double-checked the results running on `hex3@node13`, 
+      the results returned by the original MOGD (in UDAO repository) are slightly different from those generated in my laptop.
 
 #### MOGD Test
 
