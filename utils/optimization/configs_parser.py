@@ -15,7 +15,7 @@ class ConfigsParser():
     def __init__(self):
         parser = argparse.ArgumentParser(description="ConfigsParser")
         parser.add_argument("-c", "--config", required=True,
-                            help="the configuration file location, try -c examples/optimization/ws_random/heuristic_closed_form/configs.json")
+                            help="the configuration file location, try -c examples/optimization/gaussian_process_regressor/configs/ws_grid_search.json")
         self.parser = parser
 
     def parse(self):
@@ -45,6 +45,8 @@ class ConfigsParser():
                         'solver_params']  # the number of grids/samples per variables
                     add_params.append(solver_params)
                 elif moo_algo == "progressive_frontier":
+                    precision_list = self.get_precision_list(configs['variables'])
+                    add_params.append(precision_list)
                     pf_option = configs['additional_params']["pf_option"]
                     add_params.append(pf_option)
                     n_probes = configs['additional_params']["n_probes"]
@@ -101,12 +103,34 @@ class ConfigsParser():
         return var_types, np.array(var_bounds)
 
     def get_objs_conf(self, obj_params):
+        '''
+        get names and optimization types for objectives
+        :param obj_params: list, each element is a dict for each constraint, including keys of "name", "optimize_trend", "type"
+        :return:
+                obj_names: list, objective names
+                opt_types: list, optimization types (e.g. minimization or maximization)
+        '''
         obj_names = [obj["name"] for obj in obj_params]
         opt_types = [obj["optimize_trend"] for obj in obj_params]
 
         return obj_names, opt_types
 
     def get_const_types(self, const_type_params):
+        '''
+        get constraint types
+        :param const_type_params: list, each element is a dict for each constraint, including keys of "name", "type"
+        :return: list, constraint types
+        '''
         const_types = [const["type"] for const in const_type_params]
 
         return const_types
+
+    def get_precision_list(self, vars):
+        '''
+        get precision of each variable (only used in MOGD solver)
+        :param vars: list, each element is a dict for each variable, including keys of "name", "type", "min", "max", (or "values"), "precision"
+        :return: precision_list: variable precision
+        '''
+        precision_list = [var["precision"] for var in vars]
+
+        return precision_list
