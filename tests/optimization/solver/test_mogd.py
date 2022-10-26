@@ -3,7 +3,6 @@
 # Description: Correctness test for MOGD
 #
 # Created at 29/09/2022
-from optimization.moo.progressive_frontier import ProgressiveFrontier
 from optimization.solver.mogd import MOGD
 from utils.optimization.configs_parser import ConfigsParser
 import tests.optimization.solver.models_def as model_def

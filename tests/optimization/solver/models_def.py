@@ -6,7 +6,7 @@
 
 from optimization.solver.mogd import MOGD
 import utils.optimization.solver_utils as solver_ut
-from examples.optimization.pf_mogd.model.gpr import GPRPT
+from tests.optimization.solver.gpr import GPRPT
 from utils.optimization.configs_parser import ConfigsParser
 
 import torch as th
