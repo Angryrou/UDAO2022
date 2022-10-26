@@ -262,9 +262,10 @@ We provide three examples to do MOO, including
 
 ### Heuristic Closed Form - 2D 
 
-When the predictive functions (and constraints) are  
-[heuristic closed form (Binh and Korn function)](../../examples/optimization/heuristic_closed_form/model.py) 
-in the 2D objective space, we show the execution code and results of different MOO methods with solvers below.
+Following the Binh and Korn function, when we have two objectives (both are  
+[heuristic closed form (HCF)](../../examples/optimization/heuristic_closed_form/model.py)
+and two constraints (two HCFs), 
+we show the execution code and results of different MOO methods with solvers below.
  
 ```bash
 export PYTHONPATH=$PWD
@@ -284,8 +285,8 @@ python examples/optimization/heuristic_closed_form/ws.py -c examples/optimizatio
 
 ### Gaussian Process Regressor - 2D
 
-When the predictive functions (and constraints) are 
-[GPR models](../../examples/optimization/gaussian_process_regressor/model.py) in the 2D objective space, 
+When we have two objectives (both are [GPR models](../../examples/optimization/gaussian_process_regressor/model.py)),
+and two constraints (two HCFs),
 we show the execution code and results of different MOO methods with solvers below.
 
 ```bash
@@ -306,8 +307,8 @@ python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimi
 
 ### Neural Network - 2D
 
-When the predictive functions (and constraints) include 
-[NN models](../../examples/optimization/neural_network/model.py) in the 2D objective space (one NN and one HCF), 
+When we have two objectives (one is [NN model](../../examples/optimization/neural_network/model.py)
+and the other is HCF), and two constraints (one is NN and the other is HCF),
 we show the execution code and results of different MOO methods with solvers below.
 
 ```bash
