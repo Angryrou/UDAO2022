@@ -6,14 +6,14 @@
 
 from optimization.moo.generic_moo import GenericMOO
 from utils.optimization.configs_parser import ConfigsParser
-from utils.optimization.pre_defined_funtions import HCF
 import utils.optimization.moo_utils as moo_ut
+from examples.optimization.heuristic_closed_form.model import HCF
 
 HELP = """
-Format: python ws_hcf.py -c <config> -h
-    - c : The configuration file location. Default is "examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json"
+Format: python ws.py -c <config> -h
+    - c : The configuration file location. Default is "examples/optimization/heuristic_closed_form/configs/ws_grid_search.json"
 Example:
-    python examples/optimization/ws/heuristic_closed_form/ws_hcf.py -c examples/optimization/ws/heuristic_closed_form/hcf_configs_grid_search.json
+    python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
 """
 
 # get input parameters

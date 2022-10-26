@@ -1,7 +1,7 @@
 # Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
 #            Qi FAN <qi dot fan at polytechnique dot edu>
 #
-# Description: pre-define functions.
+# Description: pre-define functions of Heuristic Closed Form (HCF).
 #
 # Created at 10/12/22
 
