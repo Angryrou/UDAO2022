@@ -23,6 +23,7 @@ class Args():
         self.parser.add_argument("-q", "--query-header", type=str, default="resources/tpch-kit/spark-sqls")
         self.parser.add_argument("--num-templates", type=int, default=22)
         self.parser.add_argument("--num-processes", type=int, default=6)
+        self.parser.add_argument("--if-aqe", type=int, default=0)
 
     def parse(self):
         return self.parser.parse_args()
@@ -31,6 +32,7 @@ args = Args().parse()
 seed = args.seed
 benchmark = args.benchmark
 query_header = args.query_header
+if_aqe = False if args.if_aqe == 0 else True
 qid = "1"
 OUT_HEADER = "examples/trace/spark/4.run_all_single_query_env"
 REMOTE_HEADER = "~/chenghao"
@@ -59,7 +61,8 @@ file_names = [
         tid=tid,
         qid="1",
         conf_dict=conf_dict,
-        out_header=OUT_HEADER
+        out_header=OUT_HEADER,
+        if_aqe=if_aqe
     )
     for tid in templates
 ]

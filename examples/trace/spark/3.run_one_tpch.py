@@ -31,7 +31,8 @@ file_name = spark_collect.save_one_script(
     tid="1",
     qid="1",
     conf_dict=conf_dict,
-    out_header=out_header
+    out_header=out_header,
+    if_aqe=False
 )
 
 try:
