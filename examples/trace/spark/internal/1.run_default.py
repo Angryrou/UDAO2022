@@ -2,6 +2,10 @@
 #
 # Description: run default queries for a benchmark with and without AQE.
 #
+# python examples/trace/spark/internal/1.run_default.py --debug 1 --if-aqe 0
+# python examples/trace/spark/internal/1.run_default.py --debug 1 --if-aqe 1
+# python examples/trace/spark/internal/1.run_default.py --debug 0 --if-aqe 0 --num-trials 5
+# python examples/trace/spark/internal/1.run_default.py --debug 0 --if-aqe 1 --num-trials 5
 #
 # Created at 10/28/22
 
@@ -22,6 +26,7 @@ class Args():
         self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
         self.parser.add_argument("-k", "--knob-meta-file", type=str, default="resources/knob-meta/spark.json")
         self.parser.add_argument("-s", "--seed", type=int, default=42)
+        self.parser.add_argument("-q", "--query-header", type=str, default="resources/tpch-kit/spark-sqls")
         self.parser.add_argument("--script-header", type=str, default="resources/scripts/tpch-lhs")
         self.parser.add_argument("--out-header", type=str, default="examples/trace/spark/internal/1.run_default")
         self.parser.add_argument("--num-templates", type=int, default=22)

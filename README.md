@@ -4,7 +4,7 @@
 
 The python virtual environment
 ```bash
-conda create -n <name> python=3.9
+conda create -n <name> python=3.8
 pip install -r requirements.txt
 ```
 
