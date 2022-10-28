@@ -41,6 +41,7 @@ class Args():
 args = Args().parse()
 seed = args.seed
 benchmark = args.benchmark
+assert benchmark.lower() == "tpch", f"unsupport benchmark {benchmark}"
 query_header = args.query_header
 if_aqe = False if args.if_aqe == 0 else True
 out_header = f"{args.out_header}/{benchmark}_{if_aqe}"
@@ -97,14 +98,23 @@ for i, file_name in enumerate(file_names):
         flush_all()
         time.sleep(2)
         start = time.time()
-        os.system(f"bash {out_header}/{file_name} > {out_header}/{file_name}.log 2>&1")
+        os.system(f"bash {out_header}/{file_name} > {out_header}/{file_name}_trial_{j + 1}.log 2>&1")
         dt = time.time() - start
         dts[i, j] = dt
-        print(f"{file_name}, trial {j + 1}: {dt}s")
+        print(f"{file_name}, trial {j + 1}: {dt:.3f}s")
 
 try:
-    stats_name = f"durations_{num_templates}x{num_trials}"
+    stats_name = f"durations_{num_templates}x{num_trials}.pkl"
     PickleUtils.save(dts, out_header, stats_name)
     print(f"dts are saved at {out_header}/{stats_name}")
 except Exception as e:
     print(e)
+    raise
+
+dts_mu = dts.mean(1)
+dts_std = dts.std(1)
+
+print(f"qid \t duration (s) whne AQE is {if_aqe}")
+for i in range(num_templates):
+    qid = i + 1
+    print(f"{qid}-1\t{dts_mu[i]:.3f} +- {dts_std[i]:.3f} s")
