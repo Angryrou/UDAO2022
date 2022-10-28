@@ -2,7 +2,7 @@
 #
 # Created at 9/16/22
 
-import os, json, pickle
+import os, json, pickle, time, datetime
 
 
 class JsonUtils(object):
@@ -61,3 +61,14 @@ class BenchmarkUtils(object):
             return ["node14", "node15", "node16", "node17", "node18"]
         else:
             raise ValueError(f"{benchmark} is not supported")
+
+class TimeUtils(object):
+
+    @staticmethod
+    def get_current_iso():
+        ct = datetime.datetime.utcnow()
+        # "2022-09-23T17:05:09.589GMT"
+        return ct.astimezone().isoformat()
+
+
+

@@ -16,7 +16,7 @@ import time
 import numpy as np
 
 from trace.collect.framework import SparkCollect
-from utils.common import JsonUtils, BenchmarkUtils, PickleUtils
+from utils.common import JsonUtils, BenchmarkUtils, PickleUtils, TimeUtils
 from utils.data.configurations import SparkKnobs, KnobUtils
 
 
@@ -30,7 +30,7 @@ class Args():
         self.parser.add_argument("--script-header", type=str, default="resources/scripts/tpch-lhs")
         self.parser.add_argument("--out-header", type=str, default="examples/trace/spark/internal/1.run_default")
         self.parser.add_argument("--num-templates", type=int, default=22)
-        self.parser.add_argument("--num-trials", type=int, default=5)
+        self.parser.add_argument("--num-trials", type=int, default=3)
         self.parser.add_argument("--debug", type=int, default=0)
         self.parser.add_argument("--if-aqe", type=int, default=0)
 
@@ -41,7 +41,7 @@ class Args():
 args = Args().parse()
 seed = args.seed
 benchmark = args.benchmark
-assert benchmark.lower() == "tpch", f"unsupport benchmark {benchmark}"
+assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
 query_header = args.query_header
 if_aqe = False if args.if_aqe == 0 else True
 out_header = f"{args.out_header}/{benchmark}_AQE_{'enabled' if if_aqe else 'disabled'}"
@@ -104,7 +104,7 @@ for i, file_name in enumerate(file_names):
         print(f"{file_name}, trial {j + 1}: {dt:.3f}s")
 
 try:
-    stats_name = f"durations_{num_templates}x{num_trials}.pkl"
+    stats_name = f"durations_{num_templates}x{num_trials}_{TimeUtils.get_current_iso()}.pkl"
     PickleUtils.save(dts, out_header, stats_name)
     print(f"dts are saved at {out_header}/{stats_name}")
 except Exception as e:
