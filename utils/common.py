@@ -57,5 +57,7 @@ class BenchmarkUtils(object):
             return ["node2", "node3", "node4", "node5", "node6"]
         elif benchmark.lower() == "tpcds":
             return ["node8", "node9", "node10", "node11", "node12"]
+        elif benchmark.lower() == "debug":
+            return ["node14", "node15", "node16", "node17", "node18"]
         else:
             raise ValueError(f"{benchmark} is not supported")
