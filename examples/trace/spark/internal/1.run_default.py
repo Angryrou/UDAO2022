@@ -4,8 +4,8 @@
 #
 # python examples/trace/spark/internal/1.run_default.py --debug 1 --if-aqe 0
 # python examples/trace/spark/internal/1.run_default.py --debug 1 --if-aqe 1
-# python examples/trace/spark/internal/1.run_default.py --debug 0 --if-aqe 0 --num-trials 5
-# python examples/trace/spark/internal/1.run_default.py --debug 0 --if-aqe 1 --num-trials 5
+# python examples/trace/spark/internal/1.run_default.py --debug 0 --if-aqe 0 --num-trials 3
+# python examples/trace/spark/internal/1.run_default.py --debug 0 --if-aqe 1 --num-trials 3
 #
 # Created at 10/28/22
 
@@ -44,7 +44,7 @@ benchmark = args.benchmark
 assert benchmark.lower() == "tpch", f"unsupport benchmark {benchmark}"
 query_header = args.query_header
 if_aqe = False if args.if_aqe == 0 else True
-out_header = f"{args.out_header}/{benchmark}_{if_aqe}"
+out_header = f"{args.out_header}/{benchmark}_AQE_{'enabled' if if_aqe else 'disabled'}"
 num_templates = args.num_templates
 num_trials = args.num_trials
 workers = BenchmarkUtils.get_workers("debug")
@@ -114,7 +114,7 @@ except Exception as e:
 dts_mu = dts.mean(1)
 dts_std = dts.std(1)
 
-print(f"qid \t duration (s) whne AQE is {if_aqe}")
+print(f"qid \t duration (s) with AQE {'enabled' if if_aqe else 'disabled'}")
 for i in range(num_templates):
     qid = i + 1
     print(f"{qid}-1\t{dts_mu[i]:.3f} +- {dts_std[i]:.3f} s")
