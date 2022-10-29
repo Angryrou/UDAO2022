@@ -153,9 +153,9 @@ if __name__ == '__main__':
         dts = []
         for i in range(n_trials):
             flush_all(workers)
-            time.sleep(2)
+            time.sleep(1)
             start = time.time()
-            os.system(f"bash {out}/{file_name} > {out}/{file_name}_trial_{j + 1}.log 2>&1")
+            os.system(f"bash {out}/{file_name} > {out}/{file_name}_trial_{i + 1}.log 2>&1")
             dts.append(time.time() - start)
             print(f"{file_name}, trial {i + 1}, {dts[i]:.3f}s")
         with open(f"{out}/{file_name}.dts", "w") as f:
@@ -172,9 +172,9 @@ if __name__ == '__main__':
     print(objs)
     print()
 
-    print(f"3. get {n_bo} configurations via BO...")
-    print(f"3.1 parse and normalize all parameters to 0-1")
-    knob_df2 = spark_knobs.df_conf2knob(conf_df)
-    samples2 = KnobUtils.knob_normalize(knob_df2, knobs)
-    assert (knob_df2 == knob_df).all().all()
-    assert (knob_df2 == KnobUtils.knob_denormalize(samples2, knobs)).all().all()
+    # print(f"3. get {n_bo} configurations via BO...")
+    # print(f"3.1 parse and normalize all parameters to 0-1")
+    # knob_df2 = spark_knobs.df_conf2knob(conf_df)
+    # samples2 = KnobUtils.knob_normalize(knob_df2, knobs)
+    # assert (knob_df2 == knob_df).all().all()
+    # assert (knob_df2 == KnobUtils.knob_denormalize(samples2, knobs)).all().all()
