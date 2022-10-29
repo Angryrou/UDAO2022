@@ -25,7 +25,7 @@ class Args():
         self.parser.add_argument("--num-templates", type=int, default=22)
         self.parser.add_argument("--num-queries-per-template-to-run", type=int, default=400)
         self.parser.add_argument("--url-header", type=str,
-                                 default=""http://10.0.0.1:18088/api/v1/applications/application_1663600377480")
+                                 default="http://10.0.0.1:18088/api/v1/applications/application_1663600377480")
         self.parser.add_argument("--url-suffix-start", type=int, default=3827, help="the number is inclusive")
         self.parser.add_argument("--url-suffix-end", type=int, default=83840, help="the number is inclusive")
         self.parser.add_argument("--debug", type=int, default=0)
@@ -76,7 +76,7 @@ if __name__ == '__main__':
         data = JsonUtils.load_json_from_url(url_str)
         if data is not None:
             _, q_sign, knob_sign = data["name"].split("_")
-            tid = q_sign.split("-")[0]
+            tid = q_sign.split("-")[0][1:]
             lat = data["attempts"][0]["duration"] # seconds
             conf_dict = conf_df_dict[tid].loc[knob_sign].to_dict()
             cost = get_cloud_cost(
