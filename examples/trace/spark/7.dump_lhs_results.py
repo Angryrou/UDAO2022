@@ -71,7 +71,7 @@ if __name__ == '__main__':
     assert total_confs == (url_suffix_end - url_suffix_start + 1)
 
     lhs_dict = {k: {} for k in conf_df_dict.keys()}
-    for appid in range(url_suffix_start, url_suffix_end + 1):
+    for i, appid in enumerate(range(url_suffix_start, url_suffix_end + 1)):
         url_str = f"{url_header}{appid}"
         data = JsonUtils.load_json_from_url(url_str)
         if data is not None:
@@ -86,6 +86,8 @@ if __name__ == '__main__':
                 nexec=int(conf_dict["spark.executor.instances"])
             )
             lhs_dict[tid][knob_sign] = {"l": lat, "c": cost}
+        if (i + 1) % 1000 == 0:
+            print(f"{i + 1}/{n_templates * qpt_total} traces has been analyzed.")
 
     for tid in lhs_dict.keys():
         assert len(lhs_dict[tid]) == qpt_total
