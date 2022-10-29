@@ -43,7 +43,6 @@ if __name__ == '__main__':
     script_header = args.script_header
     out_header = args.out_header
     cache_header = args.cache_header
-    remote_header = args.remote_header
     n_templates = args.num_templates
     qpt = args.num_queries_per_template_to_run
     debug = args.debug
