@@ -27,7 +27,7 @@ class Args():
         self.parser.add_argument("--url-header", type=str,
                                  default="node1-opa:18088/api/v1/applications/application_1663600377480")
         self.parser.add_argument("--url-suffix-start", type=int, default=3827, help="the number is inclusive")
-        self.parser.add_argument("--url-suffix-end", type=int, default=83841, help="the number is inclusive")
+        self.parser.add_argument("--url-suffix-end", type=int, default=83840, help="the number is inclusive")
         self.parser.add_argument("--debug", type=int, default=0)
 
     def parse(self):
@@ -86,6 +86,8 @@ if __name__ == '__main__':
                 nexec=int(conf_dict["spark.executor.instances"])
             )
             lhs_dict[tid][knob_sign] = {"l": lat, "c": cost}
+        else:
+            raise Exception(f"failed to analyze {url_str}")
         if (i + 1) % 1000 == 0:
             print(f"{i + 1}/{n_templates * qpt_total} traces has been analyzed.")
 
