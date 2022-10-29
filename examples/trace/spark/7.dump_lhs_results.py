@@ -66,7 +66,8 @@ if __name__ == '__main__':
         f'lhs conf file not found {os.path.join(cache_header, f"lhs_{n_templates}x{qpt_total}.pkl")}'
     conf_df_dict = PickleUtils.load(cache_header, f"lhs_{n_templates}x{qpt_total}.pkl")
     total_confs = sum(v.shape[0] for k, v in conf_df_dict.items())
-    assert total_confs == (url_suffix_end - url_suffix_start + 1)
+    assert total_confs == (url_suffix_end - url_suffix_start + 1), \
+        f"total_confs={total_confs}, total_urls = {(url_suffix_end - url_suffix_start + 1)}"
 
     lhs_dict = {k: {} for k in conf_df_dict.keys()}
     for i, appid in enumerate(range(url_suffix_start, url_suffix_end + 1)):
