@@ -102,6 +102,7 @@ if __name__ == '__main__':
 
     args = Args().parse()
     seed = args.seed
+    np.random.seed(seed)
     benchmark = args.benchmark
     assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
     query_header = args.query_header
@@ -132,7 +133,7 @@ if __name__ == '__main__':
         seed=seed
     )
 
-    def sql_exec(spark_collect, tid, conf_dict, n_trials, workers, out_header):
+    def sql_exec(spark_collect, tid, conf_dict, n_trials, workers, out_header, debug):
         """return a list of dts in `n_trials`"""
 
         # prepare the scripts for running.
@@ -152,11 +153,14 @@ if __name__ == '__main__':
                 print(f"{res_file} is not properly generated")
         dts = []
         for i in range(n_trials):
-            flush_all(workers)
-            time.sleep(1)
-            start = time.time()
-            os.system(f"bash {out}/{file_name} > {out}/{file_name}_trial_{i + 1}.log 2>&1")
-            dts.append(time.time() - start)
+            if debug:
+                dts.append(np.random.rand() * 100)
+            else:
+                flush_all(workers)
+                time.sleep(1)
+                start = time.time()
+                os.system(f"bash {out}/{file_name} > {out}/{file_name}_trial_{i + 1}.log 2>&1")
+                dts.append(time.time() - start)
             print(f"{file_name}, trial {i + 1}, {dts[i]:.3f}s")
         with open(f"{out}/{file_name}.dts", "w") as f:
             f.write(",".join([f"{dt:.3f}" for dt in dts]))
@@ -166,7 +170,7 @@ if __name__ == '__main__':
 
     objs = []
     for conf_dict in conf_df.to_dict("records"):
-        dts = sql_exec(spark_collect, tid, conf_dict, n_trials, workers, out_header)
+        dts = sql_exec(spark_collect, tid, conf_dict, n_trials, workers, out_header, debug)
         objs.append(sum(dts) / n_trials)
     objs = np.array(objs)
     print(objs)
