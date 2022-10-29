@@ -22,7 +22,6 @@ class Args():
         self.parser.add_argument("--script-header", type=str, default="resources/scripts/tpch-lhs")
         self.parser.add_argument("--out-header", type=str, default="examples/trace/spark/7.run_all_pressure_test")
         self.parser.add_argument("--cache-header", type=str, default="examples/trace/spark/cache")
-        self.parser.add_argument("--remote-header", type=str, default="~/chenghao")
         self.parser.add_argument("--num-templates", type=int, default=22)
         self.parser.add_argument("--num-queries-per-template-to-run", type=int, default=400)
         self.parser.add_argument("--url-header", type=str,
@@ -72,7 +71,8 @@ if __name__ == '__main__':
 
     lhs_dict = {k: {} for k in conf_df_dict.keys()}
     for i, appid in enumerate(range(url_suffix_start, url_suffix_end + 1)):
-        url_str = f"{url_header}{appid}"
+        appid_str = f"{appid:04}" if appid < 10000 else str(appid)
+        url_str = f"{url_header}_{appid_str}"
         data = JsonUtils.load_json_from_url(url_str)
         if data is not None:
             _, q_sign, knob_sign = data["name"].split("_")
