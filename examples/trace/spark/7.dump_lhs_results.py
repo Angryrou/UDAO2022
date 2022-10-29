@@ -25,7 +25,7 @@ class Args():
         self.parser.add_argument("--num-templates", type=int, default=22)
         self.parser.add_argument("--num-queries-per-template-to-run", type=int, default=400)
         self.parser.add_argument("--url-header", type=str,
-                                 default="10.0.0.1:18088/api/v1/applications/application_1663600377480")
+                                 default=""http://10.0.0.1:18088/api/v1/applications/application_1663600377480")
         self.parser.add_argument("--url-suffix-start", type=int, default=3827, help="the number is inclusive")
         self.parser.add_argument("--url-suffix-end", type=int, default=83840, help="the number is inclusive")
         self.parser.add_argument("--debug", type=int, default=0)
