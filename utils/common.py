@@ -2,7 +2,8 @@
 #
 # Created at 9/16/22
 
-import os, json, pickle, time, datetime
+import os, json, pickle, datetime
+import urllib.request
 
 
 class JsonUtils(object):
@@ -19,6 +20,16 @@ class JsonUtils(object):
     @staticmethod
     def print_dict(d: dict):
         print(json.dumps(d, indent=2))
+
+    @staticmethod
+    def load_json_from_url(url_str):
+        try:
+            with urllib.request.urlopen(url_str) as url:
+                data = json.load(url)
+        except:
+            print(f"failed to load from {url_str}")
+            return None
+        return data
 
 
 class PickleUtils(object):
