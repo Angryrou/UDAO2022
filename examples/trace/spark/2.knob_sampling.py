@@ -49,26 +49,41 @@ print(f"3.2 iteratively get the configurations via BO...")
 bo_trial = 0
 bo_samples = 0
 bo_objs = objs.copy()  # maintain the obj values including the duplicated configurations due to the rounding issue.
+n_cands_per_trial = 5  # use a larger number when the size of input data increases.
 while True:
     bo_trial += 1
     print(f"trial {bo_trial} starts...")
-    reco_sample = bo_sampler.get_samples(1, observed_inputs=samples2, observed_outputs=bo_objs)
+    reco_samples = bo_sampler.get_samples(n_cands_per_trial, observed_inputs=samples2, observed_outputs=bo_objs)
     # get the recommended knob values based on reco_samples by denormalizing and rounding
-    reco_knob_df = KnobUtils.knob_denormalize(reco_sample, knobs)
-    assert reco_knob_df.shape == (1, len(knobs))
+    reco_knob_df = KnobUtils.knob_denormalize(reco_samples, knobs)
+    assert reco_knob_df.shape == (n_cands_per_trial, len(knobs))
     # get the signature of the recommended knob values
-    reco_knob_sign = reco_knob_df.index.values[0]
+    reco_knob_signs = reco_knob_df.index.values
 
     # add the recommended knob values
-    # to check whether the recommended knob values have already appeared in previous observation due to rounding.
-    if reco_knob_sign in knob_df2.index:
-        # map the new_ojb to the existed one if the reco have already been observed
-        new_obj = objs[knob_df2.index.to_list().index(reco_knob_sign)].reshape(-1, 1)
-        # update observed results
-        samples2 = np.vstack([samples2, reco_sample])
-        bo_objs = np.vstack([bo_objs, new_obj])
-        print(f"trial {bo_trial} recommended an observed configuration, skip running.")
-    else:
+    found_new = False
+    found_new_i = -1
+    for i in range(n_cands_per_trial):
+        reco_knob_sign, reco_sample = reco_knob_signs[i], reco_samples[i]
+
+        # to check whether the recommended knob values have already appeared in previous observation due to rounding.
+        if reco_knob_sign in knob_df2.index:
+            # map the new_ojb to the existed one if the reco have already been observed
+            new_obj = objs[knob_df2.index.to_list().index(reco_knob_sign)].reshape(-1, 1)
+            # update observed results
+            samples2 = np.vstack([samples2, reco_sample])
+            bo_objs = np.vstack([bo_objs, new_obj])
+            print(f"trial {bo_trial}-cand{i} recommended an observed configuration, skip running.")
+        else:
+            print(f"trial {bo_trial}-cand{i} recommended a new configuration!")
+            if not found_new:
+                found_new_i = i
+            found_new = True
+
+    if found_new:
+        assert found_new_i >= 0
+        print(f"trial {bo_trial} recommended at least one new configuration, start running.")
+        reco_knob_sign, reco_sample = reco_knob_signs[found_new_i], reco_samples[found_new_i]
         # run sql to get the new_obj otherwise
         new_obj = fake_exec(["q1"], [reco_sample])
         # update observed results
@@ -83,6 +98,8 @@ while True:
         print(spark_knobs.df_knob2conf(reco_knob_df).to_string())
         if bo_samples == N_SAMPLES_BO:
             break
+    else:
+        print(f"trial {bo_trial} recommended {n_cands_per_trial} observed configuration, skip running.")
 
 print()
 print(f"we got {N_SAMPLES_LHS} samples from LHS and {N_SAMPLES_BO} samples from BO")

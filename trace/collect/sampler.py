@@ -17,6 +17,7 @@ from botorch.models import SingleTaskGP
 from botorch.fit import fit_gpytorch_model
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.acquisition import UpperConfidenceBound
+from botorch.acquisition.monte_carlo import qExpectedImprovement
 from botorch.optim import optimize_acqf
 
 
@@ -73,15 +74,16 @@ class BOSampler(BaseSampler):
     def __init__(self, knobs, seed=42):
         super(BOSampler, self).__init__(knobs, seed)
 
-    def get_samples(self, n_samples, observed_inputs=None, observed_outputs=None):
+    def get_samples(self, n_samples, observed_inputs=None, observed_outputs=None,
+                    optimizer="default"):
         """
         get 1 sample from based on BO based on current observations.
         :param n_samples: number of additional samples needed, usually set to 1 in BO
         :param observed_inputs: a dataframe of observed knobs
         :param observed_outputs: a dataframe of observed values
+        :param optimizer: name of the optimizer
         :return: n_samples configuration recommended by BO
         """
-        assert n_samples == 1
         assert isinstance(observed_inputs, np.ndarray) and isinstance(observed_outputs, np.ndarray)
         if observed_outputs.ndim == 1:
             observed_outputs = observed_outputs.reshape(-1, 1)
@@ -91,24 +93,34 @@ class BOSampler(BaseSampler):
         assert observed_inputs.min() >= 0 and observed_inputs.max() <= 1, \
             "the observed inputs we take should be normalized to 0-1"
 
-        X_tr = th.from_numpy(observed_inputs)
-        y_tr = th.from_numpy(observed_outputs - observed_outputs.min() /
-                             (observed_outputs.max() - observed_outputs.min()))
+        X_tr = th.from_numpy(observed_inputs).to(th.float)
+        y_tr = th.from_numpy(
+            (observed_outputs - observed_outputs.min()) / (observed_outputs.max() - observed_outputs.min())
+        ).to(th.float)
         gp = SingleTaskGP(X_tr, - y_tr)
-        mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
-        fit_gpytorch_model(mll)
+        mll = ExactMarginalLogLikelihood(gp.likelihood, gp).to(X_tr)
+        if optimizer == "default":
+            # L-BFGS-B
+            fit_gpytorch_model(mll)
+        elif optimizer == "SGD":
+            raise NotImplementedError
+        else:
+            raise NotImplementedError(optimizer)
+
         bounds = th.stack([th.zeros(self.n_knobs), th.ones(self.n_knobs)])
 
         try:
-            reco_sample, _ = optimize_acqf(
+            reco_samples, _ = optimize_acqf(
                 # UCB: https://people.eecs.berkeley.edu/~kandasamy/talks/electrochem-bo-slides.pdf
-                UpperConfidenceBound(gp, beta=UCB_BETA),
+                # UpperConfidenceBound(gp, beta=UCB_BETA),
+                # qEI
+                qExpectedImprovement(gp, best_f=0.2),
                 bounds=bounds,
                 q=n_samples,
                 num_restarts=5,
-                raw_samples=20
+                raw_samples=100
             )
         except Exception as e:
             raise Exception(f"got error when recommending: {e}")
 
-        return reco_sample
+        return reco_samples
