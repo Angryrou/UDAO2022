@@ -153,4 +153,4 @@ class BOSampler(BaseSampler):
         except Exception as e:
             raise Exception(f"got error when recommending: {e}")
 
-        return reco_samples
+        return reco_samples.numpy()

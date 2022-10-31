@@ -12,6 +12,7 @@ import numpy as np
 SEED = 42
 N_SAMPLES_LHS = 16
 N_SAMPLES_BO = 2
+DEBUG=False
 
 
 def fake_exec(query, conf):
@@ -44,7 +45,7 @@ samples2 = KnobUtils.knob_normalize(knob_df2, knobs)
 assert (knob_df2 == knob_df).all().all()
 assert (knob_df2 == KnobUtils.knob_denormalize(samples2, knobs)).all().all()
 
-bo_sampler = BOSampler(knobs, seed=SEED)
+bo_sampler = BOSampler(knobs, seed=SEED, debug=DEBUG)
 print(f"3.2 iteratively get the configurations via BO...")
 bo_trial = 0
 bo_samples = 0
