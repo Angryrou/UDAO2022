@@ -10,7 +10,7 @@ AWS_COST_MEM_HOUR_RATIO = 0.0057785  # for GB*H
 
 
 def get_cloud_cost(lat, mem, cores, nexec):
-    cpu_hour = nexec * cores * lat / 3600
-    mem_hour = nexec * mem * lat / 3600
+    cpu_hour = (nexec + 1) * cores * lat / 3600
+    mem_hour = (nexec + 1) * mem * lat / 3600
     cost = cpu_hour * AWS_COST_CPU_HOUR_RATIO + mem_hour * AWS_COST_MEM_HOUR_RATIO
     return cost
