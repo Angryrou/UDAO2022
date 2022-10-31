@@ -9,6 +9,7 @@ import random
 from multiprocessing import Pool, Manager
 
 import numpy as np
+import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 from trace.collect.framework import QueryQueue, error_handler, SparkCollect
@@ -261,12 +262,15 @@ if __name__ == '__main__':
     submit_index = n_templates * qpt_lhs
     pool = Pool(processes=n_processes)
     submitted = 0
-    target_obj_id = 0
+
+    bo_conf_dict = {tid: {0: [], 1: []} for tid in templates}
     while submit_index < total_queries:
+        target_obj_id = 1 if (submitted >= qpt_bo * n_templates - n_templates) else 0
         tid, qid, next_sample = extract(qq, templates, submit_index, next_sample_dict)
         knob_sign = KnobUtils.knob_denormalize(next_sample.reshape(1, -1), knobs).index.values[0]
         knob_dict = {k.id: v for k, v in zip(knobs, KnobUtils.sign2knobs(knob_sign, knobs))}
         conf_dict = spark_knobs.knobs2conf(knob_dict)
+        bo_conf_dict[tid][target_obj_id].append(conf_dict)
         cores = int(conf_dict["spark.executor.cores"]) * (int(conf_dict["spark.executor.instances"]) + 1)
         mem = int(conf_dict["spark.executor.memory"][:-1]) * (int(conf_dict["spark.executor.instances"]) + 1)
 
@@ -284,8 +288,6 @@ if __name__ == '__main__':
                              error_callback=error_handler)
             submit_index += 1
             submitted += 1
-            if submitted >= qpt_bo * n_templates:
-                target_obj_id = 1
 
         time.sleep(1)
 
@@ -295,3 +297,6 @@ if __name__ == '__main__':
     if not debug:
         os.system(nmon_stop)
         os.system(nmon_agg)
+
+    bo_conf_df_dict = {tid: {0: pd.DataFrame(v[0]), 1: pd.DataFrame(v[1])} for tid, v in bo_conf_dict.items()}
+    PickleUtils.save(bo_conf_df_dict, header=cache_header, file_name=f"bo_{n_templates}x{qpt_bo}x2.pkl")
