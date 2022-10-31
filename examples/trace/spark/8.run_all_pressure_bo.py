@@ -87,8 +87,6 @@ def extract(qq, templates, i, next_sample_dict):
 
 
 def submit(
-        lock: threading.RLock,
-        current_cores: ValueProxy,
         cores: int,
         tid: str,
         qid: str,
@@ -129,7 +127,6 @@ def submit(
     X, Y = observed_dict[tid]["X"], observed_dict[tid]["Y"]
     new_objs = np.array([[lat, cost]])
     new_Y = objs_scaler_dict[tid].transform(new_objs)
-
     if debug:
         print(f"Thread {tid}-{qid} [4]: new_objs={new_objs}, new_Y={new_Y}")
 
@@ -137,18 +134,16 @@ def submit(
         "X": np.vstack([X, new_sample]),
         "Y": np.vstack([Y, new_Y])
     }
-
     next_sample, new_observed, bo_trials = find_next_sample(
         tid, observed, knob_signs, bo_trials=bo_trials_dict[tid], target_obj_id=target_obj_id,
         lr=sgd_lr, epochs=sgd_epochs
     )
-
     if debug:
         print(f"Thread {tid}-{qid} [5]: get next sample at bo_trials {bo_trials}")
+
     observed_dict[tid] = new_observed
     bo_trials_dict[tid] = bo_trials
     next_sample_dict[tid] = next_sample
-
     print(f"Thread {tid}-{qid} [6]: finish updating all, observed.X: "
           f"{X.shape} -> {observed['X'].shape} -> {observed_dict[tid]['X'].shape}")
 
@@ -207,11 +202,12 @@ if __name__ == '__main__':
     knobs = spark_knobs.knobs
     conf_df_dict = PickleUtils.load(cache_header, f"lhs_{n_templates}x{qpt_lhs}.pkl")
     objs_df_dict = PickleUtils.load(cache_header, f"lhs_{n_templates}x{qpt_lhs}_objs.pkl")
-    observed_dict = {}
+
+    m = Manager()
+    observed_dict = m.dict()
+    next_sample_dict = m.dict()
+    bo_trials_dict = m.dict()
     objs_scaler_dict = {}
-    next_sample_dict = {}
-    knob_signs_dict = {}
-    bo_trials_dict = {}
 
     bo_sampler = BOSampler(knobs, seed=seed, debug=debug)
     for tid in templates:
@@ -231,7 +227,6 @@ if __name__ == '__main__':
             "Y": objs_normalized
         }
         knob_signs = knob_df.index.to_list()
-        knob_signs_dict[tid] = knob_signs
         objs_scaler_dict[tid] = scaler
         next_sample, new_observed, bo_trials = find_next_sample(
             tid, observed, knob_signs, bo_trials=0, target_obj_id=0,
@@ -252,9 +247,10 @@ if __name__ == '__main__':
         os.system(nmon_start)
 
     total_queries = n_templates * qpt_total
-    m = Manager()
+
     current_cores = m.Value("i", 0)
     lock = m.RLock()
+
 
     spark_collect = SparkCollect(
         benchmark=benchmark,
@@ -285,7 +281,7 @@ if __name__ == '__main__':
                 if_submit = False
         if if_submit:
             pool.apply_async(func=submit,
-                             args=(lock, current_cores, cores, tid, qid, conf_dict, debug,
+                             args=(cores, tid, qid, conf_dict, debug,
                                    out_header, next_sample, target_obj_id, if_aqe),
                              error_callback=error_handler)
             submit_index += 1
