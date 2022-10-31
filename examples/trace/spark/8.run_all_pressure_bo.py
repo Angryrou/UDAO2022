@@ -133,7 +133,7 @@ def submit(
     if debug:
         print(f"Thread {tid}-{qid} [4]: new_objs={new_objs}, new_Y={new_Y}")
 
-    observed_dict[tid] = {
+    observed = {
         "X": np.vstack([X, new_sample]),
         "Y": np.vstack([Y, new_Y])
     }
@@ -149,7 +149,8 @@ def submit(
     bo_trials_dict[tid] = bo_trials
     next_sample_dict[tid] = next_sample
 
-    print(f"Thread {tid}-{qid} [6]: finish updating all, observed from {X.shape} to {observed_dict[tid]['X'].shape}")
+    print(f"Thread {tid}-{qid} [6]: finish updating all, observed.X: "
+          f"{X.shape} -> {observed['X'].shape} -> {observed_dict[tid]['X'].shape}")
 
 if __name__ == '__main__':
 
