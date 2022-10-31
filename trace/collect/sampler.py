@@ -151,7 +151,7 @@ class BOSampler(BaseSampler):
                 bounds=bounds,
                 q=n_samples,
                 num_restarts=5,
-                raw_samples=100
+                raw_samples=20
             )
         except Exception as e:
             raise Exception(f"got error when recommending: {e}")
