@@ -12,6 +12,7 @@
 import pickle
 import torch as th
 import numpy as np
+import json
 
 DEFAULT_DEVICE = th.device("cpu")
 DEFAULT_DTYPE = th.float32
@@ -30,3 +31,16 @@ def _get_tensor(x, dtype=None, device=None, requires_grad=False):
     device = DEFAULT_DEVICE if device is None else device
 
     return th.tensor(x, dtype=dtype, device=device, requires_grad=requires_grad)
+
+def json_parse_predict(zmesg, knob_list):
+    """{"s3":10,"s4":200,"k1":32,"k2":4,"k3":4,"k4":8,"k5":48,"k6":200,"k7":1,"k8":0.6,"Objective":"latency","JobID":"13-4","s1":10000,"s2":128}"""
+    FORMAT_ERROR = 'ERROR: format of zmesg is not correct'
+    try:
+        x = json.loads(zmesg)
+        wl_id = x['JobID']
+        obj = x['Objective']
+        conf_raw_val = np.array([float(x[k]) for k in knob_list])
+        return wl_id, conf_raw_val, obj
+    except:
+        print(FORMAT_ERROR + f'{zmesg}')
+        return None, None, None

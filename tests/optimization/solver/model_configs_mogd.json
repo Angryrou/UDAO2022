@@ -40,8 +40,8 @@
     {
       "name": "k6",
       "type": "FLOAT",
-      "min": 11,
-      "max": 200,
+      "min": 7,
+      "max": 217,
       "precision": 0
     },
     {
@@ -104,13 +104,14 @@
     "name": "gpr",
     "gpr_weights_path": "tests/optimization/checkpoints/data_gpr_batch.pkl",
     "default_ridge": 1.0,
-    "wl_id": "24-3"
+    "accurate": false,
+    "alpha": 3.0
   },
   "additional_params":
     {
-      "pf_option": "pf_as",
+      "pf_option": "pf_ap",
       "n_probes": 200,
-      "n_grids": 0,
+      "n_grids": 3,
       "mogd_params":
       {
       "learning_rate": 0.1,
@@ -118,8 +119,8 @@
       "max_iters": 100,
       "patient": 20,
       "stress": 10,
-      "multistart": 1,
-      "processes": 0,
+      "multistart": 4,
+      "processes": 1,
       "seed": 0
         }
     }

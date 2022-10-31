@@ -4,10 +4,10 @@
 #
 # Created at 21/09/2022
 
-from optimization.solver.mogd import MOGD
 import utils.optimization.solver_utils as solver_ut
 from tests.optimization.solver.gpr import GPRPT
 from utils.optimization.configs_parser import ConfigsParser
+
 
 import torch as th
 import numpy as np
@@ -41,16 +41,6 @@ def _get_conf_range_for_wl(wl_id):
     conf_max = scaler_map[wl_id].data_max_
     conf_min = scaler_map[wl_id].data_min_
     return conf_max, conf_min
-
-def get_normalized_conf(raw_conf, conf_max, conf_min, normalized_ids=None):
-    """
-    :param real_conf: numpy.array[int]
-    :return: normalized to 0-1
-    """
-    conf_max = conf_max if normalized_ids is None else conf_max[normalized_ids]
-    conf_min = conf_min if normalized_ids is None else conf_min[normalized_ids]
-    normalized_conf = (raw_conf - conf_min) / (conf_max - conf_min)
-    return normalized_conf
 
 def _get_gp_models(data, proxy_jobs, wl_list, ridge):
     obj_lbl = data['metrics_details']['objective_label']
@@ -115,7 +105,8 @@ try:
     gpr_weights_path = model_params['gpr_weights_path']
     gpr_data_ = solver_ut.load_pkl(gpr_weights_path)
     default_ridge = model_params['default_ridge']
-    wl_id = model_params['wl_id']
+    accurate = model_params['accurate']
+    alpha = model_params['alpha']
 except:
     raise Exception('model_params is not fully correct')
 model = GPRPT(gp_obj_list=GP_OBJ_LIST)
@@ -123,20 +114,28 @@ wl_list_ = BATCH_OFF_TEST_JOBS + BATCH_ON_TEST_JOBS
 data_ = gpr_data_['data']
 proxy_jobs_ = gpr_data_['proxy_jobs']
 model_map, scaler_map, scale_y_map = _get_gp_models(data_, proxy_jobs_, wl_list_, default_ridge)
+if accurate:
+    conf_constraints = None
+else:
+    conf_constraints = {"vars_min": np.array([64, 8, 2, 6, 24, 35, 0, 0.5, 5000, 64, 10, 36]),
+                        "vars_max": np.array([144, 24, 4, 8, 192, 145, 1, 0.75, 20000, 256, 100, 144])}
 
 #########################
 ## objective functions ##
 #########################
 
-def obj_func1(vars):
+def obj_func1(wl_id, vars):
     if not th.is_tensor(vars):
         vars = solver_ut._get_tensor(vars)
     obj = "latency"
     vars_copy = vars.clone()
-    # do make sure the var_ranges are the same as in the config.json file
-    conf_max, conf_min = _get_conf_range_for_wl(wl_id)
-    conf_norm = np.array([(vars_copy[i].data.numpy() - conf_min) / (conf_max - conf_min) for i in range(vars_copy.shape[0])])
-    vars_copy.data = solver_ut._get_tensor(conf_norm)
+
+    # # do make sure the var_ranges are the same as in the config.json file
+    # vars_max, vars_min = _get_vars_range_for_wl(wl_id)
+    # # conf_norm = np.array([(vars_copy[i].data.numpy() - vars_min) / (vars_max - vars_min) for i in range(vars_copy.shape[0])])
+    # conf_norm = get_normalized_vars(vars_copy.data.numpy(), vars_max, vars_min)
+    # vars_copy.data = solver_ut._get_tensor(conf_norm)
+
     X_train, y_dict, K_inv = model_map[wl_id]
     y_train = y_dict[obj]
     obj_pred = model.objective(vars_copy, X_train, y_train, K_inv).view(-1, 1)
@@ -144,16 +143,17 @@ def obj_func1(vars):
     assert (obj_pred.ndimension() == 2)
     return obj_pred
 
-def obj_func2(vars):
+def obj_func2(wl_id, vars):
     # obj = "cores"
     if not th.is_tensor(vars):
         vars = solver_ut._get_tensor(vars)
 
     vars_copy = vars.clone()
     conf_max, conf_min = _get_conf_range_for_wl(wl_id)
-    conf_norm = np.array(
-        [(vars_copy[i].data.numpy() - conf_min) / (conf_max - conf_min) for i in range(vars_copy.shape[0])])
-    vars_copy.data = solver_ut._get_tensor(conf_norm)
+
+    # conf_norm = np.array(
+    #     [(vars_copy[i].data.numpy() - vars_min) / (vars_max - vars_min) for i in range(vars_copy.shape[0])])
+    # vars_copy.data = solver_ut._get_tensor(conf_norm)
 
     k2_max, k3_max = conf_max[1:3]
     k2_min, k3_min = conf_min[1:3]
@@ -170,3 +170,27 @@ def obj_func2(vars):
     assert (obj_pred.ndimension() == 2)
     return obj_pred
 
+def get_normalized_conf(raw_conf, conf_max, conf_min, normalized_ids=None):
+    """
+    :param real_conf: numpy.array[int]
+    :return: normalized to 0-1
+    """
+    conf_max = conf_max if normalized_ids is None else conf_max[normalized_ids]
+    conf_min = conf_min if normalized_ids is None else conf_min[normalized_ids]
+    normalized_conf = (raw_conf - conf_min) / (conf_max - conf_min)
+    return normalized_conf
+
+def _get_tensor_obj_std(wl_id, conf, obj):
+    """return shape (-1, 1)"""
+    if obj in R_OBJ_LIST:
+        std = solver_ut._get_tensor([[0.]])
+    elif obj in GP_OBJ_LIST:
+        X_train, _, K_inv = model_map[wl_id]
+        y_scale = scale_y_map[wl_id][obj]  # float
+        if conf.ndimension() < 2:
+            conf = conf.reshape(1, -1)
+        std = model.objective_std(X_test=conf, X_train=X_train, K_inv=K_inv, y_scale=y_scale).reshape(-1, 1)
+    else:
+        raise Exception(f'does not have support for {obj}')
+    assert(std.ndimension() == 2)
+    return std
