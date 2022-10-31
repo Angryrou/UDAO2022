@@ -6,10 +6,7 @@
 
 import argparse, os, time
 import random
-import threading
-
 from multiprocessing import Pool, Manager
-from multiprocessing.managers import ValueProxy
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -22,6 +19,7 @@ from utils.data.configurations import SparkKnobs, KnobUtils
 from utils.data.feature import NmonUtils
 
 N_CANDS_PER_TRIAL = 3
+
 
 class Args():
     def __init__(self):
@@ -147,6 +145,7 @@ def submit(
     print(f"Thread {tid}-{qid} [6]: finish updating all, observed.X: "
           f"{X.shape} -> {observed['X'].shape} -> {observed_dict[tid]['X'].shape}")
 
+
 if __name__ == '__main__':
 
     args = Args().parse()
@@ -187,7 +186,7 @@ if __name__ == '__main__':
     else:
         raise ValueError(benchmark)
 
-    qpt_total = qpt_lhs + qpt_bo
+    qpt_total = qpt_lhs + qpt_bo * 2
     # prepare nmon commands
     nmon_reset = NmonUtils.nmon_remote_reset(workers, remote_header=remote_header)
     nmon_start = NmonUtils.nmon_remote_start(workers, remote_header=remote_header, name_suffix="",
@@ -223,7 +222,7 @@ if __name__ == '__main__':
         scaler.fit(objs)
         objs_normalized = scaler.transform(objs)
         observed = {
-            "X": samples, # normalized
+            "X": samples,  # normalized
             "Y": objs_normalized
         }
         knob_signs = knob_df.index.to_list()
@@ -250,7 +249,6 @@ if __name__ == '__main__':
 
     current_cores = m.Value("i", 0)
     lock = m.RLock()
-
 
     spark_collect = SparkCollect(
         benchmark=benchmark,
@@ -285,11 +283,11 @@ if __name__ == '__main__':
                                    out_header, next_sample, target_obj_id, if_aqe),
                              error_callback=error_handler)
             submit_index += 1
+            submitted += 1
+            if submitted >= qpt_bo * n_templates:
+                target_obj_id = 1
 
         time.sleep(1)
-        submitted += 1
-        if submitted >= qpt_bo * n_templates:
-            target_obj_id = 1
 
     pool.close()
     pool.join()

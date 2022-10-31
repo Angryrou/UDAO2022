@@ -5,10 +5,8 @@
 # Created at 9/23/22
 import argparse, os, time
 import random
-import threading
 
 from multiprocessing import Pool, Manager
-from multiprocessing.managers import ValueProxy
 
 from trace.collect.framework import QueryQueue, error_handler
 from utils.common import PickleUtils, BenchmarkUtils
@@ -46,8 +44,7 @@ def extract(qq, templates, conf_df_dict, i):
     return tid, str(qid), knob_sign, cores
 
 
-def submit(lock: threading.RLock, current_cores: ValueProxy, cores: int, tid: str, qid: str,
-           knob_sign: str, debug: bool, script_header: str, log_header: str):
+def submit(cores: int, tid: str, qid: str, knob_sign: str, debug: bool, script_header: str, log_header: str):
     script_file = f"{script_header}/{tid}/q{tid}-{qid}_{knob_sign}.sh"
     assert os.path.exists(script_file), FileNotFoundError(script_file)
     log_file = f"{log_header}/q{tid}-{qid}.log"
@@ -133,7 +130,7 @@ if __name__ == '__main__':
                 if_submit = False
         if if_submit:
             pool.apply_async(func=submit,
-                             args=(lock, current_cores, cores, tid, qid, knob_sign, debug, script_header, log_header),
+                             args=(cores, tid, qid, knob_sign, debug, script_header, log_header),
                              error_callback=error_handler)
             submit_index += 1
 
