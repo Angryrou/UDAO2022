@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
     benchmark = args.benchmark
     seed = args.seed
-    out_header = args.out_header
+    out_header = f"{args.out_header}/{benchmark}"
     cache_header = args.cache_header
     remote_header = args.remote_header
     n_templates = args.num_templates
