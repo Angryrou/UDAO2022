@@ -158,6 +158,10 @@ if __name__ == '__main__':
         bo_trials_dict[tid] = bo_trials
         next_conf_dict[tid] = next_conf
 
+    print(f"tid, observed, next_conf, bo_trials")
+    for tid in range(templates):
+        print(f"{tid}, {observed_dict[tid]}, {next_conf_dict[tid]}, {bo_trials_dict[tid]}")
+
     if not debug:
         os.system(nmon_reset)
         os.system(nmon_start)

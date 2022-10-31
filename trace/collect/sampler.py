@@ -109,6 +109,9 @@ class BOSampler(BaseSampler):
             fit_gpytorch_model(mll)
         elif optimizer == "SGD":
             # NUM_EPOCHS, LR are heuristically chosen by the local testing of our dataset
+            th.manual_seed(self.seed)
+            random.seed(self.seed)
+            np.random.seed(self.seed)
             gp.likelihood.noise_covar.register_constraint("raw_noise", GreaterThan(1e-5))
             mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
             mll = mll.to(X_tr)
