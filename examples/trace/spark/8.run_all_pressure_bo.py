@@ -117,30 +117,39 @@ def submit(
         current_cores.value -= cores
         print(f"Thread {tid}-{qid}: finish running SparkSQL, takes {lat}s, current_cores={current_cores.value}")
 
-    cost = get_cloud_cost(
-        lat=lat,
-        mem=int(conf_dict["spark.executor.memory"][:-1]),
-        cores=int(conf_dict["spark.executor.cores"]),
-        nexec=int(conf_dict["spark.executor.instances"])
-    )
-    X, Y = observed_dict[tid]["X"], observed_dict[tid]["Y"]
-    new_objs = np.array([[lat, cost]])
-    new_Y = objs_scaler_dict[tid].transform(new_objs)
+        cost = get_cloud_cost(
+            lat=lat,
+            mem=int(conf_dict["spark.executor.memory"][:-1]),
+            cores=int(conf_dict["spark.executor.cores"]),
+            nexec=int(conf_dict["spark.executor.instances"])
+        )
+        if debug:
+            print(f"Thread {tid}-{qid}: lat={lat}, cost={cost}")
 
-    observed_dict[tid] = {
-        "X": np.vstack([X, new_sample]),
-        "Y": np.vstack([Y, new_Y])
-    }
+        X, Y = observed_dict[tid]["X"], observed_dict[tid]["Y"]
+        new_objs = np.array([[lat, cost]])
+        new_Y = objs_scaler_dict[tid].transform(new_objs)
 
-    next_sample, new_observed, bo_trials = find_next_sample(
-        tid, observed, knob_signs, bo_trials=bo_trials_dict[tid], target_obj_id=target_obj_id,
-        lr=sgd_lr, epochs=sgd_epochs
-    )
-    observed_dict[tid] = new_observed
-    bo_trials_dict[tid] = bo_trials
-    next_sample_dict[tid] = next_sample
+        if debug:
+            print(f"Thread {tid}-{qid}: new_objs={new_objs}, new_Y={new_Y}")
 
-    print(f"Thread {tid}-{qid}: finish running SparkSQL and generating next sample {next_sample}")
+        observed_dict[tid] = {
+            "X": np.vstack([X, new_sample]),
+            "Y": np.vstack([Y, new_Y])
+        }
+
+        next_sample, new_observed, bo_trials = find_next_sample(
+            tid, observed, knob_signs, bo_trials=bo_trials_dict[tid], target_obj_id=target_obj_id,
+            lr=sgd_lr, epochs=sgd_epochs
+        )
+
+        if debug:
+            print(f"Thread {tid}-{qid}: get next sample as {next_sample}")
+        observed_dict[tid] = new_observed
+        bo_trials_dict[tid] = bo_trials
+        next_sample_dict[tid] = next_sample
+
+        print(f"Thread {tid}-{qid}: finish updating all.")
 
 if __name__ == '__main__':
 
