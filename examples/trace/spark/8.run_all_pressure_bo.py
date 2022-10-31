@@ -124,7 +124,7 @@ def submit(
         nexec=int(conf_dict["spark.executor.instances"])
     )
     X, Y = observed_dict[tid]["X"], observed_dict[tid]["Y"]
-    new_objs = np.array([lat, cost])
+    new_objs = np.array([[lat, cost]])
     new_Y = objs_scaler_dict[tid].transform(new_objs)
 
     observed_dict[tid] = {
