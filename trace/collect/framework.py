@@ -5,13 +5,11 @@
 # Created at 9/19/22
 import os
 import time
-import threading
-import random
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
 import pandas as pd
-from multiprocessing.managers import ValueProxy
+
 
 from trace.collect.sampler import LHSSampler, BOSampler
 from utils.common import PickleUtils
@@ -188,23 +186,6 @@ class MultiQueryEnvironment(object):
             "io_rqs_avg_daily",
             "io_rqs_std_daily",
         ]).set_index("timestep").sort_index()
-
-
-def submit(lock: threading.RLock, current_cores: ValueProxy, cores: int, tid: str, qid: str,
-           knob_sign: str, debug: bool, script_header: str, log_header: str):
-    script_file = f"{script_header}/{tid}/q{tid}-{qid}_{knob_sign}.sh"
-    assert os.path.exists(script_file), FileNotFoundError(script_file)
-    log_file = f"{log_header}/q{tid}-{qid}.log"
-
-    print(f"Thread {tid}-{qid}: start running")
-    start = time.time()
-    if debug:
-        time.sleep(random.randint(1, 5))
-    else:
-        os.system(f"bash {script_file} > {log_file} 2>&1")
-    with lock:
-        current_cores.value -= cores
-        print(f"Thread {tid}-{qid}: finish running, takes {time.time() - start}s, current_cores={current_cores.value}")
 
 
 def error_handler(e):

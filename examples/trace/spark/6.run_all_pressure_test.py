@@ -5,10 +5,12 @@
 # Created at 9/23/22
 import argparse, os, time
 import random
+import threading
 
 from multiprocessing import Pool, Manager
+from multiprocessing.managers import ValueProxy
 
-from trace.collect.framework import QueryQueue, submit, error_handler
+from trace.collect.framework import QueryQueue, error_handler
 from utils.common import PickleUtils, BenchmarkUtils
 from utils.data.feature import NmonUtils
 
@@ -42,6 +44,25 @@ def extract(qq, templates, conf_df_dict, i):
     knob_sign = conf_df.name
     cores = int(conf_df["spark.executor.cores"]) * (int(conf_df["spark.executor.instances"]) + 1)
     return tid, str(qid), knob_sign, cores
+
+
+
+def submit(lock: threading.RLock, current_cores: ValueProxy, cores: int, tid: str, qid: str,
+           knob_sign: str, debug: bool, script_header: str, log_header: str):
+    script_file = f"{script_header}/{tid}/q{tid}-{qid}_{knob_sign}.sh"
+    assert os.path.exists(script_file), FileNotFoundError(script_file)
+    log_file = f"{log_header}/q{tid}-{qid}.log"
+
+    print(f"Thread {tid}-{qid}: start running")
+    start = time.time()
+    if debug:
+        time.sleep(random.randint(1, 5))
+    else:
+        os.system(f"bash {script_file} > {log_file} 2>&1")
+    with lock:
+        current_cores.value -= cores
+        print(f"Thread {tid}-{qid}: finish running, takes {time.time() - start}s, current_cores={current_cores.value}")
+
 
 
 if __name__ == '__main__':
