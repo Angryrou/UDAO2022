@@ -115,7 +115,7 @@ def submit(
     lat = time.time() - start
     with lock:
         current_cores.value -= cores
-        print(f"Thread {tid}-{qid}: finish running ..., takes {lat}s, current_cores={current_cores.value}")
+        print(f"Thread {tid}-{qid}: finish running SparkSQL, takes {lat}s, current_cores={current_cores.value}")
 
     cost = get_cloud_cost(
         lat=lat,
@@ -140,6 +140,7 @@ def submit(
     bo_trials_dict[tid] = bo_trials
     next_sample_dict[tid] = next_sample
 
+    print(f"Thread {tid}-{qid}: finish running SparkSQL and generating next sample {next_sample}")
 
 if __name__ == '__main__':
 
