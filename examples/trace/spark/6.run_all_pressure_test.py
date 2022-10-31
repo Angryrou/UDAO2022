@@ -46,7 +46,6 @@ def extract(qq, templates, conf_df_dict, i):
     return tid, str(qid), knob_sign, cores
 
 
-
 def submit(lock: threading.RLock, current_cores: ValueProxy, cores: int, tid: str, qid: str,
            knob_sign: str, debug: bool, script_header: str, log_header: str):
     script_file = f"{script_header}/{tid}/q{tid}-{qid}_{knob_sign}.sh"
@@ -62,7 +61,6 @@ def submit(lock: threading.RLock, current_cores: ValueProxy, cores: int, tid: st
     with lock:
         current_cores.value -= cores
         print(f"Thread {tid}-{qid}: finish running, takes {time.time() - start}s, current_cores={current_cores.value}")
-
 
 
 if __name__ == '__main__':
