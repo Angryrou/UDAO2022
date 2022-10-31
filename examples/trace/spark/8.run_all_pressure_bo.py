@@ -7,19 +7,18 @@
 import pandas as pd
 import numpy as np
 import argparse, os
-
+import time
 from multiprocessing import Pool, Manager
-import threading
-from multiprocessing.managers import ValueProxy
 
-from trace.collect.framework import QueryQueue
+from sklearn.preprocessing import MinMaxScaler
+
+from trace.collect.framework import QueryQueue, submit, error_handler
 from trace.collect.sampler import BOSampler
 from utils.common import BenchmarkUtils, PickleUtils
 from utils.data.configurations import SparkKnobs, KnobUtils
 from utils.data.feature import NmonUtils
-from sklearn.preprocessing import MinMaxScaler
 
-N_CANDS_PER_TRIAL = 5
+N_CANDS_PER_TRIAL = 3
 
 class Args():
     def __init__(self):
@@ -39,18 +38,21 @@ class Args():
         self.parser.add_argument("--counts", type=int, default=864000)
         self.parser.add_argument("--freq", type=int, default=5)
         self.parser.add_argument("--debug", type=int, default=0)
+        self.parser.add_argument("--sgd-lr", type=float, default=1)
+        self.parser.add_argument("--sgd-epochs", type=int, default=80)
+
 
     def parse(self):
         return self.parser.parse_args()
 
 
-def find_next_conf(tid, bo_sampler, observed, knob_signs, bo_trials, target_obj_id):
+def find_next_conf(tid, bo_sampler, observed, knob_signs, bo_trials, target_obj_id, lr, epochs):
     X, Y = observed["X"], observed["Y"]
     # add the recommended knob values
 
     while True:
         bo_trials += 1
-        reco_samples = bo_sampler.get_samples(N_CANDS_PER_TRIAL, X, Y[:, target_obj_id], "SGD", lr=1, epochs=80)
+        reco_samples = bo_sampler.get_samples(N_CANDS_PER_TRIAL, X, Y[:, target_obj_id], "SGD", lr, epochs)
         # get the recommended knob values based on reco_samples by denormalizing and rounding
         reco_knob_df = KnobUtils.knob_denormalize(reco_samples, knobs)
         assert reco_knob_df.shape == (N_CANDS_PER_TRIAL, len(knobs))
@@ -74,6 +76,12 @@ def find_next_conf(tid, bo_sampler, observed, knob_signs, bo_trials, target_obj_
         print(f"{tid}: trial {bo_trials} recommended {N_CANDS_PER_TRIAL} observed configuration, skip.")
 
 
+def extract(qq, templates, knob_signs_dict, i):
+    tiid, qid = qq.index_to_tid_and_qid(i)
+    tid = templates[tiid]
+    knob_sign = knob_signs_dict[tid]
+
+
 if __name__ == '__main__':
 
     args = Args().parse()
@@ -94,6 +102,7 @@ if __name__ == '__main__':
     workers = BenchmarkUtils.get_workers(benchmark)
     debug = False if args.debug == 0 else True
     templates = BenchmarkUtils.get(benchmark)
+    sgd_lr, sgd_epochs = args.sgd_lr, args.sgd_epochs
 
     log_header = f"{out_header}/log"
     nmon_header = f"{out_header}/nmon"
@@ -153,23 +162,48 @@ if __name__ == '__main__':
         knob_signs_dict[tid] = knob_signs
         objs_scaler_dict[tid] = scaler
         next_conf, new_observed, bo_trials = find_next_conf(tid, bo_sampler, observed, knob_signs,
-                                                            bo_trials=0, target_obj_id=0)
+                                                            bo_trials=0, target_obj_id=0,
+                                                            lr=sgd_lr, epochs=sgd_epochs)
         observed_dict[tid] = new_observed
         bo_trials_dict[tid] = bo_trials
         next_conf_dict[tid] = next_conf
+        print(f"{tid}: {next_conf}, {bo_trials}")
 
-    print(f"tid, observed, next_conf, bo_trials")
-    for tid in range(templates):
-        print(f"{tid}, {observed_dict[tid]}, {next_conf_dict[tid]}, {bo_trials_dict[tid]}")
+    print(f"tid, next_conf, bo_trials")
+    for tid in templates:
+        print(f"{tid}, {next_conf_dict[tid]}, {bo_trials_dict[tid]}")
 
     if not debug:
         os.system(nmon_reset)
         os.system(nmon_start)
 
-    print("")
-
     # total_queries = n_templates * qpt_total
     # m = Manager()
     # current_cores = m.Value("i", 0)
     # lock = m.RLock()
-
+    #
+    # submit_index = n_templates * qpt_lhs
+    # pool = Pool(processes=n_processes)
+    # while submit_index < total_queries:
+    #     tid, qid, knob_sign, cores = extract(qq, templates, next_conf_dict, submit_index)
+    #     with lock:
+    #         if cores + current_cores.value < cluster_cores:
+    #             current_cores.value += cores
+    #             if_submit = True
+    #             print(f"Main Process: submit {tid}-{qid}, current_cores = {current_cores.value}")
+    #         else:
+    #             if_submit = False
+    #     if if_submit:
+    #         pool.apply_async(func=submit,
+    #                          args=(lock, current_cores, cores, tid, qid, knob_sign, debug, script_header, log_header),
+    #                          error_callback=error_handler)
+    #         submit_index += 1
+    #
+    #     time.sleep(1)
+    #
+    # pool.close()
+    # pool.join()
+    #
+    # if not debug:
+    #     os.system(nmon_stop)
+    #     os.system(nmon_agg)
