@@ -259,8 +259,8 @@ if __name__ == '__main__':
     target_obj_id = 0
     while submit_index < total_queries:
         tid, qid, next_sample = extract(qq, templates, submit_index, next_sample_dict)
-        knob_sign = KnobUtils.knob_denormalize(next_sample, knobs)
-        knob_dict = {k.name: v for k, v in zip(knobs, KnobUtils.sign2knobs(knob_sign, knobs))}
+        knob_sign = KnobUtils.knob_denormalize(next_sample.reshape(1, -1), knobs).index.values[0]
+        knob_dict = {k.id: v for k, v in zip(knobs, KnobUtils.sign2knobs(knob_sign, knobs))}
         conf_dict = spark_knobs.knobs2conf(knob_dict)
         cores = int(conf_dict["spark.executor.cores"]) * (int(conf_dict["spark.executor.instances"]) + 1)
         mem = int(conf_dict["spark.executor.memory"][:-1]) * (int(conf_dict["spark.executor.instances"]) + 1)
