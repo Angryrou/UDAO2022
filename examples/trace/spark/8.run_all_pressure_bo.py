@@ -106,7 +106,7 @@ def submit(
     file_name = spark_collect.save_one_script(tid, qid, conf_dict, header, if_aqe)
     log_file = f"{header}/log/q{tid}-{qid}.log"
 
-    print(f"Thread {tid}-{qid}: start running")
+    print(f"Thread {tid}-{qid} [1]: start running")
     start = time.time()
     if debug:
         time.sleep(random.randint(1, 5))
@@ -115,7 +115,7 @@ def submit(
     lat = time.time() - start
     with lock:
         current_cores.value -= cores
-        print(f"Thread {tid}-{qid}: finish running SparkSQL, takes {lat}s, current_cores={current_cores.value}")
+        print(f"Thread {tid}-{qid} [2]: finish running SparkSQL, takes {lat}s, current_cores={current_cores.value}")
 
         cost = get_cloud_cost(
             lat=lat,
@@ -124,14 +124,14 @@ def submit(
             nexec=int(conf_dict["spark.executor.instances"])
         )
         if debug:
-            print(f"Thread {tid}-{qid}: lat={lat}, cost={cost}")
+            print(f"Thread {tid}-{qid} [3]: lat={lat}, cost={cost}")
 
         X, Y = observed_dict[tid]["X"], observed_dict[tid]["Y"]
         new_objs = np.array([[lat, cost]])
         new_Y = objs_scaler_dict[tid].transform(new_objs)
 
         if debug:
-            print(f"Thread {tid}-{qid}: new_objs={new_objs}, new_Y={new_Y}")
+            print(f"Thread {tid}-{qid} [4]: new_objs={new_objs}, new_Y={new_Y}")
 
         observed_dict[tid] = {
             "X": np.vstack([X, new_sample]),
@@ -144,12 +144,12 @@ def submit(
         )
 
         if debug:
-            print(f"Thread {tid}-{qid}: get next sample as {next_sample}")
+            print(f"Thread {tid}-{qid} [5]: get next sample as {next_sample}")
         observed_dict[tid] = new_observed
         bo_trials_dict[tid] = bo_trials
         next_sample_dict[tid] = next_sample
 
-        print(f"Thread {tid}-{qid}: finish updating all.")
+        print(f"Thread {tid}-{qid} [6]: finish updating all.")
 
 if __name__ == '__main__':
 

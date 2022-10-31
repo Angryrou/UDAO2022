@@ -108,6 +108,7 @@ class BOSampler(BaseSampler):
             mll = ExactMarginalLogLikelihood(gp.likelihood, gp).to(X_tr)
             fit_gpytorch_model(mll)
         elif optimizer == "SGD":
+            th.set_num_threads(1)
             # NUM_EPOCHS, LR are heuristically chosen by the local testing of our dataset
             th.manual_seed(self.seed)
             random.seed(self.seed)
