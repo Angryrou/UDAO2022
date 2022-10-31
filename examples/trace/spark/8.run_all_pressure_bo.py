@@ -115,7 +115,7 @@ def submit(
     lat = time.time() - start
     with lock:
         current_cores.value -= cores
-        print(f"Thread {tid}-{qid}: finish running, takes {lat}s, current_cores={current_cores.value}")
+        print(f"Thread {tid}-{qid}: finish running ..., takes {lat}s, current_cores={current_cores.value}")
 
     cost = get_cloud_cost(
         lat=lat,
@@ -132,13 +132,13 @@ def submit(
         "Y": np.vstack([Y, new_Y])
     }
 
-    next_conf, new_observed, bo_trials = find_next_sample(
-        tid, observed, knob_signs, bo_trials=0, target_obj_id=target_obj_id,
+    next_sample, new_observed, bo_trials = find_next_sample(
+        tid, observed, knob_signs, bo_trials=bo_trials_dict[tid], target_obj_id=target_obj_id,
         lr=sgd_lr, epochs=sgd_epochs
     )
     observed_dict[tid] = new_observed
     bo_trials_dict[tid] = bo_trials
-    next_sample_dict[tid] = next_conf
+    next_sample_dict[tid] = next_sample
 
 
 if __name__ == '__main__':
@@ -222,17 +222,17 @@ if __name__ == '__main__':
         knob_signs = knob_df.index.to_list()
         knob_signs_dict[tid] = knob_signs
         objs_scaler_dict[tid] = scaler
-        next_conf, new_observed, bo_trials = find_next_sample(
+        next_sample, new_observed, bo_trials = find_next_sample(
             tid, observed, knob_signs, bo_trials=0, target_obj_id=0,
             lr=sgd_lr, epochs=sgd_epochs
         )
         observed_dict[tid] = new_observed
         bo_trials_dict[tid] = bo_trials
-        next_sample_dict[tid] = next_conf
-        print(f"{tid}, next_conf: {next_conf} at bo_trial {bo_trials}")
+        next_sample_dict[tid] = next_sample
+        print(f"{tid}, next_sample: {next_sample} at bo_trial {bo_trials}")
 
     if debug:
-        print(f"tid, next_conf, bo_trials")
+        print(f"tid, next_sample, bo_trials")
         for tid in templates:
             print(f"{tid}, {next_sample_dict[tid]}, {bo_trials_dict[tid]}")
 
