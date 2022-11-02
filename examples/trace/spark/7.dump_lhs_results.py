@@ -77,7 +77,7 @@ if __name__ == '__main__':
         if data is not None:
             _, q_sign, knob_sign = data["name"].split("_")
             tid = q_sign.split("-")[0][1:]
-            lat = data["attempts"][0]["duration"] # seconds
+            lat = data["attempts"][0]["duration"] / 1000 # seconds
             conf_dict = conf_df_dict[tid].loc[knob_sign].to_dict()
             cost = get_cloud_cost(
                 lat=lat,
