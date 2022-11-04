@@ -11,6 +11,7 @@ import random
 import numpy as np
 import torch as th
 from torch.optim import SGD
+import copy
 
 from pyDOE import lhs
 from sklearn.utils import shuffle
@@ -142,7 +143,7 @@ class BOSampler(BaseSampler):
 
                 if loss_best > loss:
                     loss_best = loss
-                    model_state_best = gp.state_dict()
+                    model_state_best = copy.deepcopy(gp.state_dict())
 
                 optimizer.step()
 
