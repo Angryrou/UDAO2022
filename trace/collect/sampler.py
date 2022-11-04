@@ -120,6 +120,9 @@ class BOSampler(BaseSampler):
             gp.train()
             # TODO: the current method works fine for 4k data points, could be extended to a mini-batch training
             #       when the number of data points is much larger, e.g. 400k
+            loss_best = th.inf
+            model_state_best = None
+
             for epoch in range(epochs):
 
                 # clear gradients
@@ -136,7 +139,17 @@ class BOSampler(BaseSampler):
                         f"Epoch {epoch + 1:>3}/{epochs} - Loss: {loss.item():>4.3f} "
                         f"noise: {gp.likelihood.noise.item():>4.3f}"
                     )
+
+                if loss_best > loss:
+                    loss_best = loss
+                    model_state_best = gp.state_dict()
+
                 optimizer.step()
+
+            if model_state_best is not None:
+                gp.load_state_dict(model_state_best)
+            else:
+                raise Exception("no gp state found")
 
         else:
             raise NotImplementedError(optimizer)
