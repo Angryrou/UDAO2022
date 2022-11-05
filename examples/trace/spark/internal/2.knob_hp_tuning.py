@@ -93,6 +93,7 @@ class Args():
         self.parser.add_argument("--num-conf-bo", type=int, default=20)
         self.parser.add_argument("--num-trials", type=int, default=3)
         self.parser.add_argument("--debug", type=int, default=0)
+        self.parser.add_argument("--worker", type=str, default="debug")
 
     def parse(self):
         return self.parser.parse_args()
@@ -115,7 +116,7 @@ if __name__ == '__main__':
     n_trials = args.num_trials
     debug = False if args.debug == 0 else True
     is_aqe = True
-    workers = BenchmarkUtils.get_workers("debug")
+    workers = BenchmarkUtils.get_workers(args.worker)
 
     print(f"1. get {n_lhs} configurations via LHS")
     spark_knobs = InnerKnobs(meta_file=args.knob_meta_file, knob_type=knob_type, seed=seed)
