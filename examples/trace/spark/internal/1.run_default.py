@@ -33,6 +33,7 @@ class Args():
         self.parser.add_argument("--num-trials", type=int, default=3)
         self.parser.add_argument("--debug", type=int, default=0)
         self.parser.add_argument("--if-aqe", type=int, default=0)
+        self.parser.add_argument("--worker", type=str, default="debug")
 
     def parse(self):
         return self.parser.parse_args()
@@ -47,7 +48,7 @@ if_aqe = False if args.if_aqe == 0 else True
 out_header = f"{args.out_header}/{benchmark}_AQE_{'enabled' if if_aqe else 'disabled'}"
 num_templates = args.num_templates
 num_trials = args.num_trials
-workers = BenchmarkUtils.get_workers("debug")
+workers = BenchmarkUtils.get_workers(args.worker)
 debug = False if args.debug == 0 else True
 
 
