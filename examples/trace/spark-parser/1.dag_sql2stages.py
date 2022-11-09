@@ -37,8 +37,8 @@ def get_sub_sqls(full_plan: QueryPlanTopology):
     ...
 
 
-def visualization(QueryPlanTopology):
-    # todo: Arnab, draw the query plan, each query operator shows its node.name
+def visualization(QueryPlanTopology, title):
+    # todo: Arnab, draw the query plan in a pdf, each query operator shows its node.nid and node.name
     ...
 
 
@@ -55,8 +55,9 @@ nodes = [Node(n) for n in sql_data["nodes"]]
 edges = sql_data["edges"]
 
 full_plan = QueryPlanTopology(nodes, edges)
-
 stage2plan = get_sub_sqls(full_plan)
-
+visualization(full_plan, title="full_plan")
+for stageId, subplan in stage2plan.items():
+    visualization(subplan, title=f"stage_{stageId}")
 
 # todo: [later], how to get the dependency among stages.
