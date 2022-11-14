@@ -156,7 +156,7 @@ class MOGD(BaseSolver):
                                                             categorical_var_inds, bv_dict)
                     # fixme: for a general case, the input of the objective function (either the predictive model or HCF) should not be normalized.
                     # fixme: current implementation is specific to the current GPR model
-                    # vars_kernal.data = solver_ut._get_tensor(self.get_raw_vars(vars_kernal.data.numpy().copy(), vars_max, vars_min, precision_list))
+                    # vars_kernal.java_data = solver_ut._get_tensor(self.get_raw_vars(vars_kernal.java_data.numpy().copy(), vars_max, vars_min, precision_list))
                     vars = vars_kernal
                     obj_pred = self._get_tensor_obj_pred(wl_id, vars, opt_obj_ind)  # Nx1
                     loss, loss_id = self._loss_soo_minibatch(wl_id, opt_obj_ind, obj_pred, vars)
@@ -291,8 +291,8 @@ class MOGD(BaseSolver):
                                                             categorical_var_inds, bv_dict)
                     # fixme: for a general case, the input of the objective function (either the predictive model or HCF) should not be normalized.
                     # fixme: current implementation is specific to the current GPR model
-                    # vars_kernal.data = solver_ut._get_tensor(
-                    #     self.get_raw_vars(vars_kernal.data.numpy().copy(), vars_max, vars_min, precision_list))
+                    # vars_kernal.java_data = solver_ut._get_tensor(
+                    #     self.get_raw_vars(vars_kernal.java_data.numpy().copy(), vars_max, vars_min, precision_list))
                     vars = vars_kernal
 
                     objs_pred_dict = {cst_obj: self._get_tensor_obj_pred(wl_id, vars, i) for i, cst_obj in enumerate(obj_bounds_dict)}
@@ -340,6 +340,7 @@ class MOGD(BaseSolver):
                 # fixme: if the variables are not normalized during the optimization, the following 'self.get_raw_vars' should be removed
                 best_raw_vars = self.get_raw_vars(best_vars, vars_max, vars_min, precision_list)
                 obj_pred_dict = self._get_obj_pred_dict(wl_id, obj_bounds_dict, best_objs, best_raw_vars)
+                target_obj_val.append(obj_pred_dict[obj])
                 if verbose:
                     print()
                     print("*" * 10)
@@ -347,16 +348,15 @@ class MOGD(BaseSolver):
             else:
                 obj_pred_dict = None
                 best_raw_vars = None
+                target_obj_val.append(np.inf)
                 if verbose:
                     print("No valid solutions and variables found!")
 
             best_loss_list.append(best_loss)
             objs_list.append(obj_pred_dict)
             vars_list.append(best_raw_vars)
-            target_obj_val.append(obj_pred_dict[obj])
 
         idx = np.argmin(target_obj_val)
-
         if vars_list[idx] is not None:
             objs = list(objs_list[idx].values())
             vars = vars_list[idx].reshape([1, len(var_types)])
@@ -393,15 +393,12 @@ class MOGD(BaseSolver):
         arg_list = [(wl_id, obj, accurate, alpha, opt_obj_ind, var_types, var_ranges, obj_bounds_dict, precision_list, False, True)
                     for obj_bounds_dict in cell_list]
 
+        # print(f"arg_list in opt3 is: {arg_list}")
         # call self.constraint_so_opt parallely
         with Pool(processes=self.process) as pool:
             ret_list = pool.starmap(self.constraint_so_opt, arg_list)
 
-        # sort out the output
-        po_objs_list = [solution[0] for solution in ret_list if solution[0] is not None]
-        po_vars_list = [solution[1].tolist()[0] for solution in ret_list if solution[1] is not None]
-
-        return po_objs_list, po_vars_list
+        return ret_list
 
     ##################
     ## _loss        ##
@@ -439,7 +436,7 @@ class MOGD(BaseSolver):
 
     def _loss_soo_minibatch(self, wl_id, obj_ind, obj_pred, vars):
         '''
-        compute loss fixme: double-check
+        compute loss fixme: double-check for the objective with negative values (e.g. throughput)
         :param wl_id: str, workload id, e.g. '1-7'
         :param obj_ind: int, the index of the objective to be optimized
         :param obj_pred: tensor, objective value(prediction)
@@ -456,7 +453,7 @@ class MOGD(BaseSolver):
 
     def _loss_soo(self, wl_id, vars, pred_dict, obj_bounds, target_obj_name, target_obj_ind):
         '''
-        compute loss constrained by objective values fixme: double-check
+        compute loss constrained by objective values fixme: double-check for the objective with negative values (e.g. throughput)
         # reuse code in UDAO
         :param wl_id: str, workload id, e.g. '1-7'
         :param vars: tensor ((bs, n_vars) or (n_vars, )), variables, where bs is batch_size

@@ -18,7 +18,7 @@ class MOGDTest():
         # self.pf_option = add_params[1]
         # self.n_probes = add_params[2]
         # self.n_grids = add_params[3]
-        self.mogd_params = add_params[4]
+        self.mogd_params = add_params[8]
 
         self.var_types = var_types
         self.var_ranges = var_ranges
@@ -116,11 +116,7 @@ class MOGDTest():
                 ret = self.mogd.constraint_so_parallel(wl_id, obj, accurate=model_def.accurate, alpha=model_def.alpha,
                                                        opt_obj_ind=obj_ind, var_types=self.var_types, var_ranges=self.var_ranges, cell_list=cell_list, precision_list=self.precision_list)
                 print(f"The optimized objective is {obj}")
-                print(f"{wl_id}_[cell_1]_lat: {wl_id} --> {ret[0][0][0]: .5f}")
-                print(f"{wl_id}_[cell_1]_cores: {wl_id} --> {ret[0][0][1]: .1f}")
-                print(f"{wl_id}_[cell_2]_lat: {wl_id} --> {ret[0][1][0]: .5f}")
-                print(f"{wl_id}_[cell_2]_cores: {wl_id} --> {ret[0][1][1]: .1f}")
-                print(f"{wl_id}_vars --> {ret[1]}")
+                print(f"{wl_id}_{ret}")
 
 if __name__ == '__main__':
     ###### workload configurations for correctness test

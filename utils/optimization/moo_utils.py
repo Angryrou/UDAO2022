@@ -7,10 +7,49 @@
 # Created at 15/09/2022
 
 import numpy as np
+from mpl_toolkits import mplot3d
 from matplotlib import pyplot as plt
 
 from utils.parameters import VarTypes
 
+class Points():
+    def __init__(self, objs, vars=None):
+        '''
+        :param objs: ndarray(n_objs,), objective values
+        :param vars: ndarray(1, n_vars), variable values
+        '''
+        self.objs = objs
+        self.vars = vars
+        self.n_objs = objs.shape[0]
+
+class Rectangles():
+    def __init__(self, utopia: Points, nadir: Points):
+        '''
+        :param utopia: Points (defined by class), utopia point
+        :param nadir: Points (defined by class), nadir point
+        '''
+        self.upper_bounds = nadir.objs
+        self.lower_bounds = utopia.objs
+        self.n_objs = nadir.objs.shape[0]
+        self.volume = self.cal_volume(nadir.objs, utopia.objs)
+        self.neg_vol = -self.volume
+        self.utopia = utopia
+        self.nadir = nadir
+
+    def cal_volume(self, upper_bounds, lower_bounds):
+        '''
+        calculate the volume of the hyper_rectangle
+        :param upper_bounds: ndarray(n_objs,)
+        :param lower_bounds: ndarray(n_objs,)
+        :return:
+                float, volume of the hyper_rectangle
+        '''
+        volume = abs(np.prod(upper_bounds - lower_bounds))
+        return volume
+
+    # Override the `__lt__()` function to make `Rectangles` class work with min-heap (referred from VLDB2022)
+    def __lt__(self, other):
+        return self.neg_vol < other.neg_vol
 
 # a quite efficient way to get the indexes of pareto points
 # https://stackoverflow.com/a/40239615
@@ -56,7 +95,7 @@ def _summarize_ret(po_obj_list, po_var_list):
         po_vars = po_vars_cand[po_inds]
         return po_objs, po_vars
 
-# generate even weights for 2D and 3D
+# generate even weights for 2d and 3D
 def even_weights(stepsize, m):
     if m == 2:
         w1 = np.hstack([np.arange(0, 1, stepsize), 1])
@@ -64,7 +103,7 @@ def even_weights(stepsize, m):
         ws_pairs = [[w1, w2] for w1, w2 in zip(w1, w2)]
 
     elif m == 3:
-        w_steps = np.linspace(0, 1, num=1 / stepsize + 1, endpoint=True)
+        w_steps = np.linspace(0, 1, num=int(1 / stepsize) + 1, endpoint=True)
         for i, w in enumerate(w_steps):
             # use round to avoid case of floating point limitations in Python
             # the limitation: 1- 0.9 = 0.09999999999998 rather than 0.1
@@ -79,7 +118,7 @@ def even_weights(stepsize, m):
             else:
                 ws_pairs = np.vstack([ws_pairs, ws])
 
-    assert all(np.sum(ws_pairs, axis=1) == 1)
+    assert all(np.round(np.sum(ws_pairs, axis=1), 10) == 1)
     return ws_pairs
 
 # common functions used in moo
@@ -90,17 +129,41 @@ def _get_direction(opt_type, obj_index):
         return -1
 
 
-def plot_po(po, n_obj=2):
+def plot_po(po, n_obj=2, title="pf_as"):
     # po: ndarray (n_solutions * n_objs)
-    ## for 2D
-    po_obj1 = po[:, 0]
-    po_obj2 = po[:, 1]
+    ## for 2d
+    if n_obj == 2:
+        po_obj1 = po[:, 0]
+        po_obj2 = po[:, 1]
 
-    fig, ax = plt.subplots()
-    ax.scatter(po_obj1, po_obj2, marker='o', color="blue")
+        fig, ax = plt.subplots()
+        ax.scatter(po_obj1, po_obj2, marker='o', color="blue")
+        ax.plot(po_obj1, po_obj2, color="blue")
 
-    ax.set_xlabel('Obj 1')
-    ax.set_ylabel('Obj 2')
+        ax.set_xlabel('Obj 1')
+        ax.set_ylabel('Obj 2')
+
+        ax.set_title(title)
+
+
+    elif n_obj == 3:
+        po_obj1 = po[:, 0]
+        po_obj2 = po[:, 1]
+        po_obj3 = po[:, 2]
+
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+
+        # ax.plot_trisurf(po_obj1, po_obj2, po_obj3, antialiased=True)
+        # ax.plot_surface(po_obj1, po_obj2, po_obj3)
+        ax.scatter3D(po_obj1, po_obj2, po_obj3, color="blue")
+
+        ax.set_xlabel('Obj 1')
+        ax.set_ylabel('Obj 2')
+        ax.set_zlabel('Obj 3')
+
+    else:
+        raise Exception(f"{n_obj} objectives are not supported in the code repository for now!")
 
     plt.tight_layout()
     plt.show()
@@ -148,3 +211,11 @@ def rand_float(lower, upper, n_samples):
         scale = upper - lower
         out = np.random.rand(n_samples) * scale + lower
         return out
+
+def save_results(path, results, wl_id, mode="data"):
+    import os
+
+    file_path = path + f"jobId_{wl_id}/"
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+    np.savetxt(f"{file_path}/{mode}.txt", results)

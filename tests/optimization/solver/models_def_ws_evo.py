@@ -131,17 +131,17 @@ def obj_func1(wl_id, vars):
     vars_copy = vars.clone()
 
     # # do make sure the var_ranges are the same as in the config.json file
-    # vars_max, vars_min = _get_vars_range_for_wl(wl_id)
-    # # conf_norm = np.array([(vars_copy[i].data.numpy() - vars_min) / (vars_max - vars_min) for i in range(vars_copy.shape[0])])
-    # conf_norm = get_normalized_vars(vars_copy.data.numpy(), vars_max, vars_min)
-    # vars_copy.data = solver_ut._get_tensor(conf_norm)
+    vars_max, vars_min = _get_vars_range_for_wl(wl_id)
+    # conf_norm = np.array([(vars_copy[i].data.numpy() - vars_min) / (vars_max - vars_min) for i in range(vars_copy.shape[0])])
+    conf_norm = _get_normalized_vars(vars_copy.data.numpy(), vars_max, vars_min)
+    vars_copy.data = solver_ut._get_tensor(conf_norm)
 
     X_train, y_dict, K_inv = model_map[wl_id]
     y_train = y_dict[obj]
     obj_pred = model.objective(vars_copy, X_train, y_train, K_inv).view(-1, 1)
 
     assert (obj_pred.ndimension() == 2)
-    return obj_pred
+    return obj_pred.data.numpy()
 
 def obj_func2(wl_id, vars):
     # obj = "cores"
@@ -152,8 +152,9 @@ def obj_func2(wl_id, vars):
     conf_max, conf_min = _get_conf_range_for_wl(wl_id)
 
     # conf_norm = np.array(
-    #     [(vars_copy[i].data.numpy() - vars_min) / (vars_max - vars_min) for i in range(vars_copy.shape[0])])
-    # vars_copy.data = solver_ut._get_tensor(conf_norm)
+    #     [(vars_copy[i].data.numpy() - conf_min) / (conf_max - conf_min) for i in range(vars_copy.shape[0])])
+    conf_norm = _get_normalized_vars(vars_copy.data.numpy(), conf_max, conf_min)
+    vars_copy.data = solver_ut._get_tensor(conf_norm)
 
     k2_max, k3_max = conf_max[1:3]
     k2_min, k3_min = conf_min[1:3]
@@ -168,24 +169,25 @@ def obj_func2(wl_id, vars):
     obj_pred = cores.reshape(-1, 1)
 
     assert (obj_pred.ndimension() == 2)
-    return obj_pred
+    return obj_pred.data.numpy()
 
 def obj_func3(wl_id, vars):
     if not th.is_tensor(vars):
         vars = solver_ut._get_tensor(vars)
     obj = "ops"
     vars_copy = vars.clone()
-    # conf_max, conf_min = _get_conf_range_for_wl(wl_id)
-    # conf_norm = (vars_copy[0].data.numpy() - conf_min) / (conf_max - conf_min)
-    # vars_copy.data = solver_ut._get_tensor(conf_norm).reshape(1,-1)
-    # vars = vars.reshape(1,-1)
+    conf_max, conf_min = _get_conf_range_for_wl(wl_id)
+    # conf_norm = np.array(
+    #     [(vars_copy[i].data.numpy() - conf_min) / (conf_max - conf_min) for i in range(vars_copy.shape[0])])
+    conf_norm = _get_normalized_vars(vars_copy.data.numpy(), conf_max, conf_min)
+    vars_copy.data = solver_ut._get_tensor(conf_norm)
 
     X_train, y_dict, K_inv = model_map[wl_id]
     y_train = y_dict[obj]
     obj_pred = model.objective(vars_copy, X_train, y_train, K_inv).view(-1, 1)
 
     assert (obj_pred.ndimension() == 2)
-    return obj_pred
+    return obj_pred.data.numpy()
 
 def obj_func4(wl_id, vars):
     obj = "cost-amazon"
@@ -200,9 +202,9 @@ def obj_func4(wl_id, vars):
     obj_pred = (COST_RATIO_C_X_L * lat_pred / 1000 * cor_pred
                 + COST_RATIO_IO * ops_pred / 1000 / 1000) * 1000  # 0.001 dollars
 
-    assert (obj_pred.ndimension() == 2)
-    return obj_pred
 
+    # assert (obj_pred.ndimension() == 2)
+    return obj_pred
 
 def _get_tensor_obj_std(wl_id, conf, obj):
     """return shape (-1, 1)"""
@@ -218,3 +220,18 @@ def _get_tensor_obj_std(wl_id, conf, obj):
         raise Exception(f'does not have support for {obj}')
     assert(std.ndimension() == 2)
     return std
+
+def _get_vars_range_for_wl(wl_id):
+    conf_max = scaler_map[wl_id].data_max_
+    conf_min = scaler_map[wl_id].data_min_
+    return conf_max, conf_min
+
+def _get_normalized_vars(raw_conf, conf_max, conf_min, normalized_ids=None):
+    """
+    :param real_conf: numpy.array[int]
+    :return: normalized to 0-1
+    """
+    conf_max = conf_max if normalized_ids is None else conf_max[normalized_ids]
+    conf_min = conf_min if normalized_ids is None else conf_min[normalized_ids]
+    normalized_conf = (raw_conf - conf_min) / (conf_max - conf_min)
+    return normalized_conf

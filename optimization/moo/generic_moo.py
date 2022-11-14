@@ -3,11 +3,14 @@
 # Description: moo entry point
 #
 # Created at 21/09/2022
+import time
+import numpy as np
 
 from optimization.moo.weighted_sum import WeightedSum
-# from optimization.moo.progressive_frontier import ProgressiveFrontier
-# from optimization.moo.evolutionary import EVO
+from optimization.moo.progressive_frontier import ProgressiveFrontier
+from optimization.moo.evolutionary import EVO
 import utils.optimization.moo_utils as moo_ut
+from utils.parameters import VarTypes
 
 class GenericMOO:
 
@@ -15,7 +18,8 @@ class GenericMOO:
         pass
 
     def problem_setup(self, obj_names: list, obj_funcs: list, opt_types: list, const_funcs: list, const_types: list,
-                      var_types: list, var_ranges: list):
+                      var_types: list, var_ranges: list,
+                      wl_list, wl_ranges, vars_constraints, accurate, std_func):
         '''
         setup common input paramters for MOO problems
         :param obj_names: list, objective names
@@ -25,6 +29,11 @@ class GenericMOO:
         :param const_types: list, constraint types ("<=" "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
         :param var_types: list, variable types (float, integer, binary, enum)
         :param var_ranges: ndarray(n_vars, ), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
+        :param wl_list: list, each element is a string to indicate workload id (fixme)
+        :param wl_ranges: dict, each key is the workload id (fixme)
+        :param vars_constraints: dict, keys are "conf_min" and "conf_max" to indicate the variable range (only used in MOGD)
+        :param accurate: bool, to indicate whether the predictive model is accurate (True) (used in MOGD)
+        :param std_func: function, used in in-accurate predictive models
         :return:
         '''
         self.obj_names = obj_names
@@ -34,6 +43,13 @@ class GenericMOO:
         self.const_types = const_types
         self.var_types = var_types
         self.var_ranges = var_ranges
+
+        # used in MOGD
+        self.wl_list = wl_list
+        self.wl_ranges = wl_ranges
+        self.vars_constraints = vars_constraints
+        self.accurate = accurate
+        self.std_func = std_func
 
     def solve(self, moo_algo: str, solver: str, add_params: list):
         '''
@@ -45,17 +61,94 @@ class GenericMOO:
                  po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
         '''
         if moo_algo == "weighted_sum":
-            ws_steps = add_params[0]
-            solver_params = add_params[1]
+            # job_ids = add_params[0]
+            # file = "tests/optimization/all_job_ids"
+            file_path = add_params[0]
+            job_ids = np.loadtxt(file_path, dtype='str', delimiter=',').tolist()
+            n_probes = add_params[1]
+            solver_params = add_params[2]
             n_objs = len(self.opt_types)
+            ws_steps = 1 / (n_probes - n_objs - 1)
             ws_pairs = moo_ut.even_weights(ws_steps, n_objs)
             ws = WeightedSum(ws_pairs, solver, solver_params, n_objs, self.obj_funcs, self.opt_types,
                              self.const_funcs, self.const_types)
-            po_objs, po_vars = ws.solve(self.var_ranges, self.var_types)
+            # po_objs, po_vars = ws.solve(self.var_ranges, self.var_types)
+            po_objs_list, po_vars_list = [], []
+            time_cost_list = []
+            for wl_id in job_ids:
+                # fixme: now it is suitable for tests, to be generalized further
+                vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+                vars_ranges = np.vstack((vars_min, vars_max)).T
+                #find indices of non_ENUM vars
+                non_enum_inds = [i for i, var_type in enumerate(self.var_types) if var_type != VarTypes.ENUM]
+                # vars_ranges[non_enum_inds] = self.var_ranges[non_enum_inds]
+                # self.var_ranges[non_enum_inds] = list(vars_ranges[non_enum_inds].tolist())
+
+                start_time = time.time()
+                po_objs, po_vars = ws.solve(wl_id, self.var_ranges, self.var_types)
+                time_cost = time.time() - start_time
+                po_objs_list.append(po_objs)
+                po_vars_list.append(po_vars)
+                time_cost_list.append(time_cost)
+
+            return po_objs_list, po_vars_list, job_ids, time_cost_list
+
         elif moo_algo == 'progressive_frontier':
-            raise NotImplementedError
+            precision_list = add_params[0]
+            pf_option = add_params[1]
+            n_probes = add_params[2]
+            n_grids = add_params[3]
+            max_iters = add_params[4]
+            file_path = add_params[5]
+            accurate = add_params[6]
+            alpha = add_params[7]
+            mogd_params = add_params[8]
+            # file = "tests/optimization/all_job_ids"
+            job_ids = np.loadtxt(file_path, dtype='str', delimiter=',').tolist()
+
+            pf = ProgressiveFrontier(pf_option, solver, mogd_params, self.obj_names, self.obj_funcs, self.opt_types,
+                                     self.const_funcs, self.const_types, self.wl_list, self.wl_ranges, self.vars_constraints, self.accurate, self.std_func)
+            po_objs_list, po_vars_list = [], []
+            time_cost_list = []
+            for wl_id in job_ids:
+                start_time = time.time()
+                po_objs, po_vars = pf.solve(wl_id, accurate, alpha, self.var_ranges, self.var_types, precision_list, n_probes, n_grids=n_grids, max_iters=max_iters)
+                time_cost = time.time() - start_time
+                po_objs_list.append(po_objs)
+                po_vars_list.append(po_vars.squeeze())
+                time_cost_list.append(time_cost)
+
+            return po_objs_list, po_vars_list, job_ids, time_cost_list
         elif moo_algo == 'evolutionary':
-            raise NotImplementedError
+            file_path = add_params[0]
+            job_ids = np.loadtxt(file_path, dtype='str', delimiter=',').tolist()
+            inner_algo = add_params[1]
+            pop_size = add_params[2]
+            # the number of function evaluations
+            nfe = add_params[3]
+            flag = add_params[4]
+            seed = add_params[5]
+            evo = EVO(inner_algo, self.obj_funcs, self.opt_types, self.const_funcs, self.const_types, pop_size, nfe,
+                      fix_randomness_flag=flag, seed=seed)
+            po_objs_list, po_vars_list = [], []
+            time_cost_list = []
+            for wl_id in job_ids:
+                # fixme: now it is suitable for tests, to be generalized further
+                vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+                vars_ranges = np.vstack((vars_min, vars_max)).T
+                # find indices of non_ENUM vars
+                non_enum_inds = [i for i, var_type in enumerate(self.var_types) if var_type != VarTypes.ENUM]
+                # vars_ranges[non_enum_inds] = self.var_ranges[non_enum_inds]
+                self.var_ranges[non_enum_inds] = list(vars_ranges[non_enum_inds].tolist())
+
+                start_time = time.time()
+                po_objs, po_vars = evo.solve(wl_id, self.var_ranges, self.var_types)
+                time_cost = time.time() - start_time
+                po_objs_list.append(po_objs)
+                po_vars_list.append(po_vars)
+                time_cost_list.append(time_cost)
+            return po_objs_list, po_vars_list, job_ids, time_cost_list
+
         elif moo_algo == "mobo":
             raise NotImplementedError
         elif moo_algo == "normalized_normal_constraint":
@@ -63,4 +156,3 @@ class GenericMOO:
         else:
             raise NotImplementedError
 
-        return po_objs, po_vars

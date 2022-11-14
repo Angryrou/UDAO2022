@@ -39,8 +39,8 @@ class GridSearch(BaseSolver):
                 # make sure the grid point is the same with the type
                 # e.g., if int x.min=0, x.max=5, n_grids_per_var=10, ONLY points[0, 1, 2, 3, 4, 5] are feasible
                 if var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
-                    if self.n_grids_per_var > (upper - lower + 1):
-                        n_grids_per_var = upper - lower + 1
+                    if n_grids_per_var > (upper - lower + 1):
+                        n_grids_per_var = int(upper - lower + 1)
 
                 grids_per_var = np.linspace(lower, upper, num=n_grids_per_var, endpoint=True)
             elif var_types[i] == VarTypes.ENUM:

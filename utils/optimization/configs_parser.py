@@ -39,8 +39,10 @@ class ConfigsParser():
                 const_types = self.get_const_types(configs['constraints'])
                 add_params = []
                 if moo_algo == "weighted_sum":
-                    ws_steps = configs['additional_params']['ws_steps']
-                    add_params.append(ws_steps)
+                    jobIds_path = configs['additional_params']["jobIds_path"]
+                    add_params.append(jobIds_path)
+                    n_probes = configs['additional_params']['n_probes']
+                    add_params.append(n_probes)
                     solver_params = configs['additional_params'][
                         'solver_params']  # the number of grids/samples per variables
                     add_params.append(solver_params)
@@ -53,11 +55,21 @@ class ConfigsParser():
                     add_params.append(n_probes)
                     n_grids = configs['additional_params']["n_grids"]
                     add_params.append(n_grids)
+                    max_iters = configs['additional_params']["max_iters"]
+                    add_params.append(max_iters)
+                    jobIds_path = configs['additional_params']["jobIds_path"]
+                    add_params.append(jobIds_path)
+                    accurate = configs['additional_params']["accurate"]
+                    add_params.append(accurate)
+                    alpha = configs['additional_params']["alpha"]
+                    add_params.append(alpha)
 
                     mogd_params = configs['additional_params']["mogd_params"]
                     add_params.append(mogd_params)
 
                 elif moo_algo == "evolutionary":
+                    jobIds_path = configs['additional_params']["jobIds_path"]
+                    add_params.append(jobIds_path)
                     inner_algo = configs['additional_params']['inner_algo']
                     add_params.append(inner_algo)
                     pop_size = configs['additional_params']['pop_size']

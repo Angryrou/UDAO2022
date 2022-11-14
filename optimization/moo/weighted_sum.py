@@ -17,7 +17,7 @@ class WeightedSum(BaseMOO):
                  opt_type: list, const_funcs: list, const_types: list):
         '''
         parameters used in Weighted Sum
-        :param ws_pairs: list, even weight settings for all objectives, e.g. for 2D, [[0, 1], [0.1, 0.9], ... [1, 0]]
+        :param ws_pairs: list, even weight settings for all objectives, e.g. for 2d, [[0, 1], [0.1, 0.9], ... [1, 0]]
         :param inner_solver: str, the name of the solver used in Weighted Sum
         :param solver_params: dict, parameter used in solver, e.g. in grid-search, it is the number of grids for each variable
         :param n_objs: int, the number of objectives
@@ -41,9 +41,10 @@ class WeightedSum(BaseMOO):
         else:
             raise Exception(f"WS does not support {self.inner_solver}!")
 
-    def solve(self, var_ranges, var_types):
+    def solve(self, wl_id, var_ranges, var_types):
         '''
         solve MOO by Weighted Sum (WS)
+        :param wl_id: str, workload id
         :param var_ranges: ndarray(n_vars,), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
         :param var_types: list, variable types (float, integer, binary, enum)
         :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
@@ -57,7 +58,7 @@ class WeightedSum(BaseMOO):
         else:
             raise Exception(f"WS does not support {self.inner_solver}")
 
-        const_violation = self._get_const_violation(vars)
+        const_violation = self._get_const_violation(wl_id, vars)
 
         # remove vars who lead to constraint violation
         if const_violation.size != 0:
@@ -88,8 +89,8 @@ class WeightedSum(BaseMOO):
             # get n_dim objective values
             objs = []
             for i, obj_func in enumerate(self.obj_funcs):
-                obj = obj_func(vars_after_const_check) * moo_ut._get_direction(self.opt_type, i)
-                objs.append(obj)
+                obj = obj_func(wl_id, vars_after_const_check) * moo_ut._get_direction(self.opt_type, i)
+                objs.append(obj.squeeze())
 
             # transform objs to array: (n_samples/grids * n_objs)
             objs = np.array(objs).T
@@ -117,14 +118,15 @@ class WeightedSum(BaseMOO):
         obj = np.sum(objs * ws_pairs, axis=1)
         return np.argmin(obj)
 
-    def _get_const_violation(self, vars):
+    def _get_const_violation(self, wl_id, vars):
         '''
         get violation of each constraint
+        :param wl_id: str, workload id
         :param vars: ndarray(n_grids/n_samples, 2), variables
         :return: ndarray(n_samples/grids, n_const), constraint violations
         '''
 
-        g_list = [const_func(vars) for const_func in self.const_funcs]
+        g_list = [const_func(wl_id, vars) for const_func in self.const_funcs]
 
         # shape (n_samples/grids, n_const)
         return np.array(g_list).T

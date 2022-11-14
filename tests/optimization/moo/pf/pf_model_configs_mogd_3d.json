@@ -97,6 +97,11 @@
       "name": "cores",
       "optimize_trend": "MIN",
       "type": "INTEGER"
+    },
+    {
+      "name": "cost-amazon",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
     }
   ],
   "constraints": [],
@@ -104,17 +109,17 @@
     "name": "gpr",
     "gpr_weights_path": "tests/optimization/checkpoints/data_gpr_batch.pkl",
     "default_ridge": 1.0,
-    "accurate": false,
+    "accurate": true,
     "alpha": 3.0
   },
   "additional_params":
     {
       "pf_option": "pf_ap",
       "n_probes": 200,
-      "n_grids": 4,
+      "n_grids": 2,
       "max_iters": 8,
       "jobIds_path": "tests/optimization/all_job_ids",
-      "accurate": false,
+      "accurate": true,
       "alpha": 3.0,
       "mogd_params":
       {
@@ -123,8 +128,8 @@
       "max_iters": 100,
       "patient": 20,
       "stress": 10,
-      "multistart": 4,
-      "processes": 1,
+      "multistart": 1,
+      "processes": 16,
       "seed": 0
         }
     }
