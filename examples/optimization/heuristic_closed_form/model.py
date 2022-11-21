@@ -153,26 +153,37 @@ class HCF_functions:
 
     def predict_obj1(self, vars, wl_id=None):
         obj = "obj_1"
-        value = self.hcf.predict(obj, vars)
+        # value = self.hcf.predict(obj, vars).reshape(-1,1)
+        if not th.is_tensor(vars):
+            value = self.hcf.predict(obj, vars)
+        else:
+            value = self.hcf.internal_prediction(obj, vars).reshape(-1,1)
         return value
 
     def predict_obj2(self, vars, wl_id=None):
         obj = "obj_2"
-        value = self.hcf.predict(obj, vars)
-        return value
-
-    def predict_obj3(self, vars, wl_id=None):
-        obj = "obj_3"
-        value = self.hcf.predict(obj, vars)
+        # value = self.hcf.predict(obj, vars).reshape(-1,1)
+        if not th.is_tensor(vars):
+            value = self.hcf.predict(obj, vars)
+        else:
+            value = self.hcf.internal_prediction(obj, vars).reshape(-1,1)
         return value
 
     # only used for 2D example
     def const_func1(self, vars, wl_id=None):
         const = "g1"
-        value = self.hcf.predict(const, vars)
+        # value = self.hcf.predict(const, vars).reshape(-1,1)
+        if not th.is_tensor(vars):
+            value = self.hcf.predict(const, vars)
+        else:
+            value = self.hcf.internal_prediction(const, vars).reshape(-1,1)
         return value
 
     def const_func2(self, vars, wl_id=None):
         const = "g2"
-        value = self.hcf.predict(const, vars)
+        # value = self.hcf.predict(const, vars).reshape(-1,1)
+        if not th.is_tensor(vars):
+            value = self.hcf.predict(const, vars)
+        else:
+            value = self.hcf.internal_prediction(const, vars).reshape(-1,1)
         return value

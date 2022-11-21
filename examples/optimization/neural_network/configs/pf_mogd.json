@@ -1,18 +1,20 @@
 {
-  "moo_algo": "weighted_sum",
-  "solver": "random_sampler",
+  "moo_algo": "progressive_frontier",
+  "solver": "mogd",
   "variables": [
     {
       "name": "v1",
       "type": "FLOAT",
       "min": 0,
-      "max": 5
+      "max": 5,
+      "precision": 2
     },
     {
       "name": "v2",
       "type": "FLOAT",
       "min": 0,
-      "max": 3
+      "max": 3,
+      "precision": 2
     }
   ],
   "objectives": [
@@ -43,11 +45,24 @@
   },
   "additional_params":
     {
-      "jobIds_path": "examples/optimization/neural_network/all_job_ids",
+      "pf_option": "pf_as",
       "n_probes": 10,
-      "solver_params": {
-        "n_samples": 10000,
-        "seed": 0
-      }
+      "n_grids": 4,
+      "max_iters": 10,
+      "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
+      "accurate": true,
+      "alpha": 3.0,
+      "anchor_option": "2_step",
+      "mogd_params":
+      {
+      "learning_rate": 0.1,
+      "weight_decay": 0.1,
+      "max_iters": 100,
+      "patient": 20,
+      "stress": 10,
+      "multistart": 1,
+      "processes": 1,
+      "seed": 0
+        }
     }
 }

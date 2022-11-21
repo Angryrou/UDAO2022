@@ -116,10 +116,11 @@ class NN(BaseModel):
         if not th.is_tensor(X_test):
             X_test = solver_ut._get_tensor(X_test)
             return_numpy_flag = True
+            mode = "hcf"
         if mode == "nn":
             yhat = self.model_dict[name](X_test)
         elif mode == "hcf":
-            yhat = self.get_objs(X_test, name)
+            yhat = self.get_objs(X_test, name).reshape(-1,1)
         else:
             raise Exception(f"Model {mode} is not available!")
 

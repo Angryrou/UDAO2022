@@ -53,21 +53,36 @@ for i, wl_id in enumerate(jobIds):
 
     # pf-ap
     assert (po_vars == np.array(
-        [[2.91,2.45],
-         [1.98,2.  ],
-         [0.,0.  ]]
+        [[5.,  3.  ],
+         [0.39,1.01],
+         [0.3, 1.29],
+         [1.38,1.28],
+         [1.4, 1.39],
+         [2.12,2.07],
+         [2.29,2.24],
+         [3.17,2.71],
+         [3.42,2.87],
+         [3.82,3.  ],
+         [4.21,3.  ],
+         [0.  ,0.  ]]
     )).all()
 
     # # pf-as
     # assert (po_vars == np.array(
-    #     [[2.91,2.45],
-    #      [0. ,0.]]
+    #     [[5.  , 3.  ],
+    #      [2.79,2.77],
+    #      [2.67,2.42],
+    #      [2.57,2.47],
+    #      [2.56,2.46],
+    #      [2.49,2.4 ],
+    #      [2.11,2.  ],
+    #      [0.  ,0.  ]]
     # )).all()
 
-    data_path = f"./examples/optimization/heuristic_closed_form/pf/data/{po_objs.shape[1]}d/{solver}/"
-    results = np.hstack([po_objs, po_vars])
-    moo_ut.save_results(data_path, results, wl_id, mode="data")
-    moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+    # data_path = f"./examples/optimization/heuristic_closed_form/pf/data/{po_objs.shape[1]}d/{solver}/"
+    # results = np.hstack([po_objs, po_vars])
+    # moo_ut.save_results(data_path, results, wl_id, mode="data")
+    # moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
 
     # if po_objs is not None:
     #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1])

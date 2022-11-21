@@ -43,8 +43,8 @@
     {
       "pf_option": "pf_as",
       "n_probes": 10,
-      "n_grids": 4,
-      "max_iters": 10,
+      "n_grids": 2,
+      "max_iters": 4,
       "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
       "accurate": true,
       "alpha": 3.0,
