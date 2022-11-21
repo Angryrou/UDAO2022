@@ -43,10 +43,10 @@
   },
   "additional_params":
     {
-      "ws_steps": 0.1,
+      "jobIds_path": "examples/optimization/neural_network/all_job_ids",
+      "n_probes": 200,
       "solver_params": {
-        "n_samples": 10000,
-        "seed": 0
+        "n_grids_per_var": [100, 200]
       }
     }
 }

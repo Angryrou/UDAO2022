@@ -6,13 +6,19 @@
       "name": "v1",
       "type": "FLOAT",
       "min": 0,
-      "max": 5
+      "max": 1
     },
     {
       "name": "v2",
       "type": "FLOAT",
       "min": 0,
-      "max": 3
+      "max": 1
+    },
+    {
+      "name": "v3",
+      "type": "FLOAT",
+      "min": 0,
+      "max": 1
     }
   ],
   "objectives": [
@@ -25,18 +31,14 @@
       "name": "obj_2",
       "optimize_trend": "MIN",
       "type": "FLOAT"
-    }
-  ],
-  "constraints": [
-    {
-      "name": "g1",
-      "type": "<="
     },
     {
-      "name": "g2",
-      "type": ">="
+      "name": "obj_3",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
     }
   ],
+  "constraints": [],
   "model": {
     "name": "gpr",
     "length_scale": 1,
@@ -45,7 +47,8 @@
   },
   "additional_params":
     {
-      "ws_steps": 0.1,
+      "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
+      "n_probes": 200,
       "solver_params": {
         "n_samples": 10000,
         "seed": 0

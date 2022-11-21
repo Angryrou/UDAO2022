@@ -38,12 +38,14 @@
     }
   ],
   "model": {
-    "name": "nn",
-    "in_features": 2
+    "name": "gpr",
+    "length_scale": 1,
+    "magnitude": 1.0,
+    "ridge": 1.0
   },
   "additional_params":
     {
-      "jobIds_path": "examples/optimization/neural_network/all_job_ids",
+      "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
       "n_probes": 10,
       "solver_params": {
         "n_grids_per_var": [100, 100]

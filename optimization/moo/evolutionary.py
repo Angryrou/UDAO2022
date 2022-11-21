@@ -230,7 +230,10 @@ class EVO(BaseMOO):
         f_list = []
 
         for obj_func in self.obj_funcs:
-            obj_value = obj_func(job, vars_decoded).tolist()[0]
+            if job == None:
+                obj_value = obj_func(vars_decoded).tolist()
+            else:
+                obj_value = obj_func(job, vars_decoded).tolist()
             if isinstance(obj_value, list):
                 f_list.append(obj_value[0])
             else:
@@ -239,7 +242,10 @@ class EVO(BaseMOO):
         if len(self.const_funcs) > 0:
             g_list = []
             for const_func in self.const_funcs:
-                const_value = const_func(job, vars_decoded).tolist()[0]
+                if job == None:
+                    const_value = const_func(vars_decoded).tolist()
+                else:
+                    const_value = const_func(job, vars_decoded).tolist()
                 if isinstance(const_value, list):
                     g_list.append(const_value[0])
                 else:

@@ -35,8 +35,8 @@ class ConfigsParser():
                 moo_algo = configs['moo_algo']
                 solver = configs['solver']
                 var_types, var_ranges = self.get_vars_conf(configs['variables'])
-                obj_names, opt_types = self.get_objs_conf(configs['objectives'])
-                const_types = self.get_const_types(configs['constraints'])
+                obj_names, opt_types, obj_types = self.get_objs_conf(configs['objectives'])
+                const_types, const_names = self.get_const(configs['constraints'])
                 add_params = []
                 if moo_algo == "weighted_sum":
                     jobIds_path = configs['additional_params']["jobIds_path"]
@@ -63,6 +63,8 @@ class ConfigsParser():
                     add_params.append(accurate)
                     alpha = configs['additional_params']["alpha"]
                     add_params.append(alpha)
+                    anchor_option = configs['additional_params']["anchor_option"]
+                    add_params.append(anchor_option)
 
                     mogd_params = configs['additional_params']["mogd_params"]
                     add_params.append(mogd_params)
@@ -86,7 +88,7 @@ class ConfigsParser():
             except:
                 raise Exception(f"configurations are not well specified.")
 
-            return [moo_algo, solver, var_types, var_ranges, obj_names, opt_types, const_types, add_params]
+            return [moo_algo, solver, var_types, var_ranges, obj_names, opt_types, obj_types, const_types, const_names, add_params]
         else:
             model_params = configs["model"]
             return model_params
@@ -124,18 +126,32 @@ class ConfigsParser():
         '''
         obj_names = [obj["name"] for obj in obj_params]
         opt_types = [obj["optimize_trend"] for obj in obj_params]
+        obj_types = []
+        for obj in obj_params:
+            if obj["type"] == "FLOAT":
+                obj_types.append(VarTypes.FLOAT)
+            elif (obj["type"] == "INTEGER"):
+                obj_types.append(VarTypes.INTEGER)
+            elif (obj["type"] == "BINARY"):
+                obj_types.append(VarTypes.BOOL)
+            elif obj["type"] == "ENUM":
+                obj_types.append(VarTypes.ENUM)
+            else:
+                error_var_type = obj["type"]
+                raise Exception(f"Variable type {error_var_type} is not supported!")
 
-        return obj_names, opt_types
+        return obj_names, opt_types, obj_types
 
-    def get_const_types(self, const_type_params):
+    def get_const(self, const_params):
         '''
         get constraint types
-        :param const_type_params: list, each element is a dict for each constraint, including keys of "name", "type"
+        :param const_params: list, each element is a dict for each constraint, including keys of "name", "type"
         :return: list, constraint types
         '''
-        const_types = [const["type"] for const in const_type_params]
+        const_types = [const["type"] for const in const_params]
+        const_names = [const["name"] for const in const_params]
 
-        return const_types
+        return const_types, const_names
 
     def get_precision_list(self, vars):
         '''

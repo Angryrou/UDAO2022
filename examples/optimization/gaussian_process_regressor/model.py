@@ -7,28 +7,29 @@
 # Created at 17/10/2022
 
 from utils.optimization.configs_parser import ConfigsParser
+import utils.optimization.solver_utils as solver_ut
 from optimization.model.base_model import BaseModel
 
 import numpy as np
 import torch as th
 
 class GPR(BaseModel):
-    def __init__(self, objs: list, training_vars: np.ndarray):
+    def __init__(self, objs: list, training_vars: np.ndarray, var_ranges: list):
         '''
         :param objs: list, name of objectives
         :param training_vars: ndarray(n_training_samples, n_vars), input to train GPR models
         '''
-        super().__init__()
-        self.initialize(objs, training_vars)
+        super().__init__(objs)
+        self.initialize(training_vars, var_ranges)
 
-    def initialize(self, objs, training_vars):
+    def initialize(self, training_vars, var_ranges):
         '''
         initialize parameters and fit GPR models for objectives separately
         :param objs: list, name of objectives
         :param training_vars: ndarray(n_training_samples, n_vars), input to train GPR models
         :return:
         '''
-        self.objs = objs
+        self.var_ranges = var_ranges
 
         self.model_params = ConfigsParser().parse_details(option="model")
         self.n_training = training_vars.shape[0]
@@ -37,13 +38,14 @@ class GPR(BaseModel):
         self.length_scale = self.model_params["length_scale"]
         self.device, self.dtype = th.device('cpu'), th.float32
 
-        self.models = self.fit(training_vars)
+        norm_training_vars = self.normalize_config(training_vars)
+        self.models = self.fit(norm_training_vars)
 
     def gs_dist(self, x1, x2):
         '''
         calculate distances between each training sample
-        :param x1: Tensor(n_training_samples, n_vars), training input data
-        :param x2: Tensor(n_training_samples or n_x, n_vars), training input data or test input data
+        :param x1: Tensor(n_training_samples, n_vars), training input java_data
+        :param x2: Tensor(n_training_samples or n_x, n_vars), training input java_data or test input java_data
         :return:
                 dist: Tensor(n_training_samples, n_training_samples), each element shows distance between each training sample
         '''
@@ -58,29 +60,57 @@ class GPR(BaseModel):
 
     def get_y_dict(self, vars):
         '''
-        get training data of true objective values with example functions
+        get training java_data of true objective values with example functions
         :param vars: ndarray(n_training_samples, n_vars), input to train GPR models
-        :return: y_dict: dict, key is objective names, values are training data of true objective values
+        :return: y_dict: dict, key is objective names, values are training java_data of true objective values
         '''
         y_dict = {}
         # objective functions are the same as that in HCF
-        for obj in self.objs:
-            if obj == "obj_1":
-                y = 4 * vars[:, 0] * vars[:, 0] + 4 * vars[:, 1] * vars[:, 1]
-            elif obj == "obj_2":
-                y = (vars[:, 0] - 5) * (vars[:, 0] - 5) + (vars[:, 1] - 5) * (vars[:, 1] - 5)
+        for name in self.target_objs:
+            # if len(self.objs) == 2:
+            #     if obj == "obj_1":
+            #         y = 4 * vars[:, 0] * vars[:, 0] + 4 * vars[:, 1] * vars[:, 1]
+            #     elif obj == "obj_2":
+            #         y = (vars[:, 0] - 5) * (vars[:, 0] - 5) + (vars[:, 1] - 5) * (vars[:, 1] - 5)
+            #     else:
+            #         raise Exception(f"Objective {obj} is not configured in the configuration file!")
+            # elif len(self.objs) == 3:
+            #     g = 100 * (1 + (vars[:, 2] - 0.5) * (vars[:, 2] - 0.5) - np.cos(20 * np.pi * (vars[:, 2] - 0.5)))
+            #     if obj == "obj_1":
+            #         y = 0.5 * vars[:, 0] * vars[:, 1] * (1 + g)
+            #     elif obj == "obj_2":
+            #         y = 0.5 * vars[:, 0] * ( 1 - vars[:, 1]) * (1 + g)
+            #     elif obj == "obj_3":
+            #         y = 0.5 * (1 - vars[:, 0]) * (1 + g)
+            #     else:
+            #         raise Exception(f"Objective {obj} is not configured in the configuration file!")
+            # else:
+            #     raise Exception(f"{len(self.objs)} objectives are not supported for now!")
+            # transfrom x in the original space as (
+            x1_min, x2_min = self.var_ranges[0, 0], self.var_ranges[1, 0]
+            x1_range, x2_range = (self.var_ranges[0, 1] - x1_min), (self.var_ranges[1, 1] - x2_min)
+            x_1 = vars[:, 0] * x1_range + x1_min
+            x_2 = vars[:, 1] * x2_range + x2_min
+            if name == "obj_1":
+                value = 4 * x_1 * x_1 + 4 * x_2 * x_2
+            elif name == "obj_2":
+                value = (x_1 - 5) * (x_1 - 5) + (x_2 - 5) * (x_2 - 5)
+            elif name == "g1":
+                value = (x_1 - 5) * (x_1 - 5) + x_2 * x_2 - 25
+            elif name == "g2":
+                value = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) - 7.7
             else:
-                raise Exception(f"Objective {obj} is not configured in the configuration file!")
-            y_dict[obj] = y
+                raise Exception(f"Objective/constraint {name} is not valid for prediction!")
+            y_dict[name] = value
         return y_dict
 
     def fit(self, X_train):
         '''
         fit GPR models
-        :param X_train: ndarray(n_training_samples, n_vars), input to train GPR models
+        :param X_train: ndarray(n_training_samples, n_vars), input to train GPR models, should be normalized
         :return:
                 X_train: Tensor(n_training_samples, n_vars), input to train GPR models
-                y_tensor_dict: dict, key is objective names, values are training data of true objective values with Tensor(n_training_samples,) format
+                y_tensor_dict: dict, key is objective names, values are training java_data of true objective values with Tensor(n_training_samples,) format
                 K_inv: Tensor(n_training_samples, n_training_samples), inversion of the covariance matrix
         '''
         y_dict = self.get_y_dict(X_train)
@@ -104,14 +134,14 @@ class GPR(BaseModel):
         K_inv = K.inverse()
 
         y_tensor_dict = {}
-        for obj in self.objs:
+        for obj in self.target_objs:
             y_tensor_dict[obj] = self._get_tensor(y_dict[obj])
         return [X_train, y_tensor_dict, K_inv]
 
     def get_kernel(self, x1, x2):
         '''
         get kernel
-        :param x1: Tensor(n_training_samples, n_vars), training data
+        :param x1: Tensor(n_training_samples, n_vars), training java_data
         :param x2: Tensor(n_x, n_vars),
         :return:
         '''
@@ -143,7 +173,7 @@ class GPR(BaseModel):
         call GPR model to get objective values
         :param X_test: Tensor(n_x, n_vars), input of the predictive model, where n_x shows the number of input variables
         :param X_train: Tensor(n_training_samples, n_vars), input to train GPR models
-        :param y_train: Tensor(n_training_samples,), training data of true objective values
+        :param y_train: Tensor(n_training_samples,), training java_data of true objective values
         :param K_inv: Tensor(n_training_samples, n_training_samples), inversion of the covariance matrix
         :return:
                 yhat: Tensor(n_x,), the prediction of the objective
@@ -156,7 +186,7 @@ class GPR(BaseModel):
         yhat = th.matmul(K2_trans, th.matmul(K_inv, y_train))
         return yhat
 
-    def predict(self, obj, X_test):
+    def internal_prediction(self, name, X_test, *args):
         '''
         get prediction of the objective based on the GPR predictive model
         :param obj: str, name of the objective
@@ -164,14 +194,16 @@ class GPR(BaseModel):
         :return:
                 yhat: Tensor(n_x,), the prediction of the objective
         '''
-        assert obj in self.objs
-        X_test = self._get_tensor(X_test)
+        return_numpy_flag = False
+        if not th.is_tensor(X_test):
+            X_test = solver_ut._get_tensor(X_test)
+            return_numpy_flag = True
         X_train, y_dict, K_inv = self.models
-        y_train = y_dict[obj]
-        yhat = self.objective(X_test, X_train, y_train, K_inv)
-        yhat_np = yhat.numpy()
-        GPR.check_output(yhat_np)
-        return yhat_np
+        y_train = y_dict[name]
+        yhat = self.objective(X_test, X_train, y_train, K_inv).view(-1, 1)
+        if return_numpy_flag:
+            yhat = yhat.data.numpy().squeeze()
+        return yhat
 
     def _get_tensor(self, x, dtype=None, device=None):
         if dtype is None:
@@ -187,33 +219,72 @@ class GPR(BaseModel):
             raise Exception("Input contains non-finite values: {}"
                             .format(X[~finite_els]))
 
+    def get_conf_range_for_wl(self, wl_id=None):
+        conf_max = self.var_ranges[:, 1]
+        conf_min = self.var_ranges[:, 0]
+        return conf_max, conf_min
+
+    def normalize_config(self, config):
+        """
+        :param *args:
+        :param real_conf: numpy.array[int]
+        :return: normalized to 0-1
+        """
+        var_min, var_max = self.get_conf_range_for_wl()
+        normalized_conf = (config - var_min) / (var_max - var_min)
+        return normalized_conf
+
 class GPRPredictiveModels:
 
-    def __init__(self, objs: list, training_vars):
+    def __init__(self, objs: list, training_vars: np.ndarray, var_ranges: list):
         '''
         initialization
         :param objs: list, name of objectives
         :param training_vars: ndarray(n_samples, n_vars), input used to train GPR model.
         '''
         self.training_vars = training_vars
-        self.gpr = GPR(objs, training_vars)
+        self.gpr = GPR(objs, training_vars, var_ranges)
 
-    def predict_obj1(self, vars):
+    def get_vars_range_for_wl(self, wl_id=None):
+        return self.gpr.get_conf_range_for_wl(wl_id)
+
+    def predict_obj1(self, vars, wl_id=None):
         obj = "obj_1"
-        value = self.gpr.predict(obj, vars)
+        if not th.is_tensor(vars):
+            value = self.gpr.predict(obj, vars)
+        else:
+            value = self.gpr.internal_prediction(obj, vars)
         return value
 
-    def predict_obj2(self, vars):
+    def predict_obj2(self, vars, wl_id=None):
         obj = "obj_2"
-        value = self.gpr.predict(obj, vars)
+        if not th.is_tensor(vars):
+            value = self.gpr.predict(obj, vars)
+        else:
+            value = self.gpr.internal_prediction(obj, vars)
         return value
 
-    @staticmethod
-    def const_func1(vars):
-        value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + vars[:, 1] * vars[:, 1] - 25
+    def predict_obj3(self, vars, wl_id=None):
+        obj = "obj_3"
+        if not th.is_tensor(vars):
+            value = self.gpr.predict(obj, vars)
+        else:
+            value = self.gpr.internal_prediction(obj, vars)
         return value
 
-    @staticmethod
-    def const_func2(vars):
-        value = (vars[:, 0] - 8) * (vars[:, 0] - 8) + (vars[:, 1] + 3) * (vars[:, 1] + 3) - 7.7
+    # only used for 2D example
+    def const_func1(self, vars, wl_id=None):
+        const = "g1"
+        if not th.is_tensor(vars):
+            value = self.gpr.predict(const, vars)
+        else:
+            value = self.gpr.internal_prediction(const, vars)
+        return value
+
+    def const_func2(self, vars, wl_id=None):
+        const = "g2"
+        if not th.is_tensor(vars):
+            value = self.gpr.predict(const, vars)
+        else:
+            value = self.gpr.internal_prediction(const, vars)
         return value

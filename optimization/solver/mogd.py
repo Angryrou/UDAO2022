@@ -58,7 +58,8 @@ class MOGD(BaseSolver):
         :return:
         '''
         self.wl_list = wl_list
-        self.wl_ranges = wl_ranges
+        # self.wl_ranges = wl_ranges
+        self._get_vars_range_for_wl = wl_ranges
         self.vars_constraints = vars_constraints
         self.accurate = accurate
         self.std_func = std_func
@@ -417,13 +418,13 @@ class MOGD(BaseSolver):
         const_violation = th.tensor(0, device=self.device, dtype=self.dtype)
         for i, const_func in enumerate(self.const_funcs):
             if self.const_types[i] == "<=":
-                const_violation = th.relu(const_violation + const_func(wl_id, vars))
+                const_violation = th.relu(const_violation + const_func(vars, wl_id))
             elif self.const_types[i] == "==":
-                const_violation1 = th.relu(const_violation + const_func(wl_id, vars))
-                const_violation2 = th.relu(const_violation + (const_func(wl_id, vars)) * (-1))
+                const_violation1 = th.relu(const_violation + const_func(vars, wl_id))
+                const_violation2 = th.relu(const_violation + (const_func(vars, wl_id)) * (-1))
                 const_violation = const_violation1 + const_violation2
             elif self.const_types[i] == ">=":
-                const_violation = th.relu(const_violation + (const_func(wl_id, vars)) * (-1))
+                const_violation = th.relu(const_violation + (const_func(vars, wl_id)) * (-1))
             else:
                 raise Exception(f"{self.const_types[i]} is not supported!")
 
@@ -448,7 +449,8 @@ class MOGD(BaseSolver):
             loss = ((obj_pred + std * self.alpha) ** 2) * moo_ut._get_direction(self.opt_types, obj_ind)
         else:
             loss = (obj_pred ** 2) * moo_ut._get_direction(self.opt_types, obj_ind)
-        loss = loss + self._get_tensor_loss_const_funcs(wl_id, vars)
+        const_loss = self._get_tensor_loss_const_funcs(wl_id, vars)
+        loss = loss + const_loss
         return th.min(loss), th.argmin(loss)
 
     def _loss_soo(self, wl_id, vars, pred_dict, obj_bounds, target_obj_name, target_obj_ind):
@@ -597,18 +599,19 @@ class MOGD(BaseSolver):
         raw_np = self.get_raw_vars(bounded_np, vars_max, vars_min, precision_list, normalized_ids=numerical_var_inds)
         normalized_np = self.get_normalized_vars(raw_np, vars_max, vars_min, normalized_ids=numerical_var_inds)
         return solver_ut._get_tensor(normalized_np)
-    def _get_vars_range_for_wl(self, wl_id):
-        '''
-        get the upper and lower bounds of all variables for one workload,
-        :param wl_id: str, workload id, e.g. '1-7'
-        :return:
-                vars_max: ndarray(n_vars,), the upper bounds of all variable
-                vars_min: ndarray(n_vars,), the lower bounds of all variable
-        '''
-        vars_max = self.wl_ranges[wl_id].data_max_
-        vars_min = self.wl_ranges[wl_id].data_min_
 
-        return vars_max, vars_min
+    # def _get_vars_range_for_wl(self, wl_id):
+    #     '''
+    #     get the upper and lower bounds of all variables for one workload,
+    #     :param wl_id: str, workload id, e.g. '1-7'
+    #     :return:
+    #             vars_max: ndarray(n_vars,), the upper bounds of all variable
+    #             vars_min: ndarray(n_vars,), the lower bounds of all variable
+    #     '''
+    #     vars_max = self.wl_ranges[wl_id].data_max_
+    #     vars_min = self.wl_ranges[wl_id].data_min_
+    #
+    #     return vars_max, vars_min
 
     # reuse code in UDAO
     def get_bounded(self, k, lower=0.0, upper=1.0):
@@ -692,10 +695,10 @@ class MOGD(BaseSolver):
         if not th.is_tensor(vars):
             vars = solver_ut._get_tensor(vars)
         if vars.ndim == 1:
-            obj_pred = self.obj_funcs[obj_ind](wl_id, vars.reshape([1, vars.shape[0]]))
+            obj_pred = self.obj_funcs[obj_ind](vars.reshape([1, vars.shape[0]]), wl_id)
         else:
-            obj_pred = self.obj_funcs[obj_ind](wl_id, vars)
-
+            obj_pred = self.obj_funcs[obj_ind](vars, wl_id)
+        assert (obj_pred.ndimension() == 2)
         return obj_pred
 
     def _get_obj_pred_dict(self, wl_id, cst_dict, best_obj_dict, best_raw_vars):

@@ -19,7 +19,7 @@ class GenericMOO:
 
     def problem_setup(self, obj_names: list, obj_funcs: list, opt_types: list, const_funcs: list, const_types: list,
                       var_types: list, var_ranges: list,
-                      wl_list, wl_ranges, vars_constraints, accurate, std_func):
+                      obj_types=None, wl_list=None, wl_ranges=None, vars_constraints=None, accurate=None, std_func=None):
         '''
         setup common input paramters for MOO problems
         :param obj_names: list, objective names
@@ -45,7 +45,8 @@ class GenericMOO:
         self.var_ranges = var_ranges
 
         # used in MOGD
-        self.wl_list = wl_list
+        self.obj_types = obj_types
+        # self.wl_list = wl_list
         self.wl_ranges = wl_ranges
         self.vars_constraints = vars_constraints
         self.accurate = accurate
@@ -65,6 +66,17 @@ class GenericMOO:
             # file = "tests/optimization/all_job_ids"
             file_path = add_params[0]
             job_ids = np.loadtxt(file_path, dtype='str', delimiter=',').tolist()
+            if job_ids == "None":
+                job_ids = [None]
+            elif isinstance(job_ids, str):
+                job_ids = [job_ids]
+            elif isinstance(job_ids, list):
+                if "" in job_ids:
+                    raise Exception(f"job ids {job_ids} contain empty string!")
+                else:
+                    pass
+            else:
+                raise Exception(f"job ids {job_ids} are not well defined!")
             n_probes = add_params[1]
             solver_params = add_params[2]
             n_objs = len(self.opt_types)
@@ -77,13 +89,15 @@ class GenericMOO:
             time_cost_list = []
             for wl_id in job_ids:
                 # fixme: now it is suitable for tests, to be generalized further
-                vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-                vars_ranges = np.vstack((vars_min, vars_max)).T
-                #find indices of non_ENUM vars
-                non_enum_inds = [i for i, var_type in enumerate(self.var_types) if var_type != VarTypes.ENUM]
-                # vars_ranges[non_enum_inds] = self.var_ranges[non_enum_inds]
-                # self.var_ranges[non_enum_inds] = list(vars_ranges[non_enum_inds].tolist())
-
+                if self.wl_ranges != None:
+                    vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+                    vars_ranges = np.vstack((vars_min, vars_max)).T
+                    #find indices of non_ENUM vars
+                    non_enum_inds = [i for i, var_type in enumerate(self.var_types) if var_type != VarTypes.ENUM]
+                    vars_ranges[non_enum_inds] = self.var_ranges[non_enum_inds]
+                    self.var_ranges[non_enum_inds] = list(vars_ranges[non_enum_inds].tolist())
+                else:
+                    pass
                 start_time = time.time()
                 po_objs, po_vars = ws.solve(wl_id, self.var_ranges, self.var_types)
                 time_cost = time.time() - start_time
@@ -102,17 +116,28 @@ class GenericMOO:
             file_path = add_params[5]
             accurate = add_params[6]
             alpha = add_params[7]
-            mogd_params = add_params[8]
-            # file = "tests/optimization/all_job_ids"
+            anchor_option = add_params[8]
+            mogd_params = add_params[9]
             job_ids = np.loadtxt(file_path, dtype='str', delimiter=',').tolist()
-
-            pf = ProgressiveFrontier(pf_option, solver, mogd_params, self.obj_names, self.obj_funcs, self.opt_types,
+            if job_ids == "None":
+                job_ids = [None]
+            elif isinstance(job_ids, str):
+                job_ids = [job_ids]
+            elif isinstance(job_ids, list):
+                if "" in job_ids:
+                    raise Exception(f"job ids {job_ids} contain empty string!")
+                else:
+                    pass
+            else:
+                raise Exception(f"job ids {job_ids} are not well defined!")
+            self.wl_list = job_ids
+            pf = ProgressiveFrontier(pf_option, solver, mogd_params, self.obj_names, self.obj_funcs, self.opt_types, self.obj_types,
                                      self.const_funcs, self.const_types, self.wl_list, self.wl_ranges, self.vars_constraints, self.accurate, self.std_func)
             po_objs_list, po_vars_list = [], []
             time_cost_list = []
             for wl_id in job_ids:
                 start_time = time.time()
-                po_objs, po_vars = pf.solve(wl_id, accurate, alpha, self.var_ranges, self.var_types, precision_list, n_probes, n_grids=n_grids, max_iters=max_iters)
+                po_objs, po_vars = pf.solve(wl_id, accurate, alpha, self.var_ranges, self.var_types, precision_list, n_probes, n_grids=n_grids, max_iters=max_iters, anchor_option=anchor_option)
                 time_cost = time.time() - start_time
                 po_objs_list.append(po_objs)
                 po_vars_list.append(po_vars.squeeze())
@@ -122,6 +147,17 @@ class GenericMOO:
         elif moo_algo == 'evolutionary':
             file_path = add_params[0]
             job_ids = np.loadtxt(file_path, dtype='str', delimiter=',').tolist()
+            if job_ids == "None":
+                job_ids = [None]
+            elif isinstance(job_ids, str):
+                job_ids = [job_ids]
+            elif isinstance(job_ids, list):
+                if "" in job_ids:
+                    raise Exception(f"job ids {job_ids} contain empty string!")
+                else:
+                    pass
+            else:
+                raise Exception(f"job ids {job_ids} are not well defined!")
             inner_algo = add_params[1]
             pop_size = add_params[2]
             # the number of function evaluations
@@ -134,12 +170,15 @@ class GenericMOO:
             time_cost_list = []
             for wl_id in job_ids:
                 # fixme: now it is suitable for tests, to be generalized further
-                vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-                vars_ranges = np.vstack((vars_min, vars_max)).T
-                # find indices of non_ENUM vars
-                non_enum_inds = [i for i, var_type in enumerate(self.var_types) if var_type != VarTypes.ENUM]
-                # vars_ranges[non_enum_inds] = self.var_ranges[non_enum_inds]
-                self.var_ranges[non_enum_inds] = list(vars_ranges[non_enum_inds].tolist())
+                if self.wl_ranges != None:
+                    vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+                    vars_ranges = np.vstack((vars_min, vars_max)).T
+                    # find indices of non_ENUM vars
+                    non_enum_inds = [i for i, var_type in enumerate(self.var_types) if var_type != VarTypes.ENUM]
+                    vars_ranges[non_enum_inds] = self.var_ranges[non_enum_inds]
+                    self.var_ranges[non_enum_inds] = list(vars_ranges[non_enum_inds].tolist())
+                else:
+                    pass
 
                 start_time = time.time()
                 po_objs, po_vars = evo.solve(wl_id, self.var_ranges, self.var_types)

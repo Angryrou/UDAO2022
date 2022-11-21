@@ -50,35 +50,45 @@ for i, wl_id in enumerate(jobIds):
     print(f"Time cost of wl_{wl_id}:")
     print(time_cost)
 
-    if solver == "grid_search":
-        assert (np.round(po_vars, 5) == np.round(np.array(
-            [[0, 0],
-             [0.90909091,0],
-             [1.76767677,0],
-             [2.52525253,0.51515152],
-             [3.23232323,1.21212121],
-             [3.83838384,1.84848485],
-             [4.44444444,2.45454545],
-             [5, 3]]
-        ), 5)).all()
-    elif solver == "random_sampler":
-        assert (np.round(po_vars, 5) == np.round(np.array(
-            [[1.82984755e-01,6.53120612e-03],
-             [8.01352144e-01,4.99324021e-04],
-             [1.70848140e+00,1.63546919e-02],
-             [2.50618156e+00,4.62353067e-01],
-             [3.18137096e+00,1.19111097e+00],
-             [3.85358386e+00,1.86044176e+00],
-             [4.44723954e+00,2.45183338e+00],
-             [4.95843170e+00,2.97148312e+00]]
-        ), 5)).all()
-    else:
-        raise Exception(f"Solver {solver} is not available!")
+    assert (np.round(po_vars, 5) == np.round(np.array(
+        [[4.57532847,2.99736907],
+         [4.57532847,2.94835643],
+         [4.54873128,2.94835643],
+         [4.55488339,2.35777916],
+         [4.05108618,2.70649785],
+         [4.22210926,2.27386321],
+         [4.16037583,2.31353324],
+         [4.05656379,2.31353324],
+         [4.05656379,2.24382898],
+         [4.54056443,1.51406057],
+         [4.12394462,1.67427512],
+         [4.12394462,1.54217989],
+         [4.12394462,1.51634666],
+         [3.58406032,1.80857956],
+         [3.11403453,1.80857956],
+         [3.59858766,1.13044092],
+         [3.59858766,1.06023093],
+         [3.59858766,0.95998119],
+         [3.49265342,0.78595258],
+         [2.38298477,1.75014612],
+         [3.09184498,0.75151902],
+         [2.91139354,0.88179067],
+         [2.82988969,0.93554913],
+         [2.82988969,0.81267801],
+         [2.84211178,0.41017467],
+         [2.75105005,0.41017467],
+         [2.1028579, 0.95839454],
+         [2.1028579, 0.77675025],
+         [2.0367216, 0.77675025],
+         [1.98890908,0.77675025],
+         [1.90773962,0.4527134 ]]
+    ), 5)).all()
+
     # save data
-    # data_path = f"./examples/optimization/heuristic_closed_form/ws/data/{po_objs.shape[1]}d/{solver}/"
+    # data_path = f"./examples/optimization/heuristic_closed_form/evo/data/{po_objs.shape[1]}d/{solver}/"
     # results = np.hstack([po_objs, po_vars])
     # moo_ut.save_results(data_path, results, wl_id, mode="data")
     # moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
     #
     # if po_objs is not None:
-    #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="ws")
+    #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="evo")

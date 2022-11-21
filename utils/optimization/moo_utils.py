@@ -171,7 +171,7 @@ def plot_po(po, n_obj=2, title="pf_as"):
 # generate training inputs for GPR, reuse code in RandomSampler solver
 def get_training_input(var_types, var_ranges, n_samples):
     '''
-    generate samples of variables
+    generate samples of variables (for the unconstrained scenario)
     :param var_ranges: array (n_vars,), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
     :param var_types: list, type of each variable
     :param n_samples: int, the number of input samples to train GPR models

@@ -89,7 +89,10 @@ class WeightedSum(BaseMOO):
             # get n_dim objective values
             objs = []
             for i, obj_func in enumerate(self.obj_funcs):
-                obj = obj_func(wl_id, vars_after_const_check) * moo_ut._get_direction(self.opt_type, i)
+                if wl_id == None:
+                    obj = obj_func(vars_after_const_check) * moo_ut._get_direction(self.opt_type, i)
+                else:
+                    obj = obj_func(wl_id, vars_after_const_check) * moo_ut._get_direction(self.opt_type, i)
                 objs.append(obj.squeeze())
 
             # transform objs to array: (n_samples/grids * n_objs)
@@ -107,6 +110,8 @@ class WeightedSum(BaseMOO):
 
                 # only keep non-dominated solutions
                 return moo_ut._summarize_ret(po_obj_list, po_var_list)
+            else:
+                raise Exception(f"Cannot do normalization! Lower bounds of objective values are higher than their upper bounds.")
 
     def get_soo_index(self, objs, ws_pairs):
         '''
@@ -125,8 +130,10 @@ class WeightedSum(BaseMOO):
         :param vars: ndarray(n_grids/n_samples, 2), variables
         :return: ndarray(n_samples/grids, n_const), constraint violations
         '''
-
-        g_list = [const_func(wl_id, vars) for const_func in self.const_funcs]
+        if wl_id == None:
+            g_list = [const_func(vars) for const_func in self.const_funcs]
+        else:
+            g_list = [const_func(wl_id, vars) for const_func in self.const_funcs]
 
         # shape (n_samples/grids, n_const)
         return np.array(g_list).T

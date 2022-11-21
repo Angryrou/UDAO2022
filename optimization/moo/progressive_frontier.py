@@ -7,16 +7,18 @@ import heapq
 import itertools
 
 from optimization.solver.mogd import MOGD
+from optimization.moo.base_moo import BaseMOO
+from utils.parameters import VarTypes
+from utils.optimization.moo_utils import Points, Rectangles
+import utils.optimization.moo_utils as moo_ut
+import utils.optimization.solver_utils as solver_ut
 
 
 import numpy as np
-import utils.optimization.moo_utils as moo_ut
-import utils.optimization.solver_utils as solver_ut
-from optimization.moo.base_moo import BaseMOO
-from utils.optimization.moo_utils import Points, Rectangles
+
 
 class ProgressiveFrontier(BaseMOO):
-    def __init__(self, pf_option: str, inner_solver: str, solver_params: dict, obj_names: list, obj_funcs: list, opt_type: list, const_funcs: list, const_types: list,
+    def __init__(self, pf_option: str, inner_solver: str, solver_params: dict, obj_names: list, obj_funcs: list, opt_type: list, obj_types, const_funcs: list, const_types: list,
                  wl_list, wl_ranges, vars_constraints, accurate, std_func):
         '''
         initialize parameters in Progressive Frontier method
@@ -43,6 +45,7 @@ class ProgressiveFrontier(BaseMOO):
         self.const_funcs = const_funcs
         self.const_types = const_types
         self.wl_ranges = wl_ranges
+        self.obj_types = obj_types
         if self.inner_solver == "mogd":
             self.mogd = MOGD(solver_params)
             self.mogd._problem(wl_list, wl_ranges, vars_constraints, accurate, std_func, obj_funcs, obj_names, opt_type, const_funcs, const_types)
@@ -54,7 +57,7 @@ class ProgressiveFrontier(BaseMOO):
         self.opt_obj_ind = 1
         # self.opt_obj_ind =
 
-    def solve(self, wl_id, accurate, alpha, var_bounds, var_types, precision_list, n_probes, n_grids=None, max_iters=None):
+    def solve(self, wl_id, accurate, alpha, var_bounds, var_types, precision_list, n_probes, n_grids=None, max_iters=None, anchor_option="2_step"):
         '''
         solve MOO by Progressive Frontier
         :param wl_id: str, workload id, e.g. '1-7'
@@ -71,15 +74,15 @@ class ProgressiveFrontier(BaseMOO):
                 po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
         '''
         if self.pf_option == "pf_as":
-            po_objs, po_vars = self.solve_pf_as(wl_id, accurate, alpha, self.obj_names, var_bounds, self.opt_obj_ind, var_types, n_probes, precision_list)
+            po_objs, po_vars = self.solve_pf_as(wl_id, accurate, alpha, self.obj_names, var_bounds, self.opt_obj_ind, var_types, n_probes, precision_list, anchor_option=anchor_option)
         elif self.pf_option == "pf_ap":
-            po_objs, po_vars = self.solve_pf_ap(wl_id, accurate, alpha, self.obj_names, var_bounds, self.opt_obj_ind, var_types, precision_list, n_grids, max_iters)
+            po_objs, po_vars = self.solve_pf_ap(wl_id, accurate, alpha, self.obj_names, var_bounds, self.opt_obj_ind, var_types, precision_list, n_grids, max_iters, anchor_option=anchor_option)
         else:
             raise Exception(f"{self.pf_option} is not supported in PF!")
 
         return po_objs, po_vars
 
-    def solve_pf_as(self, wl_id, accurate, alpha, obj_names, var_bounds, opt_obj_ind, var_types, n_probes, precision_list):
+    def solve_pf_as(self, wl_id, accurate, alpha, obj_names, var_bounds, opt_obj_ind, var_types, n_probes, precision_list, anchor_option="2_step"):
         '''
         Progressive Frontier(PF)-Approximation Sequential (AS) algorithm, get MOO solutions sequentially
         :param wl_id: str, workload id, e.g. '1-7'
@@ -107,17 +110,20 @@ class ProgressiveFrontier(BaseMOO):
         n_objs, n_vars = len(self.opt_type), len(self.const_types)
 
         for i in range(n_objs):
-            objs = np.ones([n_objs, ])
-            obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[i], accurate=accurate, alpha=alpha, opt_obj_ind=i, var_types=var_types,
-                                                       var_ranges=var_bounds, precision_list=precision_list)
-            # fixme: normalize vars for Java PF, to be generalized
-            vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-            vars_norm = (vars[0] - vars_min) / (vars_max - vars_min)
-            # uses conf to get predictions
-            for j in range(n_objs):
-                objs[j] = self.obj_funcs[j](wl_id, vars_norm) * moo_ut._get_direction(opt_type=self.opt_type, obj_index=j)
-            plans.append(Points(np.array(objs), vars))
-            # print(f'{obj_names[i]} value from SO is: {objs}')
+            objs, vars = self.get_anchor_points(wl_id, obj_names, i, accurate, alpha, var_types, var_bounds, precision_list, anchor_option=anchor_option)
+            plans.append(Points(objs, vars))
+        # for i in range(n_objs):
+        #     objs = np.ones([n_objs, ])
+        #     obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[i], accurate=accurate, alpha=alpha, opt_obj_ind=i, var_types=var_types,
+        #                                                var_ranges=var_bounds, precision_list=precision_list)
+        #     # fixme: normalize vars for Java PF, to be generalized
+        #     vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+        #     vars_norm = (vars[0] - vars_min) / (vars_max - vars_min)
+        #     # uses conf to get predictions
+        #     for j in range(n_objs):
+        #         objs[j] = self.obj_funcs[j](wl_id, vars_norm) * moo_ut._get_direction(opt_type=self.opt_type, obj_index=j)
+        #     plans.append(Points(np.array(objs), vars))
+        #     # print(f'{obj_names[i]} value from SO is: {objs}')
 
         ## compute initial utopia and nadir point
         utopia, nadir = self.get_utopia_and_nadir(plans, n_objs)
@@ -152,10 +158,12 @@ class ProgressiveFrontier(BaseMOO):
             if (obj is not None) & (vars is not None):
                 objs_co = np.ones([n_objs, ])
                 # fixme: normalize vars for Java PF, , to be generalized
-                vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-                vars_norm_co = (vars[0] - vars_min) / (vars_max - vars_min)
+                # vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+                # vars_norm_co = (vars[0] - vars_min) / (vars_max - vars_min)
+                # vars_max, vars_min = self.wl_ranges(wl_id)
+                # vars_norm_co = (vars - vars_min) / (vars_max - vars_min)
                 for j in range(n_objs):
-                    objs_co[j] = self.obj_funcs[j](wl_id, vars_norm_co) * moo_ut._get_direction(opt_type=self.opt_type,
+                    objs_co[j] = self.obj_funcs[j](vars, wl_id) * moo_ut._get_direction(opt_type=self.opt_type,
                                                                                                 obj_index=j)
                 middle = Points(np.array(objs_co), vars)
                 plans.append(middle)
@@ -196,7 +204,7 @@ class ProgressiveFrontier(BaseMOO):
 
         return po_objs, po_vars
 
-    def solve_pf_ap(self, wl_id, accurate, alpha, obj_names, var_bounds, opt_obj_ind, var_types, precision_list, n_grids, max_iters):
+    def solve_pf_ap(self, wl_id, accurate, alpha, obj_names, var_bounds, opt_obj_ind, var_types, precision_list, n_grids, max_iters, anchor_option="2_step"):
         '''
         Progressive Frontier(PF)-Approximation Parallel (AP) algorithm, get MOO solutions parallely
         :param wl_id: str, workload id, e.g. '1-7'
@@ -219,20 +227,48 @@ class ProgressiveFrontier(BaseMOO):
         n_objs = len(obj_names)
 
         all_objs_list, all_vars_list = [], []
+
         for i in range(n_objs):
-            objs = np.ones([n_objs, ])
-            obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[i], accurate=accurate, alpha=alpha, opt_obj_ind=i, var_types=var_types,
-                                                       var_ranges=var_bounds, precision_list=precision_list)
-            # fixme: normalize vars for Java PF, to be generalized
-            vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-            vars_norm = (vars[0] - vars_min) / (vars_max - vars_min)
-            # uses conf to get predictions
-            for j in range(n_objs):
-                objs[j] = self.obj_funcs[j](wl_id, vars_norm) * moo_ut._get_direction(opt_type=self.opt_type, obj_index=j)
-            print(f"objs are: {objs}")
+            objs, vars = self.get_anchor_points(wl_id, obj_names, i, accurate, alpha, var_types, var_bounds, precision_list, anchor_option=anchor_option)
             plans.append(Points(objs, vars))
             all_objs_list.append(objs.tolist())
             all_vars_list.append(vars.tolist())
+        # for i in range(n_objs):
+        #     objs = np.ones([n_objs, ])
+        #     obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[i], accurate=accurate, alpha=alpha, opt_obj_ind=i, var_types=var_types,
+        #                                                var_ranges=var_bounds, precision_list=precision_list)
+        #     # fixme: normalize vars for Java PF, to be generalized
+        #     vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+        #     vars_norm = (vars[0] - vars_min) / (vars_max - vars_min)
+        #
+        #     # uses conf to get predictions
+        #     for j in range(n_objs):
+        #         objs[j] = self.obj_funcs[j](wl_id, vars_norm) * moo_ut._get_direction(opt_type=self.opt_type, obj_index=j)
+        #
+        #     # if the current objective type is Integer, further find the
+        #     if self.obj_types[i] == VarTypes.INTEGER:
+        #         utopia_init = np.zeros([n_objs, ])
+        #         utopia_init[i] = objs[i]
+        #         utopia_tmp, nadir_tmp = Points(objs=utopia_init), Points(objs=objs)
+        #         obj_bounds_dict_so = self._form_obj_bounds_dict(utopia_tmp, nadir_tmp, obj_names, opt_obj_ind)
+        #         print("obj_bounds are:")
+        #         print(obj_bounds_dict_so)
+        #
+        #         # select the first objective with float type
+        #         float_obj_ind = [i for i, obj_type in enumerate(self.obj_types) if obj_type == VarTypes.FLOAT][0]
+        #         objs_update, vars_update = self.mogd.constraint_so_opt(wl_id, obj=obj_names[float_obj_ind], accurate=accurate,
+        #                                                 alpha=alpha, opt_obj_ind=float_obj_ind, var_types=var_types,
+        #                                                 var_range=var_bounds, obj_bounds_dict=obj_bounds_dict_so,
+        #                                                 precision_list=precision_list)
+        #         print(f"objs_update are: {objs_update}")
+        #         plans.append(Points(np.array(objs_update), vars_update))
+        #         all_objs_list.append(objs_update)
+        #         all_vars_list.append(vars_update.tolist())
+        #     else:
+        #         print(f"objs are: {objs}")
+        #         plans.append(Points(objs, vars))
+        #         all_objs_list.append(objs.tolist())
+        #         all_vars_list.append(vars.tolist())
 
         #fixme: currently to be the same as Java PF
         if n_objs == 2:
@@ -306,6 +342,49 @@ class ProgressiveFrontier(BaseMOO):
         print(f"all objs are: {np.array(all_objs_list)}")
         print(f"all_vars are: {np.array(all_vars_list)}")
         return np.array(all_objs_list), np.array(all_vars_list)
+
+    def get_anchor_points(self, wl_id, obj_names, obj_ind, accurate, alpha, var_types, var_bounds, precision_list, anchor_option="2_step"):
+
+        obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[obj_ind], accurate=accurate, alpha=alpha,
+                                                   opt_obj_ind=obj_ind, var_types=var_types,
+                                                   var_ranges=var_bounds, precision_list=precision_list)
+        # fixme: normalize vars for Java PF, to be generalized
+        # vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+        # vars_max, vars_min = self.wl_ranges(wl_id)
+        # # vars_norm = (vars[0] - vars_min) / (vars_max - vars_min)
+        # vars_norm = (vars - vars_min) / (vars_max - vars_min)
+        n_objs = len(obj_names)
+        # uses conf to get predictions
+        objs = np.ones([n_objs, ]) * np.inf
+        for j in range(n_objs):
+            objs[j] = self.obj_funcs[j](vars, wl_id) * moo_ut._get_direction(opt_type=self.opt_type, obj_index=j)
+
+        # if the current objective type is Integer, further find the
+        if anchor_option == "2_step":
+            if self.obj_types[obj_ind] == VarTypes.INTEGER:
+                utopia_init = np.zeros([n_objs, ])
+                utopia_init[obj_ind] = objs[obj_ind]
+                utopia_tmp, nadir_tmp = Points(objs=utopia_init), Points(objs=objs)
+                # select the first objective with float type
+                float_obj_ind = [i for i, obj_type in enumerate(self.obj_types) if obj_type == VarTypes.FLOAT][0]
+                obj_bounds_dict_so = self._form_obj_bounds_dict(utopia_tmp, nadir_tmp, obj_names, float_obj_ind)
+                print("obj_bounds are:")
+                print(obj_bounds_dict_so)
+
+                objs_update, vars_update = self.mogd.constraint_so_opt(wl_id, obj=obj_names[float_obj_ind],
+                                                                       accurate=accurate,
+                                                                       alpha=alpha, opt_obj_ind=float_obj_ind,
+                                                                       var_types=var_types,
+                                                                       var_range=var_bounds,
+                                                                       obj_bounds_dict=obj_bounds_dict_so,
+                                                                       precision_list=precision_list)
+                return np.array(objs_update), vars_update
+            else:
+                return objs, vars
+        elif anchor_option == "1_step":
+            return objs, vars
+        else:
+            raise Exception(f"anchor_option {anchor_option} is not valid!")
 
     def get_utopia_and_nadir(self, plans, n_objs):
         '''

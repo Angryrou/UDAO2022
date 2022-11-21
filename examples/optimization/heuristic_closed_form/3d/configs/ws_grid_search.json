@@ -6,13 +6,19 @@
       "name": "v1",
       "type": "FLOAT",
       "min": 0,
-      "max": 5
+      "max": 1
     },
     {
       "name": "v2",
       "type": "FLOAT",
       "min": 0,
-      "max": 3
+      "max": 1
+    },
+    {
+      "name": "v3",
+      "type": "FLOAT",
+      "min": 0,
+      "max": 1
     }
   ],
   "objectives": [
@@ -25,28 +31,20 @@
       "name": "obj_2",
       "optimize_trend": "MIN",
       "type": "FLOAT"
-    }
-  ],
-  "constraints": [
-    {
-      "name": "g1",
-      "type": "<="
     },
     {
-      "name": "g2",
-      "type": ">="
+      "name": "obj_3",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
     }
   ],
-  "model": {
-    "name": "nn",
-    "in_features": 2
-  },
+  "constraints": [],
   "additional_params":
     {
-      "jobIds_path": "examples/optimization/neural_network/all_job_ids",
-      "n_probes": 10,
+      "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
+      "n_probes": 200,
       "solver_params": {
-        "n_grids_per_var": [100, 100]
+        "n_grids_per_var": [100, 100, 100]
       }
     }
 }
