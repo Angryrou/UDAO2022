@@ -58,6 +58,7 @@ patsy==0.5.2
 pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==9.1.0
+platypus-opt==1.0.4
 prometheus-client==0.14.1
 prompt-toolkit==3.0.31
 psutil==5.9.2
