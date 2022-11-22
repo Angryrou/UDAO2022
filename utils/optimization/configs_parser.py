@@ -15,7 +15,7 @@ class ConfigsParser():
     def __init__(self):
         parser = argparse.ArgumentParser(description="ConfigsParser")
         parser.add_argument("-c", "--config", required=True,
-                            help="the configuration file location, try -c examples/optimization/gaussian_process_regressor/configs/ws_grid_search.json")
+                            help="the configuration file location")
         self.parser = parser
 
     def parse(self):
@@ -29,7 +29,7 @@ class ConfigsParser():
         except:
             raise Exception(f"{args.config} does not exist")
 
-        if option == None:
+        if option is None:
             # Load the configuration information correctly
             try:
                 moo_algo = configs['moo_algo']
@@ -100,10 +100,10 @@ class ConfigsParser():
             if var["type"] == "FLOAT":
                 var_types.append(VarTypes.FLOAT)
                 var_bounds.append([var["min"], var["max"]])
-            elif (var["type"] == "INTEGER"):
+            elif var["type"] == "INTEGER":
                 var_types.append(VarTypes.INTEGER)
                 var_bounds.append([var["min"], var["max"]])
-            elif (var["type"] == "BINARY"):
+            elif var["type"] == "BINARY":
                 var_types.append(VarTypes.BOOL)
                 var_bounds.append([var["min"], var["max"]])
             elif var["type"] == "ENUM":
@@ -117,22 +117,22 @@ class ConfigsParser():
         return var_types, np.array(var_bounds)
 
     def get_objs_conf(self, obj_params):
-        '''
+        """
         get names and optimization types for objectives
         :param obj_params: list, each element is a dict for each constraint, including keys of "name", "optimize_trend", "type"
         :return:
                 obj_names: list, objective names
                 opt_types: list, optimization types (e.g. minimization or maximization)
-        '''
+        """
         obj_names = [obj["name"] for obj in obj_params]
         opt_types = [obj["optimize_trend"] for obj in obj_params]
         obj_types = []
         for obj in obj_params:
             if obj["type"] == "FLOAT":
                 obj_types.append(VarTypes.FLOAT)
-            elif (obj["type"] == "INTEGER"):
+            elif obj["type"] == "INTEGER":
                 obj_types.append(VarTypes.INTEGER)
-            elif (obj["type"] == "BINARY"):
+            elif obj["type"] == "BINARY":
                 obj_types.append(VarTypes.BOOL)
             elif obj["type"] == "ENUM":
                 obj_types.append(VarTypes.ENUM)
@@ -143,22 +143,22 @@ class ConfigsParser():
         return obj_names, opt_types, obj_types
 
     def get_const(self, const_params):
-        '''
+        """
         get constraint types
         :param const_params: list, each element is a dict for each constraint, including keys of "name", "type"
         :return: list, constraint types
-        '''
+        """
         const_types = [const["type"] for const in const_params]
         const_names = [const["name"] for const in const_params]
 
         return const_types, const_names
 
     def get_precision_list(self, vars):
-        '''
+        """
         get precision of each variable (only used in MOGD solver)
         :param vars: list, each element is a dict for each variable, including keys of "name", "type", "min", "max", (or "values"), "precision"
         :return: precision_list: variable precision
-        '''
+        """
         precision_list = [var["precision"] for var in vars]
 
         return precision_list
