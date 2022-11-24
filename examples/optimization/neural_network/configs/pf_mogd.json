@@ -45,7 +45,7 @@
   },
   "additional_params":
     {
-      "pf_option": "pf_as",
+      "pf_option": "pf_ap",
       "n_probes": 10,
       "n_grids": 4,
       "max_iters": 10,
