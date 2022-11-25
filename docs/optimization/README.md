@@ -236,7 +236,7 @@ The package provides MOO algorithms including:
 - [Weighted Sum (WS)][3] method adds different weights on different objectives to show the preferences or importance over all objectives. It transforms an MOO problem into a single-objective optimization problem. Our weighted sum works with the solver `grid_search` and `random_sampler`.
 - [Progressive Frontier (PF)](https://hal.inria.fr/hal-02549758/document) includes two approaches: PF-Approximation Sequential (PF-AS) and PF-Approximation Parallel (PF-AP). 
   PF-AS generates Pareto points sequentially and consistently by exploring uncertainty space with maximum volume.
-  PF-AP generates Pareto points parallelly by exploring multiple sub-uncertainty-space at the same time. Both transform a MOO into a series of constrained single-objective optimization problems.
+  PF-AP generates Pareto points parallelly by exploring multiple sub-uncertainty-space at the same time. Both transform a MOO into a series of constrained single-objective optimization problems. By default, we use `PF-AP`.
 - Evolutionary (Evo) algorithms solve optimization problems by utilizing genetic operations (e.g. selection, crossover, mutation) over populations. 
   [NSGA-II](https://web.njit.edu/~horacio/Math451H/download/2002-6-2-DEB-NSGA-II.pdf) is a classic evolutionary algorithm to solve MOO problem, which aims to generate a set of Pareto solutions while maintaining the diversity.
   In the current repository, it calls the library [Platypus][1] with NSGA-II algorithm. 
@@ -244,7 +244,7 @@ The package provides MOO algorithms including:
 Note:
 
 - `MOGD` solver requires that at least one objective should always be with positive values. 
-- `PF`: `PF` calls `MOGD` solver. If there is any objective returns negative value or to be maximized, please treat it as a constraint rather than the objective to be optimized.
+- `PF`: `PF` calls `MOGD` solver and by default we use `Pf-AP`. If there is any objective returns negative value or to be maximized, please treat it as a constraint rather than the objective to be optimized.
 ## Examples
 
 We provide three examples to do MOO, including
@@ -266,7 +266,7 @@ export PYTHONPATH=$PWD
 # 1. WS (with two solvers `grid_search` and `random_sampler`)
 python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/2d/ws_grid_search.json
 python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/2d/ws_random_sampler.json
-# 2. PF (with MOGD)
+# 2. PF-AP (with MOGD)
 python examples/optimization/heuristic_closed_form/pf.py -c examples/optimization/heuristic_closed_form/configs/2d/pf_mogd.json
 # 3. EVO (with NSGA-II)
 python examples/optimization/heuristic_closed_form/evo.py -c examples/optimization/heuristic_closed_form/configs/2d/evo.json
@@ -289,7 +289,7 @@ export PYTHONPATH=$PWD
 # 1. WS (with two solvers `grid_search` and `random_sampler`)
 python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/2d/ws_grid_search.json
 python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/2d/ws_random_sampler.json
-# 2. PF (with MOGD)
+# 2. PF-AP (with MOGD)
 python examples/optimization/gaussian_process_regressor/pf.py -c examples/optimization/gaussian_process_regressor/configs/2d/pf_mogd.json
 # 3. EVO (with NSGA-II)
 python examples/optimization/gaussian_process_regressor/evo.py -c examples/optimization/gaussian_process_regressor/configs/2d/evo.json
@@ -316,7 +316,7 @@ export PYTHONPATH=$PWD
 # 1. WS (with two solvers `grid_search` and `random_sampler`)
 python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_grid_search.json
 python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_random_sampler.json
-# 2. PF (with MOGD)
+# 2. PF-AP (with MOGD)
 python examples/optimization/neural_network/pf.py -c examples/optimization/neural_network/configs/pf_mogd.json
 # 3. EVO (with NSGA-II)
 python examples/optimization/neural_network/evo.py -c examples/optimization/neural_network/configs/evo.json
