@@ -186,7 +186,7 @@ class GPR(BaseModel):
         y_train = y_dict[name]
         yhat = self.objective(X_test, X_train, y_train, K_inv).view(-1, 1)
         if return_numpy_flag:
-            yhat = yhat.data.numpy()
+            yhat = yhat.data.numpy().squeeze()
         return yhat
 
     def _get_tensor(self, x, dtype=None, device=None):

@@ -55,21 +55,15 @@ for i, wl_id in enumerate(jobIds):
     if len(obj_names) == 2:
         if solver == "grid_search":
             assert (np.round(po_vars, 5) == np.round(np.array(
-                [[0.        ,0.        ],
-                 [5.        ,0.        ],
-                 [0.        ,3.        ],
-                 [5.        ,2.        ],
-                 [5.        ,3.        ],
-                 [5.        ,2.93939394]]
+                [[0.,0.],
+                 [0.,3.],
+                 [5.,3.]]
             ), 5)).all()
         elif solver == "random_sampler":
             assert (np.round(po_vars, 5) == np.round(np.array(
                 [[1.83671876e-03,1.56753142e-02],
-                 [4.93698836e+00,4.52830328e-03],
                  [7.34503071e-03,2.99280825e+00],
-                 [4.99263289e+00,1.94808317e+00],
-                 [4.95843170e+00,2.97148312e+00],
-                 [4.99011394e+00,2.91289836e+00]]
+                 [4.95843170e+00,2.97148312e+00]]
             ), 5)).all()
         else:
             raise Exception(f"Solver {solver} is not available!")
