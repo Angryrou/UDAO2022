@@ -250,7 +250,7 @@ Note:
 We provide three examples to do MOO, including
 - [2D] when two objectives are both in the form of heuristic closed form (HCF)
 - [2D] when two objectives are both from gaussian process regressors (GPR)
-- [2D] when two objectives can be either in the form of Neural Network (NN) or HCF.
+- ~~[2D] (bug) when two objectives can be either in the form of Neural Network (NN) or HCF.~~
 - [3D] @Qi
 
 ### Heuristic Closed Form - 2D 
@@ -301,32 +301,9 @@ Pareto Frontiers of different MOO methods.
   <img src="figs/gpr-2d-2.png" width="48%" />
 </p>
 
-### Neural Network - 2D
+### ~~Neural Network - 2D~~
 
-In the current [NN model](../../examples/optimization/neural_network/model.py) example, it supports to represent objective/constraint functions as either NN or HCF. 
-For NN, it includes model initialization, training and prediction.
-
-we show the execution code and results of different MOO methods with solvers below.
-
-Note: The current trained NN in the example is problematic. The following results are based on HCF. 
-But the example provides a framework of how to set up and call the NN models, please replace it accordingly.
-```bash
-export PYTHONPATH=$PWD
-
-# 1. WS (with two solvers `grid_search` and `random_sampler`)
-python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_grid_search.json
-python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_random_sampler.json
-# 2. PF-AP (with MOGD)
-python examples/optimization/neural_network/pf.py -c examples/optimization/neural_network/configs/pf_mogd.json
-# 3. EVO (with NSGA-II)
-python examples/optimization/neural_network/evo.py -c examples/optimization/neural_network/configs/evo.json
-```   
-
-Pareto Frontiers of different MOO methods.
-<p float="left">
-  <img src="figs/nn-2d-1.png" width="48%" />
-  <img src="figs/nn-2d-2.png" width="48%" />
-</p>
+Bug detected. We will update in the next release.
 
 ### @Qi - 3D 
 
