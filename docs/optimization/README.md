@@ -272,8 +272,8 @@ python examples/optimization/heuristic_closed_form/evo.py -c examples/optimizati
 
 [TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method.
 <p float="left">
-  <img src="./img12.png" width="100" />
-  <img src="./img14.png" width="100" />
+  <img src="./img_12.png" width="48%" />
+  <img src="./img_14.png" width="48%" />
 </p>
 
 ### Gaussian Process Regressor - 2D
@@ -300,8 +300,8 @@ python examples/optimization/gaussian_process_regressor/evo.py -c examples/optim
 [TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
 
 <p float="left">
-  <img src="./img11.png" width="100" />
-  <img src="./img15.png" width="100" />
+  <img src="./img_11.png" width="48%" />
+  <img src="./img_15.png" width="48%" />
 </p>
 
 ### Neural Network - 2D
@@ -331,8 +331,8 @@ python examples/optimization/neural_network/evo.py -c examples/optimization/neur
 
 [TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method.
 <p float="left">
-  <img src="./img13.png" width="48%" />
-  <img src="./img16.png" width="48%" />
+  <img src="./img_13.png" width="48%" />
+  <img src="./img_16.png" width="48%" />
 </p>
 
 ## Features in the Next Release
