@@ -11,6 +11,7 @@
   * [Heuristic Closed Form - 2D](#heuristic-closed-form---2d)
   * [Gaussian Process Regressor - 2D](#gaussian-process-regressor---2d)
   * [Neural Network - 2D](#neural-network---2d)
+  * [TO ADD - 3D](#qi---3d)
 * [Features in the next release](#features-in-the-next-release)
 
 ## Quick Start
@@ -250,6 +251,7 @@ We provide three examples to do MOO, including
 - [2D] when two objectives are both in the form of heuristic closed form (HCF)
 - [2D] when two objectives are both from gaussian process regressors (GPR)
 - [2D] when two objectives can be either in the form of Neural Network (NN) or HCF.
+- [3D] @Qi
 
 ### Heuristic Closed Form - 2D 
 
@@ -270,7 +272,7 @@ python examples/optimization/heuristic_closed_form/pf.py -c examples/optimizatio
 python examples/optimization/heuristic_closed_form/evo.py -c examples/optimization/heuristic_closed_form/configs/2d/evo.json
 ```
 
-[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method.
+Pareto Frontiers of different MOO methods.
 <p float="left">
   <img src="./img_12.png" width="48%" />
   <img src="./img_14.png" width="48%" />
@@ -284,21 +286,16 @@ we show the execution code and results of different MOO methods with solvers bel
 ```bash
 export PYTHONPATH=$PWD
 
-# 1. WS 
-# WS with the grid_search solver
+# 1. WS (with two solvers `grid_search` and `random_sampler`)
 python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/2d/ws_grid_search.json
-# WS with the random_sampler solver 
 python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/2d/ws_random_sampler.json
-
-# 2. PF
+# 2. PF (with MOGD)
 python examples/optimization/gaussian_process_regressor/pf.py -c examples/optimization/gaussian_process_regressor/configs/2d/pf_mogd.json
-
-# 3. EVO
+# 3. EVO (with NSGA-II)
 python examples/optimization/gaussian_process_regressor/evo.py -c examples/optimization/gaussian_process_regressor/configs/2d/evo.json
 ```  
 
-[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
-
+Pareto Frontiers of different MOO methods.
 <p float="left">
   <img src="./img_11.png" width="48%" />
   <img src="./img_15.png" width="48%" />
@@ -316,29 +313,26 @@ But the example provides a framework of how to set up and call the NN models, pl
 ```bash
 export PYTHONPATH=$PWD
 
-# 1. WS 
-# WS with the grid_search solver
+# 1. WS (with two solvers `grid_search` and `random_sampler`)
 python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_grid_search.json
-# WS with the random_sampler solver 
 python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_random_sampler.json
-
-# 2. PF
+# 2. PF (with MOGD)
 python examples/optimization/neural_network/pf.py -c examples/optimization/neural_network/configs/pf_mogd.json
-
-# 3. EVO
+# 3. EVO (with NSGA-II)
 python examples/optimization/neural_network/evo.py -c examples/optimization/neural_network/configs/evo.json
 ```   
 
-[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method.
+Pareto Frontiers of different MOO methods.
 <p float="left">
   <img src="./img_13.png" width="48%" />
   <img src="./img_16.png" width="48%" />
 </p>
 
-## Features in the Next Release
-1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
-2. support a more sophisticated weighted sum approach. The current method only supports uniform weight picking for 2D and 3D. we need ways to randomly generate weights for 2+ objectives.
+### @Qi - 3D 
 
+## Features in the Next Release
+
+check this [issue](https://github.com/Angryrou/UDAO2022/issues/18)
 
 [1]: https://web.archive.org/web/20190801183649/https://pdfs.semanticscholar.org/cf68/41a6848ca2023342519b0e0e536b88bdea1d.pdf
 [2]: https://en.wikipedia.org/wiki/Test_functions_for_optimization#cite_note-Binh97-5
