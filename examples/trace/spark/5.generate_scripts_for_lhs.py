@@ -29,6 +29,7 @@ class Args():
         self.parser.add_argument("--num-templates", type=int, default=22)
         self.parser.add_argument("--num-queries-per-template", type=int, default=3637)
         self.parser.add_argument("--num-processes", type=int, default=6)
+        self.parser.add_argument("--if-aqe", type=int, default=0)
 
     def parse(self):
         return self.parser.parse_args()
@@ -45,6 +46,7 @@ if __name__ ==  '__main__':
     cache_header = args.cache_header
     n_templates = args.num_templates
     n_processes = args.num_processes
+    if_aqe = False if args.if_aqe == 0 else True
     templates = BenchmarkUtils.get(benchmark)
     assert n_templates == len(templates)
     # TPCH
@@ -81,7 +83,8 @@ if __name__ ==  '__main__':
         conf_dict_list = conf_df.to_dict("records")
         conf_df_dict[tid] = conf_df
         print(f"configurations generated, cost {time.time() - start2}s")
-        arg_list = [(str(tid), str(qid), conf_dict_list[qid-1], f"{script_header}/{tid}", ) for qid in range(1, qpt + 1)]
+        arg_list = [(str(tid), str(qid), conf_dict_list[qid-1], f"{script_header}/{tid}", if_aqe)
+                    for qid in range(1, qpt + 1)]
         with Pool(processes=n_processes) as pool:
             res = pool.starmap_async(spark_collect.save_one_script, arg_list)
             res.get()

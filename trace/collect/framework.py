@@ -10,6 +10,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 import pandas as pd
 
+
 from trace.collect.sampler import LHSSampler, BOSampler
 from utils.common import PickleUtils
 from utils.data.configurations import KnobUtils, SparkKnobs
@@ -102,7 +103,8 @@ class SparkCollect(Collection):
 
     def make_script(self, tid: str, qid: str, knob_sign: str, conf_dict: dict,
                     spath="/opt/hex_users/$USER/chenghao/spark-sql-perf",
-                    jpath="/opt/hex_users/$USER/spark-3.2.1-hadoop3.3.0/jdk1.8") -> str:
+                    jpath="/opt/hex_users/$USER/spark-3.2.1-hadoop3.3.0/jdk1.8",
+                    if_aqe=False) -> str:
         conf_str = "\n".join(f"--conf {k}={v} \\" for k, v in conf_dict.items())
         bm, sf = self.benchmark, self.scale_factor
         name = f"{self.benchmark}{self.scale_factor}_q{tid}-{qid}_{knob_sign}"
@@ -126,7 +128,7 @@ name={name}
 {conf_str}
 --conf spark.yarn.am.cores={conf_dict["spark.executor.cores"]} \\
 --conf spark.yarn.am.memory={conf_dict["spark.executor.memory"]} \\
---conf spark.sql.adaptive.enabled=false \\
+--conf spark.sql.adaptive.enabled={"true" if if_aqe else "false"} \\
 --conf spark.sql.parquet.compression.codec=snappy \\
 --conf spark.sql.broadcastTimeout=10000 \\
 --conf spark.rpc.askTimeout=12000 \\
@@ -143,7 +145,7 @@ $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
 
 """
 
-    def save_one_script(self, tid: str, qid: str, conf_dict: dict, out_header: str):
+    def save_one_script(self, tid: str, qid: str, conf_dict: dict, out_header: str, if_aqe: bool):
         knob_dict = self.spark_knobs.conf2knobs(conf_dict)
         knob_sign = KnobUtils.knobs2sign([knob_dict[k.id] for k in self.knobs], self.knobs)
         # dropped > {log_header}/{name}.log 2>&1
@@ -151,7 +153,8 @@ $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
             tid=str(tid),
             qid=str(qid),
             knob_sign=knob_sign,
-            conf_dict=conf_dict
+            conf_dict=conf_dict,
+            if_aqe=if_aqe
         )
         file_name = f"q{tid}-{qid}_{knob_sign}.sh"
         os.makedirs(f"{out_header}", exist_ok=True)
@@ -183,3 +186,10 @@ class MultiQueryEnvironment(object):
             "io_rqs_avg_daily",
             "io_rqs_std_daily",
         ]).set_index("timestep").sort_index()
+
+
+def error_handler(e):
+    print('error')
+    print(dir(e), "\n")
+    print("-->{}<--".format(e.__cause__))
+
