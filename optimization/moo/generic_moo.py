@@ -62,8 +62,6 @@ class GenericMOO:
                  po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
         '''
         if moo_algo == "weighted_sum":
-            # job_ids = add_params[0]
-            # file = "tests/optimization/all_job_ids"
             file_path = add_params[0]
             job_ids = np.loadtxt(file_path, dtype='str', delimiter=',').tolist()
             if job_ids == "None":
@@ -84,13 +82,12 @@ class GenericMOO:
             ws_pairs = moo_ut.even_weights(ws_steps, n_objs)
             ws = WeightedSum(ws_pairs, solver, solver_params, n_objs, self.obj_funcs, self.opt_types,
                              self.const_funcs, self.const_types)
-            # po_objs, po_vars = ws.solve(self.var_ranges, self.var_types)
             po_objs_list, po_vars_list = [], []
             time_cost_list = []
             for wl_id in job_ids:
-                # fixme: now it is suitable for tests, to be generalized further
+                # fixme: to be generalized further
                 if self.wl_ranges != None:
-                    vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+                    vars_max, vars_min = self.wl_ranges(wl_id)
                     vars_ranges = np.vstack((vars_min, vars_max)).T
                     #find indices of non_ENUM vars
                     non_enum_inds = [i for i, var_type in enumerate(self.var_types) if var_type != VarTypes.ENUM]
@@ -117,7 +114,9 @@ class GenericMOO:
             accurate = add_params[6]
             alpha = add_params[7]
             anchor_option = add_params[8]
-            mogd_params = add_params[9]
+            opt_obj_ind = add_params[9]
+            mogd_params = add_params[10]
+
             job_ids = np.loadtxt(file_path, dtype='str', delimiter=',').tolist()
             if job_ids == "None":
                 job_ids = [None]
@@ -131,8 +130,9 @@ class GenericMOO:
             else:
                 raise Exception(f"job ids {job_ids} are not well defined!")
             self.wl_list = job_ids
+
             pf = ProgressiveFrontier(pf_option, solver, mogd_params, self.obj_names, self.obj_funcs, self.opt_types, self.obj_types,
-                                     self.const_funcs, self.const_types, self.wl_list, self.wl_ranges, self.vars_constraints, self.accurate, self.std_func)
+                                     self.const_funcs, self.const_types, opt_obj_ind, self.wl_list, self.wl_ranges, self.vars_constraints, self.accurate, self.std_func)
             po_objs_list, po_vars_list = [], []
             time_cost_list = []
             for wl_id in job_ids:
@@ -169,9 +169,9 @@ class GenericMOO:
             po_objs_list, po_vars_list = [], []
             time_cost_list = []
             for wl_id in job_ids:
-                # fixme: now it is suitable for tests, to be generalized further
+                # fixme: to be generalized further
                 if self.wl_ranges != None:
-                    vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
+                    vars_max, vars_min = self.wl_ranges(wl_id)
                     vars_ranges = np.vstack((vars_min, vars_max)).T
                     # find indices of non_ENUM vars
                     non_enum_inds = [i for i, var_type in enumerate(self.var_types) if var_type != VarTypes.ENUM]

@@ -42,9 +42,9 @@
   "additional_params":
     {
       "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
-      "n_probes": 200,
+      "n_probes": 100,
       "solver_params": {
-        "n_grids_per_var": [100, 100, 100]
+        "n_grids_per_var": [10, 10, 10]
       }
     }
 }

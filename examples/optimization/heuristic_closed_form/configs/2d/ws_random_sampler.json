@@ -40,7 +40,7 @@
   "additional_params":
     {
       "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
-      "n_probes": 10,
+      "n_probes": 12,
       "solver_params": {
         "n_samples": 10000,
         "seed": 0

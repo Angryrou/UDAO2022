@@ -23,9 +23,9 @@ Example:
 moo_algo, solver, var_types, var_ranges, obj_names, opt_types, obj_types, const_types, const_names, add_params = ConfigsParser().parse_details()
 
 # model set up
-data_file = "examples/optimization/heuristic_closed_form/ws/data/2d/random_sampler/jobId_None/data.txt"
+data_file = "examples/optimization/gaussian_process_regressor/training_data/jobId_None/data.txt"
 training_vars = np.loadtxt(data_file, dtype='float32')[:,len(obj_names):]
-model = GPRPredictiveModels(obj_names + const_names, training_vars, var_ranges)
+model = GPRPredictiveModels(obj_names, const_names, training_vars, var_ranges)
 
 # problem setup
 moo = GenericMOO()
@@ -35,8 +35,8 @@ if len(obj_names) == 2:
                   const_funcs=[model.const_func1, model.const_func2], const_types=const_types, var_types=var_types, var_ranges=var_ranges,
                       wl_ranges=model.get_vars_range_for_wl)
 elif len(obj_names) == 3:
-    moo.problem_setup(obj_names=obj_names, obj_funcs=[HCF_3D.obj_func1, HCF_3D.obj_func2, HCF_3D.obj_func3], opt_types=opt_types,
-                  const_funcs=[], const_types=const_types, var_types=var_types, var_ranges=var_ranges)
+    moo.problem_setup(obj_names=obj_names, obj_funcs=[model.predict_obj1, model.predict_obj2, model.predict_obj3], opt_types=opt_types, obj_types=obj_types,
+                  const_funcs=[], const_types=const_types, var_types=var_types, var_ranges=var_ranges, wl_ranges=model.get_vars_range_for_wl)
 else:
     raise Exception(f"{len(obj_names)} objectives are not supported in the code repository for now!")
 
@@ -53,35 +53,39 @@ for i, wl_id in enumerate(jobIds):
     print(f"Time cost of wl_{wl_id}:")
     print(time_cost)
 
-    # pf-ap
-    # assert (po_vars == np.array(
-    #     [[5, 3],
-    #      [0, 0.5],
-    #      [0.03,0.76],
-    #      [0, 1.32],
-    #      [0, 1.52],
-    #      [0, 2.26],
-    #      [1.51, 2.79],
-    #      [2.76, 2.99],
-    #      [3.07, 3.  ],
-    #      [3.45, 2.88],
-    #      [0, 0.  ]]
-    # )).all()
-    # # pf-as
-    assert (np.round(po_vars, 5) == np.round(np.array(
-        [[5., 3.  ],
-         [1.07, 1.45],
-         [0.67, 1.2 ],
-         [0.67, 1.19],
-         [0.32, 0.97],
-         [0., 0.  ]]
-    ), 5)).all()
+    if len(obj_names) == 2:
+        # pf-ap
+        assert (po_vars == np.array(
+            [[5.  ,3.  ],
+             [0.  ,0.45],
+             [0.  ,0.6 ],
+             [0.  ,1.28],
+             [0.  ,1.96],
+             [0.  ,2.05],
+             [0.  ,2.65],
+             [0.74,2.77],
+             [1.74,3.  ],
+             [2.72,3.  ],
+             [2.95,3.  ],
+             [0.  ,0.07]]
+        )).all()
+        # # pf-as
+        # assert (np.round(po_vars, 5) == np.round(np.array(
+        #     [[5.  ,3.  ],
+        #      [3.44,2.87],
+        #      [3.42,2.87],
+        #      [1.6 ,3.  ],
+        #      [0.65,3.  ],
+        #      [0.54,2.1 ],
+        #      [0.  ,0.07]]
+        # ), 5)).all()
+        print("Test successfully!")
 
-    # save data
-    # data_path = f"./examples/optimization/gaussian_process_regressor/pf/data/{po_objs.shape[1]}d/{solver}/"
-    # results = np.hstack([po_objs, po_vars])
-    # moo_ut.save_results(data_path, results, wl_id, mode="data")
-    # moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
-    #
-    # if po_objs is not None:
-    #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="pf_gpr")
+        # save data
+        data_path = f"./examples/optimization/gaussian_process_regressor/data/{moo_algo}/{po_objs.shape[1]}d/{solver}/"
+        results = np.hstack([po_objs, po_vars])
+        moo_ut.save_results(data_path, results, wl_id, mode="data")
+        moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+
+        if po_objs is not None:
+            moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="pf_gpr_PF-AP")

@@ -16,18 +16,17 @@ import torch.nn.functional as F
 
 # an example by following: https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
 class NN(BaseModel):
-    def __init__(self, objs: list, training_vars: np.ndarray, var_ranges):
-        super().__init__(objs)
-        th.manual_seed(1)
+    def __init__(self, obj_names: list, const_names: list, training_vars: np.ndarray, var_ranges):
+        super().__init__(obj_names + const_names)
+        # th.manual_seed(0)
         self.initialize(training_vars, var_ranges)
-
 
     def initialize(self, training_vars, var_ranges):
         self.n_input = var_ranges.shape[0]
         self.n_out = 1
         self.n_hid = 128
-        self.n_epoch = 100
-        self.learning_rate = 0.1
+        self.n_epoch = 20
+        self.learning_rate = 0.01
 
         self.var_ranges = var_ranges
         self.n_training = training_vars.shape[0]
@@ -48,7 +47,7 @@ class NN(BaseModel):
                               nn.Sigmoid()
                               )
         loss_function = nn.MSELoss()
-        optimizer = th.optim.SGD(model.parameters(), lr=self.learning_rate)
+        optimizer = th.optim.Adam(model.parameters(), lr=self.learning_rate)
         losses = []
         model_dict = {}
         for obj in self.target_objs:
@@ -111,12 +110,18 @@ class NN(BaseModel):
 
         return value
 
-    def internal_prediction(self, name, X_test, mode="hcf", *args):
+    def internal_prediction(self, name, X_test, *args):
         return_numpy_flag = False
         if not th.is_tensor(X_test):
             X_test = solver_ut._get_tensor(X_test)
             return_numpy_flag = True
-            mode = "hcf"
+        if isinstance(args[0], tuple):
+            mode = args[0][0]
+        elif isinstance(args[0], str):
+            mode = args[0]
+        else:
+            raise Exception("Unexpected format of args!")
+
         if mode == "nn":
             yhat = self.model_dict[name](X_test)
         elif mode == "hcf":
@@ -144,47 +149,51 @@ class NN(BaseModel):
         return normalized_conf
 
 class NNPredictiveModels:
-    def __init__(self, objs: list, training_vars: np.ndarray, var_ranges):
+    def __init__(self, obj_names: list, const_names: list, training_vars: np.ndarray, var_ranges):
         '''
         initialization
         :param objs: list, name of objectives
         :param training_vars: ndarray(n_samples, n_vars), input used to train NN model.
         '''
         self.training_vars = training_vars
-        self.nn = NN(objs, training_vars, var_ranges)
+        self.nn = NN(obj_names, const_names, training_vars, var_ranges)
 
     def get_vars_range_for_wl(self, wl_id=None):
         return self.nn.get_conf_range_for_wl(wl_id)
 
     def predict_obj1(self, vars, wl_id=None):
         obj = "obj_1"
+        mode = "hcf"
         if not th.is_tensor(vars):
-            value = self.nn.predict(obj, vars)
+            value = self.nn.predict(obj, vars, mode)
         else:
-            value = self.nn.internal_prediction(obj, vars, mode="hcf")
+            value = self.nn.internal_prediction(obj, vars, mode)
         return value
 
     def predict_obj2(self, vars, wl_id=None):
         obj = "obj_2"
+        mode = "hcf"
         if not th.is_tensor(vars):
-            value = self.nn.predict(obj, vars)
+            value = self.nn.predict(obj, vars, mode)
         else:
-            value = self.nn.internal_prediction(obj, vars, mode="hcf")
+            value = self.nn.internal_prediction(obj, vars, mode)
         return value
 
     # only used for 2D example
     def const_func1(self, vars, wl_id=None):
         const = "g1"
+        mode = "hcf"
         if not th.is_tensor(vars):
-            value = self.nn.predict(const, vars)
+            value = self.nn.predict(const, vars, mode)
         else:
-            value = self.nn.internal_prediction(const, vars, mode="hcf")
+            value = self.nn.internal_prediction(const, vars, mode)
         return value
 
     def const_func2(self, vars, wl_id=None):
         const = "g2"
+        mode = "hcf"
         if not th.is_tensor(vars):
-            value = self.nn.predict(const, vars)
+            value = self.nn.predict(const, vars, mode)
         else:
-            value = self.nn.internal_prediction(const, vars, mode="hcf")
+            value = self.nn.internal_prediction(const, vars, mode)
         return value

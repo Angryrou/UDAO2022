@@ -23,10 +23,9 @@ Example:
 moo_algo, solver, var_types, var_ranges, obj_names, opt_types, obj_types, const_types, const_names, add_params = ConfigsParser().parse_details()
 
 # model set up
-# training_vars =moo_ut.get_training_input(var_types, var_ranges, n_samples=50)
-data_file = "examples/optimization/heuristic_closed_form/ws/data/2d/random_sampler/jobId_None/data.txt"
+data_file = "examples/optimization/gaussian_process_regressor/training_data/jobId_None/data.txt"
 training_vars = np.loadtxt(data_file, dtype='float32')[:,len(obj_names):]
-predictive_model = GPRPredictiveModels(obj_names + const_names, training_vars, var_ranges)
+predictive_model = GPRPredictiveModels(obj_names, const_names, training_vars, var_ranges)
 
 # problem setup
 moo = GenericMOO()
@@ -53,26 +52,34 @@ for i, wl_id in enumerate(jobIds):
     print(f"Time cost of wl_{wl_id}:")
     print(time_cost)
 
-    if solver == "grid_search":
-        assert (np.round(po_vars, 5) == np.round(np.array(
-            [[0, 0], [0, 3], [5, 3]]
-        ), 5)).all()
-    elif solver == "random_sampler":
-        assert (np.round(po_vars, 5) == np.round(np.array(
-            [[1.83671876e-03,1.56753142e-02],
-             [7.34503071e-03,2.99280825e+00],
-             [4.95843170e+00,2.97148312e+00]]
-        ), 5)).all()
-    else:
-        raise Exception(f"Solver {solver} is not available!")
+    if len(obj_names) == 2:
+        if solver == "grid_search":
+            assert (np.round(po_vars, 5) == np.round(np.array(
+                [[0.        ,0.        ],
+                 [5.        ,0.        ],
+                 [0.        ,3.        ],
+                 [5.        ,2.        ],
+                 [5.        ,3.        ],
+                 [5.        ,2.93939394]]
+            ), 5)).all()
+        elif solver == "random_sampler":
+            assert (np.round(po_vars, 5) == np.round(np.array(
+                [[1.83671876e-03,1.56753142e-02],
+                 [4.93698836e+00,4.52830328e-03],
+                 [7.34503071e-03,2.99280825e+00],
+                 [4.99263289e+00,1.94808317e+00],
+                 [4.95843170e+00,2.97148312e+00],
+                 [4.99011394e+00,2.91289836e+00]]
+            ), 5)).all()
+        else:
+            raise Exception(f"Solver {solver} is not available!")
+        print("Test successfully!")
 
-    # save data
-    # data_path = f"./examples/optimization/gaussian_process_regressor/ws/data/{po_objs.shape[1]}d/{solver}/"
-    # results = np.hstack([po_objs, po_vars])
-    # moo_ut.save_results(data_path, results, wl_id, mode="data")
-    # moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+        # save data
+        data_path = f"./examples/optimization/gaussian_process_regressor/data/{moo_algo}/{po_objs.shape[1]}d/{solver}/"
+        results = np.hstack([po_objs, po_vars])
+        moo_ut.save_results(data_path, results, wl_id, mode="data")
+        moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
 
-
-
-    # if po_objs is not None:
-    #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="ws_gpr")
+        # if po_objs is not None:
+        #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title=f"ws_gpr_{solver}")

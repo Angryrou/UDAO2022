@@ -45,8 +45,8 @@
   },
   "additional_params":
     {
-      "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
-      "n_probes": 10,
+      "jobIds_path": "examples/optimization/gaussian_process_regressor/all_job_ids",
+      "n_probes": 12,
       "solver_params": {
         "n_grids_per_var": [100, 100]
       }

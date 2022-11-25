@@ -23,7 +23,7 @@ Example:
 moo_algo, solver, var_types, var_ranges, obj_names, opt_types, obj_types, const_types, const_names, add_params = ConfigsParser().parse_details()
 
 # the model is already set up in model_def
-model = HCF_functions(obj_names + const_names, var_ranges)
+model = HCF_functions(obj_names, const_names, var_ranges)
 
 # problem setup
 moo = GenericMOO()
@@ -33,8 +33,8 @@ if len(obj_names) == 2:
                   const_funcs=[model.const_func1, model.const_func2], const_types=const_types, var_types=var_types, var_ranges=var_ranges,
                       wl_ranges=model.get_vars_range_for_wl)
 elif len(obj_names) == 3:
-    moo.problem_setup(obj_names=obj_names, obj_funcs=[HCF_3D.obj_func1, HCF_3D.obj_func2, HCF_3D.obj_func3], opt_types=opt_types,
-                  const_funcs=[], const_types=const_types, var_types=var_types, var_ranges=var_ranges)
+    moo.problem_setup(obj_names=obj_names, obj_funcs=[model.predict_obj1, model.predict_obj2, model.predict_obj3], opt_types=opt_types, obj_types=obj_types,
+                  const_funcs=[], const_types=const_types, var_types=var_types, var_ranges=var_ranges, wl_ranges=model.get_vars_range_for_wl)
 else:
     raise Exception(f"{len(obj_names)} objectives are not supported in the code repository for now!")
 
@@ -51,38 +51,39 @@ for i, wl_id in enumerate(jobIds):
     print(f"Time cost of wl_{wl_id}:")
     print(time_cost)
 
-    # pf-ap
-    assert (po_vars == np.array(
-        [[5.,  3.  ],
-         [0.39,1.01],
-         [0.3, 1.29],
-         [1.38,1.28],
-         [1.4, 1.39],
-         [2.12,2.07],
-         [2.29,2.24],
-         [3.17,2.71],
-         [3.42,2.87],
-         [3.82,3.  ],
-         [4.21,3.  ],
-         [0.  ,0.  ]]
-    )).all()
+    if len(obj_names) == 2:
+        # pf-ap
+        assert (po_vars == np.array(
+            [[5.,  3.  ],
+             [0.39,1.01],
+             [0.3, 1.29],
+             [1.38,1.28],
+             [1.4, 1.39],
+             [2.12,2.07],
+             [2.29,2.24],
+             [3.17,2.71],
+             [3.42,2.87],
+             [3.82,3.  ],
+             [4.21,3.  ],
+             [0.  ,0.  ]]
+        )).all()
 
-    # # pf-as
-    # assert (po_vars == np.array(
-    #     [[5.  , 3.  ],
-    #      [2.79,2.77],
-    #      [2.67,2.42],
-    #      [2.57,2.47],
-    #      [2.56,2.46],
-    #      [2.49,2.4 ],
-    #      [2.11,2.  ],
-    #      [0.  ,0.  ]]
-    # )).all()
+        # # pf-as
+        # assert (po_vars == np.array(
+        #     [[5.  ,3.  ],
+        #      [3.42,2.87],
+        #      [2.98,2.6 ],
+        #      [2.73,2.59],
+        #      [2.32,2.21],
+        #      [0.  ,0.  ]]
+        # )).all()
+        print("Test successfully!")
 
-    # data_path = f"./examples/optimization/heuristic_closed_form/pf/data/{po_objs.shape[1]}d/{solver}/"
-    # results = np.hstack([po_objs, po_vars])
-    # moo_ut.save_results(data_path, results, wl_id, mode="data")
-    # moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+        # save data
+        data_path = f"./examples/optimization/heuristic_closed_form/data/{moo_algo}/{po_objs.shape[1]}d/{solver}/"
+        results = np.hstack([po_objs, po_vars])
+        moo_ut.save_results(data_path, results, wl_id, mode="data")
+        moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
 
-    # if po_objs is not None:
-    #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1])
+        if po_objs is not None:
+            moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="pf_hcf_PF-AS")

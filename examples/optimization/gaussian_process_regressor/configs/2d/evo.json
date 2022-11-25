@@ -45,7 +45,7 @@
   },
   "additional_params":
     {
-      "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
+      "jobIds_path": "examples/optimization/gaussian_process_regressor/all_job_ids",
       "inner_algo": "NSGA-II",
       "pop_size": 10,
       "nfe": 100,

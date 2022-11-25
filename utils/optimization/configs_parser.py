@@ -65,6 +65,8 @@ class ConfigsParser():
                     add_params.append(alpha)
                     anchor_option = configs['additional_params']["anchor_option"]
                     add_params.append(anchor_option)
+                    obj_opt_ind = configs['additional_params']["opt_obj_ind"]
+                    add_params.append(obj_opt_ind)
 
                     mogd_params = configs['additional_params']["mogd_params"]
                     add_params.append(mogd_params)

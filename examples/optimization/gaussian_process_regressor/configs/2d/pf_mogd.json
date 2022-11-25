@@ -47,14 +47,15 @@
   },
   "additional_params":
     {
-      "pf_option": "pf_as",
-      "n_probes": 10,
+      "pf_option": "pf_ap",
+      "n_probes": 12,
       "n_grids": 2,
       "max_iters": 4,
       "jobIds_path": "examples/optimization/gaussian_process_regressor/all_job_ids",
       "accurate": true,
       "alpha": 3.0,
       "anchor_option": "2_step",
+      "opt_obj_ind": 0,
       "mogd_params":
       {
       "learning_rate": 0.1,

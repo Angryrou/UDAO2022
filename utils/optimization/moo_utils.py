@@ -129,7 +129,7 @@ def _get_direction(opt_type, obj_index):
         return -1
 
 
-def plot_po(po, n_obj=2, title="pf_as"):
+def plot_po(po, n_obj=2, title="pf_ap"):
     # po: ndarray (n_solutions * n_objs)
     ## for 2d
     if n_obj == 2:

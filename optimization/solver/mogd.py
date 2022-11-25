@@ -58,7 +58,6 @@ class MOGD(BaseSolver):
         :return:
         '''
         self.wl_list = wl_list
-        # self.wl_ranges = wl_ranges
         self._get_vars_range_for_wl = wl_ranges
         self.vars_constraints = vars_constraints
         self.accurate = accurate
@@ -126,7 +125,6 @@ class MOGD(BaseSolver):
             return CHECK_FALSE_RET
         assert self.multistart >= 1
 
-        #fixme: for a general case, if there is only one workload, by default, the wl_id can be set as 0
         vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
         self._reset()
         self._set(accurate, alpha, self.vars_constraints, vars_max, vars_min)
@@ -155,9 +153,6 @@ class MOGD(BaseSolver):
                 for iter in range(self.max_iter):
                     vars_kernal = self._get_tensor_vars_cat(numerical_var_inds, numerical_var_list,
                                                             categorical_var_inds, bv_dict)
-                    # fixme: for a general case, the input of the objective function (either the predictive model or HCF) should not be normalized.
-                    # fixme: current implementation is specific to the current GPR model
-                    # vars_kernal.java_data = solver_ut._get_tensor(self.get_raw_vars(vars_kernal.java_data.numpy().copy(), vars_max, vars_min, precision_list))
                     vars = vars_kernal
                     obj_pred = self._get_tensor_obj_pred(wl_id, vars, opt_obj_ind)  # Nx1
                     loss, loss_id = self._loss_soo_minibatch(wl_id, opt_obj_ind, obj_pred, vars)
@@ -204,7 +199,6 @@ class MOGD(BaseSolver):
                         best_vars = local_best_var
 
             if self.check_const_func_vio(wl_id, best_vars):
-                #fixme: if the variables are not normalized during the optimization, the following 'self.get_raw_vars' should be removed
                 best_raw_vars = self.get_raw_vars(best_vars, vars_max, vars_min, precision_list)
                 logging.info(
                     f"get best {obj}: {best_obj} at {best_raw_vars} with {iter_num} iterations, loss = {best_loss}")
@@ -220,7 +214,6 @@ class MOGD(BaseSolver):
 
             best_loss_list.append(best_loss)
             objs_list.append(best_obj)
-            # vars_list.append(best_vars)
             vars_list.append(best_raw_vars)
 
         idx = np.argmin(best_loss_list)
@@ -258,7 +251,6 @@ class MOGD(BaseSolver):
                 return CHECK_FALSE_RET
         assert self.multistart >= 1
 
-        #fixme: for a general case, if there is only one workload, by default, the wl_id can be set as 0
         vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
         if not is_parallel:
             self._reset()
@@ -290,10 +282,6 @@ class MOGD(BaseSolver):
                 for iter in range(self.max_iter):
                     vars_kernal = self._get_tensor_vars_cat(numerical_var_inds, numerical_var_list,
                                                             categorical_var_inds, bv_dict)
-                    # fixme: for a general case, the input of the objective function (either the predictive model or HCF) should not be normalized.
-                    # fixme: current implementation is specific to the current GPR model
-                    # vars_kernal.java_data = solver_ut._get_tensor(
-                    #     self.get_raw_vars(vars_kernal.java_data.numpy().copy(), vars_max, vars_min, precision_list))
                     vars = vars_kernal
 
                     objs_pred_dict = {cst_obj: self._get_tensor_obj_pred(wl_id, vars, i) for i, cst_obj in enumerate(obj_bounds_dict)}
@@ -338,7 +326,6 @@ class MOGD(BaseSolver):
                         best_vars = local_best_var
 
             if self.check_const_func_vio(wl_id, best_vars) & self.check_obj_bounds_vio(best_objs, obj_bounds_dict):
-                # fixme: if the variables are not normalized during the optimization, the following 'self.get_raw_vars' should be removed
                 best_raw_vars = self.get_raw_vars(best_vars, vars_max, vars_min, precision_list)
                 obj_pred_dict = self._get_obj_pred_dict(wl_id, obj_bounds_dict, best_objs, best_raw_vars)
                 target_obj_val.append(obj_pred_dict[obj])
@@ -394,8 +381,8 @@ class MOGD(BaseSolver):
         arg_list = [(wl_id, obj, accurate, alpha, opt_obj_ind, var_types, var_ranges, obj_bounds_dict, precision_list, False, True)
                     for obj_bounds_dict in cell_list]
 
-        # print(f"arg_list in opt3 is: {arg_list}")
         # call self.constraint_so_opt parallely
+        th.multiprocessing.set_start_method('fork', force=True)
         with Pool(processes=self.process) as pool:
             ret_list = pool.starmap(self.constraint_so_opt, arg_list)
 

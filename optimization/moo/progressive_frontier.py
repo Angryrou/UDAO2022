@@ -18,7 +18,7 @@ import numpy as np
 
 
 class ProgressiveFrontier(BaseMOO):
-    def __init__(self, pf_option: str, inner_solver: str, solver_params: dict, obj_names: list, obj_funcs: list, opt_type: list, obj_types, const_funcs: list, const_types: list,
+    def __init__(self, pf_option: str, inner_solver: str, solver_params: dict, obj_names: list, obj_funcs: list, opt_type: list, obj_types, const_funcs: list, const_types: list, opt_obj_ind: int,
                  wl_list, wl_ranges, vars_constraints, accurate, std_func):
         '''
         initialize parameters in Progressive Frontier method
@@ -52,10 +52,7 @@ class ProgressiveFrontier(BaseMOO):
         else:
             raise Exception(f"Solver {inner_solver} is not supported!")
 
-        # by default, take the 2nd objective to be optimized (to be the same as Java PF), and the others are taken as constraints
-        # fixme: to be generalized
-        self.opt_obj_ind = 1
-        # self.opt_obj_ind =
+        self.opt_obj_ind = opt_obj_ind
 
     def solve(self, wl_id, accurate, alpha, var_bounds, var_types, precision_list, n_probes, n_grids=None, max_iters=None, anchor_option="2_step"):
         '''
@@ -82,7 +79,7 @@ class ProgressiveFrontier(BaseMOO):
 
         return po_objs, po_vars
 
-    def solve_pf_as(self, wl_id, accurate, alpha, obj_names, var_bounds, opt_obj_ind, var_types, n_probes, precision_list, anchor_option="2_step"):
+    def solve_pf_as(self, wl_id, accurate, alpha, obj_names, var_bounds, opt_obj_ind, var_types, n_probes, precision_list, anchor_option="2_step", verbose=False):
         '''
         Progressive Frontier(PF)-Approximation Sequential (AS) algorithm, get MOO solutions sequentially
         :param wl_id: str, workload id, e.g. '1-7'
@@ -148,8 +145,9 @@ class ProgressiveFrontier(BaseMOO):
             middle = Points(middle_objs)
 
             obj_bounds_dict = self._form_obj_bounds_dict(current_utopia, middle, obj_names, opt_obj_ind)
-            # print("obj_bounds are:")
-            # print(obj_bounds_dict)
+            if verbose:
+                print("obj_bounds are:")
+                print(obj_bounds_dict)
 
             obj, vars = self.mogd.constraint_so_opt(wl_id, obj=obj_names[opt_obj_ind], accurate=accurate, alpha=alpha, opt_obj_ind=opt_obj_ind, var_types=var_types,
                                                     var_range=var_bounds, obj_bounds_dict=obj_bounds_dict,
@@ -157,11 +155,6 @@ class ProgressiveFrontier(BaseMOO):
 
             if (obj is not None) & (vars is not None):
                 objs_co = np.ones([n_objs, ])
-                # fixme: normalize vars for Java PF, , to be generalized
-                # vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-                # vars_norm_co = (vars[0] - vars_min) / (vars_max - vars_min)
-                # vars_max, vars_min = self.wl_ranges(wl_id)
-                # vars_norm_co = (vars - vars_min) / (vars_max - vars_min)
                 for j in range(n_objs):
                     objs_co[j] = self.obj_funcs[j](vars, wl_id) * moo_ut._get_direction(opt_type=self.opt_type,
                                                                                                 obj_index=j)
@@ -176,13 +169,14 @@ class ProgressiveFrontier(BaseMOO):
 
             else:
                 middle = Points((current_utopia.objs + current_nadir.objs) / 2)
-                print("This is an empty area")
-                print("don't have pareto points, only divide current uncertainty space")
+                if verbose:
+                    print("This is an empty area")
+                    print("don't have pareto points, only divide current uncertainty space")
 
                 rectangles = self.generate_sub_rectangles(current_utopia, current_nadir, middle, flag="bad")
 
                 for i, sub_rect in enumerate(rectangles):
-                    # fixme: the same as in Java
+                    # remove the first two sub-rectangles
                     if i == 0 or i == 1:
                         continue
                     else:
@@ -204,7 +198,7 @@ class ProgressiveFrontier(BaseMOO):
 
         return po_objs, po_vars
 
-    def solve_pf_ap(self, wl_id, accurate, alpha, obj_names, var_bounds, opt_obj_ind, var_types, precision_list, n_grids, max_iters, anchor_option="2_step"):
+    def solve_pf_ap(self, wl_id, accurate, alpha, obj_names, var_bounds, opt_obj_ind, var_types, precision_list, n_grids, max_iters, anchor_option="2_step", verbose=False):
         '''
         Progressive Frontier(PF)-Approximation Parallel (AP) algorithm, get MOO solutions parallely
         :param wl_id: str, workload id, e.g. '1-7'
@@ -233,54 +227,20 @@ class ProgressiveFrontier(BaseMOO):
             plans.append(Points(objs, vars))
             all_objs_list.append(objs.tolist())
             all_vars_list.append(vars.tolist())
-        # for i in range(n_objs):
-        #     objs = np.ones([n_objs, ])
-        #     obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[i], accurate=accurate, alpha=alpha, opt_obj_ind=i, var_types=var_types,
-        #                                                var_ranges=var_bounds, precision_list=precision_list)
-        #     # fixme: normalize vars for Java PF, to be generalized
-        #     vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-        #     vars_norm = (vars[0] - vars_min) / (vars_max - vars_min)
-        #
-        #     # uses conf to get predictions
-        #     for j in range(n_objs):
-        #         objs[j] = self.obj_funcs[j](wl_id, vars_norm) * moo_ut._get_direction(opt_type=self.opt_type, obj_index=j)
-        #
-        #     # if the current objective type is Integer, further find the
-        #     if self.obj_types[i] == VarTypes.INTEGER:
-        #         utopia_init = np.zeros([n_objs, ])
-        #         utopia_init[i] = objs[i]
-        #         utopia_tmp, nadir_tmp = Points(objs=utopia_init), Points(objs=objs)
-        #         obj_bounds_dict_so = self._form_obj_bounds_dict(utopia_tmp, nadir_tmp, obj_names, opt_obj_ind)
-        #         print("obj_bounds are:")
-        #         print(obj_bounds_dict_so)
-        #
-        #         # select the first objective with float type
-        #         float_obj_ind = [i for i, obj_type in enumerate(self.obj_types) if obj_type == VarTypes.FLOAT][0]
-        #         objs_update, vars_update = self.mogd.constraint_so_opt(wl_id, obj=obj_names[float_obj_ind], accurate=accurate,
-        #                                                 alpha=alpha, opt_obj_ind=float_obj_ind, var_types=var_types,
-        #                                                 var_range=var_bounds, obj_bounds_dict=obj_bounds_dict_so,
-        #                                                 precision_list=precision_list)
-        #         print(f"objs_update are: {objs_update}")
-        #         plans.append(Points(np.array(objs_update), vars_update))
-        #         all_objs_list.append(objs_update)
-        #         all_vars_list.append(vars_update.tolist())
-        #     else:
-        #         print(f"objs are: {objs}")
-        #         plans.append(Points(objs, vars))
-        #         all_objs_list.append(objs.tolist())
-        #         all_vars_list.append(vars.tolist())
 
-        #fixme: currently to be the same as Java PF
-        if n_objs == 2:
-            opt_obj_ind = 0
-        elif n_objs == 3:
-            opt_obj_ind = 1
-        else:
-            raise Exception(f"{n_objs} objectives are not supported for now!"
-                            f"")
+        if verbose:
+            #fixme: currently to be the same as Java PF
+            if n_objs == 2:
+                opt_obj_ind = 0
+            elif n_objs == 3:
+                opt_obj_ind = 1
+            else:
+                raise Exception(f"{n_objs} objectives are not supported for now!"
+                                f"")
         iter = 0
         while iter < max_iters:
-            print(f"the number of iteration is {iter}")
+            if verbose:
+                print(f"the number of iteration is {iter}")
             # choose the cell with max volume to explore
             max_volume = -1
             input_ind = -1
@@ -300,8 +260,10 @@ class ProgressiveFrontier(BaseMOO):
             for cell in grid_cells_list:
                 obj_bound_dict = self._form_obj_bounds_dict(cell.utopia, cell.nadir, obj_names, opt_obj_ind)
                 obj_bound_cells.append(obj_bound_dict)
-            print("the cells are:")
-            print(obj_bound_cells)
+
+            if verbose:
+                print("the cells are:")
+                print(obj_bound_cells)
             ret_list = self.mogd.constraint_so_parallel(wl_id, obj=obj_names[opt_obj_ind], opt_obj_ind=opt_obj_ind,
                                                                           accurate=accurate, alpha=alpha, var_types=var_types,
                                                                           var_ranges=var_bounds, cell_list=obj_bound_cells,
@@ -310,49 +272,47 @@ class ProgressiveFrontier(BaseMOO):
             po_objs_list, po_vars_list = [], []
             for solution in ret_list:
                 if solution[0] is None:
-                    print("This is an empty area!")
+                    if verbose:
+                        print("This is an empty area!")
+                    continue
                 else:
-                    print(f"the objective values are:{solution[0]} ")
+                    if verbose:
+                        print(f"the objective values are:{solution[0]} ")
                     po_objs_list.append(solution[0])
                     po_vars_list.append(solution[1].tolist())
 
-            print("the po_objs_list is: ")
-            print(po_objs_list)
-            print("the po_vars_list is: ")
-            print(po_vars_list)
+            if verbose:
+                print("the po_objs_list is: ")
+                print(po_objs_list)
+                print("the po_vars_list is: ")
+                print(po_vars_list)
 
             all_objs_list.extend(po_objs_list)
             all_vars_list.extend(po_vars_list)
-            # print("the all objs is: ")
-            print(all_objs_list)
 
             po_objs = np.array(all_objs_list)
             sorted_inds = np.argsort(po_objs[:, 0])
             sorted_po_objs = np.array(all_objs_list)[sorted_inds].tolist()
             sorted_po_vars = np.array(all_vars_list)[sorted_inds].tolist()
-            print("the sorted_po_objs is: ")
-            print(sorted_po_objs)
 
             all_objs, all_vars = moo_ut._summarize_ret(sorted_po_objs, sorted_po_vars)
             all_objs_list = all_objs.tolist()
             all_vars_list = all_vars.tolist()
             iter = iter + 1
-            print(f"objs after filtering are: {all_objs_list}")
-        #
-        print(f"all objs are: {np.array(all_objs_list)}")
-        print(f"all_vars are: {np.array(all_vars_list)}")
+            if verbose:
+                print("the sorted_po_objs is: ")
+                print(sorted_po_objs)
+                print(f"objs after filtering are: {all_objs_list}")
+                print(f"all objs are: {np.array(all_objs_list)}")
+                print(f"all_vars are: {np.array(all_vars_list)}")
         return np.array(all_objs_list), np.array(all_vars_list)
 
-    def get_anchor_points(self, wl_id, obj_names, obj_ind, accurate, alpha, var_types, var_bounds, precision_list, anchor_option="2_step"):
+    def get_anchor_points(self, wl_id, obj_names, obj_ind, accurate, alpha, var_types, var_bounds, precision_list, anchor_option="2_step", verbose=False):
 
         obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[obj_ind], accurate=accurate, alpha=alpha,
                                                    opt_obj_ind=obj_ind, var_types=var_types,
                                                    var_ranges=var_bounds, precision_list=precision_list)
-        # fixme: normalize vars for Java PF, to be generalized
-        # vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-        # vars_max, vars_min = self.wl_ranges(wl_id)
-        # # vars_norm = (vars[0] - vars_min) / (vars_max - vars_min)
-        # vars_norm = (vars - vars_min) / (vars_max - vars_min)
+
         n_objs = len(obj_names)
         # uses conf to get predictions
         objs = np.ones([n_objs, ]) * np.inf
@@ -368,8 +328,9 @@ class ProgressiveFrontier(BaseMOO):
                 # select the first objective with float type
                 float_obj_ind = [i for i, obj_type in enumerate(self.obj_types) if obj_type == VarTypes.FLOAT][0]
                 obj_bounds_dict_so = self._form_obj_bounds_dict(utopia_tmp, nadir_tmp, obj_names, float_obj_ind)
-                print("obj_bounds are:")
-                print(obj_bounds_dict_so)
+                if verbose:
+                    print("obj_bounds are:")
+                    print(obj_bounds_dict_so)
 
                 objs_update, vars_update = self.mogd.constraint_so_opt(wl_id, obj=obj_names[float_obj_ind],
                                                                        accurate=accurate,
@@ -494,7 +455,7 @@ class ProgressiveFrontier(BaseMOO):
             sub_u_point = Points(sub_u_objs)
             sub_nadir_objs = np.array([objs_list[i][id + 1] for i, id in enumerate(grid_ind)])
             sub_nadir_point = Points(sub_nadir_objs)
-            assert all((sub_nadir_objs - sub_u_objs) > 0)
+            assert all((sub_nadir_objs - sub_u_objs) >= 0)
             cell = Rectangles(sub_u_point, sub_nadir_point)
             grid_cell_list.append(cell)
         assert len(grid_cell_list) == (n_grids ** n_objs)

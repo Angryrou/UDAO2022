@@ -14,12 +14,13 @@ import numpy as np
 import torch as th
 
 class GPR(BaseModel):
-    def __init__(self, objs: list, training_vars: np.ndarray, var_ranges: list):
+    def __init__(self, obj_names: list, const_names: list, training_vars: np.ndarray, var_ranges: list):
         '''
         :param objs: list, name of objectives
         :param training_vars: ndarray(n_training_samples, n_vars), input to train GPR models
         '''
-        super().__init__(objs)
+        super().__init__(obj_names + const_names)
+        self.n_obj = len(obj_names)
         self.initialize(training_vars, var_ranges)
 
     def initialize(self, training_vars, var_ranges):
@@ -87,20 +88,43 @@ class GPR(BaseModel):
             # else:
             #     raise Exception(f"{len(self.objs)} objectives are not supported for now!")
             # transfrom x in the original space as (
-            x1_min, x2_min = self.var_ranges[0, 0], self.var_ranges[1, 0]
-            x1_range, x2_range = (self.var_ranges[0, 1] - x1_min), (self.var_ranges[1, 1] - x2_min)
-            x_1 = vars[:, 0] * x1_range + x1_min
-            x_2 = vars[:, 1] * x2_range + x2_min
-            if name == "obj_1":
-                value = 4 * x_1 * x_1 + 4 * x_2 * x_2
-            elif name == "obj_2":
-                value = (x_1 - 5) * (x_1 - 5) + (x_2 - 5) * (x_2 - 5)
-            elif name == "g1":
-                value = (x_1 - 5) * (x_1 - 5) + x_2 * x_2 - 25
-            elif name == "g2":
-                value = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) - 7.7
+            if self.n_obj == 2:
+                x1_min, x2_min = self.var_ranges[0, 0], self.var_ranges[1, 0]
+                x1_range, x2_range = (self.var_ranges[0, 1] - x1_min), (self.var_ranges[1, 1] - x2_min)
+                x_1 = vars[:, 0] * x1_range + x1_min
+                x_2 = vars[:, 1] * x2_range + x2_min
+                if name == "obj_1":
+                    value = 4 * x_1 * x_1 + 4 * x_2 * x_2
+                elif name == "obj_2":
+                    value = (x_1 - 5) * (x_1 - 5) + (x_2 - 5) * (x_2 - 5)
+                elif name == "g1":
+                    value = (x_1 - 5) * (x_1 - 5) + x_2 * x_2 - 25
+                elif name == "g2":
+                    value = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) - 7.7
+                else:
+                    raise Exception(f"Objective/constraint {name} is not valid for prediction!")
+            elif self.n_obj == 3:
+                x1_min, x2_min, x3_min = self.var_ranges[0, 0], self.var_ranges[1, 0], self.var_ranges[2, 0]
+                x1_range, x2_range, x3_range = (self.var_ranges[0, 1] - x1_min), (self.var_ranges[1, 1] - x2_min), (
+                            self.var_ranges[2, 1] - x3_min)
+                x_1 = vars[:, 0] * x1_range + x1_min
+                x_2 = vars[:, 1] * x2_range + x2_min
+                x_3 = vars[:, 2] * x3_range + x3_min
+                if th.is_tensor(x_3):
+                    g = 100 * (1 + (x_3 - 0.5) * (x_3 - 0.5) - th.cos(20 * th.pi * (x_3 - 0.5)))
+                else:
+                    g = 100 * (1 + (x_3 - 0.5) * (x_3 - 0.5) - np.cos(20 * np.pi * (x_3 - 0.5)))
+                if name == "obj_1":
+                    value = 0.5 * x_1 * x_2 * (1 + g)
+                elif name == "obj_2":
+                    value = 0.5 * x_1 * (1 - x_2) * (1 + g)
+                elif name == "obj_3":
+                    value = 0.5 * (1 - x_1) * (1 + g)
+                else:
+                    raise Exception(f"Objective/constraint {name} is not valid for prediction!")
+
             else:
-                raise Exception(f"Objective/constraint {name} is not valid for prediction!")
+                raise Exception("Only support 2D and 3D optimization problem right now!")
             y_dict[name] = value
         return y_dict
 
@@ -236,14 +260,14 @@ class GPR(BaseModel):
 
 class GPRPredictiveModels:
 
-    def __init__(self, objs: list, training_vars: np.ndarray, var_ranges: list):
+    def __init__(self, obj_names: list, const_names: list, training_vars: np.ndarray, var_ranges: list):
         '''
         initialization
         :param objs: list, name of objectives
         :param training_vars: ndarray(n_samples, n_vars), input used to train GPR model.
         '''
         self.training_vars = training_vars
-        self.gpr = GPR(objs, training_vars, var_ranges)
+        self.gpr = GPR(obj_names, const_names, training_vars, var_ranges)
 
     def get_vars_range_for_wl(self, wl_id=None):
         return self.gpr.get_conf_range_for_wl(wl_id)

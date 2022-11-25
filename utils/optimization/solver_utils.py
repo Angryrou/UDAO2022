@@ -14,7 +14,8 @@ import torch as th
 import numpy as np
 import json
 
-DEFAULT_DEVICE = th.device("cpu")
+# DEFAULT_DEVICE = th.device("cpu")
+DEFAULT_DEVICE = th.device('cuda') if th.cuda.is_available() else th.device("cpu")
 DEFAULT_DTYPE = th.float32
 
 def load_pkl(pkl_path):

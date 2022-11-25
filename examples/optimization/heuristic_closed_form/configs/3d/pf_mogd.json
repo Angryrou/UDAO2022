@@ -6,14 +6,21 @@
       "name": "v1",
       "type": "FLOAT",
       "min": 0,
-      "max": 5,
+      "max": 1,
       "precision": 2
     },
     {
       "name": "v2",
       "type": "FLOAT",
       "min": 0,
-      "max": 3,
+      "max": 1,
+      "precision": 2
+    },
+    {
+      "name": "v3",
+      "type": "FLOAT",
+      "min": 0,
+      "max": 1,
       "precision": 2
     }
   ],
@@ -27,29 +34,21 @@
       "name": "obj_2",
       "optimize_trend": "MIN",
       "type": "FLOAT"
-    }
-  ],
-  "constraints": [
-    {
-      "name": "g1",
-      "type": "<="
     },
     {
-      "name": "g2",
-      "type": ">="
+      "name": "obj_3",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
     }
   ],
-  "model": {
-    "name": "nn",
-    "in_features": 2
-  },
+  "constraints": [],
   "additional_params":
     {
       "pf_option": "pf_ap",
-      "n_probes": 12,
-      "n_grids": 2,
-      "max_iters": 4,
-      "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
+      "n_probes": 100,
+      "n_grids": 5,
+      "max_iters": 5,
+      "jobIds_path": "examples/optimization/gaussian_process_regressor/all_job_ids",
       "accurate": true,
       "alpha": 3.0,
       "anchor_option": "2_step",
