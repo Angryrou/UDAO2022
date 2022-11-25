@@ -58,8 +58,10 @@ class GenericMOO:
         :param moo_algo: str, the name of moo algorithm
         :param solver: str, the name of solver
         :param add_params: list, the parameters required by the specified MOO algorithm and solver
-        :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                 po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
+        :return: po_objs_list: list, each element is solutions (ndarray(n_solutions, n_objs)) for one job
+                 po_vars_list: list, each element is solutions (ndarray(n_solutions, n_vars)) for one job, corresponding variables of MOO solutions
+                 job_Ids: list, workload ids, each element is a string or None.
+                 time_cost_list: list, each element is the time cost of MOO solving for one job.
         '''
         if moo_algo == "weighted_sum":
             file_path = add_params[0]
@@ -75,6 +77,7 @@ class GenericMOO:
                     pass
             else:
                 raise Exception(f"job ids {job_ids} are not well defined!")
+
             n_probes = add_params[1]
             solver_params = add_params[2]
             n_objs = len(self.opt_types)

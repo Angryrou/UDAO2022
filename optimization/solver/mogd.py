@@ -46,7 +46,7 @@ class MOGD(BaseSolver):
         '''
         set up problem in solver
         :param wl_list: list, each element is a string, representing workload id (wl_id), e.g. '1-7'
-        :param wl_ranges: dict, key is wl_id, value includes min and max values for all variables of one workload
+        :param wl_ranges: function, provided by users, to return upper and lower bounds of variables
         :param vars_constraints: dict, key is 'vars_min' and 'vars_max', value is min and max values for all variables of one workload. The purpose is to put variable values into a region where the model performs better.
         :param accurate: bool, whether the predictive model is accurate (True) or not (False)
         :param std_func: function, passed by the user, for loss calculation when the predictive model is not accurate
@@ -116,7 +116,7 @@ class MOGD(BaseSolver):
         :param verbose: bool, to print further information if needed
         :return:
                 objs_list[idx]: float, objective value
-                vars_list[idx].reshape([1, len(var_types)]): ndarray(1, n_vars), variable values
+                vars: ndarray(1, n_vars), variable values
         '''
 
         th.manual_seed(self.seed)
@@ -238,7 +238,7 @@ class MOGD(BaseSolver):
         :param verbose: bool, to print further information if needed
         :param is_parallel: bool, whether it is called parallelly (True) or not (False)
         :return:
-                objs_list[idx]: list, all objective values
+                objs: list, all objective values
                 vars: ndarray(1, n_vars), variable values
         '''
 
@@ -367,8 +367,7 @@ class MOGD(BaseSolver):
         :param cell_list: list, each element is a dict to indicate the var_ranges of objective values
         :param verbose: bool, to print further information if needed
         :return:
-                po_objs_list: list, each element is a Pareto solution
-                po_vars_list: list, each element is the variable values corresponding to the Pareto solution
+                ret_list: list, each element is a solution (tuple with size 2) with objective values (tuple[0], list) and variables (tuple[1], ndarray(1, n_vars))
         '''
 
         vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
@@ -586,19 +585,6 @@ class MOGD(BaseSolver):
         raw_np = self.get_raw_vars(bounded_np, vars_max, vars_min, precision_list, normalized_ids=numerical_var_inds)
         normalized_np = self.get_normalized_vars(raw_np, vars_max, vars_min, normalized_ids=numerical_var_inds)
         return solver_ut._get_tensor(normalized_np)
-
-    # def _get_vars_range_for_wl(self, wl_id):
-    #     '''
-    #     get the upper and lower bounds of all variables for one workload,
-    #     :param wl_id: str, workload id, e.g. '1-7'
-    #     :return:
-    #             vars_max: ndarray(n_vars,), the upper bounds of all variable
-    #             vars_min: ndarray(n_vars,), the lower bounds of all variable
-    #     '''
-    #     vars_max = self.wl_ranges[wl_id].data_max_
-    #     vars_min = self.wl_ranges[wl_id].data_min_
-    #
-    #     return vars_max, vars_min
 
     # reuse code in UDAO
     def get_bounded(self, k, lower=0.0, upper=1.0):

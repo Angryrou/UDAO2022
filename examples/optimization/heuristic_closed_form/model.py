@@ -9,9 +9,7 @@ import torch as th
 
 from optimization.model.base_model import BaseModel
 
-# class HCF:
-#     """
-#     An example
+#     An example: 2D
 #     https://en.wikipedia.org/wiki/Test_functions_for_optimization#Test_functions_for_multi-objective_optimization_problems
 #     Binh and Korn function:
 #     # minimize:
@@ -22,71 +20,24 @@ from optimization.model.base_model import BaseModel
 #     #          g2(x_1, x_2) = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) >= 7.7
 #     #          x_1 in [0, 5], x_2 in [0, 3]
 #     """
-#
-#     @staticmethod
-#     def obj_func1(vars):
-#         '''
-#         :param vars: array
-#         :return:
-#         '''
-#         value = 4 * vars[:, 0] * vars[:, 0] + 4 * vars[:, 1] * vars[:, 1]
-#         return value
-#
-#     @staticmethod
-#     def obj_func2(vars):
-#         value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + (vars[:, 1] - 5) * (vars[:, 1] - 5)
-#         return value
-#
-#     @staticmethod
-#     def const_func1(vars):
-#         value = (vars[:, 0] - 5) * (vars[:, 0] - 5) + vars[:, 1] * vars[:, 1] - 25
-#         return value
-#
-#     @staticmethod
-#     def const_func2(vars):
-#         value = (vars[:, 0] - 8) * (vars[:, 0] - 8) + (vars[:, 1] + 3) * (vars[:, 1] + 3) - 7.7
-#         return value
 
-class HCF_3D:
-    """
-        An example
-        https://pymoo.org/problems/many/dtlz.html#DTLZ1
-        DTLZ1 function with 3 objectives and 3 variables:
-        # minimize:
-        #          f1(x_1, x_2, x_3) = 1/2 * x_1 * x_2 * (1 + g(x_3))
-        #          f2(x_1, x_2, x_3) = 1/2 * x_1 * (1 - x_2) * (1 + g(x_3))
-        #          f2(x_1, x_2, x_3) = 1/2 * (1 - x_1) * (1 + g(x_3))
-        # where g(x_3) = 100 * (1 + (x_3 - 0.5)^2 - cos(20 * pi * (x_3 - 0.5)))
-        # subject to:
-        #          x_i in [0, 1], i = 1, 2, 3
-        """
-
-    @staticmethod
-    def obj_func1(vars):
-        '''
-        :param vars: array
-        :return:
-        '''
-        g = 100 * (1 + (vars[:, 2] - 0.5) * (vars[:, 2] - 0.5) - np.cos(20 * np.pi * (vars[:, 2] - 0.5)))
-        value = 0.5 * vars[:, 0] * vars[:, 1] * (1 + g)
-        return value
-
-    @staticmethod
-    def obj_func2(vars):
-        g = 100 * (1 + (vars[:, 2] - 0.5) * (vars[:, 2] - 0.5) - np.cos(20 * np.pi * (vars[:, 2] - 0.5)))
-        value = 0.5 * vars[:, 0] * ( 1 - vars[:, 1]) * (1 + g)
-        return value
-
-    @staticmethod
-    def obj_func3(vars):
-        g = 100 * (1 + (vars[:, 2] - 0.5) * (vars[:, 2] - 0.5) - np.cos(20 * np.pi * (vars[:, 2] - 0.5)))
-        value = 0.5 * (1 - vars[:, 0]) * (1 + g)
-        return value
-
+# """
+#     An example: 3D
+#     https://pymoo.org/problems/many/dtlz.html#DTLZ1
+#     DTLZ1 function with 3 objectives and 3 variables:
+#     # minimize:
+#     #          f1(x_1, x_2, x_3) = 1/2 * x_1 * x_2 * (1 + g(x_3))
+#     #          f2(x_1, x_2, x_3) = 1/2 * x_1 * (1 - x_2) * (1 + g(x_3))
+#     #          f2(x_1, x_2, x_3) = 1/2 * (1 - x_1) * (1 + g(x_3))
+#     # where g(x_3) = 100 * (1 + (x_3 - 0.5)^2 - cos(20 * pi * (x_3 - 0.5)))
+#     # subject to:
+#     #          x_i in [0, 1], i = 1, 2, 3
+#     """
 class HCF(BaseModel):
     def __init__(self, obj_names: list, const_names: list, var_ranges: list):
         '''
-        :param objs: list, name of objectives
+        :param obj_names: list, name of objectives
+        :param const_names: list, constraint names
         :param training_vars: ndarray(n_training_samples, n_vars), input to train GPR models
         '''
         super().__init__(obj_names + const_names)
@@ -121,6 +72,14 @@ class HCF(BaseModel):
         return conf_max, conf_min
 
     def internal_prediction(self, name, config_norm, *args):
+        '''
+        get predictions
+        :param name: str, a objective/cosntraint name
+        :param config_norm: Tensor/ndarray(1(batch_size), n_vars), normalized input
+        :param args: tuple
+        :return:
+                value: ndarray/Tensor
+        '''
         # transfrom x from the normalized range into the original searching range
         if self.n_obj == 2:
             x1_min, x2_min = self.var_ranges[0, 0], self.var_ranges[1, 0]
@@ -166,8 +125,9 @@ class HCF_functions:
     def __init__(self, obj_names: list, const_names: list, var_ranges):
         '''
         initialization
-        :param objs: list, name of objectives
-        :param training_vars: ndarray(n_samples, n_vars), input used to train GPR model.
+        :param obj_names: list, name of objectives
+        :param const_names: list, constraint names
+        :param var_ranges: ndarray(n_vars, ), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
         '''
         self.hcf = HCF(obj_names, const_names, var_ranges)
 
@@ -176,7 +136,6 @@ class HCF_functions:
 
     def predict_obj1(self, vars, wl_id=None):
         obj = "obj_1"
-        # value = self.hcf.predict(obj, vars).reshape(-1,1)
         if not th.is_tensor(vars):
             value = self.hcf.predict(obj, vars)
         else:
@@ -185,7 +144,6 @@ class HCF_functions:
 
     def predict_obj2(self, vars, wl_id=None):
         obj = "obj_2"
-        # value = self.hcf.predict(obj, vars).reshape(-1,1)
         if not th.is_tensor(vars):
             value = self.hcf.predict(obj, vars)
         else:
@@ -194,7 +152,6 @@ class HCF_functions:
 
     def predict_obj3(self, vars, wl_id=None):
         obj = "obj_3"
-        # value = self.hcf.predict(obj, vars).reshape(-1,1)
         if not th.is_tensor(vars):
             value = self.hcf.predict(obj, vars)
         else:
@@ -204,7 +161,6 @@ class HCF_functions:
     # only used for 2D example
     def const_func1(self, vars, wl_id=None):
         const = "g1"
-        # value = self.hcf.predict(const, vars).reshape(-1,1)
         if not th.is_tensor(vars):
             value = self.hcf.predict(const, vars)
         else:
@@ -213,7 +169,6 @@ class HCF_functions:
 
     def const_func2(self, vars, wl_id=None):
         const = "g2"
-        # value = self.hcf.predict(const, vars).reshape(-1,1)
         if not th.is_tensor(vars):
             value = self.hcf.predict(const, vars)
         else:

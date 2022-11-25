@@ -13,10 +13,36 @@ from optimization.model.base_model import BaseModel
 import numpy as np
 import torch as th
 
+#     An example: 2D
+#     https://en.wikipedia.org/wiki/Test_functions_for_optimization#Test_functions_for_multi-objective_optimization_problems
+#     Binh and Korn function:
+#     # minimize:
+#     #          f1(x1, x2) = 4 * x_1 * x_1 + 4 * x_2 * x_2
+#     #          f2(x1, x2) = (x_1 - 5) * (x_1 - 5) + (x_2 - 5) * (x_2 - 5)
+#     # subject to:
+#     #          g1(x_1, x_2) = (x_1 - 5) * (x_1 - 5) + x_2 * x_2 <= 25
+#     #          g2(x_1, x_2) = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) >= 7.7
+#     #          x_1 in [0, 5], x_2 in [0, 3]
+#     """
+
+# """
+#     An example: 3D
+#     https://pymoo.org/problems/many/dtlz.html#DTLZ1
+#     DTLZ1 function with 3 objectives and 3 variables:
+#     # minimize:
+#     #          f1(x_1, x_2, x_3) = 1/2 * x_1 * x_2 * (1 + g(x_3))
+#     #          f2(x_1, x_2, x_3) = 1/2 * x_1 * (1 - x_2) * (1 + g(x_3))
+#     #          f2(x_1, x_2, x_3) = 1/2 * (1 - x_1) * (1 + g(x_3))
+#     # where g(x_3) = 100 * (1 + (x_3 - 0.5)^2 - cos(20 * pi * (x_3 - 0.5)))
+#     # subject to:
+#     #          x_i in [0, 1], i = 1, 2, 3
+#     """
+
 class GPR(BaseModel):
     def __init__(self, obj_names: list, const_names: list, training_vars: np.ndarray, var_ranges: list):
         '''
         :param objs: list, name of objectives
+        :param const_names: list, constraint names
         :param training_vars: ndarray(n_training_samples, n_vars), input to train GPR models
         '''
         super().__init__(obj_names + const_names)
@@ -174,7 +200,7 @@ class GPR(BaseModel):
         '''
         get prediction of the objective based on the GPR predictive model
         :param obj: str, name of the objective
-        :param X_test: ndarray(n_x, n_vars), input of the predictive model, where n_x shows the number of input variables
+        :param X_test: ndarray(n_x, n_vars), normalized value, input of the predictive model, where n_x shows the number of input variables
         :return:
                 yhat: Tensor(n_x,), the prediction of the objective
         '''
@@ -223,7 +249,8 @@ class GPRPredictiveModels:
     def __init__(self, obj_names: list, const_names: list, training_vars: np.ndarray, var_ranges: list):
         '''
         initialization
-        :param objs: list, name of objectives
+        :param obj_names: list, name of objectives
+        :param const_names: list, constraint names
         :param training_vars: ndarray(n_samples, n_vars), input used to train GPR model.
         '''
         self.training_vars = training_vars

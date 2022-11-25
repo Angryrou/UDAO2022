@@ -30,8 +30,9 @@ class ProgressiveFrontier(BaseMOO):
         :param opt_type: list, objectives to minimize or maximize
         :param const_funcs: list, constraint functions
         :param const_types: list, constraint types ("<=" "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
-        :param wl_list: list, each element is a string to indicate workload id (fixme)
-        :param wl_ranges: dict, each key is the workload id (fixme)
+        :param opt_obj_ind: int, the index of the objective to be optimized
+        :param wl_list: None/list, each element is a string to indicate workload id
+        :param wl_ranges: function, provided by users, to return upper and lower bounds of variables (used in MOGD)
         :param vars_constraints: dict, keys are "conf_min" and "conf_max" to indicate the variable range (only used in MOGD)
         :param accurate: bool, to indicate whether the predictive model is accurate (True) (used in MOGD)
         :param std_func: function, used in in-accurate predictive models
@@ -109,19 +110,6 @@ class ProgressiveFrontier(BaseMOO):
         for i in range(n_objs):
             objs, vars = self.get_anchor_points(wl_id, obj_names, i, accurate, alpha, var_types, var_bounds, precision_list, anchor_option=anchor_option)
             plans.append(Points(objs, vars))
-        # for i in range(n_objs):
-        #     objs = np.ones([n_objs, ])
-        #     obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[i], accurate=accurate, alpha=alpha, opt_obj_ind=i, var_types=var_types,
-        #                                                var_ranges=var_bounds, precision_list=precision_list)
-        #     # fixme: normalize vars for Java PF, to be generalized
-        #     vars_max, vars_min = self.wl_ranges[wl_id].data_max_, self.wl_ranges[wl_id].data_min_
-        #     vars_norm = (vars[0] - vars_min) / (vars_max - vars_min)
-        #     # uses conf to get predictions
-        #     for j in range(n_objs):
-        #         objs[j] = self.obj_funcs[j](wl_id, vars_norm) * moo_ut._get_direction(opt_type=self.opt_type, obj_index=j)
-        #     plans.append(Points(np.array(objs), vars))
-        #     # print(f'{obj_names[i]} value from SO is: {objs}')
-
         ## compute initial utopia and nadir point
         utopia, nadir = self.get_utopia_and_nadir(plans, n_objs)
         if utopia == None:
@@ -229,7 +217,7 @@ class ProgressiveFrontier(BaseMOO):
             all_vars_list.append(vars.tolist())
 
         if verbose:
-            #fixme: currently to be the same as Java PF
+            #fixme: to be the same as Java PF
             if n_objs == 2:
                 opt_obj_ind = 0
             elif n_objs == 3:
@@ -308,7 +296,22 @@ class ProgressiveFrontier(BaseMOO):
         return np.array(all_objs_list), np.array(all_vars_list)
 
     def get_anchor_points(self, wl_id, obj_names, obj_ind, accurate, alpha, var_types, var_bounds, precision_list, anchor_option="2_step", verbose=False):
-
+        '''
+        get anchor points
+        :param wl_id: str, workload id, e.g. '1-7'
+        :param obj_names: list, objective names
+        :param obj_ind: int, objective index
+        :param accurate:  bool, whether the predictive model is accurate (True) or not (False), used in MOGD
+        :param alpha: float, the value used in loss calculation of the inaccurate model
+        :param var_types: list, variable types (float, integer, binary, enum)
+        :param var_bounds: ndarray (n_vars,), the lower and upper var_ranges of non-ENUM variables, and values of ENUM variables
+        :param precision_list: list, precision for all variables
+        :param anchor_option: str, a choice for anchor points calculation
+        :param verbose: bool, to indicate whether to print information
+        :return:
+                objs: ndarray(n_objs,), objective values
+                vars: ndarray(1, n_vars), variable values
+        '''
         obj, vars = self.mogd.single_objective_opt(wl_id, obj=obj_names[obj_ind], accurate=accurate, alpha=alpha,
                                                    opt_obj_ind=obj_ind, var_types=var_types,
                                                    var_ranges=var_bounds, precision_list=precision_list)
@@ -319,7 +322,7 @@ class ProgressiveFrontier(BaseMOO):
         for j in range(n_objs):
             objs[j] = self.obj_funcs[j](vars, wl_id) * moo_ut._get_direction(opt_type=self.opt_type, obj_index=j)
 
-        # if the current objective type is Integer, further find the
+        # If the current objective type is Integer, further find the optimal value for other objectives with float type
         if anchor_option == "2_step":
             if self.obj_types[obj_ind] == VarTypes.INTEGER:
                 utopia_init = np.zeros([n_objs, ])
@@ -464,7 +467,7 @@ class ProgressiveFrontier(BaseMOO):
 
     def _form_obj_bounds_dict(self, utopia, nadir, obj_names, opt_obj_ind):
         '''
-        fixme: form the dict used in the constrained optimization
+        form the dict used in the constrained optimization
         e.g. the format:
         obj_bounds_dict = {"latency": [solver_ut._get_tensor(0), solver_ut._get_tensor(10000000)],
                       "cores": [solver_ut._get_tensor(0), solver_ut._get_tensor(58)]

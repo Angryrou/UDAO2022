@@ -6,7 +6,7 @@
 
 from optimization.moo.generic_moo import GenericMOO
 from utils.optimization.configs_parser import ConfigsParser
-from examples.optimization.heuristic_closed_form.model import HCF, HCF_functions, HCF_3D
+from examples.optimization.heuristic_closed_form.model import HCF_functions
 import utils.optimization.moo_utils as moo_ut
 
 import numpy as np
