@@ -20,7 +20,7 @@ class GPR(BaseModel):
         :param training_vars: ndarray(n_training_samples, n_vars), input to train GPR models
         '''
         super().__init__(obj_names + const_names)
-        self.n_obj = len(obj_names)
+        self.n_objs = len(obj_names)
         self.initialize(training_vars, var_ranges)
 
     def initialize(self, training_vars, var_ranges):
@@ -68,27 +68,8 @@ class GPR(BaseModel):
         y_dict = {}
         # objective functions are the same as that in HCF
         for name in self.target_objs:
-            # if len(self.objs) == 2:
-            #     if obj == "obj_1":
-            #         y = 4 * vars[:, 0] * vars[:, 0] + 4 * vars[:, 1] * vars[:, 1]
-            #     elif obj == "obj_2":
-            #         y = (vars[:, 0] - 5) * (vars[:, 0] - 5) + (vars[:, 1] - 5) * (vars[:, 1] - 5)
-            #     else:
-            #         raise Exception(f"Objective {obj} is not configured in the configuration file!")
-            # elif len(self.objs) == 3:
-            #     g = 100 * (1 + (vars[:, 2] - 0.5) * (vars[:, 2] - 0.5) - np.cos(20 * np.pi * (vars[:, 2] - 0.5)))
-            #     if obj == "obj_1":
-            #         y = 0.5 * vars[:, 0] * vars[:, 1] * (1 + g)
-            #     elif obj == "obj_2":
-            #         y = 0.5 * vars[:, 0] * ( 1 - vars[:, 1]) * (1 + g)
-            #     elif obj == "obj_3":
-            #         y = 0.5 * (1 - vars[:, 0]) * (1 + g)
-            #     else:
-            #         raise Exception(f"Objective {obj} is not configured in the configuration file!")
-            # else:
-            #     raise Exception(f"{len(self.objs)} objectives are not supported for now!")
             # transfrom x in the original space as (
-            if self.n_obj == 2:
+            if self.n_objs == 2:
                 x1_min, x2_min = self.var_ranges[0, 0], self.var_ranges[1, 0]
                 x1_range, x2_range = (self.var_ranges[0, 1] - x1_min), (self.var_ranges[1, 1] - x2_min)
                 x_1 = vars[:, 0] * x1_range + x1_min
@@ -103,10 +84,10 @@ class GPR(BaseModel):
                     value = (x_1 - 8) * (x_1 - 8) + (x_2 + 3) * (x_2 + 3) - 7.7
                 else:
                     raise Exception(f"Objective/constraint {name} is not valid for prediction!")
-            elif self.n_obj == 3:
+            elif self.n_objs == 3:
                 x1_min, x2_min, x3_min = self.var_ranges[0, 0], self.var_ranges[1, 0], self.var_ranges[2, 0]
                 x1_range, x2_range, x3_range = (self.var_ranges[0, 1] - x1_min), (self.var_ranges[1, 1] - x2_min), (
-                            self.var_ranges[2, 1] - x3_min)
+                        self.var_ranges[2, 1] - x3_min)
                 x_1 = vars[:, 0] * x1_range + x1_min
                 x_2 = vars[:, 1] * x2_range + x2_min
                 x_3 = vars[:, 2] * x3_range + x3_min
@@ -171,27 +152,6 @@ class GPR(BaseModel):
         '''
         return self.magnitude * th.exp(-self.gs_dist(x1, x2) / self.length_scale)
 
-    def objective_std(self, X_test, X_train, K_inv, y_scale):
-        '''
-        [todo] used for loss of inaccurate models in MOGD
-        :param X_test: Tensor(n_x, n_vars), input of the predictive model, where n_x shows the number of input variables
-        :param X_train: Tensor(n_training_samples, n_vars), input to train GPR models
-        :param K_inv: Tensor(n_training_samples, n_training_samples), inversion of the covariance matrix
-        :param y_scale:
-        :return:
-        '''
-        K_tete = self.get_kernel(X_test, X_test) # (1,1)
-        K_tetr = self.get_kernel(X_test, X_train) # (1, N)
-        K_trte = K_tetr.t() # (N,1)
-        var = K_tete - th.matmul(th.matmul(K_tetr, K_inv), K_trte) # (1,1)
-        var_diag = var.diag()
-        try:
-            std = th.sqrt(var_diag)
-        except:
-            std = var_diag - var_diag
-            print('!!! var < 0')
-        return std * y_scale
-
     def objective(self, X_test, X_train, y_train, K_inv):
         '''
         call GPR model to get objective values
@@ -226,7 +186,7 @@ class GPR(BaseModel):
         y_train = y_dict[name]
         yhat = self.objective(X_test, X_train, y_train, K_inv).view(-1, 1)
         if return_numpy_flag:
-            yhat = yhat.data.numpy().squeeze()
+            yhat = yhat.data.numpy()
         return yhat
 
     def _get_tensor(self, x, dtype=None, device=None):
