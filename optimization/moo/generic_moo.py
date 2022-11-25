@@ -191,10 +191,6 @@ class GenericMOO:
                 time_cost_list.append(time_cost)
             return po_objs_list, po_vars_list, job_ids, time_cost_list
 
-        elif moo_algo == "mobo":
-            raise NotImplementedError
-        elif moo_algo == "normalized_normal_constraint":
-            raise NotImplementedError
         else:
             raise NotImplementedError
 

@@ -11,7 +11,7 @@
   * [Heuristic Closed Form - 2D](#heuristic-closed-form---2d)
   * [Gaussian Process Regressor - 2D](#gaussian-process-regressor---2d)
   * [Neural Network - 2D](#neural-network---2d)
-  * [TO ADD - 3D](#qi---3d)
+  * [Heuristic Closed Form - 3D](#heuristic-closed-form---3d)
 * [Features in the next release](#features-in-the-next-release)
 
 ## Quick Start
@@ -306,7 +306,8 @@ Pareto Frontiers of different MOO methods.
 Bug detected. We will update in the next release.
 
 ### Heuristic Closed Form - 3D 
-Following the [DTLZ1](https://pymoo.org/problems/many/dtlz.html#DTLZ1) problem, when we have three objectives in the form of HCF without any constraints, we show the execution code and results of different MOO methods with solvers below.
+Following the [DTLZ1](https://pymoo.org/problems/many/dtlz.html#DTLZ1) problem, when we have three objectives in the form of [heuristic closed form (HCF)](../../examples/optimization/heuristic_closed_form/model.py)
+without any constraints, we show the execution code and results of different MOO methods with solvers below.
 
 ```bash
 export PYTHONPATH=$PWD
