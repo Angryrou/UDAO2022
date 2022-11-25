@@ -102,7 +102,7 @@ In the above example, we got 11 Pareto solutions and the first Pareto solution i
 
 The results are also shown in the figure below, where the blue points are the Pareto solutions returned by the Weighted Sum method with te `grid_search` solver in the 2D objective space.
 
-![img_1.png](./img_1.png)
+![img_1.png](figs/quick_start.png)
 
 </details>
 
@@ -274,8 +274,8 @@ python examples/optimization/heuristic_closed_form/evo.py -c examples/optimizati
 
 Pareto Frontiers of different MOO methods.
 <p float="left">
-  <img src="./img_12.png" width="48%" />
-  <img src="./img_14.png" width="48%" />
+  <img src="figs/hcf-2d-1.png" width="48%" />
+  <img src="figs/hcf-2d-2.png" width="48%" />
 </p>
 
 ### Gaussian Process Regressor - 2D
@@ -297,8 +297,8 @@ python examples/optimization/gaussian_process_regressor/evo.py -c examples/optim
 
 Pareto Frontiers of different MOO methods.
 <p float="left">
-  <img src="./img_11.png" width="48%" />
-  <img src="./img_15.png" width="48%" />
+  <img src="figs/gpr-2d-1.png" width="48%" />
+  <img src="figs/gpr-2d-2.png" width="48%" />
 </p>
 
 ### Neural Network - 2D
@@ -324,8 +324,8 @@ python examples/optimization/neural_network/evo.py -c examples/optimization/neur
 
 Pareto Frontiers of different MOO methods.
 <p float="left">
-  <img src="./img_13.png" width="48%" />
-  <img src="./img_16.png" width="48%" />
+  <img src="figs/nn-2d-1.png" width="48%" />
+  <img src="figs/nn-2d-2.png" width="48%" />
 </p>
 
 ### @Qi - 3D 
