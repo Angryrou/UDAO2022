@@ -81,11 +81,39 @@ for i, wl_id in enumerate(jobIds):
             raise Exception(f"Solver {solver} is not available!")
         print("Test successfully!")
 
-        # save data
-        data_path = f"./examples/optimization/heuristic_closed_form/data/{moo_algo}/{po_objs.shape[1]}d/{solver}/"
-        results = np.hstack([po_objs, po_vars])
-        moo_ut.save_results(data_path, results, wl_id, mode="data")
-        moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+    elif len(obj_names) == 3:
+        if solver == "grid_search":
+            assert (np.round(po_vars, 5) == np.round(np.array(
+                [[0.,1.,0.],
+                 [1.,0.,0.],
+                 [0.,0.,0.]]
+            ), 5)).all()
+        elif solver == "random_sampler":
+            assert (np.round(po_vars, 5) == np.round(np.array(
+                [[6.10785371e-02,9.98526578e-01,4.00510464e-01],
+                 [9.99808578e-01,4.78738524e-03,9.36607012e-02],
+                 [9.94400790e-01,7.12892303e-01,4.02908445e-01],
+                 [6.95625446e-01,6.51214685e-02,5.01591471e-01],
+                 [6.98248478e-01,6.62856479e-01,4.98639353e-01],
+                 [3.41698115e-01,7.89869503e-01,5.00692099e-01],
+                 [5.02720761e-01,5.46868179e-01,5.00677021e-01],
+                 [1.81150962e-01,3.05046698e-01,5.00537459e-01],
+                 [1.00014061e-01,5.15433087e-01,4.99461489e-01],
+                 [5.45964897e-04,3.40604644e-01,4.97363117e-01],
+                 [1.14274586e-02,7.69155525e-01,5.03527820e-01]]
+            ), 5)).all()
+        else:
+            raise Exception(f"Solver {solver} is not available!")
+        print("Test successfully!")
 
-        # if po_objs is not None:
-        #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title=f"ws_hcf_{solver}")
+    else:
+        Exception(f"{len(obj_names)} objectives are not supported in the code repository for now!")
+
+    # save data
+    data_path = f"./examples/optimization/heuristic_closed_form/data/{moo_algo}/{po_objs.shape[1]}d/{solver}/"
+    results = np.hstack([po_objs, po_vars])
+    moo_ut.save_results(data_path, results, wl_id, mode="data")
+    moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+
+    # if po_objs is not None:
+    #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title=f"ws_hcf_{solver}")

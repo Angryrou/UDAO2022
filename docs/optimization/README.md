@@ -251,7 +251,7 @@ We provide three examples to do MOO, including
 - [2D] when two objectives are both in the form of heuristic closed form (HCF)
 - [2D] when two objectives are both from gaussian process regressors (GPR)
 - ~~[2D] (bug) when two objectives can be either in the form of Neural Network (NN) or HCF.~~
-- [3D] @Qi
+- [3D] when three objectives are all in the form of HCF
 
 ### Heuristic Closed Form - 2D 
 
@@ -305,7 +305,25 @@ Pareto Frontiers of different MOO methods.
 
 Bug detected. We will update in the next release.
 
-### @Qi - 3D 
+### Heuristic Closed Form - 3D 
+Following the [DTLZ1](https://pymoo.org/problems/many/dtlz.html#DTLZ1) problem, when we have three objectives in the form of HCF without any constraints, we show the execution code and results of different MOO methods with solvers below.
+
+```bash
+export PYTHONPATH=$PWD
+
+# 1. WS (with two solvers `grid_search` and `random_sampler`)
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/3d/ws_grid_search.json
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/3d/ws_random_sampler.json
+# 2. PF-AP (with MOGD)
+python examples/optimization/heuristic_closed_form/pf.py -c examples/optimization/heuristic_closed_form/configs/3d/pf_mogd.json
+# 3. EVO (with NSGA-II)
+python examples/optimization/heuristic_closed_form/evo.py -c examples/optimization/heuristic_closed_form/configs/3d/evo.json
+```
+
+<p float="left">
+  <img src="figs/hcf-3d-1.png" width="48%" />
+  <img src="figs/hcf-3d-2.png" width="48%" />
+</p>
 
 ## Features in the Next Release
 

@@ -85,5 +85,5 @@ for i, wl_id in enumerate(jobIds):
         moo_ut.save_results(data_path, results, wl_id, mode="data")
         moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
 
-        if po_objs is not None:
-            moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="pf_gpr_PF-AP")
+        # if po_objs is not None:
+        #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="pf_gpr_PF-AP")

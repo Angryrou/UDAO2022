@@ -78,12 +78,37 @@ for i, wl_id in enumerate(jobIds):
         #      [0.  ,0.  ]]
         # )).all()
         print("Test successfully!")
+    elif len(obj_names) == 3:
+        # pf-ap
+        assert (po_vars == np.array(
+            [[0.  ,0.27,0.39],
+             [0.  ,0.07,0.39],
+             [0.4 ,0.87,0.19],
+             [0.4 ,0.67,0.19],
+             [0.27,0.81,1.  ],
+             [0.08,0.06,1.  ],
+             [0.  ,0.24,1.  ]]
+        )).all()
 
-        # save data
-        data_path = f"./examples/optimization/heuristic_closed_form/data/{moo_algo}/{po_objs.shape[1]}d/{solver}/"
-        results = np.hstack([po_objs, po_vars])
-        moo_ut.save_results(data_path, results, wl_id, mode="data")
-        moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+        # # pf-as
+        # assert (po_vars == np.array(
+        #     [[0.  ,0.29,0.8 ],
+        #      [0.  ,0.07,0.39],
+        #      [0.1 ,0.  ,1.  ],
+        #      [0.23,0.  ,1.  ],
+        #      [0.4 ,0.67,0.19],
+        #      [1.  ,0.  ,0.22]]
+        # )).all()
+        print("Test successfully!")
 
-        if po_objs is not None:
-            moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="pf_hcf_PF-AS")
+    else:
+        Exception(f"{len(obj_names)} objectives are not supported in the code repository for now!")
+
+    # save data
+    data_path = f"./examples/optimization/heuristic_closed_form/data/{moo_algo}/{po_objs.shape[1]}d/{solver}/"
+    results = np.hstack([po_objs, po_vars])
+    moo_ut.save_results(data_path, results, wl_id, mode="data")
+    moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+
+    if po_objs is not None:
+        moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="pf_hcf_PF-AS")

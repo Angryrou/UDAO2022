@@ -85,12 +85,37 @@ for i, wl_id in enumerate(jobIds):
              [1.90773962,0.4527134 ]]
         ), 5)).all()
         print("Test successfully!")
+    elif len(obj_names) == 3:
+        assert (np.round(po_vars, 5) == np.round(np.array(
+            [[0.26791931,0.61499972,0.50280342],
+             [0.25118901,0.91492858,0.40493414],
+             [0.26294469,0.87027311,0.40493414],
+             [0.26294469,0.90674546,0.40493414],
+             [0.26294469,0.92482828,0.40493414],
+             [0.28527238,0.90674546,0.40493414],
+             [0.33391268,0.88321331,0.40493414],
+             [0.43418336,0.90972099,0.50468686],
+             [0.56767221,0.90811384,0.50468686],
+             [0.56767221,0.90814917,0.50468686],
+             [0.56767221,0.90975727,0.50468686],
+             [0.5704818 ,0.46957565,0.50468686],
+             [0.5793541 ,0.36562543,0.50468686],
+             [0.5793541 ,0.4039538 ,0.50468686],
+             [0.5793541 ,0.51262817,0.50468686],
+             [0.58338204,0.90811289,0.50468686],
+             [0.58397347,0.90811289,0.50468686],
+             [0.58397347,0.90972099,0.50468686],
+             [0.58398355,0.90972099,0.50468686]]
+        ), 5)).all()
+        print("Test successfully!")
+    else:
+        Exception(f"{len(obj_names)} objectives are not supported in the code repository for now!")
 
-        # save data
-        data_path = f"./examples/optimization/heuristic_closed_form/data/{moo_algo}/{po_objs.shape[1]}d/"
-        results = np.hstack([po_objs, po_vars])
-        moo_ut.save_results(data_path, results, wl_id, mode="data")
-        moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
+    # save data
+    data_path = f"./examples/optimization/heuristic_closed_form/data/{moo_algo}/{po_objs.shape[1]}d/"
+    results = np.hstack([po_objs, po_vars])
+    moo_ut.save_results(data_path, results, wl_id, mode="data")
+    moo_ut.save_results(data_path, [time_cost], wl_id, mode="time")
 
-        # if po_objs is not None:
-        #     moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="evo_hcf")
+    if po_objs is not None:
+        moo_ut.plot_po(po_objs, n_obj=po_objs.shape[1], title="evo_hcf")

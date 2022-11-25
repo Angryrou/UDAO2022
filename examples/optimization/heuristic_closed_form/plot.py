@@ -11,6 +11,7 @@
 # Created at 25/11/2022
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
 
 def read_data(file, n_obj):
     data = np.loadtxt(file, dtype='float32')
@@ -46,22 +47,48 @@ if __name__ == '__main__':
     algos = ["pf_ap", "ws_grid", "ws_random", "evo"]
     root_path = "examples/optimization/heuristic_closed_form/data/"
 
-    fig, ax = plt.subplots()
-    fig1, axs = plt.subplots(2,2)
+    # ## for 2D
+    # fig, ax = plt.subplots()
+    # fig1, axs = plt.subplots(2,2)
+    # for i, algo in enumerate(algos):
+    #     data_file = get_data_file(root_path, algo, mode="2d")
+    #     po = read_data(data_file, n_obj=2)
+    #
+    #     ax.plot(po[:, 0], po[:, 1], marker='o', label=algo)
+    #     axs[int(i/2), i%2].plot(po[:, 0], po[:, 1], marker='o')
+    #     axs[int(i/2), i%2].set_xlabel('Obj_1')
+    #     axs[int(i/2), i%2].set_ylabel('Obj_2')
+    #     axs[int(i/2), i%2].set_title(f'{algo}')
+    #
+    # ax.set_xlabel('Obj_1')
+    # ax.set_ylabel('Obj_2')
+    # ax.set_title('Pareto frontiers of MOO algorithms')
+    # ax.legend()
+
+    # for 3D
+    # fig3, ax3 = plt.subplots(projection='3d')
+    # fig4, axs4 = plt.subplots(2, 2, projection='3d')
+    fig3, fig4 = plt.figure(), plt.figure()
+    ax3 = fig3.gca(projection='3d')
     for i, algo in enumerate(algos):
-        data_file = get_data_file(root_path, algo, mode="2d")
-        po = read_data(data_file, n_obj=2)
+        data_file = get_data_file(root_path, algo, mode="3d")
+        po = read_data(data_file, n_obj=3)
+        ax3.plot_trisurf(po[:, 0], po[:, 1], po[:, 2], alpha=0.5)
+        ax3.scatter(po[:, 0], po[:, 1], po[:, 2], label=algo)
+        ax4 = fig4.add_subplot(2, 2, i+1, projection = '3d')
+        ax4.plot_trisurf(po[:, 0], po[:, 1], po[:, 2], alpha=0.5)
+        ax4.scatter(po[:, 0], po[:, 1], po[:, 2])
+        ax4.set_xlabel('Obj_1')
+        ax4.set_ylabel('Obj_2')
+        ax4.set_title(f'{algo}')
 
-        ax.plot(po[:, 0], po[:, 1], marker='o', label=algo)
-        axs[int(i/2), i%2].plot(po[:, 0], po[:, 1], marker='o')
-        axs[int(i/2), i%2].set_xlabel('Obj_1')
-        axs[int(i/2), i%2].set_ylabel('Obj_2')
-        axs[int(i/2), i%2].set_title(f'{algo}')
+    ax3.set_xlabel('Obj_1')
+    ax3.set_ylabel('Obj_2')
+    ax3.set_zlabel('Obj_3')
+    ax3.set_title('Pareto frontiers of MOO algorithms')
+    ax3.legend()
 
-    ax.set_xlabel('Obj_1')
-    ax.set_ylabel('Obj_2')
-    ax.set_title('Pareto frontiers of MOO algorithms')
-    ax.legend()
     plt.tight_layout()
     plt.show()
+
 
