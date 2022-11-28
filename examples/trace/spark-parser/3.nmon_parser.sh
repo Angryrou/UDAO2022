@@ -11,7 +11,7 @@ else
   echo "unsupported input $input"
 fi
 
-for worker in workers
+for worker in $workers
 do
   echo "start working on ${worker}.nmon"
   pyNmonAnalyzer -i $header/${worker}.nmon -o nmon_extracted/${worker}
