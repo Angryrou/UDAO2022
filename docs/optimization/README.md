@@ -11,9 +11,22 @@
   * [Heuristic Closed Form - 2D](#heuristic-closed-form---2d)
   * [Gaussian Process Regressor - 2D](#gaussian-process-regressor---2d)
   * [Neural Network - 2D](#neural-network---2d)
+  * [Heuristic Closed Form - 3D](#heuristic-closed-form---3d)
 * [Features in the next release](#features-in-the-next-release)
 
-## Multi-Objective Optimization Problem
+## Quick Start
+
+### Installation
+```bash
+git clone --depth 1 --branch moo-release-v0.1 git@github.com:Angryrou/UDAO2022.git
+conda create -n udao2022 python=3.9
+conda activate udao2022
+pip install -r requirements.txt
+```
+
+_Note: we only tested PF-AP for Intel chips on Mac and CentOS._
+
+### Multi-Objective Optimization Problem
 
 The Multi-Objective Optimization (MOO) problem could be represented as follows, which includes `k` objectives to be optimized, where along with `m` inequality and `e` equality constraints. The variables **x** are set with lower and upper bounds by $\mathbf{l}$ and $\mathbf{u}$.
 
@@ -30,7 +43,7 @@ Generally, optimization of objectives is minimization or maximization.
 Constraints include inequality and equaility types.
 Common types of variables include `FLOAT`, `INTEGER`, `BINARY` and `ENUM`, where `BINARY` only includes values 0 and 1, `ENUM` type is for multiple (2+) categorical values.
 
-## Quick Start
+### MOO example
 The following shows an MOO problem example (Binh and Korn function [[1], [2]]) with 2 objectives, 2 constraints and 2 variables.
 
 $$ \mathop{\rm{Minimize}}\limits_{\rm{\bf{x}}} \\ \\ \mathit{F}_1(\mathbf{x}) = 4 {x_1}^2 + 4 {x_2}^2 $$
@@ -45,41 +58,42 @@ $$ (x_1 - 5)^2 + (x_2 + 5)^2 \geq 7.7 &ensp; &ensp;$$
 $$ &ensp; &ensp; 0 \le x_1 \le 5, 0 \le x_2 \le 3 $$
 
 The optimization package allows users to define their problems from Python. 
-For the details of how to set up problems and how the APIs works internally, please see sections of [how to run MOO](#how-to-run-moo) and [APIs in Optimization package](#apis-in-optimization-package) in the later content.
+For the details of how to set up problems and how the APIs works internally, please see sections of [How to Run MOO](#how-to-run-moo) and [APIs in the Package](#apis-in-the-package) in the later content.
 
 <details>
 <summary>Here is an example for solving the above problem by the Weighted Sum method with the `grid_search` solver.</summary> 
 
 ```bash
 export PYTHONPATH=$PWD # export PYTHONPATH=~/your_path_to/UDAO2022
-python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/2d/ws_grid_search.json
 
 # output
-# 
-# Pareto solutions:
+#
+# Pareto solutions of wl_None:
 # [[136.           4.        ]
-#  [111.46168758   4.43107846]
-#  [ 91.87184981   5.59422508]
-#  [ 76.49586777   7.30578512]
-#  [ 55.11196287  11.28420868]
-#  [ 36.07134342  16.54943324]
-#  [ 21.91174746  22.37910939]
-#  [ 11.69498623  28.74223293]
-#  [  4.75380386  35.77349741]
-#  [  1.22116206  42.49604225]
+#  [109.71696766   4.49994898]
+#  [ 87.43352719   5.99979594]
+#  [ 70.79318437   8.2033466 ]
+#  [ 46.43158861  13.42607897]
+#  [ 27.63554739  19.73716968]
+#  [ 14.87603306  26.44628099]
+#  [  6.03775125  34.13570044]
+#  [  1.37292113  42.060402  ]
 #  [  0.          50.        ]]
-# Variables:
-# [[5.         3.        ]
-#  [4.34343434 3.        ]
-#  [3.73737374 3.        ]
-#  [3.18181818 3.        ]
-#  [2.62626263 2.62311558]
-#  [2.12121212 2.12562814]
-#  [1.66666667 1.64321608]
-#  [1.21212121 1.20603015]
-#  [0.75757576 0.7839196 ]
-#  [0.4040404  0.37688442]
-#  [0.         0.        ]]
+# Variables of wl_None:
+# [[0.         0.        ]
+#  [0.70707071 0.        ]
+#  [1.41414141 0.        ]
+#  [2.02020202 0.03030303]
+#  [2.57575758 0.60606061]
+#  [3.13131313 1.15151515]
+#  [3.63636364 1.63636364]
+#  [4.14141414 2.12121212]
+#  [4.5959596  2.57575758]
+#  [5.         3.        ]]
+# Time cost of wl_None:
+# 0.00973200798034668
+# Test successfully!
 ```
 
 The output includes the Pareto solutions and the corresponding variables. The `Pareto solutions` is stacked by a set of Pareto solutions with each column representing the value of one objective.
@@ -88,7 +102,7 @@ In the above example, we got 11 Pareto solutions and the first Pareto solution i
 
 The results are also shown in the figure below, where the blue points are the Pareto solutions returned by the Weighted Sum method with te `grid_search` solver in the 2D objective space.
 
-![img_1.png](img_1.png)
+![img_1.png](figs/quick_start.png)
 
 </details>
 
@@ -96,103 +110,67 @@ The results are also shown in the figure below, where the blue points are the Pa
 The `optimization` package includes the `optimization.moo` package and the `optimization.solver` package. The `optimization.moo` package provides APIs to access all Multi-Objective Optimization (MOO) methods.
 The `optimization.solver` package is called by MOO methods internally in `optimization.moo` package. 
 
-The `optimization.moo` package provides an entry point API `optimization.moo.generic_moo.GenericMOO` to solve MOO problems. It specifies input parameters for an optimization problem and an MOO algorithm. Based on the choice parameter, the appropriate MOO algorithms run internally.
-
-<details>
-<summary>Detailed code snippet.</summary>
-
-```python
-class GenericMOO:
-
-    def __init__(self):
-        pass
-
-    def problem_setup(self, obj_names: list, obj_funcs: list, opt_types: list, const_funcs: list, const_types: list,
-                      var_types: list, var_ranges: list):
-        '''
-        setup common input paramters for MOO problems
-        :param obj_names: list, objective names
-        :param obj_funcs: list, objective functions
-        :param opt_types: list, objectives to minimize or maximize
-        :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types ("<=" "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :param var_ranges: ndarray(n_vars, ), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
-        :return:
-        '''
-        ...
-
-    def solve(self, moo_algo: str, solver: str, add_params: list):
-        '''
-        solve MOO problems internally by different MOO algorithms
-        :param moo_algo: str, the name of moo algorithm
-        :param solver: str, the name of solver
-        :param add_params: list, the parameters required by the specified MOO algorithm and solver
-        :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                 po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
-        '''
-        ...
-        return po_objs, po_vars
-```
-</details>
+The `optimization.moo` package provides an entry point at [`optimization.moo.generic_moo.GenericMOO`](../../optimization/moo/generic_moo.py) to solve MOO problems. It specifies input parameters for an optimization problem and an MOO algorithm. Based on the choice parameter, the appropriate MOO algorithms run internally.
 
 ## How to Run MOO
 
 ### Problem Setup
 
 1. create a directory under `example/optimization/<model>`, e.g., `example/optimization/heuristic_closed_form/`.
-
 2. add a **configuration file** to set up all the parameters for the MOO method.
    <details>
-    <summary><a href="./../../examples/optimization/heuristic_closed_form/configs/ws_grid_search.json">Here</a> is 
+    <summary><a href="./../../examples/optimization/heuristic_closed_form/configs/2d/ws_grid_search.json">Here</a> is 
       the configuration file for the example in the <a href="#quick-start">Quick Start</a>.</summary>
    
       ```json
-      {
-        "moo_algo": "weighted_sum", /* name of MOO algorithms */
-        "solver": "grid_search", /* name of the solver */
-        "variables": [
-          {
-            "name": "v1",
-            "type": "FLOAT",
-            "min": 0,
-            "max": 5
-          },
-          {
-            "name": "v2",
-            "type": "FLOAT",
-            "min": 0,
-            "max": 3
+    {
+      "moo_algo": "weighted_sum",
+      "solver": "grid_search",
+      "variables": [
+        {
+          "name": "v1",
+          "type": "FLOAT",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "v2",
+          "type": "FLOAT",
+          "min": 0,
+          "max": 3
+        }
+      ],
+      "objectives": [
+        {
+          "name": "obj_1",
+          "optimize_trend": "MIN",
+          "type": "FLOAT"
+        },
+        {
+          "name": "obj_2",
+          "optimize_trend": "MIN",
+          "type": "FLOAT"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "g1",
+          "type": "<="
+        },
+        {
+          "name": "g2",
+          "type": ">="
+        }
+      ],
+      "additional_params":
+        {
+          "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
+          "n_probes": 12,
+          "solver_params": {
+            "n_grids_per_var": [100, 100]
           }
-        ],
-        "objectives": [
-          {
-            "name": "obj_1",
-            "optimize_trend": "MIN", /* to minimize the objective  */
-            "type": "FLOAT"
-          },
-          {
-            "name": "obj_2",
-            "optimize_trend": "MIN",
-            "type": "FLOAT"
-          }
-        ],
-        "constraints": [
-          {
-            "name": "g1",
-            "type": "<="
-          },
-          {
-            "name": "g2",
-            "type": ">="
-          }
-        ],
-        "additional_params":
-          {
-            "ws_steps": 0.1, /* the weight of one objective changes as [0, 0.1, ..., 1]  */
-            "solver_params": [100, 200] /* the number of grids per variable  */
-          }
-      }
+        }
+    }
       ```
       NOTE: if the bounds of variables is infinity, please set it to a concrete number rather than setting it as `inf`
     </details>
@@ -207,7 +185,7 @@ the pre-defined functions for the objectives and constraints, and run it with th
 ```bash
 export PYTHONPATH=$PWD
 # python example/optimization/<model>/<moo-method>.py -c <configuration-file>
-python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/2d/ws_grid_search.json
 ```
 
 ## APIs in the Package
@@ -221,8 +199,6 @@ The following shows a tree structure of APIs in `optimization` package, where `m
 │   ├── base_moo.py
 │   ├── evolutionary.py
 │   ├── generic_moo.py
-│   ├── mobo.py
-│   ├── normalized_normal_constraint.py
 │   ├── progressive_frontier.py
 │   └── weighted_sum.py
 ├── model
@@ -237,28 +213,45 @@ The following shows a tree structure of APIs in `optimization` package, where `m
 ```
 
 Within the `moo` package, the `generic_moo` provides the entry point of all moo algorithms. The `base_moo` is the base API includes abstract methods, and all APIs of MOO algorithms extend this API. 
-`weighted_sum`, `progressive_frontier`, `evolutionary`, `mobo`(Multi-Objective Bayesian Optimization (MOBO), `normalized_normal_constraint` are MOO algorithms supported in the `optimization` package.
+`weighted_sum`, `progressive_frontier`, `evolutionary` are MOO algorithms supported in the `optimization` package.
 
 Within the `solver` package, the `base_solver` provides the base API includes abstract methods, and all solver APIs extend this API.
 `grid_search`, `random_sampler`, `mogd` (Multi-Objective Gradient Descent (MOGD)) are solvers supported in the `optimization` package.
 
 Within the `model` package, the `base_model` provides the base API includes abstract methods used in predictive models.
 
+## Supported Optimization Problems
+Currently, the `optimization` package supports to minimize/maximize problems with 2 and 3 objectives with/without constraints.
+
+Either objectives or constraint functions are supported to be represented as heuristic closed form (HCF) or predictive models (e.g. gaussian process regressors (GPR) or neural network (NN)).
+
+To represent the constraints, the constraint function g(x) follows a format of `g(x) - C >= 0` (or `==`, `<=`), where `C` is a constant. 
+
+For variables, the package supports `float`, `integer`, `binary` and `enum` (e.g. a variable is only supported with 2+ discrete values).
+
 ## MOO Algorithms
 
 The package provides MOO algorithms including:
 
 - [Weighted Sum (WS)][3] method adds different weights on different objectives to show the preferences or importance over all objectives. It transforms an MOO problem into a single-objective optimization problem. Our weighted sum works with the solver `grid_search` and `random_sampler`.
-- [todo] Progressive Frontier (PF) method ...
-- [todo] Evolutionary (Evo) algorithm ...
+- [Progressive Frontier (PF)](https://hal.inria.fr/hal-02549758/document) includes two approaches: PF-Approximation Sequential (PF-AS) and PF-Approximation Parallel (PF-AP). 
+  PF-AS generates Pareto points sequentially and consistently by exploring uncertainty space with maximum volume.
+  PF-AP generates Pareto points parallelly by exploring multiple sub-uncertainty-space at the same time. Both transform a MOO into a series of constrained single-objective optimization problems. By default, we use `PF-AP`.
+- Evolutionary (Evo) algorithms solve optimization problems by utilizing genetic operations (e.g. selection, crossover, mutation) over populations. 
+  [NSGA-II](https://web.njit.edu/~horacio/Math451H/download/2002-6-2-DEB-NSGA-II.pdf) is a classic evolutionary algorithm to solve MOO problem, which aims to generate a set of Pareto solutions while maintaining the diversity.
+  In the current repository, it calls the library [Platypus][1] with NSGA-II algorithm. 
+  
+Note:
 
-
+- `MOGD` solver requires that at least one objective should always be with positive values. 
+- `PF`: `PF` calls `MOGD` solver and by default we use `Pf-AP`. If there is any objective returns negative value or to be maximized, please treat it as a constraint rather than the objective to be optimized.
 ## Examples
 
 We provide three examples to do MOO, including
 - [2D] when two objectives are both in the form of heuristic closed form (HCF)
 - [2D] when two objectives are both from gaussian process regressors (GPR)
-- [2D] when one objective is a neural network (NN) and the other objective is HCF.
+- ~~[2D] (bug) when two objectives can be either in the form of Neural Network (NN) or HCF.~~
+- [3D] when three objectives are all in the form of HCF
 
 ### Heuristic Closed Form - 2D 
 
@@ -270,68 +263,73 @@ we show the execution code and results of different MOO methods with solvers bel
 ```bash
 export PYTHONPATH=$PWD
 
-# 1. WS 
-# WS with the grid_search solver
-python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_grid_search.json
-# WS with the random_sampler solver 
-python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/ws_random_sampler.json
-
-# [todo] 2. PF
-
-# [todo] ...
+# 1. WS (with two solvers `grid_search` and `random_sampler`)
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/2d/ws_grid_search.json
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/2d/ws_random_sampler.json
+# 2. PF-AP (with MOGD)
+python examples/optimization/heuristic_closed_form/pf.py -c examples/optimization/heuristic_closed_form/configs/2d/pf_mogd.json
+# 3. EVO (with NSGA-II)
+python examples/optimization/heuristic_closed_form/evo.py -c examples/optimization/heuristic_closed_form/configs/2d/evo.json
 ```
 
-[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
+Pareto Frontiers of different MOO methods.
+<p float="left">
+  <img src="figs/hcf-2d-1.png" width="48%" />
+  <img src="figs/hcf-2d-2.png" width="48%" />
+</p>
 
 ### Gaussian Process Regressor - 2D
 
-When we have two objectives (both are [GPR models](../../examples/optimization/gaussian_process_regressor/model.py)),
-and two constraints (two HCFs),
+When we have two objectives and two constraints (all are [GPR models](../../examples/optimization/gaussian_process_regressor/model.py)),
 we show the execution code and results of different MOO methods with solvers below.
 
 ```bash
 export PYTHONPATH=$PWD
 
-# 1. WS 
-# WS with the grid_search solver
-python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_grid_search.json
-# WS with the random_sampler solver 
-python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/ws_random_sampler.json
-
-# [todo] 2. PF
-
-# [todo] ...
+# 1. WS (with two solvers `grid_search` and `random_sampler`)
+python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/2d/ws_grid_search.json
+python examples/optimization/gaussian_process_regressor/ws.py -c examples/optimization/gaussian_process_regressor/configs/2d/ws_random_sampler.json
+# 2. PF-AP (with MOGD)
+python examples/optimization/gaussian_process_regressor/pf.py -c examples/optimization/gaussian_process_regressor/configs/2d/pf_mogd.json
+# 3. EVO (with NSGA-II)
+python examples/optimization/gaussian_process_regressor/evo.py -c examples/optimization/gaussian_process_regressor/configs/2d/evo.json
 ```  
 
-[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
+Pareto Frontiers of different MOO methods.
+<p float="left">
+  <img src="figs/gpr-2d-1.png" width="48%" />
+  <img src="figs/gpr-2d-2.png" width="48%" />
+</p>
 
-### Neural Network - 2D
+### ~~Neural Network - 2D~~
 
-When we have two objectives (one is [NN model](../../examples/optimization/neural_network/model.py)
-and the other is HCF), and two constraints (one is NN and the other is HCF),
-we show the execution code and results of different MOO methods with solvers below.
+Bug detected. We will update in the next release.
+
+### Heuristic Closed Form - 3D 
+Following the [DTLZ1](https://pymoo.org/problems/many/dtlz.html#DTLZ1) problem, when we have three objectives in the form of [heuristic closed form (HCF)](../../examples/optimization/heuristic_closed_form/model.py)
+without any constraints, we show the execution code and results of different MOO methods with solvers below.
 
 ```bash
 export PYTHONPATH=$PWD
 
-# 1. WS 
-# WS with the grid_search solver
-python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_grid_search.json
-# WS with the random_sampler solver 
-python examples/optimization/neural_network/ws.py -c examples/optimization/neural_network/configs/ws_random_sampler.json
+# 1. WS (with two solvers `grid_search` and `random_sampler`)
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/3d/ws_grid_search.json
+python examples/optimization/heuristic_closed_form/ws.py -c examples/optimization/heuristic_closed_form/configs/3d/ws_random_sampler.json
+# 2. PF-AP (with MOGD)
+python examples/optimization/heuristic_closed_form/pf.py -c examples/optimization/heuristic_closed_form/configs/3d/pf_mogd.json
+# 3. EVO (with NSGA-II)
+python examples/optimization/heuristic_closed_form/evo.py -c examples/optimization/heuristic_closed_form/configs/3d/evo.json
+```
 
-# [todo] 2. PF
-
-# [todo] ...
-```   
-
-[TODO] a row of figures, each drawing the PF points in the 2D objective space returned by one MOO method. 
+<p float="left">
+  <img src="figs/hcf-3d-1.png" width="48%" />
+  <img src="figs/hcf-3d-2.png" width="48%" />
+</p>
 
 ## Features in the Next Release
-1. support additional variable types, such as the assignment matrix where each entry is a non-negative integer, and the sum of each row is given.
-2. support a more sophisticated weighted sum approach. The current method only supports uniform weight picking for 2D and 3D. we need ways to randomly generate weights for 2+ objectives.
 
+check this [issue](https://github.com/Angryrou/UDAO2022/issues/18)
 
 [1]: https://web.archive.org/web/20190801183649/https://pdfs.semanticscholar.org/cf68/41a6848ca2023342519b0e0e536b88bdea1d.pdf
 [2]: https://en.wikipedia.org/wiki/Test_functions_for_optimization#cite_note-Binh97-5
-[3]: https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.404.9971&rep=rep1&type=pdf
+[3]: http://www.ccad.uiowa.edu/DRMDP/CDContents/Papers/Other/MOO%20survey%20-%20Marler%202004.pdf
