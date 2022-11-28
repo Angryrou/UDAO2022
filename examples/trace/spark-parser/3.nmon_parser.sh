@@ -1,6 +1,6 @@
 input=$1
 header=$2
-outpath=${3:outs/lhs/nmon}
+outpath=${3:examples/trace/spark-parser/outs/lhs/3.nmon}
 
 if [[ $input == "hex1" ]]
 then
@@ -12,7 +12,7 @@ else
   echo "unsupported input $input"
 fi
 
-for worker in $workers
+for worker in ${workers[@]}
 do
   echo "start working on ${worker}.nmon"
   pyNmonAnalyzer -i $header/${worker}.nmon -o $outpath/${worker}
