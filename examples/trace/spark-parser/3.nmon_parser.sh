@@ -1,12 +1,12 @@
-$input=$1
-$header=$2
+input=$1
+header=$2
 
 if [[ $input == "hex1" ]]
 then
-  workers=("node2", "node3", "node4", "node5", "node6")
+  workers=("node2" "node3" "node4" "node5" "node6")
 elif [[ $input == "hex2" ]]
 then
-  workers=("node7", "node8", "node9", "node10", "node11")
+  workers=("node7" "node8" "node9" "node10" "node11")
 else
   echo "unsupported input $input"
 fi
