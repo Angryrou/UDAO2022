@@ -1,5 +1,6 @@
 input=$1
 header=$2
+outpath=${3:outs/lhs/nmon}
 
 if [[ $input == "hex1" ]]
 then
@@ -14,6 +15,6 @@ fi
 for worker in $workers
 do
   echo "start working on ${worker}.nmon"
-  pyNmonAnalyzer -i $header/${worker}.nmon -o nmon_extracted/${worker}
+  pyNmonAnalyzer -i $header/${worker}.nmon -o $outpath/${worker}
   echo "finish working on ${worker}.nmon"
 done
