@@ -2,7 +2,8 @@
 #
 # Created at 9/16/22
 
-import os, json, pickle
+import os, json, pickle, datetime
+import urllib.request
 
 
 class JsonUtils(object):
@@ -19,6 +20,16 @@ class JsonUtils(object):
     @staticmethod
     def print_dict(d: dict):
         print(json.dumps(d, indent=2))
+
+    @staticmethod
+    def load_json_from_url(url_str):
+        try:
+            with urllib.request.urlopen(url_str) as url:
+                data = json.load(url)
+        except:
+            print(f"failed to load from {url_str}")
+            return None
+        return data
 
 
 class PickleUtils(object):
@@ -57,5 +68,18 @@ class BenchmarkUtils(object):
             return ["node2", "node3", "node4", "node5", "node6"]
         elif benchmark.lower() == "tpcds":
             return ["node8", "node9", "node10", "node11", "node12"]
+        elif benchmark.lower() == "debug":
+            return ["node14", "node15", "node16", "node17", "node18"]
         else:
             raise ValueError(f"{benchmark} is not supported")
+
+class TimeUtils(object):
+
+    @staticmethod
+    def get_current_iso():
+        ct = datetime.datetime.utcnow()
+        # "2022-09-23T17:05:09.589GMT"
+        return ct.astimezone().isoformat()
+
+
+

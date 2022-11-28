@@ -1,6 +1,6 @@
 {
   "moo_algo": "weighted_sum",
-  "solver": "grid_search",
+  "solver": "random_sampler",
   "variables": [
     {
       "name": "v1",
@@ -37,17 +37,13 @@
       "type": ">="
     }
   ],
-  "model": {
-    "name": "gpr",
-    "length_scale": 1,
-    "magnitude": 1.0,
-    "ridge": 1.0
-  },
   "additional_params":
     {
-      "ws_steps": 0.1,
+      "jobIds_path": "examples/optimization/heuristic_closed_form/all_job_ids",
+      "n_probes": 12,
       "solver_params": {
-      "n_grids_per_var": [100, 200]
+        "n_samples": 10000,
+        "seed": 0
       }
     }
 }
