@@ -7,10 +7,8 @@ import argparse, os, time
 import random
 
 from multiprocessing import Pool, Manager
-import threading
-from multiprocessing.managers import ValueProxy
 
-from trace.collect.framework import QueryQueue
+from trace.collect.framework import QueryQueue, error_handler
 from utils.common import PickleUtils, BenchmarkUtils
 from utils.data.feature import NmonUtils
 
@@ -37,7 +35,7 @@ class Args():
         return self.parser.parse_args()
 
 
-def extract(qq, conf_df_dict, i):
+def extract(qq, templates, conf_df_dict, i):
     tiid, qid = qq.index_to_tid_and_qid(i)
     tid = templates[tiid]
     conf_df = conf_df_dict[tid].iloc[qid - 1]
@@ -46,8 +44,7 @@ def extract(qq, conf_df_dict, i):
     return tid, str(qid), knob_sign, cores
 
 
-def submit(lock: threading.RLock, current_cores: ValueProxy, cores: int, tid: str, qid: str,
-           knob_sign: str, debug: bool, script_header: str, log_header: str):
+def submit(cores: int, tid: str, qid: str, knob_sign: str, debug: bool, script_header: str, log_header: str):
     script_file = f"{script_header}/{tid}/q{tid}-{qid}_{knob_sign}.sh"
     assert os.path.exists(script_file), FileNotFoundError(script_file)
     log_file = f"{log_header}/q{tid}-{qid}.log"
@@ -59,14 +56,9 @@ def submit(lock: threading.RLock, current_cores: ValueProxy, cores: int, tid: st
     else:
         os.system(f"bash {script_file} > {log_file} 2>&1")
     with lock:
-       current_cores.value -= cores
-       print(f"Thread {tid}-{qid}: finish running, takes {time.time() - start}s, current_cores={current_cores.value}")
+        current_cores.value -= cores
+        print(f"Thread {tid}-{qid}: finish running, takes {time.time() - start}s, current_cores={current_cores.value}")
 
-
-def error_handler(e):
-    print('error')
-    print(dir(e), "\n")
-    print("-->{}<--".format(e.__cause__))
 
 if __name__ == '__main__':
 
@@ -128,7 +120,7 @@ if __name__ == '__main__':
     submit_index = 0
     pool = Pool(processes=n_processes)
     while submit_index < total_queries:
-        tid, qid, knob_sign, cores = extract(qq, conf_df_dict, submit_index)
+        tid, qid, knob_sign, cores = extract(qq, templates, conf_df_dict, submit_index)
         with lock:
             if cores + current_cores.value < cluster_cores:
                 current_cores.value += cores
@@ -138,7 +130,7 @@ if __name__ == '__main__':
                 if_submit = False
         if if_submit:
             pool.apply_async(func=submit,
-                             args=(lock, current_cores, cores, tid, qid, knob_sign, debug, script_header, log_header),
+                             args=(cores, tid, qid, knob_sign, debug, script_header, log_header),
                              error_callback=error_handler)
             submit_index += 1
 
@@ -150,4 +142,3 @@ if __name__ == '__main__':
     if not debug:
         os.system(nmon_stop)
         os.system(nmon_agg)
-

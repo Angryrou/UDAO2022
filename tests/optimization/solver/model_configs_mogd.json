@@ -1,0 +1,131 @@
+{
+  "moo_algo": "progressive_frontier",
+  "solver": "mogd",
+  "variables": [
+    {
+      "name": "k1",
+      "type": "INTEGER",
+      "min": 8,
+      "max": 216,
+      "precision": 0
+    },
+    {
+      "name": "k2",
+      "type": "INTEGER",
+      "min": 2,
+      "max": 36,
+      "precision": 0
+    },
+    {
+      "name": "k3",
+      "type": "INTEGER",
+      "min": 2,
+      "max": 4,
+      "precision": 0
+    },
+    {
+      "name": "k4",
+      "type": "INTEGER",
+      "min": 4,
+      "max": 8,
+      "precision": 0
+    },
+    {
+      "name": "k5",
+      "type": "FLOAT",
+      "min": 12,
+      "max": 480,
+      "precision": 0
+    },
+    {
+      "name": "k6",
+      "type": "FLOAT",
+      "min": 7,
+      "max": 217,
+      "precision": 0
+    },
+    {
+      "name": "k7",
+      "type": "BINARY",
+      "min": 0,
+      "max": 1,
+      "precision": 0
+    },
+    {
+      "name": "k8",
+      "type": "FLOAT",
+      "min": 0.5,
+      "max": 0.75,
+      "precision": 2
+    },
+    {
+      "name": "s1",
+      "type": "FLOAT",
+      "min": 1000,
+      "max": 100000,
+      "precision": 0
+    },
+    {
+      "name": "s2",
+      "type": "FLOAT",
+      "min": 32,
+      "max": 512,
+      "precision": 0
+    },
+    {
+      "name": "s3",
+      "type": "FLOAT",
+      "min": 10,
+      "max": 500,
+      "precision": 0
+    },
+    {
+      "name": "s4",
+      "type": "INTEGER",
+      "min": 8,
+      "max": 2001,
+      "precision": 0
+    }
+  ],
+  "objectives": [
+    {
+      "name": "latency",
+      "optimize_trend": "MIN",
+      "type": "FLOAT"
+    },
+    {
+      "name": "cores",
+      "optimize_trend": "MIN",
+      "type": "INTEGER"
+    }
+  ],
+  "constraints": [],
+  "model": {
+    "name": "gpr",
+    "gpr_weights_path": "tests/optimization/checkpoints/data_gpr_batch.pkl",
+    "default_ridge": 1.0,
+    "accurate": false,
+    "alpha": 3.0
+  },
+  "additional_params":
+    {
+      "pf_option": "pf_ap",
+      "n_probes": 200,
+      "n_grids": 4,
+      "max_iters": 8,
+      "jobIds_path": "tests/optimization/all_job_ids",
+      "accurate": false,
+      "alpha": 3.0,
+      "mogd_params":
+      {
+      "learning_rate": 0.1,
+      "weight_decay": 0.1,
+      "max_iters": 100,
+      "patient": 20,
+      "stress": 10,
+      "multistart": 4,
+      "processes": 1,
+      "seed": 0
+        }
+    }
+}
