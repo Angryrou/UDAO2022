@@ -2,7 +2,8 @@
 #
 # Created at 9/16/22
 
-import os, json, pickle, datetime
+import os, json, pickle, datetime, ciso8601
+import time
 import urllib.request
 
 
@@ -80,6 +81,13 @@ class TimeUtils(object):
         ct = datetime.datetime.utcnow()
         # "2022-09-23T17:05:09.589GMT"
         return ct.astimezone().isoformat()
+
+    @staticmethod
+    def get_utc_timestamp(s: str, tz_ahead:int) -> int:
+        t = ciso8601.parse_datetime(f"{s}+0{tz_ahead}00").utctimetuple()
+        return int(time.mktime(t))
+
+
 
 
 
