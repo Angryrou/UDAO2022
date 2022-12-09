@@ -1,3 +1,9 @@
+# Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
+#
+# Description: convert extracted nmon CSV files to a Table of our interested system metrics in Parquet
+#
+# Created at 12/08/22
+
 import numpy as np
 import pandas as pd
 import argparse
@@ -18,9 +24,28 @@ class Args():
     def parse(self):
         return self.parser.parse_args()
 
-FEQ=5
-DISK="sdh"
-NET="ib0"
+
+FEQ = 5
+DISK = "sdh"
+NET = "ib0"
+_TARGET_FILES = [
+    "CPU_ALL.csv",
+    # cpu_utils = (100 - idle) / 100
+    "MEM.csv",
+    # mem utils = current total memory usage / Total Memory
+    # current total memory usage = Total Memory - (Free + Buffers + Cached)
+
+    "DISKBUSY.csv",
+    "DISKBSIZE.csv",
+    # target disk: "sdh" [0, 1]
+    # disk_busy: DISKBUSY, Percentage of time during which the disk is active.
+    # disk_blocks: DISKBSIZE / 5, Disk Block Size - Total number of disk blocks that are read and written over the interval.
+    # disk_bytes/s: DISKWRITE + DISKREAD
+    # disk_reqs: DISKXFER, Disk transfers per second - Number of transfers per second.
+
+    "NET.csv",  # ib0-write-KB/s + ib0-read-KB/s
+    "NETPACKET.csv"  # ib0-write/s + ib0-read/s
+]
 
 if __name__ == '__main__':
     args = Args().parse()
@@ -29,25 +54,6 @@ if __name__ == '__main__':
     dst_path = args.dst_path
     tz_ahead = args.timezone_ahead
     assert tz_ahead in (1, 2)
-
-    target_files = [
-        "CPU_ALL.csv",
-        # cpu_utils = (100 - idle) / 100
-        "MEM.csv",
-        # mem utils = current total memory usage / Total Memory
-        # current total memory usage = Total Memory - (Free + Buffers + Cached)
-
-        "DISKBUSY.csv",
-        "DISKBSIZE.csv",
-        # target disk: "sdh" [0, 1]
-        # disk_busy: DISKBUSY, Percentage of time during which the disk is active.
-        # disk_blocks: DISKBSIZE / 5, Disk Block Size - Total number of disk blocks that are read and written over the interval.
-        # disk_bytes/s: DISKWRITE + DISKREAD
-        # disk_reqs: DISKXFER, Disk transfers per second - Number of transfers per second.
-
-        "NET.csv", # ib0-write-KB/s + ib0-read-KB/s
-        "NETPACKET.csv" # ib0-write/s + ib0-read/s
-    ]
 
     # cpu
     # cpu_utils = (100 - idle) / 100
@@ -202,4 +208,3 @@ if __name__ == '__main__':
     df_mach["net_xfers/s"] = netxfer_mu
 
     ParquetUtils.parquet_write(df_mach, dst_path, "mach_traces.parquet", True)
-
