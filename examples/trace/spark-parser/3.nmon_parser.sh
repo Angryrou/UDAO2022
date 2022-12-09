@@ -8,7 +8,7 @@ then
   workers=("node2" "node3" "node4" "node5" "node6")
 elif [[ $input == "hex2" ]]
 then
-  workers=("node7" "node8" "node9" "node10" "node11")
+  workers=("node8" "node9" "node10" "node11" "node12")
 else
   echo "unsupported input $input"
 fi
