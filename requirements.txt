@@ -71,6 +71,7 @@ pyDOE==0.3.8
 pydot==1.4.2
 Pygments==2.13.0
 pyNmonAnalyzer==1.0.9
+pyarrow==10.0.1
 pyparsing==3.0.8
 pyro-api==0.1.2
 pyro-ppl==1.8.2
