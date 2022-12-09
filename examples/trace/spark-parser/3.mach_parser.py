@@ -62,7 +62,7 @@ if __name__ == '__main__':
     for w in workers:
         file = f"{src_path}/{w}/csv/{target}"
         df = pd.read_csv(file)
-        df["cpu_utils"] = (1 - df["Idle%"] - df["Steal%"]) / 100
+        df["cpu_utils"] = (100 - df["Idle%"] - df["Steal%"]) / 100
         df_cpu[w] = df
 
     # align the worker nodes on the beginning timestamp and the number of steps.
