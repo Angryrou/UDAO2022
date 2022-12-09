@@ -30,6 +30,7 @@ def get_plot(df_dict, metric, workers, dst_path, one_out_of=1000, metric_prefix=
         df_dict[w][metric][1::one_out_of].plot(label=w)
     ax.legend()
     plt.tight_layout()
+    os.makedirs(dst_path, exist_ok=True)
     fig.savefig(f"{dst_path}/{metric_prefix}{metric.replace('/', '_per_')}_1_{one_out_of}.pdf")
 
 FEQ = 5
