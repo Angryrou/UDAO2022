@@ -24,6 +24,13 @@ class Args():
     def parse(self):
         return self.parser.parse_args()
 
+def get_plot(df_dict, metric, workers, dst_path, one_out_of=1000, metric_prefix=""):
+    fig, ax = plt.subplots(figsize=(3.5, 2.5))
+    for w in workers:
+        df_dict[w][metric][1::one_out_of].plot(label=w)
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(f"{dst_path}/{metric_prefix}{metric.replace('/', '_per_')}_1_{one_out_of}.pdf")
 
 FEQ = 5
 DISK = "sdh"
@@ -58,11 +65,12 @@ if __name__ == '__main__':
     # cpu
     # cpu_utils = (100 - idle) / 100
     target = "CPU_ALL.csv"
+    metric = "cpu_utils"
     df_cpu = {}
     for w in workers:
         file = f"{src_path}/{w}/csv/{target}"
         df = pd.read_csv(file)
-        df["cpu_utils"] = (100 - df["Idle%"] - df["Steal%"]) / 100
+        df[metric] = (100 - df["Idle%"] - df["Steal%"]) / 100
         df_cpu[w] = df
 
     # align the worker nodes on the beginning timestamp and the number of steps.
@@ -72,139 +80,126 @@ if __name__ == '__main__':
     assert len(ts_list) == steps
     for w in workers:
         df_cpu[w] = df.head(steps)
-    # for w in workers:
-    #     df_cpu[w]["cpu_utils"][1:1000].plot(label=w)
-    # plt.legend()
-    cpus = np.array([df_["cpu_utils"].values for df_ in df_cpu.values()])
+    get_plot(df_cpu, metric, workers, dst_path, 1000)
+    cpus = np.array([df_[metric].values for df_ in df_cpu.values()])
     cpu_mu = cpus.mean(0)
     assert len(cpu_mu) == steps
-    df_mach = pd.DataFrame({"timestamp": ts_list, "cpu_utils": cpu_mu})
+    df_mach = pd.DataFrame({"timestamp": ts_list, metric: cpu_mu})
 
     # mem
     # mem utils = current total memory usage / Total Memory
     # current total memory usage = Total Memory - (Free + Buffers + Cached)
     target = "MEM.csv"
+    metric = "mem_utils"
     df_mem = {}
     for w in workers:
         file = f"{src_path}/{w}/csv/{target}"
         df = pd.read_csv(file, nrows=steps)
-        df["mem_utils"] = (df["memtotal"] - df["memfree"] - df["buffers"] - df["cached"]) / df["memtotal"]
+        df[metric] = (df["memtotal"] - df["memfree"] - df["buffers"] - df["cached"]) / df["memtotal"]
         df_mem[w] = df
-    mems = np.array([df_["mem_utils"].values for df_ in df_mem.values()])
-    # for w in workers:
-    #     df_mem[w]["mem_utils"][1:1000].plot(label=w)
-    # plt.legend()
+    mems = np.array([df_[metric].values for df_ in df_mem.values()])
+    get_plot(df_mem, metric, workers, dst_path, 1000)
     mem_mu = mems.mean(0)
     assert len(mem_mu) == steps
-    df_mach["mem_utils"] = mem_mu
+    df_mach[metric] = mem_mu
 
     # disk
     # disk_busy: DISKBUSY, Percentage of time during which the disk is active.
     target = "DISKBUSY.csv"
+    metric = "disk_busy"
     df_diskbusy = {}
     for w in workers:
         file = f"{src_path}/{w}/csv/{target}"
         df = pd.read_csv(file, nrows=steps)
-        df["disk_busy"] = df[DISK] / 100
+        df[metric] = df[DISK] / 100
         df_diskbusy[w] = df
-    diskbusys = np.array([df_["disk_busy"].values for df_ in df_diskbusy.values()])
-    # for w in workers:
-    #     df_diskbusy[w]["disk_busy"][1:1000].plot(label=w)
-    # plt.legend()
+    diskbusys = np.array([df_[metric].values for df_ in df_diskbusy.values()])
+    get_plot(df_diskbusy, metric, workers, dst_path, 1000)
     diskbusy_mu = diskbusys.mean(0)
     assert len(diskbusy_mu) == steps
-    df_mach["diskbusy"] = diskbusy_mu
+    df_mach[metric] = diskbusy_mu
 
     # disk_bsize/s: DISKBSIZE / 5, Disk Block Size - Total number of disk blocks that are read and written over the interval.
     target = "DISKBSIZE.csv"
+    metric = "disk_bsize/s"
     df_diskbsize = {}
     for w in workers:
         file = f"{src_path}/{w}/csv/{target}"
         df = pd.read_csv(file, nrows=steps)
-        df["disk_bsize/s"] = df[DISK] / FEQ
+        df[metric] = df[DISK] / FEQ
         df_diskbsize[w] = df
-    diskbsizes = np.array([df_["disk_bsize/s"].values for df_ in df_diskbsize.values()])
-    # for w in workers:
-    #     df_diskbsize[w]["disk_bsize/s"][1:1000].plot(label=w)
-    # plt.legend()
+    diskbsizes = np.array([df_[metric].values for df_ in df_diskbsize.values()])
+    get_plot(df_diskbsize, metric, workers, dst_path, 1000)
     diskbsize_mu = diskbsizes.mean(0)
     assert len(diskbsize_mu) == steps
-    df_mach["disk_bsize/s"] = diskbsize_mu
+    df_mach[metric] = diskbsize_mu
 
     # disk_bytes/s
     target_dict = {"r": "DISKREAD.csv", "w": "DISKWRITE.csv"}
     df_diskbyte = {"r": {}, "w": {}}
+    metric = "disk_KB/s"
     for w in workers:
         file = f"{src_path}/{w}/csv/{target_dict['r']}"
         df = pd.read_csv(file, nrows=steps)
-        df["disk_KB/s"] = df[DISK]
+        df[metric] = df[DISK]
         df_diskbyte["r"][w] = df
 
         file = f"{src_path}/{w}/csv/{target_dict['w']}"
         df = pd.read_csv(file, nrows=steps)
-        df["disk_KB/s"] = df[DISK]
+        df[metric] = df[DISK]
         df_diskbyte["w"][w] = df
-    diskbytes = np.array([df_["disk_KB/s"].values for df_ in df_diskbyte["r"].values()]) + \
-                np.array([df_["disk_KB/s"].values for df_ in df_diskbyte["w"].values()])
-    # for w in workers:
-    #     df_diskbyte["r"][w]["disk_KB/s"][1:1000].plot(label=w)
-    # plt.legend()
-    # plt.show()
-    # for w in workers:
-    #     df_diskbytes"w"][w]["disk_KB/s"][1:1000].plot(label=w)
-    # plt.legend()
-    # plt.show() # <200MB/s on average
+    diskbytes = np.array([df_[metric].values for df_ in df_diskbyte["r"].values()]) + \
+                np.array([df_[metric].values for df_ in df_diskbyte["w"].values()])
+    get_plot(df_diskbyte["r"], metric, workers, dst_path, 1000, metric_prefix="r_")
+    get_plot(df_diskbyte["w"], metric, workers, dst_path, 1000, metric_prefix="w_")
     diskbyte_mu = diskbytes.mean(0)
     assert len(diskbyte_mu) == steps
-    df_mach["disk_KB/s"] = diskbyte_mu
+    df_mach[metric] = diskbyte_mu
 
     # disk_xfers/s
     target = "DISKXFER.csv"
+    metric = "disk_xfers/s"
     df_diskxfer = {}
     for w in workers:
         file = f"{src_path}/{w}/csv/{target}"
         df = pd.read_csv(file, nrows=steps)
-        df["disk_xfers/s"] = df[DISK]
+        df[metric] = df[DISK]
         df_diskxfer[w] = df
-    diskxfers = np.array([df_["disk_xfers/s"].values for df_ in df_diskxfer.values()])
-    # for w in workers:
-    #     df_diskxfer[w]["disk_xfers/s"][1:1000].plot(label=w)
-    # plt.legend()
+    diskxfers = np.array([df_[metric].values for df_ in df_diskxfer.values()])
+    get_plot(df_diskxfer, metric, workers, dst_path, 1000)
     diskxfer_mu = diskxfers.mean(0)
     assert len(diskxfer_mu) == steps
-    df_mach["disk_xfers/s"] = diskxfer_mu
+    df_mach[metric] = diskxfer_mu
 
     # Network
     # net_bytes/s
     target = "NET.csv"
+    metric = "net_KB/s"
     df_netbyte = {}
     for w in workers:
         file = f"{src_path}/{w}/csv/{target}"
         df = pd.read_csv(file, nrows=steps)
-        df["net_KB/s"] = df[f"{NET}-read-KB/s"] + df[f"{NET}-write-KB/s"]
+        df[metric] = df[f"{NET}-read-KB/s"] + df[f"{NET}-write-KB/s"]
         df_netbyte[w] = df
-    netbytes = np.array([df_["net_KB/s"].values for df_ in df_netbyte.values()])
-    # for w in workers:
-    #     df_netbyte[w]["net_KB/s"][1:1000].plot(label=w)
-    # plt.legend()
+    netbytes = np.array([df_[metric].values for df_ in df_netbyte.values()])
+    get_plot(df_netbyte, metric, workers, dst_path, 1000)
     netbyte_mu = netbytes.mean(0)
     assert len(netbyte_mu) == steps
-    df_mach["net_KB/s"] = netbyte_mu
+    df_mach[metric] = netbyte_mu
 
     # net_xfers/s = ib0-write/s + ib0-read/s
     target = "NETPACKET.csv"
+    metric = "net_xfers/s"
     df_netxfer = {}
     for w in workers:
         file = f"{src_path}/{w}/csv/{target}"
         df = pd.read_csv(file, nrows=steps)
-        df["net_xfers/s"] = df[f"{NET}-read/s"] + df[f"{NET}-write/s"]
+        df[metric] = df[f"{NET}-read/s"] + df[f"{NET}-write/s"]
         df_netxfer[w] = df
-    netxfers = np.array([df_["net_xfers/s"].values for df_ in df_netxfer.values()])
-    # for w in workers:
-    #     df_netxfer[w]["net_xfers/s"][1:1000].plot(label=w)
-    # plt.legend()
+    netxfers = np.array([df_[metric].values for df_ in df_netxfer.values()])
+    get_plot(df_netxfer, metric, workers, dst_path, 1000)
     netxfer_mu = netxfers.mean(0)
     assert len(netxfer_mu) == steps
-    df_mach["net_xfers/s"] = netxfer_mu
+    df_mach[metric] = netxfer_mu
 
     ParquetUtils.parquet_write(df_mach, dst_path, "mach_traces.parquet", True)
