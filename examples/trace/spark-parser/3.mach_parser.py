@@ -4,9 +4,9 @@
 #
 # Created at 12/08/22
 
+import os, argparse
 import numpy as np
 import pandas as pd
-import argparse
 import matplotlib.pyplot as plt
 
 from utils.common import BenchmarkUtils, TimeUtils, ParquetUtils
