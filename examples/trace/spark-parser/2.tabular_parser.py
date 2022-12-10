@@ -1,4 +1,5 @@
 import argparse, csv
+import os
 
 from utils.common import JsonUtils, TimeUtils
 
@@ -35,6 +36,7 @@ if __name__ == '__main__':
     dbname = f"{benchmark}_{sf}"
     all = [{}] * (url_suffix_end - url_suffix_start + 1)
 
+    os.makedirs(dst_path, exist_ok=True)
     with open(f"{dst_path}/2.tabular_{url_suffix_end}_{url_suffix_start}.csv", "wb") as csv_file:
         writer = csv.writer(csv_file, delimiter='\u0001')
         writer.writerow(
