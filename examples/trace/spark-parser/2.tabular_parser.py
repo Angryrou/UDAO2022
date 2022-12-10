@@ -37,7 +37,7 @@ if __name__ == '__main__':
     all = [{}] * (url_suffix_end - url_suffix_start + 1)
 
     os.makedirs(dst_path, exist_ok=True)
-    with open(f"{dst_path}/tabular_{url_suffix_end}_{url_suffix_start}.csv", "wb") as csv_file:
+    with open(f"{dst_path}/tabular_{url_suffix_start}_{url_suffix_end}.csv", "w", newline="") as csv_file:
         writer = csv.writer(csv_file, delimiter='\u0001')
         writer.writerow(
             ["q_sign", "knob_sign", "timestamp_begin_all", "latency_all", "planDescription", "nodes", "edges",
