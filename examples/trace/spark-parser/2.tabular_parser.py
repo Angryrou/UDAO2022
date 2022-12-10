@@ -37,7 +37,7 @@ if __name__ == '__main__':
     dbname = f"{benchmark}_{sf}"
     all = [{}] * (url_suffix_end - url_suffix_start + 1)
 
-    with open(f"{dst_path}/{url_suffix_end}_{url_suffix_start}.csv", "wb") as csv_file:
+    with open(f"{dst_path}/2.tabular_{url_suffix_end}_{url_suffix_start}.csv", "wb") as csv_file:
         writer = csv.writer(csv_file, delimiter='\u0001')
         writer.writerow(
             ["q_sign", "knob_sign", "timestamp_begin_all", "latency_all", "planDescription", "nodes", "edges",
