@@ -28,11 +28,9 @@ if __name__ == '__main__':
     benchmark = args.benchmark
     sf = args.scale_factor
     dst_path = args.dst_path
-    tz_ahead = args.timezone_ahead
     url_header = args.url_header
     url_suffix_start = args.url_suffix_start
     url_suffix_end = args.url_suffix_end
-    assert tz_ahead in (1, 2)
 
     dbname = f"{benchmark}_{sf}"
     all = [{}] * (url_suffix_end - url_suffix_start + 1)
