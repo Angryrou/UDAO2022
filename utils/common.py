@@ -5,7 +5,6 @@
 import os, json, pickle, datetime, ciso8601
 import time
 import urllib.request
-import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 
@@ -89,7 +88,7 @@ class TimeUtils(object):
         return ct.astimezone().isoformat()
 
     @staticmethod
-    def get_utc_timestamp(s: str, tz_ahead: int) -> int:
+    def get_utc_timestamp(s: str, tz_ahead: int = 0) -> int:
         t = ciso8601.parse_datetime(f"{s}+0{tz_ahead}00").utctimetuple()
         return int(time.mktime(t))
 
