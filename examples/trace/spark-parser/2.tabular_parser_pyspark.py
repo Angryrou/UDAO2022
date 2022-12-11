@@ -1,4 +1,6 @@
 import argparse, json
+import os
+
 from utils.common import JsonUtils, TimeUtils
 from pyspark.sql import SparkSession
 
@@ -39,6 +41,7 @@ def extract_tabular(url):
         "latency_query": query["duration"] / 1000
     })
 
+
 def extract_tabular(url):
     try:
         data = JsonUtils.load_json_from_url(url)
@@ -62,6 +65,7 @@ def extract_tabular(url):
         print(f"{e} when url={url}")
         return None
 
+
 if __name__ == '__main__':
     args = Args().parse()
     benchmark = args.benchmark
@@ -79,9 +83,12 @@ if __name__ == '__main__':
     spark = SparkSession.builder.enableHiveSupport().getOrCreate()
     sc = spark.sparkContext
     urls = sc.parallelize([f"{url_header}_{f'{appid:04}' if appid < 10000 else str(appid)}"
-            for i, appid in enumerate(range(url_suffix_start, url_suffix_end + 1))])
+                           for i, appid in enumerate(range(url_suffix_start, url_suffix_end + 1))])
 
     rdd = urls.map(lambda url: extract_tabular(url))
     df = spark.read.json(rdd).select(columns)
     df.cache()
+    df.count()
     df.show()
+    df.write.format("csv").option("header", True).mode("overwrite").option("sep", "\OOO1").save(
+        f"file://{os.getcwd()}/{dst_path}/{dbname}_tabular.csv")
