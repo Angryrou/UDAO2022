@@ -22,23 +22,23 @@ class Args():
         return self.parser.parse_args()
 
 
-def extract_tabular(url):
-    data = JsonUtils.load_json_from_url(url)
-    query = JsonUtils.load_json_from_url(url + "/sql")[1]
-    _, q_sign, knob_sign = data["name"].split("_")
-    return json.dumps({
-        "id": data["id"],
-        "name": data["name"],
-        "q_sign": q_sign,
-        "knob_sign": knob_sign,
-        "startTime_all": TimeUtils.get_utc_timestamp(data["attempts"][0]["startTime"][:-3]),
-        "latency_all": data["attempts"][0]["duration"] / 1000,
-        "planDescription": query["planDescription"],
-        "nodes": query["nodes"],
-        "edges": query["edges"],
-        "startTime_query": TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]),
-        "latency_query": query["duration"] / 1000
-    })
+# def extract_tabular(url):
+#     data = JsonUtils.load_json_from_url(url)
+#     query = JsonUtils.load_json_from_url(url + "/sql")[1]
+#     _, q_sign, knob_sign = data["name"].split("_")
+#     return json.dumps({
+#         "id": data["id"],
+#         "name": data["name"],
+#         "q_sign": q_sign,
+#         "knob_sign": knob_sign,
+#         "startTime_all": TimeUtils.get_utc_timestamp(data["attempts"][0]["startTime"][:-3]),
+#         "latency_all": data["attempts"][0]["duration"] / 1000,
+#         "planDescription": query["planDescription"],
+#         "nodes": query["nodes"],
+#         "edges": query["edges"],
+#         "startTime_query": TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]),
+#         "latency_query": query["duration"] / 1000
+#     })
 
 
 def extract_tabular(url):
