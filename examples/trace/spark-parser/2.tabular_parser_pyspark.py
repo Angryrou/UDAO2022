@@ -1,5 +1,4 @@
-import argparse, json
-import os
+import argparse, json, os, traceback
 
 from utils.common import JsonUtils, TimeUtils
 from pyspark.sql import SparkSession
@@ -45,7 +44,8 @@ def extract_tabular(url):
 def extract_tabular(url):
     try:
         data = JsonUtils.load_json_from_url(url)
-        query = JsonUtils.load_json_from_url(url + "/sql")[1]
+        data2 = JsonUtils.load_json_from_url(url + "/sql")
+        query = data2[1]
         _, q_sign, knob_sign = data["name"].split("_")
         res = json.dumps({
             "id": data["id"],
@@ -62,7 +62,8 @@ def extract_tabular(url):
         })
         return res
     except Exception as e:
-        print(f"{e} when url={url}")
+        print(f"{e} when url={url}, data2={data2}")
+        traceback.print_exc()
         return None
 
 
