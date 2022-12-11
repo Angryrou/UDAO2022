@@ -59,7 +59,7 @@ def extract_tabular(url):
         })
         return res
     except Exception as e:
-        print(e)
+        print(f"{e} when url={url}")
         return None
 
 if __name__ == '__main__':
