@@ -1,5 +1,5 @@
 import argparse, csv
-import os
+import os, json
 
 from utils.common import JsonUtils, TimeUtils
 
@@ -36,6 +36,11 @@ if __name__ == '__main__':
     dbname = f"{benchmark}_{sf}"
     all = [{}] * (url_suffix_end - url_suffix_start + 1)
 
+    for i, appid in enumerate(range(url_suffix_start, url_suffix_end + 1)):
+        appid_str = f"{appid:04}" if appid < 10000 else str(appid)
+        url_str = f"{url_header}_{appid_str}"
+        print(url_str)
+
     os.makedirs(dst_path, exist_ok=True)
     with open(f"{dst_path}/tabular_{url_suffix_start}_{url_suffix_end}.csv", "w", newline="") as csv_file:
         writer = csv.writer(csv_file, delimiter='\u0001')
@@ -59,9 +64,9 @@ if __name__ == '__main__':
                 knob_sign,
                 TimeUtils.get_utc_timestamp(data["attempts"][0]["startTime"][:-3]),
                 data["attempts"][0]["duration"] / 1000,
-                query["planDescription"],
-                query["nodes"],
-                query["edges"],
+                json.dumps(query["planDescription"]),
+                json.dumps(query["nodes"]),
+                json.dumps(query["edges"]),
                 TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]),
                 query["duration"] / 1000
             ])
