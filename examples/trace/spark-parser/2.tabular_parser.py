@@ -1,5 +1,5 @@
 import argparse, csv
-import os, json
+import os, json, time
 
 from utils.common import JsonUtils, TimeUtils
 
@@ -42,6 +42,7 @@ if __name__ == '__main__':
         print(url_str)
 
     os.makedirs(dst_path, exist_ok=True)
+    begin = time.time()
     with open(f"{dst_path}/tabular_{url_suffix_start}_{url_suffix_end}.csv", "w", newline="") as csv_file:
         writer = csv.writer(csv_file, delimiter='\u0001')
         writer.writerow(
@@ -70,3 +71,5 @@ if __name__ == '__main__':
                 TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]),
                 query["duration"] / 1000
             ])
+
+    print(f"cost {time.time() - begin}s")
