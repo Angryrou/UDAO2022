@@ -81,7 +81,6 @@ def extract_tabular(url):
         })
 
 
-
 if __name__ == '__main__':
     args = Args().parse()
     bm, sf, sampling = args.benchmark.lower(), args.scale_factor, args.sampling
@@ -119,8 +118,9 @@ if __name__ == '__main__':
     urls = sc.parallelize([f"{url_header}_{f'{appid:04}' if appid < 10000 else str(appid)}"
                            for i, appid in enumerate(range(url_suffix_start, url_suffix_end + 1))])
     rdd = urls.map(lambda url: extract_tabular(url))
+    rdd.cache()
     df_tmp = spark.read.json(rdd, schema=query_tmp_schema)
-    df_tmp.cache()
+    print(f"failed to parse {df_tmp.filter('error is not null').count()}")
     df_tmp.createOrReplaceTempView("R2")
     df_query = spark.sql(f"""\
     select \
@@ -135,6 +135,6 @@ if __name__ == '__main__':
     ) as R3 \
     where R1.timestamp = R3.t2 and R2.id = R3.id and R2.error is null
     """)
+    df_query.write.mode("overwrite").saveAsTable(f"{dbname}.{sampling}_query_traces")
     df_query.repartition("tid").write.mode("overwrite").partitionBy("tid").format("csv"). \
         options(delimiter="\u0001").save(f"/user/spark_benchmark/{bm}_{sf}/traces/{sampling}_query_traces")
-    df_tmp.filter("error is not null").select("id").collect()
