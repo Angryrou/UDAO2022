@@ -24,17 +24,19 @@ class Args():
         return self.parser.parse_args()
 
 
-def extract_tabular(appid):
+def extract_tabular(url_suffix, begin):
     """
     return ["id", "name", "q_sign", "knob_sign",
             "planDescription", "nodes", "edges",
             "start_timestamp", "latency", "err"]
     """
-    url = f"{url_header}_{f'{appid:04}' if appid < 10000 else str(appid)}"
+    url = f"{url_header}_{f'{url_suffix:04}' if url_suffix < 10000 else str(url_suffix)}"
+    appid = url.split("/")[-1]
     try:
         data = JsonUtils.load_json_from_url(url)
         query = JsonUtils.load_json_from_url(url + "/sql")[1]
         _, q_sign, knob_sign = data["name"].split("_")
+        print(f"finished {url_suffix}/{url_suffix_end}, cost {time.time() - begin}s")
         return [
             appid, data["name"], q_sign, knob_sign,
             json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
@@ -43,6 +45,8 @@ def extract_tabular(appid):
     except Exception as e:
         traceback.print_exc()
         print(f"{e} when url={url}/sql")
+        with open(f"{dst_path}/{begin}_failed_urls.txt", "a+") as f:
+            f.write(f"{url}/sql\n")
         return [
             None, None, None, None,
             None, None, None,
@@ -61,8 +65,8 @@ if __name__ == '__main__':
     url_suffix_end = args.url_suffix_end
     n_processes = args.num_processes
 
-    arg_list = [(appid, ) for appid in range(url_suffix_start, url_suffix_end + 1)]
     begin = time.time()
+    arg_list = [(url_suffix, begin, ) for url_suffix in range(url_suffix_start, url_suffix_end + 1)]
     with Pool(processes=n_processes) as pool:
         res = pool.starmap(extract_tabular, arg_list)
     print(f"generating urls cots {time.time() - begin}s")
@@ -70,4 +74,4 @@ if __name__ == '__main__':
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
     os.makedirs(dst_path, exist_ok=True)
-    df_tmp.to_csv(f"{dst_path}/{url_suffix_start}_{url_suffix_end}.csv", sep="\u0001")
+    df_tmp.to_csv(f"{dst_path}/{begin}_{url_suffix_start}_{url_suffix_end}.csv", sep="\u0001")
