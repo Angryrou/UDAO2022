@@ -120,7 +120,7 @@ if __name__ == '__main__':
     rdd = urls.map(lambda url: extract_tabular(url))
     rdd.cache()
     df_tmp = spark.read.json(rdd, schema=query_tmp_schema)
-    print(f"failed to parse {df_tmp.filter('error is not null').count()}")
+    # print(f"failed to parse {df_tmp.filter('error is not null').count()}")
     df_tmp.createOrReplaceTempView("R2")
     df_query = spark.sql(f"""\
     select \
