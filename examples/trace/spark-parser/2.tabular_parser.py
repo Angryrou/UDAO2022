@@ -13,7 +13,7 @@ class Args():
         self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
         self.parser.add_argument("--scale-factor", type=int, default=100)
         self.parser.add_argument("--sampling", type=str, default="lhs")
-        self.parser.add_argument("--dst-path", type=str, default="outs/tpch_100_lhs/2.tabular")
+        self.parser.add_argument("--dst-path-header", type=str, default="examples/trace/spark-parser/outs")
         self.parser.add_argument("--url-header", type=str,
                                  default="http://10.0.0.1:18088/api/v1/applications/application_1663600377480")
         self.parser.add_argument("--url-suffix-start", type=int, default=3827, help="the number is inclusive")
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     bm = args.benchmark.lower()
     sf = args.scale_factor
     sampling = args.sampling
-    dst_path = args.dst_path
+    dst_path_header = args.dst_path_header
     url_header = args.url_header
     url_suffix_start = args.url_suffix_start
     url_suffix_end = args.url_suffix_end
@@ -73,5 +73,6 @@ if __name__ == '__main__':
     columns = ["id", "name", "q_sign", "knob_sign",
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
+    dst_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/2.tabular"
     os.makedirs(dst_path, exist_ok=True)
-    ParquetUtils.parquet_write(df_tmp, dst_path, f"{begin}_{url_suffix_start}_{url_suffix_end}.csv")
+    ParquetUtils.parquet_write(df_tmp, dst_path, f"{begin}_query_traces_{url_suffix_start}_{url_suffix_end}.csv")
