@@ -1,6 +1,6 @@
 input=$1
 header=$2
-outpath=${3-examples/trace/spark-parser/outs/lhs/1.nmon}
+outpath=${3-examples/trace/spark-parser/outs/tpch_100_lhs/1.nmon}
 
 
 if [[ $input == "hex1" ]]

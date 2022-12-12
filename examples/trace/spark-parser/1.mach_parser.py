@@ -18,7 +18,7 @@ class Args():
         self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
         self.parser.add_argument("--sampling", type=str, default="lhs")
         self.parser.add_argument("--src-path", type=str, default="outs/lhs/1.nmon")
-        self.parser.add_argument("--dst-path", type=str, default="outs/lhs/1.mach")
+        self.parser.add_argument("--dst-path", type=str, default="outs/tpch_100_lhs/1.mach")
         self.parser.add_argument("--timezone-ahead", type=int, default=2)
 
     def parse(self):
