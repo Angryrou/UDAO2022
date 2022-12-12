@@ -45,7 +45,7 @@ def extract_tabular(url_suffix, begin):
         ]
     except Exception as e:
         traceback.print_exc()
-        print(f"{e} when url={url}/sql")
+        print(f"{e} when url={url}")
         with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
             f.write(f"{url}/sql\n")
         return [

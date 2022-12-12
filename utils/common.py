@@ -27,11 +27,10 @@ class JsonUtils(object):
     @staticmethod
     def load_json_from_url(url_str):
         try:
-            with urllib.request.urlopen(url_str) as url:
+            with urllib.request.urlopen(url_str, timeout=10) as url:
                 data = json.load(url)
         except:
-            print(f"failed to load from {url_str}")
-            return None
+            raise Exception(f"failed to load from {url_str}")
         return data
 
 
