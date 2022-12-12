@@ -76,4 +76,5 @@ if __name__ == '__main__':
     columns = ["id", "name", "q_sign", "knob_sign",
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
-    ParquetUtils.parquet_write(df_tmp, dst_path, f"{int(begin)}_query_traces_{url_suffix_start}_{url_suffix_end}.csv")
+    ParquetUtils.parquet_write(
+        df_tmp, dst_path, f"{int(begin)}_query_traces_{url_suffix_start}_{url_suffix_end}.parquet")
