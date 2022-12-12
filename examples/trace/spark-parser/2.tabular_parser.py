@@ -36,7 +36,8 @@ def extract_tabular(url_suffix, begin):
         data = JsonUtils.load_json_from_url(url)
         query = JsonUtils.load_json_from_url(url + "/sql")[1]
         _, q_sign, knob_sign = data["name"].split("_")
-        print(f"finished {url_suffix}/{url_suffix_end}, cost {time.time() - begin}s")
+        if (url_suffix - url_suffix_start + 1) % ((url_suffix_end - url_suffix_start) // 100) == 0:
+            print(f"finished {url_suffix}/{url_suffix_end}, cost {time.time() - begin}s")
         return [
             appid, data["name"], q_sign, knob_sign,
             json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
@@ -45,7 +46,7 @@ def extract_tabular(url_suffix, begin):
     except Exception as e:
         traceback.print_exc()
         print(f"{e} when url={url}/sql")
-        with open(f"{dst_path}/{begin}_failed_urls.txt", "a+") as f:
+        with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
             f.write(f"{url}/sql\n")
         return [
             None, None, None, None,
@@ -60,6 +61,8 @@ if __name__ == '__main__':
     sf = args.scale_factor
     sampling = args.sampling
     dst_path_header = args.dst_path_header
+    dst_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/2.tabular"
+    os.makedirs(dst_path, exist_ok=True)
     url_header = args.url_header
     url_suffix_start = args.url_suffix_start
     url_suffix_end = args.url_suffix_end
@@ -73,6 +76,4 @@ if __name__ == '__main__':
     columns = ["id", "name", "q_sign", "knob_sign",
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
-    dst_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/2.tabular"
-    os.makedirs(dst_path, exist_ok=True)
-    ParquetUtils.parquet_write(df_tmp, dst_path, f"{begin}_query_traces_{url_suffix_start}_{url_suffix_end}.csv")
+    ParquetUtils.parquet_write(df_tmp, dst_path, f"{int(begin)}_query_traces_{url_suffix_start}_{url_suffix_end}.csv")
