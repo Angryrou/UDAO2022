@@ -74,4 +74,4 @@ if __name__ == '__main__':
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
     os.makedirs(dst_path, exist_ok=True)
-    df_tmp.to_csv(f"{dst_path}/{begin}_{url_suffix_start}_{url_suffix_end}.csv", sep="\u0001")
+    ParquetUtils.parquet_write(df_tmp, dst_path, f"{begin}_{url_suffix_start}_{url_suffix_end}.csv")
