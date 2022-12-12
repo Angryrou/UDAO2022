@@ -45,7 +45,6 @@ def extract_tabular(url_suffix, begin, lamda):
             TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]), query["duration"] / 1000, None
         ]
     except Exception as e:
-        traceback.print_exc()
         print(f"{e} when url={url}")
         with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
             f.write(f"{url}/sql\n")
