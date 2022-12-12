@@ -27,7 +27,7 @@ class JsonUtils(object):
     @staticmethod
     def load_json_from_url(url_str):
         try:
-            with urllib.request.urlopen(url_str, timeout=30) as url:
+            with urllib.request.urlopen(url_str, timeout=10) as url:
                 data = json.load(url)
         except:
             raise Exception(f"failed to load from {url_str}")
