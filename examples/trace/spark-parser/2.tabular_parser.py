@@ -19,12 +19,13 @@ class Args():
         self.parser.add_argument("--url-suffix-start", type=int, default=3827, help="the number is inclusive")
         self.parser.add_argument("--url-suffix-end", type=int, default=83840, help="the number is inclusive")
         self.parser.add_argument("--num-processes", type=int, default=6)
+        self.parser.add_argument("--lamda", type=int, default=100)
 
     def parse(self):
         return self.parser.parse_args()
 
 
-def extract_tabular(url_suffix, begin):
+def extract_tabular(url_suffix, begin, lamda):
     """
     return ["id", "name", "q_sign", "knob_sign",
             "planDescription", "nodes", "edges",
@@ -36,7 +37,7 @@ def extract_tabular(url_suffix, begin):
         data = JsonUtils.load_json_from_url(url)
         query = JsonUtils.load_json_from_url(url + "/sql")[1]
         _, q_sign, knob_sign = data["name"].split("_")
-        if (url_suffix - url_suffix_start + 1) % ((url_suffix_end - url_suffix_start) // 100) == 0:
+        if (url_suffix - url_suffix_start + 1) % ((url_suffix_end - url_suffix_start) // lamda) == 0:
             print(f"finished {url_suffix}/{url_suffix_end}, cost {time.time() - begin}s")
         return [
             appid, data["name"], q_sign, knob_sign,
@@ -67,9 +68,10 @@ if __name__ == '__main__':
     url_suffix_start = args.url_suffix_start
     url_suffix_end = args.url_suffix_end
     n_processes = args.num_processes
+    lamda = args.lamda
 
     begin = time.time()
-    arg_list = [(url_suffix, begin, ) for url_suffix in range(url_suffix_start, url_suffix_end + 1)]
+    arg_list = [(url_suffix, begin, lamda, ) for url_suffix in range(url_suffix_start, url_suffix_end + 1)]
     with Pool(processes=n_processes) as pool:
         res = pool.starmap(extract_tabular, arg_list)
     print(f"generating urls cots {time.time() - begin}s")
