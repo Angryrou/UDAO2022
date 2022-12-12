@@ -94,6 +94,7 @@ if __name__ == '__main__':
     sc = spark.sparkContext
     spark.sql(f"create database if not exists {dbname}")
     spark.sql(f"use {dbname}")
+    print(f"use {dbname}")
 
     # get R1 (mach_traces)
     df_mach = spark.read.parquet(f"/user/spark_benchmark/{bm}_{sf}/traces/{sampling}_mach_traces.parquet").toDF(
@@ -126,9 +127,9 @@ if __name__ == '__main__':
         R2.id, R2.name, R2.q_sign, R2.knob_sign, R2.planDescription, R2.nodes, R2.edges, \
         R1.m1, R1.m2, R1.m3, R1.m4, R1.m5, R1.m6, R1.m7, R1.m8, R2.startTime_query, R2.latency_query, \
         split(R2.q_sign, "-")[0] as tid \
-    from mach_traces R1, R2, ( \
+    from {sampling}_mach_traces R1, R2, ( \
         select R2.id as id, R2.startTime_query as t1, max(R1.timestamp) as t2 \
-        from mach_traces R1, R2 \
+        from {sampling}_mach_traces R1, R2 \
         where R2.error is null and R1.timestamp < R2.startTime_query \
         group by R2.id, R2.id, R2.startTime_query \
     ) as R3 \
