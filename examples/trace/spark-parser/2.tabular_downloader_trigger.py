@@ -48,5 +48,5 @@ python -u examples/trace/spark-parser/2.tabular_downloader.py -b {bm} --scale-fa
 
         os.system(cmd)
         os.system("bash ~/chenghao/kill_jps.sh")
-        os.system("bash ~/chenghao/start-hex")
-        time.sleep(8 * 60)
+        os.system("bash ~/chenghao/start-hex.sh")
+        time.sleep(15 * 60)
