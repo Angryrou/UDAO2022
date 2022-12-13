@@ -109,3 +109,11 @@ class ParquetUtils(object):
         os.makedirs(header, exist_ok=True)
         table = pa.Table.from_pandas(df)
         pq.write_table(table, path)
+
+
+class FileUtils(object):
+    @staticmethod
+    def read_file_as_rows(filename):
+        with open(filename, "r") as f:
+            rows = f.read().strip().split("\n")
+        return rows

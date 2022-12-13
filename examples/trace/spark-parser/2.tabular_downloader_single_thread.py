@@ -1,8 +1,8 @@
 import argparse
-import os, json, time
+import os, json, time, glob
 import pandas as pd
 
-from utils.common import JsonUtils, TimeUtils, ParquetUtils
+from utils.common import JsonUtils, TimeUtils, ParquetUtils, FileUtils
 
 
 class Args():
@@ -17,6 +17,8 @@ class Args():
         self.parser.add_argument("--url-suffix-start", type=int, default=3827, help="the number is inclusive")
         self.parser.add_argument("--url-suffix-end", type=int, default=83840, help="the number is inclusive")
         self.parser.add_argument("--lamda", type=int, default=100)
+        self.parser.add_argument("--target-url-path", type=str, default=None)
+        # "examples/trace/spark-parser/outs/tpch_100_lhs/2.tabular/*_failed_urls.txt"
 
     def parse(self):
         return self.parser.parse_args()
@@ -36,9 +38,23 @@ if __name__ == '__main__':
     lamda = args.lamda
 
     begin = time.time()
-    res = [None] * (url_suffix_end - url_suffix_start + 1)
-    for i, url_suffix in enumerate(range(url_suffix_start, url_suffix_end + 1)):
-        url = f"{url_header}_{f'{url_suffix:04}' if url_suffix < 10000 else str(url_suffix)}"
+
+    if args.target_url_path is not None:
+        files = glob.glob(args.target_url_path)
+        urls = []
+        for file in files:
+            rows = [u[:-4] for u in FileUtils.read_file_as_rows(file)]
+            urls += rows
+        path_sign = args.target_url_path.split("/")[-1]
+    else:
+        urls = [f"{url_header}_{f'{url_suffix:04}' if url_suffix < 10000 else str(url_suffix)}"
+                for i, url_suffix in enumerate(range(url_suffix_start, url_suffix_end + 1))]
+        path_sign = f"{url_suffix_start}_{url_suffix_end}"
+
+    n_queries = len(urls)
+    print(f"Got {n_queries} queries to parse.")
+    res = [None] * len(urls)
+    for i, url in enumerate(urls):
         appid = url.split("/")[-1]
 
         finished = False
@@ -48,8 +64,8 @@ if __name__ == '__main__':
                 data = JsonUtils.load_json_from_url(url, 20)
                 query = JsonUtils.load_json_from_url(url + "/sql")[1]
                 _, q_sign, knob_sign = data["name"].split("_")
-                if (url_suffix - url_suffix_start + 1) % ((url_suffix_end - url_suffix_start) // lamda) == 0:
-                    print(f"finished {url_suffix}/{url_suffix_end}, cost {time.time() - begin}s")
+                if (i + 1) % (n_queries // lamda) == 0:
+                    print(f"finished {i}/{n_queries}, cost {time.time() - begin}s")
                 res[i] = [
                     appid, data["name"], q_sign, knob_sign,
                     json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
@@ -75,4 +91,4 @@ if __name__ == '__main__':
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
     ParquetUtils.parquet_write(
-        df_tmp, dst_path, f"{int(begin)}_query_traces_{url_suffix_start}_{url_suffix_end}.parquet")
+        df_tmp, dst_path, f"{int(begin)}_query_traces_{path_sign}.parquet")
