@@ -137,3 +137,5 @@ examples/trace/*/*_outs
 resources/scripts
 
 examples/trace/*/internal/*/*
+*.csv
+*.parquet

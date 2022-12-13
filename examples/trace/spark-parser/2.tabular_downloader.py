@@ -48,6 +48,7 @@ def extract_tabular(url_suffix, begin, lamda):
         print(f"{e} when url={url}")
         with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
             f.write(f"{url}/sql\n")
+        time.sleep(60)
         return [
             None, None, None, None,
             None, None, None,
