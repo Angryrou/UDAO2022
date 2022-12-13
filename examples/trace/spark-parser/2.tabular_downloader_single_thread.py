@@ -22,37 +22,6 @@ class Args():
         return self.parser.parse_args()
 
 
-def extract_tabular(url_suffix, begin, lamda):
-    """
-    return ["id", "name", "q_sign", "knob_sign",
-            "planDescription", "nodes", "edges",
-            "start_timestamp", "latency", "err"]
-    """
-    url = f"{url_header}_{f'{url_suffix:04}' if url_suffix < 10000 else str(url_suffix)}"
-    appid = url.split("/")[-1]
-    try:
-        data = JsonUtils.load_json_from_url(url)
-        query = JsonUtils.load_json_from_url(url + "/sql")[1]
-        _, q_sign, knob_sign = data["name"].split("_")
-        if (url_suffix - url_suffix_start + 1) % ((url_suffix_end - url_suffix_start) // lamda) == 0:
-            print(f"finished {url_suffix}/{url_suffix_end}, cost {time.time() - begin}s")
-        return [
-            appid, data["name"], q_sign, knob_sign,
-            json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
-            TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]), query["duration"] / 1000, None
-        ]
-    except Exception as e:
-        print(f"{e} when url={url}")
-        with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
-            f.write(f"{url}/sql\n")
-        time.sleep(60)
-        return [
-            None, None, None, None,
-            None, None, None,
-            None, None, str(e)
-        ]
-
-
 if __name__ == '__main__':
     args = Args().parse()
     bm = args.benchmark.lower()
@@ -74,7 +43,7 @@ if __name__ == '__main__':
 
         finished = False
         max_trials = 5
-        while not finished and max_trials > 0:
+        while (not finished) and (max_trials > 0):
             try:
                 data = JsonUtils.load_json_from_url(url, 20)
                 query = JsonUtils.load_json_from_url(url + "/sql")[1]
@@ -99,7 +68,8 @@ if __name__ == '__main__':
                     ]
                     with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
                         f.write(f"{url}/sql\n")
-                time.sleep(30)
+                time.sleep(10)
+
     print(f"generating urls cots {time.time() - begin}s")
     columns = ["id", "name", "q_sign", "knob_sign",
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
