@@ -14,7 +14,7 @@ class Args():
         self.parser.add_argument("--scale-factor", type=int, default=100)
         self.parser.add_argument("--sampling", type=str, default="lhs")
         self.parser.add_argument("--dst-path-header", type=str, default="examples/trace/spark-parser/outs")
-        self.parser.add_argument("--tabular-tmp-name", type=str, required=True)
+        self.parser.add_argument("--tabular-tmp-name", type=str, required=False, default=None)
 
     def parse(self):
         return self.parser.parse_args()
@@ -55,8 +55,11 @@ if __name__ == "__main__":
 
     tmp_cols = ["id", "name", "q_sign", "knob_sign", "planDescription", "nodes", "edges",
                 "start_timestamp", "latency", "err"]
-    df_tabular = pd.concat([ParquetUtils.parquet_read(tabular_path, name)
-                            for name in os.listdir(tabular_path) if name[-8:] == ".parquet"])
+    if tabular_tmp_name is None:
+        df_tabular = pd.concat([ParquetUtils.parquet_read(tabular_path, name)
+                                for name in os.listdir(tabular_path) if name[-8:] == ".parquet"])
+    else:
+        df_tabular = ParquetUtils.parquet_read(tabular_path, tabular_tmp_name)
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("start_timestamp")
     x = df_tabular["start_timestamp"].values
     print(f"get {len(x)} queries to parse")
