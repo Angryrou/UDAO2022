@@ -59,6 +59,7 @@ if __name__ == "__main__":
                             for name in os.listdir(tabular_path) if name[-8:] == ".parquet"])
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("start_timestamp")
     x = df_tabular["start_timestamp"].values
+    print(f"get {len(x)} queries to parse")
 
     mach_cols = ["timestamp", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]
     df_mach = ParquetUtils.parquet_read(mach_path, "mach_traces.parquet")

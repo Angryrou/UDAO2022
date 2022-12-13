@@ -32,9 +32,6 @@ if __name__ == '__main__':
     dst_path_header = args.dst_path_header
     dst_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/2.tabular"
     os.makedirs(dst_path, exist_ok=True)
-    url_header = args.url_header
-    url_suffix_start = args.url_suffix_start
-    url_suffix_end = args.url_suffix_end
     lamda = args.lamda
 
     begin = time.time()
@@ -47,6 +44,9 @@ if __name__ == '__main__':
             urls += rows
         path_sign = args.target_url_path.split("/")[-1]
     else:
+        url_header = args.url_header
+        url_suffix_start = args.url_suffix_start
+        url_suffix_end = args.url_suffix_end
         urls = [f"{url_header}_{f'{url_suffix:04}' if url_suffix < 10000 else str(url_suffix)}"
                 for i, url_suffix in enumerate(range(url_suffix_start, url_suffix_end + 1))]
         path_sign = f"{url_suffix_start}_{url_suffix_end}"
