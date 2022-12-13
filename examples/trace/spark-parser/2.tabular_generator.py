@@ -79,3 +79,4 @@ if __name__ == "__main__":
     os.makedirs(f"{tabular_path}/tabular_csv", exist_ok=True)
     for k, v in df_tabular.groupby("template"):
         v.to_csv(f"{tabular_path}/tabular_csv/tabular_{k}.csv", sep="\u0001", index=False)
+    print(f"saved for csvs at {tabular_path}/tabular_csv/*")
