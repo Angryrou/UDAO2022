@@ -35,7 +35,7 @@ def extract_tabular(url_suffix, begin, lamda):
     appid = url.split("/")[-1]
     try:
         data = JsonUtils.load_json_from_url(url)
-        query = JsonUtils.load_json_from_url(url + "/sql")[1]
+        query = JsonUtils.load_json_from_url(url + "/sql", timeout=20)[1]
         _, q_sign, knob_sign = data["name"].split("_")
         if (url_suffix - url_suffix_start + 1) % ((url_suffix_end - url_suffix_start) // lamda) == 0:
             print(f"finished {url_suffix}/{url_suffix_end}, cost {time.time() - begin}s")
@@ -48,7 +48,7 @@ def extract_tabular(url_suffix, begin, lamda):
         print(f"{e} when url={url}")
         with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
             f.write(f"{url}/sql\n")
-        time.sleep(60)
+        time.sleep(10)
         return [
             None, None, None, None,
             None, None, None,
