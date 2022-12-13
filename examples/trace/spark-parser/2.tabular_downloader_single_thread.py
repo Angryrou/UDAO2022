@@ -64,7 +64,6 @@ if __name__ == '__main__':
     url_header = args.url_header
     url_suffix_start = args.url_suffix_start
     url_suffix_end = args.url_suffix_end
-    n_processes = args.num_processes
     lamda = args.lamda
 
     begin = time.time()
