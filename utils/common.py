@@ -5,6 +5,7 @@
 import os, json, pickle, datetime, ciso8601
 import time
 import urllib.request
+import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 
@@ -100,6 +101,17 @@ class ParquetUtils(object):
         if not os.path.exists(path):
             raise FileNotFoundError(path)
         return pq.read_table(path).to_pandas()
+
+    @staticmethod
+    def parquet_read_multiple(header):
+        """
+        read all the parquet files under the directory header
+        :param header: str
+        :return: a dataFrame concatenated over all parquet files under header
+        """
+        return pd.concat([ParquetUtils.parquet_read(header, name)
+                          for name in os.listdir(header) if name[-8:] == ".parquet"])
+
 
     @staticmethod
     def parquet_write(df, header, file_name, overwrite=False):

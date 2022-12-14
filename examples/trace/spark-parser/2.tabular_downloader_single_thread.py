@@ -1,5 +1,7 @@
 import argparse
 import os, json, time, glob
+import sys
+
 import pandas as pd
 
 from utils.common import JsonUtils, TimeUtils, ParquetUtils, FileUtils
@@ -20,6 +22,7 @@ class Args():
         self.parser.add_argument("--target-url-path", type=str, default=None)
         # "examples/trace/spark-parser/outs/tpch_100_lhs/2.tabular/*_failed_urls.txt"
         self.parser.add_argument("--max-trials", type=int, default=5)
+        self.parser.add_argument("--debug", type=int, default=0)
 
     def parse(self):
         return self.parser.parse_args()
@@ -35,9 +38,12 @@ if __name__ == '__main__':
     os.makedirs(dst_path, exist_ok=True)
     lamda = args.lamda
     MAX_TRIALS = args.max_trials
+    debug = False if args.debug == 0 else True
+
+    existed_df_tabular = ParquetUtils.parquet_read_multiple(dst_path)
+    existed_appids = set(existed_df_tabular["id"])
 
     begin = time.time()
-
     if args.target_url_path is not None:
         files = glob.glob(args.target_url_path)
         urls = []
@@ -57,36 +63,48 @@ if __name__ == '__main__':
     print(f"Got {n_queries} queries to parse.")
     res = [None] * len(urls)
     for i, url in enumerate(urls):
-        appid = url.split("/")[-1]
-
-        finished = False
-        max_trials = MAX_TRIALS
-        while (not finished) and (max_trials > 0):
-            try:
-                data = JsonUtils.load_json_from_url(url)
-                query = JsonUtils.load_json_from_url(url + "/sql", 30)[1]
-                _, q_sign, knob_sign = data["name"].split("_")
-                if (i + 1) % (n_queries // lamda) == 0:
-                    print(f"finished {i}/{n_queries}, cost {time.time() - begin}s")
-                res[i] = [
-                    appid, data["name"], q_sign, knob_sign,
-                    json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
-                    TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]), query["duration"] / 1000, None
-                ]
-                finished = True
-                time.sleep(0.01)
-            except Exception as e:
-                max_trials -= 1
-                print(f"{e} when url={url}, max_trials remaining: {max_trials}")
-                if max_trials == 0:
+        try:
+            appid = url.split("/")[-1]
+            if appid in existed_appids:
+                if debug:
+                    print(f"found {appid} in the existing Parquets.")
+                continue
+            finished = False
+            max_trials = MAX_TRIALS
+            while (not finished) and (max_trials > 0):
+                try:
+                    data = JsonUtils.load_json_from_url(url)
+                    query = JsonUtils.load_json_from_url(url + "/sql", 30)[1]
+                    _, q_sign, knob_sign = data["name"].split("_")
+                    if (i + 1) % (n_queries // lamda) == 0:
+                        print(f"finished {i}/{n_queries}, cost {time.time() - begin}s")
                     res[i] = [
-                        None, None, None, None,
-                        None, None, None,
-                        None, None, str(e)
+                        appid, data["name"], q_sign, knob_sign,
+                        json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
+                        TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]), query["duration"] / 1000, None
                     ]
-                    with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
-                        f.write(f"{url}/sql\n")
-                time.sleep(30)
+                    finished = True
+                    print(f"extract {appid} from urls.")
+                    time.sleep(0.01)
+                except Exception as e:
+                    max_trials -= 1
+                    print(f"{e} when url={url}, max_trials remaining: {max_trials}")
+                    if max_trials == 0:
+                        res[i] = [
+                            None, None, None, None,
+                            None, None, None,
+                            None, None, str(e)
+                        ]
+                        with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
+                            f.write(f"{url}/sql\n")
+        except KeyboardInterrupt:
+            if args.target_url_path is None:
+                url_suffix_end = int(url.split("_")[-1]) - 1
+                path_sign = f"{url_suffix_start}_{url_suffix_end}"
+                res = [r for r in res[:i] if r is not None]
+                break
+            else:
+                sys.exit(1)
 
     print(f"generating urls cots {time.time() - begin}s")
     columns = ["id", "name", "q_sign", "knob_sign",

@@ -56,8 +56,7 @@ if __name__ == "__main__":
     tmp_cols = ["id", "name", "q_sign", "knob_sign", "planDescription", "nodes", "edges",
                 "start_timestamp", "latency", "err"]
     if tabular_tmp_name is None:
-        df_tabular = pd.concat([ParquetUtils.parquet_read(tabular_path, name)
-                                for name in os.listdir(tabular_path) if name[-8:] == ".parquet"])
+        df_tabular = ParquetUtils.parquet_read_multiple(tabular_path)
     else:
         df_tabular = ParquetUtils.parquet_read(tabular_path, tabular_tmp_name)
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("start_timestamp")
