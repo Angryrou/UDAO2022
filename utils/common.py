@@ -109,6 +109,9 @@ class ParquetUtils(object):
         :param header: str
         :return: a dataFrame concatenated over all parquet files under header
         """
+        names = [n for n in os.listdir(header) if n[-8:] == ".parquet"]
+        if len(names) == 0:
+            return None
         return pd.concat([ParquetUtils.parquet_read(header, name)
                           for name in os.listdir(header) if name[-8:] == ".parquet"])
 
