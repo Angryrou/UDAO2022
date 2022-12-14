@@ -39,8 +39,11 @@ if __name__ == '__main__':
     debug = False if args.debug == 0 else True
 
     existed_df_tabular = ParquetUtils.parquet_read_multiple(dst_path)
-    existed_df_tabular = existed_df_tabular[existed_df_tabular.err.isna()]
-    existed_appids = set(existed_df_tabular["id"]) if existed_df_tabular is not None else set()
+    if existed_df_tabular is None:
+        existed_appids = set()
+    else:
+        existed_df_tabular = existed_df_tabular[existed_df_tabular.err.isna()]
+        existed_appids = set(existed_df_tabular["id"])
 
     begin = time.time()
     if args.target_url_path is not None:
