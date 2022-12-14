@@ -55,6 +55,11 @@ _TARGET_FILES = [
     "NETPACKET.csv"  # ib0-write/s + ib0-read/s
 ]
 
+def get_df(src_path, w, target):
+    file = f"{src_path}/{w}/csv/{target}"
+    df = pd.read_csv(file)
+    return df
+
 if __name__ == '__main__':
     args = Args().parse()
     workers = BenchmarkUtils.get_workers(args.benchmark)
@@ -63,144 +68,56 @@ if __name__ == '__main__':
     tz_ahead = args.timezone_ahead
     assert tz_ahead in (1, 2)
 
-    # cpu
-    # cpu_utils = (100 - idle) / 100
-    target = "CPU_ALL.csv"
-    metric = "cpu_utils"
-    df_cpu = {}
+    df_dict = {}
+    columns = ["timestamp", "cpu_utils", "mem_utils", "disk_busy", "disk_bsize/s",
+               "disk_KB/s", "disk_xfers/s", "net_KB/s", "net_xfers/s"]
     for w in workers:
-        file = f"{src_path}/{w}/csv/{target}"
-        df = pd.read_csv(file)
-        df[metric] = (100 - df["Idle%"] - df["Steal%"]) / 100
-        df_cpu[w] = df
+        df_w = pd.DataFrame(columns=columns)
+        # cpu
+        # cpu_utils = (100 - idle) / 100
+        metric = "cpu_utils"
+        df = get_df(src_path, w, target="CPU_ALL.csv")
+        df_w[metric] = (100 - df["Idle%"] - df["Steal%"]) / 100
+        df_w["timestamp"] = df[df.columns[0]].apply(lambda x: TimeUtils.get_utc_timestamp(x, tz_ahead))
 
-    # align the worker nodes on the beginning timestamp and the number of steps.
-    ts_begin = min(TimeUtils.get_utc_timestamp(df.head(1).values[0, 0], tz_ahead) for w, df in df_cpu.items())
-    steps = min([df_cpu[w].shape[0] for w in workers])
-    ts_list = np.arange(ts_begin, ts_begin + steps * FEQ, FEQ)
-    assert len(ts_list) == steps
-    for w in workers:
-        df_cpu[w] = df.head(steps)
-    get_plot(df_cpu, metric, workers, dst_path, 1000)
-    cpus = np.array([df_[metric].values for df_ in df_cpu.values()])
-    cpu_mu = cpus.mean(0)
-    assert len(cpu_mu) == steps
-    df_mach = pd.DataFrame({"timestamp": ts_list, metric: cpu_mu})
+        # mem
+        # mem utils = current total memory usage / Total Memory
+        # current total memory usage = Total Memory - (Free + Buffers + Cached)
+        metric = "mem_utils"
+        df = get_df(src_path, w, target="MEM.csv")
+        df_w[metric] = (df["memtotal"] - df["memfree"] - df["buffers"] - df["cached"]) / df["memtotal"]
 
-    # mem
-    # mem utils = current total memory usage / Total Memory
-    # current total memory usage = Total Memory - (Free + Buffers + Cached)
-    target = "MEM.csv"
-    metric = "mem_utils"
-    df_mem = {}
-    for w in workers:
-        file = f"{src_path}/{w}/csv/{target}"
-        df = pd.read_csv(file, nrows=steps)
-        df[metric] = (df["memtotal"] - df["memfree"] - df["buffers"] - df["cached"]) / df["memtotal"]
-        df_mem[w] = df
-    mems = np.array([df_[metric].values for df_ in df_mem.values()])
-    get_plot(df_mem, metric, workers, dst_path, 1000)
-    mem_mu = mems.mean(0)
-    assert len(mem_mu) == steps
-    df_mach[metric] = mem_mu
+        # disk
+        # disk_busy: DISKBUSY, Percentage of time during which the disk is active.
+        df = get_df(src_path, w, target="DISKBUSY.csv")
+        df_w["disk_busy"] = df[DISK] / 100
+        # disk_bsize/s: DISKBSIZE / 5, Disk Block Size
+        # - Total number of disk blocks that are read and written over the interval.
+        df = get_df(src_path, w, target="DISKBSIZE.csv")
+        df_w["disk_bsize/s"] = df[DISK] / FEQ
+        # disk_bytes/s
+        df_i = get_df(src_path, w, target="DISKREAD.csv")
+        df_o = get_df(src_path, w, target="DISKWRITE.csv")
+        df_w["disk_KB/s"] = df_i[DISK] + df_o[DISK]
+        # disk_xfers/s
+        df = get_df(src_path, w, target="DISKXFER.csv")
+        df_w["disk_xfers/s"] = df[DISK]
 
-    # disk
-    # disk_busy: DISKBUSY, Percentage of time during which the disk is active.
-    target = "DISKBUSY.csv"
-    metric = "disk_busy"
-    df_diskbusy = {}
-    for w in workers:
-        file = f"{src_path}/{w}/csv/{target}"
-        df = pd.read_csv(file, nrows=steps)
-        df[metric] = df[DISK] / 100
-        df_diskbusy[w] = df
-    diskbusys = np.array([df_[metric].values for df_ in df_diskbusy.values()])
-    get_plot(df_diskbusy, metric, workers, dst_path, 1000)
-    diskbusy_mu = diskbusys.mean(0)
-    assert len(diskbusy_mu) == steps
-    df_mach[metric] = diskbusy_mu
+        # network
+        # net_bytes/s
+        df = get_df(src_path, w, target="NET.csv")
+        df_w["net_KB/s"] = df[f"{NET}-read-KB/s"] + df[f"{NET}-write-KB/s"]
+        # net_xfers/s = ib0-write/s + ib0-read/s
+        df = get_df(src_path, w, target="NETPACKET.csv")
+        df_w["net_xfers/s"] = df[f"{NET}-read/s"] + df[f"{NET}-write/s"]
 
-    # disk_bsize/s: DISKBSIZE / 5, Disk Block Size - Total number of disk blocks that are read and written over the interval.
-    target = "DISKBSIZE.csv"
-    metric = "disk_bsize/s"
-    df_diskbsize = {}
-    for w in workers:
-        file = f"{src_path}/{w}/csv/{target}"
-        df = pd.read_csv(file, nrows=steps)
-        df[metric] = df[DISK] / FEQ
-        df_diskbsize[w] = df
-    diskbsizes = np.array([df_[metric].values for df_ in df_diskbsize.values()])
-    get_plot(df_diskbsize, metric, workers, dst_path, 1000)
-    diskbsize_mu = diskbsizes.mean(0)
-    assert len(diskbsize_mu) == steps
-    df_mach[metric] = diskbsize_mu
+        dts = df_w["timestamp"].values[1:] - df_w["timestamp"].values[:-1]
+        print(f"{w}, max_dt={np.max(dts)}, min_dt={np.min(dts)}")
+        df_dict[w] = df_w
 
-    # disk_bytes/s
-    target_dict = {"r": "DISKREAD.csv", "w": "DISKWRITE.csv"}
-    df_diskbyte = {"r": {}, "w": {}}
-    metric = "disk_KB/s"
-    for w in workers:
-        file = f"{src_path}/{w}/csv/{target_dict['r']}"
-        df = pd.read_csv(file, nrows=steps)
-        df[metric] = df[DISK]
-        df_diskbyte["r"][w] = df
-
-        file = f"{src_path}/{w}/csv/{target_dict['w']}"
-        df = pd.read_csv(file, nrows=steps)
-        df[metric] = df[DISK]
-        df_diskbyte["w"][w] = df
-    diskbytes = np.array([df_[metric].values for df_ in df_diskbyte["r"].values()]) + \
-                np.array([df_[metric].values for df_ in df_diskbyte["w"].values()])
-    get_plot(df_diskbyte["r"], metric, workers, dst_path, 1000, metric_prefix="r_")
-    get_plot(df_diskbyte["w"], metric, workers, dst_path, 1000, metric_prefix="w_")
-    diskbyte_mu = diskbytes.mean(0)
-    assert len(diskbyte_mu) == steps
-    df_mach[metric] = diskbyte_mu
-
-    # disk_xfers/s
-    target = "DISKXFER.csv"
-    metric = "disk_xfers/s"
-    df_diskxfer = {}
-    for w in workers:
-        file = f"{src_path}/{w}/csv/{target}"
-        df = pd.read_csv(file, nrows=steps)
-        df[metric] = df[DISK]
-        df_diskxfer[w] = df
-    diskxfers = np.array([df_[metric].values for df_ in df_diskxfer.values()])
-    get_plot(df_diskxfer, metric, workers, dst_path, 1000)
-    diskxfer_mu = diskxfers.mean(0)
-    assert len(diskxfer_mu) == steps
-    df_mach[metric] = diskxfer_mu
-
-    # Network
-    # net_bytes/s
-    target = "NET.csv"
-    metric = "net_KB/s"
-    df_netbyte = {}
-    for w in workers:
-        file = f"{src_path}/{w}/csv/{target}"
-        df = pd.read_csv(file, nrows=steps)
-        df[metric] = df[f"{NET}-read-KB/s"] + df[f"{NET}-write-KB/s"]
-        df_netbyte[w] = df
-    netbytes = np.array([df_[metric].values for df_ in df_netbyte.values()])
-    get_plot(df_netbyte, metric, workers, dst_path, 1000)
-    netbyte_mu = netbytes.mean(0)
-    assert len(netbyte_mu) == steps
-    df_mach[metric] = netbyte_mu
-
-    # net_xfers/s = ib0-write/s + ib0-read/s
-    target = "NETPACKET.csv"
-    metric = "net_xfers/s"
-    df_netxfer = {}
-    for w in workers:
-        file = f"{src_path}/{w}/csv/{target}"
-        df = pd.read_csv(file, nrows=steps)
-        df[metric] = df[f"{NET}-read/s"] + df[f"{NET}-write/s"]
-        df_netxfer[w] = df
-    netxfers = np.array([df_[metric].values for df_ in df_netxfer.values()])
-    get_plot(df_netxfer, metric, workers, dst_path, 1000)
-    netxfer_mu = netxfers.mean(0)
-    assert len(netxfer_mu) == steps
-    df_mach[metric] = netxfer_mu
+    n_ts = min([df_w.shape[0] for df_w in df_dict.values()])
+    df_mach = pd.concat([df_w[columns[1:]][:n_ts] for df_w in df_dict.values()]).reset_index().groupby("index").mean()
+    df_mach["timestamp"] = df_dict[workers[0]]["timestamp"][:n_ts]
+    df_mach = df_mach[columns]
 
     ParquetUtils.parquet_write(df_mach, dst_path, "mach_traces.parquet", True)
