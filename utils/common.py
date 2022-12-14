@@ -2,7 +2,7 @@
 #
 # Created at 9/16/22
 
-import os, json, pickle, datetime, ciso8601
+import os, json, pickle, datetime, ciso8601, glob
 import time
 import urllib.request
 import pandas as pd
@@ -105,13 +105,13 @@ class ParquetUtils(object):
         return pq.read_table(path).to_pandas()
 
     @staticmethod
-    def parquet_read_multiple(header):
+    def parquet_read_multiple(header, matches=None):
         """
         read all the parquet files under the directory header
         :param header: str
         :return: a dataFrame concatenated over all parquet files under header
         """
-        names = [n for n in os.listdir(header) if n[-8:] == ".parquet"]
+        names = [n for n in glob.glob(f"{header}/{'*.parquet' if matches is None else matches}")]
         if len(names) == 0:
             return None
         return pd.concat([ParquetUtils.parquet_read(header, name)

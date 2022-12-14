@@ -14,6 +14,7 @@ class Args():
         self.parser.add_argument("--scale-factor", type=int, default=100)
         self.parser.add_argument("--sampling", type=str, default="lhs")
         self.parser.add_argument("--dst-path-header", type=str, default="examples/trace/spark-parser/outs")
+        self.parser.add_argument("--dst-path-matches", type=str, default="*query_traces*.parquet")
         self.parser.add_argument("--tabular-tmp-name", type=str, required=False, default=None)
 
     def parse(self):
@@ -49,6 +50,7 @@ if __name__ == "__main__":
     sf = args.scale_factor
     sampling = args.sampling
     dst_path_header = args.dst_path_header
+    matches = args.dst_path_matches
     mach_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/1.mach"
     tabular_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/2.tabular"
     tabular_tmp_name = args.tabular_tmp_name
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     tmp_cols = ["id", "name", "q_sign", "knob_sign", "planDescription", "nodes", "edges",
                 "start_timestamp", "latency", "err"]
     if tabular_tmp_name is None:
-        df_tabular = ParquetUtils.parquet_read_multiple(tabular_path)
+        df_tabular = ParquetUtils.parquet_read_multiple(tabular_path, matches)
     else:
         df_tabular = ParquetUtils.parquet_read(tabular_path, tabular_tmp_name)
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("start_timestamp")
@@ -75,7 +77,8 @@ if __name__ == "__main__":
     df_tabular["template"] = df_tabular.q_sign.str.split("-").str[0]
     df_dict = {k: v for k, v in df_tabular.groupby("template")}
 
-    os.makedirs(f"{tabular_path}/tabular_csv", exist_ok=True)
+    dst = f"{tabular_path}/query_traces"
+    os.makedirs(dst, exist_ok=True)
     for k, v in df_tabular.groupby("template"):
-        v.to_csv(f"{tabular_path}/tabular_csv/tabular_{k}.csv", sep="\u0001", index=False)
-    print(f"saved for csvs at {tabular_path}/tabular_csv/*")
+        v.to_csv(f"{dst}/{k}_{sampling}.csv", sep="\u0001", index=False)
+    print(f"saved for csvs at {dst}/*")
