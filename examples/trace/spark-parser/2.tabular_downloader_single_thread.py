@@ -74,7 +74,7 @@ if __name__ == '__main__':
             if debug:
                 print(f"extract {appid} from urls.")
             elif (i + 1) % (n_queries // lamda) == 0:
-                print(f"finished {i}/{n_queries}, cost {time.time() - begin}s")
+                print(f"finished {i + 1}/{n_queries}, cost {time.time() - begin}s")
             res[i] = [
                 appid, data["name"], q_sign, knob_sign,
                 json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
@@ -91,13 +91,14 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"{e} when url={url}")
             res[i] = [
-                None, None, None, None,
+                appid, None, None, None,
                 None, None, None,
                 None, None, str(e)
             ]
             with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
                 f.write(f"{url}/sql\n")
 
+    res = [r for r in res if r is not None]
     print(f"generating {len(res)} urls cots {time.time() - begin}s")
     columns = ["id", "name", "q_sign", "knob_sign",
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
