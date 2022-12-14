@@ -30,6 +30,8 @@ class JsonUtils(object):
         try:
             with urllib.request.urlopen(url_str, timeout=timeout) as url:
                 data = json.load(url)
+        except KeyboardInterrupt:
+            raise KeyboardInterrupt
         except:
             raise Exception(f"failed to load from {url_str}")
         return data
