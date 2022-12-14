@@ -19,6 +19,7 @@ class Args():
         self.parser.add_argument("--lamda", type=int, default=100)
         self.parser.add_argument("--target-url-path", type=str, default=None)
         # "examples/trace/spark-parser/outs/tpch_100_lhs/2.tabular/*_failed_urls.txt"
+        self.parser.add_argument("--max-trials", type=int, default=5)
 
     def parse(self):
         return self.parser.parse_args()
@@ -33,6 +34,7 @@ if __name__ == '__main__':
     dst_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/2.tabular"
     os.makedirs(dst_path, exist_ok=True)
     lamda = args.lamda
+    MAX_TRIALS = args.max_trials
 
     begin = time.time()
 
@@ -58,11 +60,11 @@ if __name__ == '__main__':
         appid = url.split("/")[-1]
 
         finished = False
-        max_trials = 5
+        max_trials = MAX_TRIALS
         while (not finished) and (max_trials > 0):
             try:
-                data = JsonUtils.load_json_from_url(url, 20)
-                query = JsonUtils.load_json_from_url(url + "/sql")[1]
+                data = JsonUtils.load_json_from_url(url)
+                query = JsonUtils.load_json_from_url(url + "/sql", 30)[1]
                 _, q_sign, knob_sign = data["name"].split("_")
                 if (i + 1) % (n_queries // lamda) == 0:
                     print(f"finished {i}/{n_queries}, cost {time.time() - begin}s")
@@ -84,7 +86,7 @@ if __name__ == '__main__':
                     ]
                     with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
                         f.write(f"{url}/sql\n")
-                time.sleep(10)
+                time.sleep(30)
 
     print(f"generating urls cots {time.time() - begin}s")
     columns = ["id", "name", "q_sign", "knob_sign",
