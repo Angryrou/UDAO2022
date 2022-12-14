@@ -106,9 +106,10 @@ if __name__ == '__main__':
             else:
                 sys.exit(1)
 
-    print(f"generating urls cots {time.time() - begin}s")
+    print(f"generating {len(res)} urls cots {time.time() - begin}s")
     columns = ["id", "name", "q_sign", "knob_sign",
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
     ParquetUtils.parquet_write(
         df_tmp, dst_path, f"{int(begin)}_query_traces_{path_sign}.parquet")
+    print(f"results written into {dst_path}/{int(begin)}_query_traces_{path_sign}.parquet")
