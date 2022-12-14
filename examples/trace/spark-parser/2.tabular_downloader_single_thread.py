@@ -36,7 +36,6 @@ if __name__ == '__main__':
     dst_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/2.tabular"
     os.makedirs(dst_path, exist_ok=True)
     lamda = args.lamda
-    MAX_TRIALS = args.max_trials
     debug = False if args.debug == 0 else True
 
     existed_df_tabular = ParquetUtils.parquet_read_multiple(dst_path)
@@ -71,15 +70,15 @@ if __name__ == '__main__':
             data = JsonUtils.load_json_from_url(url)
             query = JsonUtils.load_json_from_url(url + "/sql", 30)[1]
             _, q_sign, knob_sign = data["name"].split("_")
-            if (i + 1) % (n_queries // lamda) == 0:
+            if debug:
+                print(f"extract {appid} from urls.")
+            elif (i + 1) % (n_queries // lamda) == 0:
                 print(f"finished {i}/{n_queries}, cost {time.time() - begin}s")
             res[i] = [
                 appid, data["name"], q_sign, knob_sign,
                 json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
                 TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]), query["duration"] / 1000, None
             ]
-            finished = True
-            print(f"extract {appid} from urls.")
             time.sleep(0.01)
         except KeyboardInterrupt:
             if args.target_url_path is not None:
