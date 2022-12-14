@@ -86,6 +86,8 @@ if __name__ == '__main__':
                     finished = True
                     print(f"extract {appid} from urls.")
                     time.sleep(0.01)
+                except KeyboardInterrupt:
+                    raise KeyboardInterrupt
                 except Exception as e:
                     max_trials -= 1
                     print(f"{e} when url={url}, max_trials remaining: {max_trials}")
