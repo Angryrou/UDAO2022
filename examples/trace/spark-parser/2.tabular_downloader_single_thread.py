@@ -79,7 +79,6 @@ if __name__ == '__main__':
                 json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
                 TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]), query["duration"] / 1000, None
             ]
-            time.sleep(0.01)
         except KeyboardInterrupt:
             if args.target_url_path is not None:
                 sys.exit(1)
