@@ -39,6 +39,7 @@ if __name__ == '__main__':
     debug = False if args.debug == 0 else True
 
     existed_df_tabular = ParquetUtils.parquet_read_multiple(dst_path)
+    existed_df_tabular = existed_df_tabular[existed_df_tabular.err.isna()]
     existed_appids = set(existed_df_tabular["id"]) if existed_df_tabular is not None else set()
 
     begin = time.time()
@@ -58,7 +59,7 @@ if __name__ == '__main__':
         path_sign = f"{url_suffix_start}_{url_suffix_end}"
 
     n_queries = len(urls)
-    print(f"Got {n_queries} queries to parse.")
+    print(f"Got {n_queries} queries to parse, with {len(existed_appids)} existed.")
     res = [None] * len(urls)
     for i, url in enumerate(urls):
         appid = url.split("/")[-1]
