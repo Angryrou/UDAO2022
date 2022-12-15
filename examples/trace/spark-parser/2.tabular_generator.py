@@ -61,6 +61,7 @@ if __name__ == "__main__":
         df_tabular = ParquetUtils.parquet_read_multiple(tabular_path, matches)
     else:
         df_tabular = ParquetUtils.parquet_read(tabular_path, tabular_tmp_name)
+    df_tabular.drop_duplicates(subset=['id'])
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("start_timestamp")
     x = df_tabular["start_timestamp"].values
     print(f"get {len(x)} queries to parse")
