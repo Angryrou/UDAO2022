@@ -1,7 +1,11 @@
+# Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
+#
+# Description: download the traces from JSON of REST APIs to CSV files
+#
+# Created at 12/12/22
+
 import argparse, os, time
 import numpy as np
-
-
 class Args():
     def __init__(self):
         self.parser = argparse.ArgumentParser()

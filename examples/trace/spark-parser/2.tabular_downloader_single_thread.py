@@ -1,3 +1,9 @@
+# Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
+#
+# Description: download the traces from JSON of REST APIs to CSV files
+#
+# Created at 12/12/22
+
 import argparse
 import os, json, time, glob
 import sys

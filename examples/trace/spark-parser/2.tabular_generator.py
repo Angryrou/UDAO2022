@@ -1,3 +1,9 @@
+# Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
+#
+# Description: generate CSV merged between Query-level traces and Machine Systems states
+#
+# Created at 12/12/22
+
 import argparse
 import os
 

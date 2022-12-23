@@ -135,7 +135,6 @@ dmypy.json
 resources/*-kit
 examples/trace/*/*_outs
 resources/scripts
-
+resources/dataset
 examples/trace/*/internal/*/*
-*.csv
 *.parquet
