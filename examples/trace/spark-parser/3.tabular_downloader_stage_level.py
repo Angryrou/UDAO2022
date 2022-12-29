@@ -101,7 +101,7 @@ if __name__ == '__main__':
                 break
         except Exception as e:
             print(f"{e} when url={url}")
-            res[i] = [
+            res += [
                 appid, None, None, None,
                 None, None, None,
                 None, None, str(e)
