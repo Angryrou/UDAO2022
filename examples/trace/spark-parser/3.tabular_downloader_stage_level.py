@@ -91,7 +91,7 @@ if __name__ == '__main__':
                      s["inputBytes"], s["inputRecords"],
                      s["shuffleReadBytes"], s["shuffleReadRecords"],
                      None]
-                    for s in stage_list if s["status"] != "COMPLETE"]
+                    for s in stage_list if s["status"] == "COMPLETE"]
         except KeyboardInterrupt:
             if args.target_url_path is not None:
                 sys.exit(1)
