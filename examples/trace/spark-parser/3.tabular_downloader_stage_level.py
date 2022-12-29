@@ -111,7 +111,7 @@ if __name__ == '__main__':
             if debug:
                 break
 
-    print(f"generating {len(res)} urls cots {time.time() - begin}s")
+    print(f"generating {len(res)} urls costs {time.time() - begin}s")
     columns = ["id", "stage_id", "first_task_launched_time", "stage_latency",
                "task_num", "input_bytes", "input_records", "sr_bytes", "sr_records", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)

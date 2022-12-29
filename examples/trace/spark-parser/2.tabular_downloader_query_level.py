@@ -108,7 +108,7 @@ if __name__ == '__main__':
                 f.write(f"{url}/sql\n")
 
     res = [r for r in res if r is not None]
-    print(f"generating {len(res)} urls cots {time.time() - begin}s")
+    print(f"generating {len(res)} urls costs {time.time() - begin}s")
     columns = ["id", "name", "q_sign", "knob_sign",
                "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
