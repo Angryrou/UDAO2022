@@ -39,7 +39,7 @@ if __name__ == '__main__':
     sf = args.scale_factor
     sampling = args.sampling
     dst_path_header = args.dst_path_header
-    dst_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/2.tabular"
+    dst_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/3.tabular_stages"
     os.makedirs(dst_path, exist_ok=True)
     lamda = args.lamda
     debug = False if args.debug == 0 else True
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     n_queries = len(urls)
     print(f"Got {n_queries} queries to parse, with {len(existed_appids)} existed.")
-    res = [None] * len(urls)
+    res = []
     for i, url in enumerate(urls):
         appid = url.split("/")[-1]
         if appid in existed_appids:
@@ -78,24 +78,26 @@ if __name__ == '__main__':
             continue
         try:
             data = JsonUtils.load_json_from_url(url)
-            query = JsonUtils.load_json_from_url(url + "/sql", 30)[1]
-            _, q_sign, knob_sign = data["name"].split("_")
+            stage_list = JsonUtils.load_json_from_url(url + "/stage", 30)
             if debug:
                 print(f"extract {appid} from urls.")
             elif (i + 1) % (n_queries // lamda) == 0:
                 print(f"finished {i + 1}/{n_queries}, cost {time.time() - begin}s")
-            res[i] = [
-                appid, data["name"], q_sign, knob_sign,
-                json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
-                TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]), query["duration"] / 1000, None
-            ]
+            res += [[appid, s["stageId"],
+                     TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3]),
+                     TimeUtils.get_utc_timestamp(s["completionTime"][:-3]) -
+                     TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3]),
+                     s["numTasks"],
+                     s["inputBytes"], s["inputRecords"],
+                     s["shuffleReadBytes"], s["shuffleReadRecords"],
+                     None]
+                    for s in stage_list if s["status"] != "COMPLETE"]
         except KeyboardInterrupt:
             if args.target_url_path is not None:
                 sys.exit(1)
             else:
                 url_suffix_end = int(url.split("_")[-1]) - 1
                 path_sign = f"{url_suffix_start}_{url_suffix_end}"
-                res = [r for r in res[:i] if r is not None]
                 break
         except Exception as e:
             print(f"{e} when url={url}")
@@ -106,11 +108,12 @@ if __name__ == '__main__':
             ]
             with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
                 f.write(f"{url}/sql\n")
+            if debug:
+                break
 
-    res = [r for r in res if r is not None]
     print(f"generating {len(res)} urls cots {time.time() - begin}s")
-    columns = ["id", "name", "q_sign", "knob_sign",
-               "planDescription", "nodes", "edges", "start_timestamp", "latency", "err"]
+    columns = ["id", "stage_id", "first_task_launched_time", "stage_latency",
+               "task_num", "input_bytes", "input_records", "sr_bytes", "sr_records", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
     ParquetUtils.parquet_write(
         df_tmp, dst_path, f"{int(begin)}_query_traces_{path_sign}.parquet")
