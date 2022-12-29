@@ -78,7 +78,7 @@ if __name__ == '__main__':
             continue
         try:
             data = JsonUtils.load_json_from_url(url)
-            stage_list = JsonUtils.load_json_from_url(url + "/stage", 30)
+            stage_list = JsonUtils.load_json_from_url(url + "/stages", 30)
             if debug:
                 print(f"extract {appid} from urls.")
             elif (i + 1) % (n_queries // lamda) == 0:
