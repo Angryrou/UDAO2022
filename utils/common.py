@@ -36,6 +36,12 @@ class JsonUtils(object):
             raise Exception(f"failed to load from {url_str}")
         return data
 
+    @staticmethod
+    def extract_json_list(l, keys:list):
+        for key in keys:
+            for l_ in l:
+                assert key in l_, f"{key} is not in {l_}"
+        return [[l_[key] for l_ in l] for key in keys]
 
 class PickleUtils(object):
 
