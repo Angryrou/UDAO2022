@@ -78,20 +78,27 @@ if __name__ == '__main__':
             continue
         try:
             data = JsonUtils.load_json_from_url(url)
-            stage_list = JsonUtils.load_json_from_url(url + "/stages", 30)
+            stages = JsonUtils.load_json_from_url(url + "/stages", 30)
+            cur_res = []
+            for s in stages:
+                if s["status"] != "COMPLETE":
+                    continue
+                stage_lat = TimeUtils.get_utc_timestamp(s["completionTime"][:-3]) - \
+                            TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3])
+
+                stage = JsonUtils.load_json_from_url(url + "/stages/" + str(s["stageId"]) + "/" + str(s["attemptId"]))
+                stage_dt = sum([v["taskTime"] for k, v in stage["executorSummary"].items()])
+                cur_res.append([
+                    appid, s["stageId"],
+                    TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3]), stage_lat, stage_dt,
+                    s["numTasks"], s["inputBytes"], s["inputRecords"], s["shuffleReadBytes"], s["shuffleReadRecords"],
+                    None
+                ])
             if debug:
-                print(f"extract {appid} from urls.")
+                print(f"extract {appid} from urls: \n {cur_res}")
             elif (i + 1) % (n_queries // lamda) == 0:
                 print(f"finished {i + 1}/{n_queries}, cost {time.time() - begin}s")
-            res += [[appid, s["stageId"],
-                     TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3]),
-                     TimeUtils.get_utc_timestamp(s["completionTime"][:-3]) -
-                     TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3]),
-                     s["numTasks"],
-                     s["inputBytes"], s["inputRecords"],
-                     s["shuffleReadBytes"], s["shuffleReadRecords"],
-                     None]
-                    for s in stage_list if s["status"] == "COMPLETE"]
+            res += cur_res
         except KeyboardInterrupt:
             if args.target_url_path is not None:
                 sys.exit(1)
@@ -102,9 +109,10 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"{e} when url={url}")
             res += [
-                appid, None, None, None,
+                appid, None,
                 None, None, None,
-                None, None, str(e)
+                None, None, None, None, None,
+                str(e)
             ]
             with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
                 f.write(f"{url}/stages\n")
@@ -112,7 +120,7 @@ if __name__ == '__main__':
                 break
 
     print(f"generating {len(res)} stages from {len(urls)} urls costs {time.time() - begin}s")
-    columns = ["id", "stage_id", "first_task_launched_time", "stage_latency",
+    columns = ["id", "stage_id", "first_task_launched_time", "stage_latency", "stage_dt",
                "task_num", "input_bytes", "input_records", "sr_bytes", "sr_records", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
     ParquetUtils.parquet_write(
