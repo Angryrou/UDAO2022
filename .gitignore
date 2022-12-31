@@ -139,4 +139,4 @@ resources/dataset
 examples/trace/*/internal/*/*
 *.parquet
 *.csv
-
+*.png

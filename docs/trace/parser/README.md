@@ -38,39 +38,52 @@ bash examples/trace/spark-parser/1.nmon_parser.sh hex2 examples/trace/spark/8.ru
 python -u examples/trace/spark-parser/1.mach_parser.py -b TPCDS --sampling bo --src-path examples/trace/spark-parser/outs/tpcds_100_bo/1.nmon --dst-path examples/trace/spark-parser/outs/tpcds_100_bo/1.mach --timezone-ahead 1
 ```
 
-2. generate the tabular query-level csv files
+2. generate the tabular csv files
 ```bash
 cd ~/chenghao/UDAO2022
 export PYTHONPATH="$PWD"
-# lhs
+# lhs,query-level
 python -u examples/trace/spark-parser/2.tabular_downloader_query_level.py -b TPCH --sampling lhs \
 --url-header http://10.0.0.1:18088/api/v1/applications/application_1663600377480 --lamda 100 \
 --dst-path-header examples/trace/spark-parser/outs --url-suffix-start 3827 --url-suffix-end 83840
 python -u examples/trace/spark-parser/2.tabular_generator_query_level.py -b TPCH --sampling lhs \
 --dst-path-header examples/trace/spark-parser/outs --dst-path-matches "*query_traces*.parquet"
-# bo
+# lhs,stage-level
+python -u examples/trace/spark-parser/3.tabular_downloader_stage_level.py -b TPCH --sampling lhs \
+--url-header http://10.0.0.1:18088/api/v1/applications/application_1663600377480 --lamda 100 \
+--dst-path-header examples/trace/spark-parser/outs --url-suffix-start 3827 --url-suffix-end 83840
+# todo stage-level generate.
+# bo,query-level
 python -u examples/trace/spark-parser/2.tabular_downloader_query_level.py -b TPCH --sampling bo \
 --url-header http://10.0.0.1:18088/api/v1/applications/application_1666935336888 --lamda 50 \
 --dst-path-header examples/trace/spark-parser/outs --url-suffix-start 24 --url-suffix-end 19999
 python -u examples/trace/spark-parser/2.tabular_generator_query_level.py -b TPCH --sampling bo \
 --dst-path-header examples/trace/spark-parser/outs --dst-path-matches "*query_traces*.parquet"
+# bo,stage-level
+
 # prepare the data to CSV files
 mkdir -p examples/trace/spark-parser/outs/prepared/tpch_100_query_traces
 cp examples/trace/spark-parser/outs/prepared/tpch_100_*/2.*/query_traces/* examples/trace/spark-parser/outs/tpch_100_query_traces
 
 export PYTHONPATH="$PWD"
-# lhs
+# lhs,query-level
 python -u examples/trace/spark-parser/2.tabular_downloader_query_level.py -b TPCDS --sampling lhs \
 --url-header http://10.0.0.7:18088/api/v1/applications/application_1663600383047 --lamda 50 \
 --dst-path-header examples/trace/spark-parser/outs --url-suffix-start 73995 --url-suffix-end 154025
 python -u examples/trace/spark-parser/2.tabular_generator_query_level.py -b TPCDS --sampling lhs \
 --dst-path-header examples/trace/spark-parser/outs --dst-path-matches "*query_traces*.parquet"
-# bo
+# lhs,stage-level
+python -u examples/trace/spark-parser/3.tabular_downloader_stage_level.py -b TPCDS --sampling lhs \
+--url-header http://10.0.0.7:18088/api/v1/applications/application_1663600383047 --lamda 50 \
+--dst-path-header examples/trace/spark-parser/outs --url-suffix-start 73995 --url-suffix-end 154025
+
+# bo,query-level
 python -u examples/trace/spark-parser/2.tabular_downloader_query_level.py -b TPCDS --sampling bo \
 --url-header http://10.0.0.7:18088/api/v1/applications/application_1667574472856 --lamda 1000 \
 --dst-path-header examples/trace/spark-parser/outs --url-suffix-start 1 --url-suffix-end 19364
 python -u examples/trace/spark-parser/2.tabular_generator_query_level.py -b TPCDS --sampling bo \
 --dst-path-header examples/trace/spark-parser/outs --dst-path-matches "*query_traces*.parquet"
+# bo,stage-level
 ```
 
 
