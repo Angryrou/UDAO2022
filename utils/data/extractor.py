@@ -492,7 +492,7 @@ def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epo
         n_corpus_tr, n_corpus_eval1, n_corpus_eval2 = len(train_corpus), len(eval1_corpus), len(eval2_corpus)
         print(f"finished generating model {model_prefix}")
         if not debug:
-            model.save(f"{model_prefix}.model")
+            model.save(f"{cache_header}/{model_prefix}.model")
             PickleUtils.save(
                 obj={
                     "n_tr_samples": n_tr_samples,
