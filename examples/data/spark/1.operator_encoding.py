@@ -56,7 +56,8 @@ if __name__ == "__main__":
         frac_val_per_group=0.1, frac_te_per_group=0.1, seed=seed)
     df_tr, df_val, df_te = df[tr_mask], df[val_mask], df[te_mask]
 
-    input_df = df_tr.loc[df_tr.sql_struct_id.drop_duplicates().index] if debug else df_tr.sample(n_samples)
+    input_df = df_tr.loc[df_tr.sql_struct_id.drop_duplicates().index] if debug else \
+        df_tr.groupby("sql_struct_id").sample(frac=0.2)
     input_df = input_df.reset_index().rename(columns={"level_0": "template", "level_1": "vid"}) \
         .set_index(["sql_struct_id", "id"])
     print(f"get {len(input_df)} queries")

@@ -470,7 +470,7 @@ def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_s
         start = time.time()
         model.train(train_corpus, total_examples=model.corpus_count, epochs=epochs)
         print(f"d2v model training cost {time.time() - start:.3f}s")
-        tr_samples = min(len(train_corpus), max(1000, n_samples / 10))
+        tr_samples = min(len(train_corpus), max(1000, n_samples // 5))
         rate_tr_self, rate_tr_cat1, rate_tr_cat2 = evals_self(model, train_corpus,
                                                               mapping_to_cat1=all_operators_cat.cat1_index,
                                                               mapping_to_cat2=all_operators_cat.cat2_index,
