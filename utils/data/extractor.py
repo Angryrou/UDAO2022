@@ -447,7 +447,7 @@ def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
 
 def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epochs=200, alpha=0.025):
     n_rows = len(input_df)
-    model_prefix = f"d2v_ndp{n_rows}_vsize{vec_size}_epochs{epochs}"
+    model_prefix = f"d2v_ndp{n_rows}_vsize{vec_size}_epochs{epochs}_alpha={alpha:.3f}"
     try:
         model = Doc2Vec.load(f"{cache_header}/{model_prefix}.model")
         meta_dict = PickleUtils.load(cache_header, model_prefix)
