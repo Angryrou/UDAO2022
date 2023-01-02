@@ -4,20 +4,11 @@
 #
 # Created at 12/23/22
 
-import argparse, random, time
-import json
-import os
-
+import argparse, random
 import numpy as np
-import pandas as pd
-from utils.common import BenchmarkUtils, PickleUtils
+from utils.common import BenchmarkUtils
 from utils.data.extractor import get_csvs, SqlStruct, SqlStuctBefore, replace_symbols, self_evals, evals, infer_evals, \
     get_tr_val_te_masks, get_d2v_model, df_convert_query2op, tokenize_op_descs
-
-# Word2Vec
-from gensim.models.word2vec import Word2Vec
-from gensim.models.doc2vec import Doc2Vec, TaggedDocument
-from nltk.tokenize import RegexpTokenizer
 
 
 class Args():
@@ -29,7 +20,6 @@ class Args():
         self.parser.add_argument("--cache-header", type=str, default="examples/data/spark/cache")
         self.parser.add_argument("--workers", type=int, default=1)
         self.parser.add_argument("--debug", type=int, default=1)
-        self.parser.add_argument("--if-plot", type=int, default=1)
         self.parser.add_argument("--seed", type=int, default=42)
         self.parser.add_argument("--mode", type=str, default="d2v")
         self.parser.add_argument("--n-samples-for-tr", type=int, default=10000)
