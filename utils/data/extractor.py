@@ -445,9 +445,18 @@ def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
         [all_operators_tr, all_operators_eval1, all_operators_eval2]]
     return train_corpus, eval1_corpus, eval2_corpus, train_mask, eval1_mask, eval2_mask
 
-def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epochs=200, alpha=0.025):
+def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epochs=200, alpha=0.025, downsamples=1e-3,
+                  dm=1, min_count=2, window=5):
     n_rows = len(input_df)
     model_prefix = f"d2v_ndp{n_rows}_vsize{vec_size}_epochs{epochs}_alpha={alpha:.3f}"
+    if downsamples != 1e-3:
+        model_prefix += f"_downsamples={downsamples:.5f}"
+    if dm != 1:
+        model_prefix += f"_dm={dm}"
+    if min_count != 2:
+        model_prefix += f"_mincnt={min_count}"
+    if window != 5:
+        model_prefix += f"_window={window}"
     try:
         model = Doc2Vec.load(f"{cache_header}/{model_prefix}.model")
         meta_dict = PickleUtils.load(cache_header, model_prefix)
@@ -466,11 +475,13 @@ def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epo
             all_operators, all_operators_cat, debug, seed)
         eval1_cat1, eval2_cat2 = all_operators_cat.cat1_index[eval1_mask], all_operators_cat.cat2_index[eval2_mask]
 
-        model = Doc2Vec(vector_size=vec_size, alpha=alpha, workers=workers, min_count=2, dm=1)
+        model = Doc2Vec(vector_size=vec_size, alpha=alpha, workers=workers, documents=downsamples,
+                        dm=dm, min_count=min_count, window=window)
         model.build_vocab(train_corpus)
         start = time.time()
         model.train(train_corpus, total_examples=model.corpus_count, epochs=epochs)
-        print(f"d2v model training cost {time.time() - start:.3f}s")
+        dt = time.time() - start
+        print(f"d2v model training cost {dt:.3f}s")
         n_tr_samples = min(len(train_corpus), max(1000, n_rows // 5))
         rate_tr_self, rate_tr_cat1, rate_tr_cat2 = evals_self(model, train_corpus,
                                                               mapping_to_cat1=all_operators_cat.cat1_index,
@@ -490,7 +501,8 @@ def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epo
                     "n_corpus_eval2": n_corpus_eval2,
                     "rate_tr_self": rate_tr_self,
                     "rate1_cat1": rate1_cat1,
-                    "rate2_cat2": rate2_cat2
+                    "rate2_cat2": rate2_cat2,
+                    "dt": dt
                 },
                 header=cache_header, file_name=f"{model_prefix}.meta"
             )

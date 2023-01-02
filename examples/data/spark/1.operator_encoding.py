@@ -64,8 +64,9 @@ if __name__ == "__main__":
     print(f"get {len(input_df)} queries for d2v training")
 
     if mode == "d2v":
-        model = get_d2v_model(cache_header, input_df, workers, seed, debug,
-                              vec_size=args.vec_size, epochs=args.epochs, alpha=args.alpha)
+        model = get_d2v_model(
+            cache_header, input_df, workers, seed, debug, vec_size=args.vec_size, epochs=args.epochs, alpha=args.alpha,
+            downsamples=args.downsamples, dm=args.dm, min_count=args.min_count, window=args.window)
         if not tuning:
             # todo: cache operator features to d2v_features.parquet for each struct_id
             ...
