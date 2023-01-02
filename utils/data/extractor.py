@@ -387,10 +387,9 @@ def evals_self(model, train_corpus, mapping_to_cat1, mapping_to_cat2, sample=100
             match_cat2_cnt += 1
     dt = time.time() - start
     rate_self, rate_cat1, rate_cat2 = match_cnt / sample, match_cat1_cnt / sample, match_cat2_cnt / sample
-    print(f"matched_self: {match_cnt}/{sample} = {rate_self:.3f}")
-    print(f"matched_self: {match_cat1_cnt}/{sample} = {rate_cat1:.3f}")
-    print(f"matched_self: {match_cat2_cnt}/{sample} = {rate_cat2:.3f}")
-    print(f"cost {dt:.3f}s for evaluation")
+    print(f"tr_match_rate[{sample}samples]: (self, cat1, cat2) = "
+          f"({rate_self*100:.1f}%, {rate_cat1*100:.1f}%, {rate_cat2*100:.1f}%), "
+          f"cost {dt:.3f}s for evaluation")
     return rate_self, rate_cat1, rate_cat2
 
 def evals(model, corpus, real_cat, mapping_to_cat):
@@ -399,7 +398,8 @@ def evals(model, corpus, real_cat, mapping_to_cat):
         inferred_vector = model.infer_vector(corpus[doc_id].words)
         match = model.dv.most_similar([inferred_vector], topn=1)[0][0]
         pred_cat[doc_id] = mapping_to_cat[match]
-    match_rate = (pred_cat == real_cat).sum() / len(real_cat)
+    match_hits = (pred_cat == real_cat).sum()
+    match_rate = match_hits / len(real_cat)
     return match_rate
 
 def infer_evals(model, corpus):
@@ -451,7 +451,9 @@ def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_s
         model = Doc2Vec.load(f"{cache_header}/{model_prefix}.model")
         meta_dict = PickleUtils.load(cache_header, model_prefix)
         tr_samples = meta_dict["tr_samples"]
-        n_tr_corpus = meta_dict["n_tr_corpus"]
+        n_corpus_tr = meta_dict["n_corpus_tr"]
+        n_corpus_eval1 = meta_dict["n_corpus_eval1"]
+        n_corpus_eval2 = meta_dict["n_corpus_eval2"]
         rate_tr_self = meta_dict["rate_tr_self"]
         rate1_cat1 = meta_dict["rate1_cat1"]
         rate2_cat2 = meta_dict["rate2_cat2"]
@@ -475,14 +477,16 @@ def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_s
                                                               sample=tr_samples)
         rate1_cat1 = evals(model, eval1_corpus, real_cat=eval1_cat1, mapping_to_cat=all_operators_cat.cat1_index)
         rate2_cat2 = evals(model, eval2_corpus, real_cat=eval2_cat2, mapping_to_cat=all_operators_cat.cat2_index)
-        n_tr_corpus = len(train_corpus)
+        n_corpus_tr, n_corpus_eval1, n_corpus_eval2 = len(train_corpus), len(eval1_corpus), len(eval2_corpus)
         print(f"finished generating model {model_prefix}")
         if not debug:
             model.save(f"{model_prefix}.model")
             PickleUtils.save(
                 obj={
                     "tr_samples": tr_samples,
-                    "n_tr_corpus": n_tr_corpus,
+                    "n_corpus_tr": n_corpus_tr,
+                    "n_corpus_eval1": n_corpus_eval1,
+                    "n_corpus_eval2": n_corpus_eval2,
                     "rate_tr_self": rate_tr_self,
                     "rate1_cat1": rate1_cat1,
                     "rate2_cat2": rate2_cat2
@@ -490,6 +494,6 @@ def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_s
                 header=cache_header, file_name=f"{model_prefix}.meta"
             )
             print(f"saved model and meta for {model_prefix}")
-    print(f"match_rate: TR_self_{tr_samples}/{n_tr_corpus}_samples={rate_tr_self * 100:.1f}%, "
-          f"EVAL1={rate1_cat1 * 100:.1f}%, EVAL2={rate2_cat2 * 100:.1f}%")
+    print(f"match_rate: (TR[{tr_samples}samples/{n_corpus_tr}], EVAL1[{n_corpus_eval1}], EVAL2[{n_corpus_eval2}]) = "
+          f"({rate_tr_self * 100:.1f}%, {rate1_cat1 * 100:.1f}%, {rate2_cat2 * 100:.1f}%)")
     return model

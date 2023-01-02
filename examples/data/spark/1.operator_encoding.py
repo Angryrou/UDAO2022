@@ -23,6 +23,7 @@ class Args():
         self.parser.add_argument("--seed", type=int, default=42)
         self.parser.add_argument("--mode", type=str, default="d2v")
         self.parser.add_argument("--n-samples-for-tr", type=int, default=10000)
+        self.parser.add_argument("--tuning", type=int, default=1)
         self.parser.add_argument("--vec-size", type=int, default=32)
         self.parser.add_argument("--alpha", type=float, default=0.025)
         self.parser.add_argument("--epochs", type=int, default=200)
@@ -43,6 +44,7 @@ if __name__ == "__main__":
     seed = args.seed
     mode = args.mode
     n_samples = args.n_samples_for_tr
+    tuning = False if args.tuning == 0 else True
     assert mode in ("d2v", "w2v"), ValueError(mode)
 
     random.seed(seed)
@@ -60,22 +62,26 @@ if __name__ == "__main__":
     print(f"get {len(input_df)} queries")
 
     if mode == "d2v":
-        for vec_size in [20, 50, 100, 200]:
-            for epochs in [5, 10, 20]:
-                model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug,
-                                      vec_size=vec_size, epochs=epochs, alpha=args.alpha)
+        if tuning:
+            for vec_size in [20, 50, 100, 200]:
+                for epochs in [5, 10, 20, 50]:
+                    model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug,
+                                          vec_size=vec_size, epochs=epochs, alpha=args.alpha)
+                print()
+        else:
+            model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug,
+                                  vec_size=args.vec_size, epochs=args.epochs, alpha=args.alpha)
+            # todo: cache operator features to d2v_features.parquet for each struct_id
 
-        # todo: cache operator features to d2v_features.parquet for each struct_id
-
-        # corpus_tr, corpus_val, corpus_te = [tokenize_op_descs(df_convert_query2op(df_))
-        #                                     for df_ in [df_tr, df_val, df_te]]
-        # vecs_tr, vecs_val, vecs_te = [infer_evals(model, corpus_) for corpus_ in [corpus_tr, corpus_val, corpus_te]]
-        #
-        # d2v_cols = [f"d2v_{i}" for i in range(20)]
-        # all_operators_feat = pd.DataFrame(data=[], index=all_operators.index, columns=d2v_cols)
-        # all_operators_feat[train_mask] = vecs_tr
-        # all_operators_feat[eval1_mask] = vecs_ev1
-        # all_operators_feat[eval2_mask] = vecs_ev2
+            # corpus_tr, corpus_val, corpus_te = [tokenize_op_descs(df_convert_query2op(df_))
+            #                                     for df_ in [df_tr, df_val, df_te]]
+            # vecs_tr, vecs_val, vecs_te = [infer_evals(model, corpus_) for corpus_ in [corpus_tr, corpus_val, corpus_te]]
+            #
+            # d2v_cols = [f"d2v_{i}" for i in range(20)]
+            # all_operators_feat = pd.DataFrame(data=[], index=all_operators.index, columns=d2v_cols)
+            # all_operators_feat[train_mask] = vecs_tr
+            # all_operators_feat[eval1_mask] = vecs_ev1
+            # all_operators_feat[eval2_mask] = vecs_ev2
 
     elif mode == "w2v":
         ...
