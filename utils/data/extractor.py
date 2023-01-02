@@ -19,20 +19,16 @@ from gensim.models.word2vec import Word2Vec
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from nltk.tokenize import RegexpTokenizer
 
-def get_tr_val_te_masks(df, groupby_col1, groupby_col2, n_val_per_group, n_te_per_group, seed):
+def get_tr_val_te_masks(df, groupby_col1, groupby_col2, frac_val_per_group, frac_te_per_group, seed):
     """return tr_mask, val_mask, te_mask"""
     random.seed(seed)
     np.random.seed(seed)
     n_rows = len(df)
     val_mask, te_mask = np.array([False] * n_rows), np.array([False] * n_rows)
     df = df.reset_index()
-    assert df.groupby(groupby_col1).size().min() >= n_val_per_group, \
-        f"{df.groupby(groupby_col1).size().min()} < {n_val_per_group}"
-    val_index = df.groupby(groupby_col1).sample(n_val_per_group).index
+    val_index = df.groupby(groupby_col1).sample(frac=frac_val_per_group).index
     val_mask[val_index] = True
-    assert df[~val_mask].groupby(groupby_col2).size().min() >= n_te_per_group, \
-        f"{df.groupby(groupby_col2).size().min()} < {n_te_per_group}"
-    te_index = df[~val_mask].groupby(groupby_col2).sample(n_te_per_group).index
+    te_index = df[~val_mask].groupby(groupby_col2).sample(frac=frac_te_per_group).index
     te_mask[te_index] = True
     tr_mask = ~val_mask & ~te_mask
     return tr_mask, val_mask, te_mask
@@ -432,7 +428,7 @@ def get_operator_descs(input_df):
 
 def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
     train_mask, eval1_mask, eval2_mask = get_tr_val_te_masks(
-        all_operators_cat, "cat1_index", "cat2_index", 2 if debug else 100, 1 if debug else 2, seed)
+        all_operators_cat, "cat1_index", "cat2_index", 0.2 if debug else 0.1, 0.2 if debug else 0.1, seed)
     all_operators_tr, all_operators_eval1, all_operators_eval2 = \
         all_operators[train_mask], all_operators[eval1_mask], all_operators[eval2_mask]
     print(f"get {len(all_operators_tr)} TR, {len(all_operators_eval1)} EVAL1, "
@@ -441,7 +437,7 @@ def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
         [all_operators_tr, all_operators_eval1, all_operators_eval2]]
     return train_corpus, eval1_corpus, eval2_corpus, train_mask, eval1_mask, eval2_mask
 
-def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug):
+def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_size=20, epochs=400, alpha=0.025):
     model_path = f"{cache_header}/d2v_{n_samples}_tr_samples.model"
     try:
         model = Doc2Vec.load(model_path)
@@ -453,15 +449,16 @@ def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug):
             all_operators, all_operators_cat, debug, seed)
         eval1_cat1, eval2_cat2 = all_operators_cat.cat1[eval1_mask], all_operators_cat.cat2[eval2_mask]
 
-        model = Doc2Vec(vector_size=20, min_count=1, alpha=0.025, workers=workers)
+        model = Doc2Vec(vector_size=vec_size, alpha=alpha, workers=workers, min_count=1, dm=1)
         model.build_vocab(train_corpus)
         start = time.time()
-        model.train(train_corpus, total_examples=model.corpus_count, epochs=200)
+        model.train(train_corpus, total_examples=model.corpus_count, epochs=epochs)
         print(f"d2v model training cost {time.time() - start:.3f}s")
-        rate_tr = self_evals(model, train_corpus, sample=max(1000, n_samples / 10))
+        tr_samples = min(len(train_corpus), max(1000, n_samples / 10))
+        rate_tr = self_evals(model, train_corpus, sample=tr_samples)
         rate1 = evals(model, eval1_corpus, real_cat=eval1_cat1, mapping_to_cat=all_operators_cat.cat1_index)
         rate2 = evals(model, eval2_corpus, real_cat=eval2_cat2, mapping_to_cat=all_operators_cat.cat2_index)
-        print(f"match_rate: TR_{n_samples}={rate_tr * 100:.1f}%, "
+        print(f"match_rate: TR_over_{tr_samples}/{len(train_corpus)}_samples={rate_tr * 100:.1f}%, "
               f"EVAL1={rate1 * 100:.1f}%, EVAL2={rate2 * 100:.1f}%")
         if not debug:
             model.save(f"{cache_header}/d2v_{n_samples}_tr_samples.model")

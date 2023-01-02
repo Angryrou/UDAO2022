@@ -30,6 +30,7 @@ class Args():
 
 if __name__ == "__main__":
     args = Args().parse()
+    print(args)
     bm = args.benchmark.lower()
     sf = args.scale_factor
     src_path_header = args.src_path_header
@@ -47,15 +48,19 @@ if __name__ == "__main__":
     templates = [f"q{i}" for i in BenchmarkUtils.get(bm)]
     df = get_csvs(templates, src_path_header, cache_header, samplings=["lhs", "bo"])
     tr_mask, val_mask, te_mask = get_tr_val_te_masks(df=df, groupby_col1="template", groupby_col2="template",
-        n_val_per_group=10000 // len(templates), n_te_per_group=10000//len(templates), seed=seed)
+        frac_val_per_group=0.1, frac_te_per_group=0.1, seed=seed)
     df_tr, df_val, df_te = df[tr_mask], df[val_mask], df[te_mask]
 
     input_df = df_tr.loc[df_tr.sql_struct_id.drop_duplicates().index] if debug else df_tr.sample(n_samples)
     input_df = input_df.reset_index().rename(columns={"level_0": "template", "level_1": "vid"}) \
         .set_index(["sql_struct_id", "id"])
+    print(f"get {len(input_df)} queries")
 
     if mode == "d2v":
         model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug)
+
+        # todo: cache operator features to d2v_features.parquet for each struct_id
+
         # corpus_tr, corpus_val, corpus_te = [tokenize_op_descs(df_convert_query2op(df_))
         #                                     for df_ in [df_tr, df_val, df_te]]
         # vecs_tr, vecs_val, vecs_te = [infer_evals(model, corpus_) for corpus_ in [corpus_tr, corpus_val, corpus_te]]
