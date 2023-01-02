@@ -27,6 +27,10 @@ class Args():
         self.parser.add_argument("--vec-size", type=int, default=32)
         self.parser.add_argument("--alpha", type=float, default=0.025)
         self.parser.add_argument("--epochs", type=int, default=200)
+        self.parser.add_argument("--downsamples", type=float, default=1e-3)
+        self.parser.add_argument("--dm", type=int, default=1)
+        self.parser.add_argument("--min-count", type=int, default=2)
+        self.parser.add_argument("--window", type=int, default=5)
 
     def parse(self):
         return self.parser.parse_args()
