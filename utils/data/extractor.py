@@ -459,7 +459,7 @@ def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epo
         model_prefix += f"_window={window}"
     try:
         model = Doc2Vec.load(f"{cache_header}/{model_prefix}.model")
-        meta_dict = PickleUtils.load(cache_header, model_prefix)
+        meta_dict = PickleUtils.load(cache_header, f"{model_prefix}.meta")
         n_tr_samples = meta_dict["n_tr_samples"]
         n_corpus_tr = meta_dict["n_corpus_tr"]
         n_corpus_eval1 = meta_dict["n_corpus_eval1"]
@@ -475,7 +475,7 @@ def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epo
             all_operators, all_operators_cat, debug, seed)
         eval1_cat1, eval2_cat2 = all_operators_cat.cat1_index[eval1_mask], all_operators_cat.cat2_index[eval2_mask]
 
-        model = Doc2Vec(vector_size=vec_size, alpha=alpha, workers=workers, documents=downsamples,
+        model = Doc2Vec(vector_size=vec_size, alpha=alpha, workers=workers, sample=downsamples,
                         dm=dm, min_count=min_count, window=window)
         model.build_vocab(train_corpus)
         start = time.time()
