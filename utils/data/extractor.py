@@ -13,7 +13,7 @@ import dgl
 import networkx as nx  # brew install graphviz && pip install pydot==1.4.2
 from networkx.algorithms import isomorphism
 
-from utils.common import JsonUtils, ParquetUtils
+from utils.common import JsonUtils, ParquetUtils, PickleUtils
 
 from gensim.models.word2vec import Word2Vec
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
@@ -369,24 +369,29 @@ def self_eval_ori(model, train_corpus):
           f"cost {dt:.3f}s for evaluation")
     return rate
 
-def self_evals(model, train_corpus, sample=1000):
+def evals_self(model, train_corpus, mapping_to_cat1, mapping_to_cat2, sample=1000):
     match_cnt = 0
+    match_cat1_cnt = 0
+    match_cat2_cnt = 0
     start = time.time()
     tc = random.sample(train_corpus, sample)
     for i in range(len(tc)):
         doc_id = tc[i].tags[0]
         inferred_vector = model.infer_vector(tc[i].words)
-        if train_corpus[model.dv.most_similar([inferred_vector], topn=1)[0][0]].tags[0] == doc_id:
+        nearest_doc_id = train_corpus[model.dv.most_similar([inferred_vector], topn=1)[0][0]].tags[0]
+        if nearest_doc_id == doc_id:
             match_cnt += 1
+        if mapping_to_cat1[nearest_doc_id] == mapping_to_cat1[doc_id]:
+            match_cat1_cnt += 1
+        if mapping_to_cat2[nearest_doc_id] == mapping_to_cat2[doc_id]:
+            match_cat2_cnt += 1
     dt = time.time() - start
-    rate = match_cnt/len(train_corpus)
-    print(f"matched: {match_cnt}/{len(train_corpus)} = {rate:.3f}, "
-          f"cost {dt:.3f}s for evaluation")
-    return rate
-
-def infer_evals(model, corpus):
-    return [model.infer_vector(c.words) for c in corpus]
-
+    rate_self, rate_cat1, rate_cat2 = match_cnt / sample, match_cat1_cnt / sample, match_cat2_cnt / sample
+    print(f"matched_self: {match_cnt}/{sample} = {rate_self:.3f}")
+    print(f"matched_self: {match_cat1_cnt}/{sample} = {rate_cat1:.3f}")
+    print(f"matched_self: {match_cat2_cnt}/{sample} = {rate_cat2:.3f}")
+    print(f"cost {dt:.3f}s for evaluation")
+    return rate_self, rate_cat1, rate_cat2
 
 def evals(model, corpus, real_cat, mapping_to_cat):
     pred_cat = -1 * np.ones(len(real_cat))
@@ -394,8 +399,11 @@ def evals(model, corpus, real_cat, mapping_to_cat):
         inferred_vector = model.infer_vector(corpus[doc_id].words)
         match = model.dv.most_similar([inferred_vector], topn=1)[0][0]
         pred_cat[doc_id] = mapping_to_cat[match]
-    match_rate = (real_cat == real_cat).sum() / len(real_cat)
+    match_rate = (pred_cat == real_cat).sum() / len(real_cat)
     return match_rate
+
+def infer_evals(model, corpus):
+    return [model.infer_vector(c.words) for c in corpus]
 
 
 def df_convert_query2op(df):
@@ -437,17 +445,23 @@ def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
         [all_operators_tr, all_operators_eval1, all_operators_eval2]]
     return train_corpus, eval1_corpus, eval2_corpus, train_mask, eval1_mask, eval2_mask
 
-def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_size=20, alpha=0.025, epochs=200):
-    model_path = f"{cache_header}/d2v_{n_samples}_tr_samples.model"
+def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_size=20, epochs=200, alpha=0.025):
+    model_prefix = f"d2v_nsamples{n_samples}_vsize{vec_size}_epochs{epochs}"
     try:
-        model = Doc2Vec.load(model_path)
-        print(f"found d2v_{n_samples}_tr_samples model at {model_path}")
+        model = Doc2Vec.load(f"{cache_header}/{model_prefix}.model")
+        meta_dict = PickleUtils.load(cache_header, model_prefix)
+        tr_samples = meta_dict["tr_samples"]
+        n_tr_corpus = meta_dict["n_tr_corpus"]
+        rate_tr_self = meta_dict["rate_tr_self"]
+        rate1_cat1 = meta_dict["rate1_cat1"]
+        rate2_cat2 = meta_dict["rate2_cat2"]
+        print(f"found {model_prefix}.model at {cache_header}")
     except:
-        print(f"cannot find d2v_{n_samples}_tr_samples model at {model_path}, start generating...")
+        print(f"cannot find {model_prefix} model at {cache_header}, start generating...")
         all_operators, all_operators_cat = get_operator_descs(input_df)
         train_corpus, eval1_corpus, eval2_corpus, train_mask, eval1_mask, eval2_mask = prepare_operator_tokens(
             all_operators, all_operators_cat, debug, seed)
-        eval1_cat1, eval2_cat2 = all_operators_cat.cat1[eval1_mask], all_operators_cat.cat2[eval2_mask]
+        eval1_cat1, eval2_cat2 = all_operators_cat.cat1_index[eval1_mask], all_operators_cat.cat2_index[eval2_mask]
 
         model = Doc2Vec(vector_size=vec_size, alpha=alpha, workers=workers, min_count=1, dm=1)
         model.build_vocab(train_corpus)
@@ -455,11 +469,27 @@ def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_s
         model.train(train_corpus, total_examples=model.corpus_count, epochs=epochs)
         print(f"d2v model training cost {time.time() - start:.3f}s")
         tr_samples = min(len(train_corpus), max(1000, n_samples / 10))
-        rate_tr = self_evals(model, train_corpus, sample=tr_samples)
-        rate1 = evals(model, eval1_corpus, real_cat=eval1_cat1, mapping_to_cat=all_operators_cat.cat1_index)
-        rate2 = evals(model, eval2_corpus, real_cat=eval2_cat2, mapping_to_cat=all_operators_cat.cat2_index)
-        print(f"match_rate: TR_over_{tr_samples}/{len(train_corpus)}_samples={rate_tr * 100:.1f}%, "
-              f"EVAL1={rate1 * 100:.1f}%, EVAL2={rate2 * 100:.1f}%")
+        rate_tr_self, rate_tr_cat1, rate_tr_cat2 = evals_self(model, train_corpus,
+                                                              mapping_to_cat1=all_operators_cat.cat1_index,
+                                                              mapping_to_cat2=all_operators_cat.cat2_index,
+                                                              sample=tr_samples)
+        rate1_cat1 = evals(model, eval1_corpus, real_cat=eval1_cat1, mapping_to_cat=all_operators_cat.cat1_index)
+        rate2_cat2 = evals(model, eval2_corpus, real_cat=eval2_cat2, mapping_to_cat=all_operators_cat.cat2_index)
+        n_tr_corpus = len(train_corpus)
+        print(f"finished generating model {model_prefix}")
         if not debug:
-            model.save(f"{cache_header}/d2v_{n_samples}_tr_samples.model")
+            model.save(f"{model_prefix}.model")
+            PickleUtils.save(
+                obj={
+                    "tr_samples": tr_samples,
+                    "n_tr_corpus": n_tr_corpus,
+                    "rate_tr_self": rate_tr_self,
+                    "rate1_cat1": rate1_cat1,
+                    "rate2_cat2": rate2_cat2
+                },
+                header=cache_header, file_name=f"{model_prefix}.meta"
+            )
+            print(f"saved model and meta for {model_prefix}")
+    print(f"match_rate: TR_self_{tr_samples}/{n_tr_corpus}_samples={rate_tr_self * 100:.1f}%, "
+          f"EVAL1={rate1_cat1 * 100:.1f}%, EVAL2={rate2_cat2 * 100:.1f}%")
     return model

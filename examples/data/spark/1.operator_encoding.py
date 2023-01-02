@@ -7,7 +7,7 @@
 import argparse, random
 import numpy as np
 from utils.common import BenchmarkUtils
-from utils.data.extractor import get_csvs, SqlStruct, SqlStuctBefore, replace_symbols, self_evals, evals, infer_evals, \
+from utils.data.extractor import get_csvs, SqlStruct, SqlStuctBefore, replace_symbols, evals_self, evals, infer_evals, \
     get_tr_val_te_masks, get_d2v_model, df_convert_query2op, tokenize_op_descs
 
 
@@ -60,8 +60,10 @@ if __name__ == "__main__":
     print(f"get {len(input_df)} queries")
 
     if mode == "d2v":
-        model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug,
-                              vec_size=args.vec_size, alpha=args.alpha, epochs=args.epochs)
+        for vec_size in [20, 50, 100, 200]:
+            for epochs in [5, 10, 20]:
+                model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug,
+                                      vec_size=vec_size, epochs=epochs, alpha=args.alpha)
 
         # todo: cache operator features to d2v_features.parquet for each struct_id
 
