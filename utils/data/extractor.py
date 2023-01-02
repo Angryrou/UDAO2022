@@ -437,7 +437,7 @@ def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
         [all_operators_tr, all_operators_eval1, all_operators_eval2]]
     return train_corpus, eval1_corpus, eval2_corpus, train_mask, eval1_mask, eval2_mask
 
-def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_size=20, epochs=200, alpha=0.025):
+def get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug, vec_size=20, alpha=0.025, epochs=200):
     model_path = f"{cache_header}/d2v_{n_samples}_tr_samples.model"
     try:
         model = Doc2Vec.load(model_path)

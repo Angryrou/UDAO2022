@@ -23,6 +23,9 @@ class Args():
         self.parser.add_argument("--seed", type=int, default=42)
         self.parser.add_argument("--mode", type=str, default="d2v")
         self.parser.add_argument("--n-samples-for-tr", type=int, default=10000)
+        self.parser.add_argument("--vec-size", type=int, default=32)
+        self.parser.add_argument("--alpha", type=float, default=0.025)
+        self.parser.add_argument("--epochs", type=int, default=200)
 
     def parse(self):
         return self.parser.parse_args()
@@ -57,7 +60,8 @@ if __name__ == "__main__":
     print(f"get {len(input_df)} queries")
 
     if mode == "d2v":
-        model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug)
+        model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug,
+                              vec_size=args.vec_size, alpha=args.alpha, epochs=args.epochs)
 
         # todo: cache operator features to d2v_features.parquet for each struct_id
 
