@@ -18,6 +18,7 @@ entrypoints==0.4
 executing==1.0.0
 fastjsonschema==2.16.1
 fonttools==4.32.0
+gensim=4.3.0
 gpytorch==1.9.0
 idna==3.3
 importlib-metadata==4.12.0
@@ -48,6 +49,7 @@ nbconvert==7.0.0
 nbformat==5.5.0
 nest-asyncio==1.5.5
 networkx==2.8.8
+nltk=3.8
 notebook==6.4.12
 numpy==1.22.3
 opt-einsum==3.3.0
