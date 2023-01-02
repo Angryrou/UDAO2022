@@ -22,7 +22,7 @@ class Args():
         self.parser.add_argument("--debug", type=int, default=1)
         self.parser.add_argument("--seed", type=int, default=42)
         self.parser.add_argument("--mode", type=str, default="d2v")
-        self.parser.add_argument("--n-samples-for-tr", type=int, default=10000)
+        self.parser.add_argument("--frac-per-struct", type=float, default=0.02)
         self.parser.add_argument("--tuning", type=int, default=1)
         self.parser.add_argument("--vec-size", type=int, default=32)
         self.parser.add_argument("--alpha", type=float, default=0.025)
@@ -43,7 +43,8 @@ if __name__ == "__main__":
     debug = False if args.debug == 0 else True
     seed = args.seed
     mode = args.mode
-    n_samples = args.n_samples_for_tr
+    frac_per_struct = args.frac_per_struct
+    assert frac_per_struct <= 1 and frac_per_struct >= 0
     tuning = False if args.tuning == 0 else True
     assert mode in ("d2v", "w2v"), ValueError(mode)
 
@@ -57,23 +58,17 @@ if __name__ == "__main__":
     df_tr, df_val, df_te = df[tr_mask], df[val_mask], df[te_mask]
 
     input_df = df_tr.loc[df_tr.sql_struct_id.drop_duplicates().index] if debug else \
-        df_tr.groupby("sql_struct_id").sample(frac=0.01)
+        df_tr.groupby("sql_struct_id").sample(frac=frac_per_struct)
     input_df = input_df.reset_index().rename(columns={"level_0": "template", "level_1": "vid"}) \
         .set_index(["sql_struct_id", "id"])
     print(f"get {len(input_df)} queries for d2v training")
 
     if mode == "d2v":
-        if tuning:
-            for vec_size in [20, 50, 100, 200]:
-                for epochs in [5, 10, 20, 50]:
-                    model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug,
-                                          vec_size=vec_size, epochs=epochs, alpha=args.alpha)
-                print()
-        else:
-            model = get_d2v_model(cache_header, n_samples, input_df, workers, seed, debug,
-                                  vec_size=args.vec_size, epochs=args.epochs, alpha=args.alpha)
+        model = get_d2v_model(cache_header, input_df, workers, seed, debug,
+                              vec_size=args.vec_size, epochs=args.epochs, alpha=args.alpha)
+        if not tuning:
             # todo: cache operator features to d2v_features.parquet for each struct_id
-
+            ...
             # corpus_tr, corpus_val, corpus_te = [tokenize_op_descs(df_convert_query2op(df_))
             #                                     for df_ in [df_tr, df_val, df_te]]
             # vecs_tr, vecs_val, vecs_te = [infer_evals(model, corpus_) for corpus_ in [corpus_tr, corpus_val, corpus_te]]
