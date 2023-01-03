@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 import json, ssl, socket, re
 import socks #pip install PySocks
 import networkx as nx # brew install graphviz && pip install pydot==1.4.2
+import dgl, torch as th # pip install dgl==0.9.1
 
 global_stage_counter = 0
 class Node():
@@ -54,6 +55,18 @@ class QueryPlanTopology():
         for node in self.nodes:
             if node.nid == nodeId:
                 return node
+
+def get_dgl_graph(edges : list[Edge]):
+    u_list, v_list = [], []
+    for ed in edges:
+        fromId = ed['fromId']
+        u_list.append(fromId)
+        toId = ed['toId']
+        v_list.append(toId)
+    u, v = th.tensor(u_list), th.tensor(v_list)
+    dgl_graph = dgl.graph((u, v))
+    print(f'dgl {dgl_graph}')
+    return dgl_graph
 
 
 def get_topdowntree_root_leaves(edges: list[Edge]):
@@ -423,9 +436,13 @@ for app_id, url in urls.items():
     #print(f'Stage to plan => {stage2plan}')
     print(f'Saving visualization for full plan')
     topo_visualization(full_plan, app_id, title="full_plan")
+    full_plan_dgl = get_dgl_graph(edges)
+    dgl_subplans = {}
     for stageId, subplan in stage2plan.items():
         print(f'Saving subplan visualization for stage {stageId}')
         topo_visualization(subplan, app_id, title=f"stage_{stageId}")
+        dgl_subplan = get_dgl_graph(subplan.edges)
+        dgl_subplans[stageId] = dgl_subplan
 
     # todo: [later], how to get the dependency among stages.
     print(f'Saving stage dependency visualization')
