@@ -4,12 +4,9 @@
 #
 # Created at 12/23/22
 
-import argparse, random, time
-import json
-import os
+import argparse, random
 
 import numpy as np
-import pandas as pd
 from utils.common import BenchmarkUtils, PickleUtils
 from utils.data.extractor import get_csvs, SqlStruct, get_tr_val_te_masks
 from utils.data.feature import CH1_FEATS, CH2_FEATS, CH3_FEATS, CH4_FEATS, OBJS
@@ -69,6 +66,8 @@ if __name__ == "__main__":
         }, header=cache_header, file_name=struct_cache_name)
         print(f"generated cached structure at {cache_header}/{struct_cache_name}")
 
+    # generate data for query-level modeling
+
     head_cols = ["id", "q_sign", "knob_sign", "template", "sampling", "start_timestamp"]
     ch1_cols, ch2_cols, ch3_cols, ch4_cols = CH1_FEATS, CH2_FEATS, CH3_FEATS, CH4_FEATS
     obj_cols = OBJS
@@ -89,7 +88,6 @@ if __name__ == "__main__":
         df_ = df_tr[col_dict[ch]]
         min_, max_ = df_.min(), df_.max()
         minmax_dict[ch] = {"min": min_, "max": max_}
-
     cache_data = {
         "full_cols": selected_cols, "col_dict": col_dict, "minmax_dict": minmax_dict,
         "df_tr": [df_tr, df_val, df_te]
@@ -102,7 +100,5 @@ if __name__ == "__main__":
     #   - QueryStage -> [operators]
     #   - SQL -> [QueryStages] + {QueryStageDep - a DGL} / blocked by Exchanges and Subqueries
     #   - QueryStage -> [stages]
-
-    # 3. generate data for query-level modeling
 
     # 4. generate data for queryStage-level modeling
