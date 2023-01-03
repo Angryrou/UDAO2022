@@ -19,6 +19,7 @@ from gensim.models.word2vec import Word2Vec
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from nltk.tokenize import RegexpTokenizer
 
+
 def get_tr_val_te_masks(df, groupby_col1, groupby_col2, frac_val_per_group, frac_te_per_group, seed):
     """return tr_mask, val_mask, te_mask"""
     random.seed(seed)
@@ -28,10 +29,12 @@ def get_tr_val_te_masks(df, groupby_col1, groupby_col2, frac_val_per_group, frac
     df = df.reset_index()
     val_index = df.groupby(groupby_col1).sample(frac=frac_val_per_group).index
     val_mask[val_index] = True
+    frac_te_per_group = frac_te_per_group / (1 - frac_val_per_group)
     te_index = df[~val_mask].groupby(groupby_col2).sample(frac=frac_te_per_group).index
     te_mask[te_index] = True
     tr_mask = ~val_mask & ~te_mask
     return tr_mask, val_mask, te_mask
+
 
 def get_csvs(templates, header, cache_header, samplings=["lhs", "bo"]):
     fname = f"csvs.parquet"
@@ -49,15 +52,28 @@ def get_csvs(templates, header, cache_header, samplings=["lhs", "bo"]):
                 df["sampling"] = sampling
                 df_t.append(df)
             df = pd.concat(df_t).reset_index()
-            df["sql_struct_sign"] = df.apply(lambda row: serialize_sql_structure(row), axis=1)
+            df["sql_struct_sign"], df["input_mb"], df["input_records"] = \
+                zip(*df.apply(lambda row: serialize_sql_structure(row), axis=1))
+            df["input_mb_log"], df["input_records_log"] = np.log(df["input_mb"]), np.log(df["input_records"])
             df_dict[t] = df
             print(f"template {t} has {df.sql_struct_sign.unique().size} different structures")
         df = pd.concat(df_dict)
         structure_list = df["sql_struct_sign"].unique().tolist()
         df["sql_struct_id"] = df["sql_struct_sign"].apply(lambda x: structure_list.index(x))
+        for sid in range(len(structure_list)):
+            matches = (df["sql_struct_id"] == sid)
+            df.loc[matches, "sql_struct_svid"] = np.arange(sum(matches))
         ParquetUtils.parquet_write(df, cache_header, fname)
         print(f"generated cached {fname} at {cache_header}")
     return df
+
+
+def get_csvs_tr_val_te(templates, header, cache_header, seed, samplings=["lhs", "bo"]):
+    df = get_csvs(templates, header, cache_header, samplings)
+    tr_mask, val_mask, te_mask = get_tr_val_te_masks(df=df, groupby_col1="template", groupby_col2="template",
+                                                     frac_val_per_group=0.1, frac_te_per_group=0.1, seed=seed)
+    df_tr, df_val, df_te = df[tr_mask], df[val_mask], df[te_mask]
+    return df_tr, df_val, df_te
 
 
 def serialize_sql_structure(row):
@@ -69,7 +85,32 @@ def serialize_sql_structure(row):
     fromIds, toIds = zip(*sorted(zip(fromIds, toIds)))
     sign = ",".join(str(x) for x in nodeIds) + ";" + ",".join(nodeNames) + ";" + \
            ",".join(str(x) for x in fromIds) + ";" + ",".join(str(x) for x in toIds)
-    return sign
+    input_mb, input_records = extract_query_input_size(j_nodes)
+    return sign, input_mb, input_records
+
+
+def extract_query_input_size(j_nodes):
+    nids, nnames, nmetrics = JsonUtils.extract_json_list(j_nodes, ["nodeId", "nodeName", "metrics"])
+    input_mb, input_records = 0, 0
+    for nid, nname, nmetric in zip(nids, nnames, nmetrics):
+        if nname.split()[0] == "Scan":
+            for m in nmetric:
+                if m["name"] == "size of files read":
+                    size, unit = m["value"].replace(",", "").split()
+                    size = float(size)
+                    if unit == "B":
+                        input_mb += size / 1024 / 1024
+                    elif unit == "KiB":
+                        input_mb += size / 1024
+                    elif unit == "MiB":
+                        input_mb += size
+                    elif unit == "GiB":
+                        input_mb += size * 1024
+                    else:
+                        raise ValueError(f"unseen {unit} in {nmetric}")
+                if m["name"] == "number of output rows":  # for scan, n_input_records = n_output_records
+                    input_records += float(m["value"].replace(",", ""))
+    return input_mb, input_records
 
 
 def nodes_old2new(from_ids, to_ids, node_id2name, reverse=False):
@@ -191,6 +232,7 @@ def construct_from_metrics(struct_sign):
     toIds = [int(i) for i in toIds.split(",")]
     return construct_internal(fromIds, toIds, node_id2name, reverse=False)
 
+
 def construct_from_plan(desc):
     plans = list_strip(re.compile("={2,}").split(desc))
     assert plans[0] == "Physical Plan"
@@ -241,6 +283,7 @@ def construct_from_plan(desc):
     node_details_dict = {struct_data.old["nids_old2new"][k]: v for k, v in node_details_dict.items()}
     return struct_data, node_details_dict
 
+
 def construct_internal(from_ids, to_ids, node_id2name, reverse=False):
     # we only consider the nodes that are used in the topology (omit nodes like WSCG)
     nids_old, nids_new, nids_new2old, nids_old2new, \
@@ -288,6 +331,7 @@ class SqlStructData():
         else:
             return None
 
+
 class SqlStuctBefore():
     def __init__(self, desc):
         self.struct, self.nodes_desc = construct_from_plan(desc)
@@ -297,6 +341,7 @@ class SqlStuctBefore():
             return [self.nodes_desc[nid] for nid in self.struct.nids]
         else:
             return [self.nodes_desc[nid] for nid in id_order]
+
 
 class SqlStuctAfter():
     def __init__(self, d):
@@ -320,15 +365,15 @@ class SqlStruct():
         self.id = d["sql_struct_id"]
         self.struct_before = SqlStuctBefore(d["planDescription"])
         self.struct_after = SqlStuctAfter(d)
-        self.p1 = self.struct_after.struct # metric
-        self.p2 = self.struct_before.struct # planDesc
+        self.p1 = self.struct_after.struct  # metric
+        self.p2 = self.struct_before.struct  # planDesc
 
         # mapping from metrics (p1) to the plan (p2)
         mapping = self.p1.graph_match(self.p2)
         if mapping is None:
             raise Exception(f"{self.id} failed to pass the isomorphic test")
         else:
-            self.mapping = dict(sorted(mapping.items())) # sort the mapping in key
+            self.mapping = dict(sorted(mapping.items()))  # sort the mapping in key
 
     def get_nnames(self):
         return self.p1.nnames
@@ -341,16 +386,16 @@ class SqlStruct():
 
 
 def replace_symbols(s):
-    return s.replace(" >= ", " GE ")\
-        .replace(" <= ", " LE ")\
-        .replace(" == ", " EQ")\
-        .replace(" = ", " EQ ")\
-        .replace(" > ", " GT ")\
-        .replace(" < ", " LT ")\
-        .replace(" != ", " NEQ ")\
-        .replace(" + ", " rADD ")\
-        .replace(" - ", " rMINUS ")\
-        .replace(" / ", " rDIV ")\
+    return s.replace(" >= ", " GE ") \
+        .replace(" <= ", " LE ") \
+        .replace(" == ", " EQ") \
+        .replace(" = ", " EQ ") \
+        .replace(" > ", " GT ") \
+        .replace(" < ", " LT ") \
+        .replace(" != ", " NEQ ") \
+        .replace(" + ", " rADD ") \
+        .replace(" - ", " rMINUS ") \
+        .replace(" / ", " rDIV ") \
         .replace(" * ", " rMUL ")
 
 
@@ -364,10 +409,11 @@ def self_eval_ori(model, train_corpus):
         if model.dv.most_similar([inferred_vector], topn=1)[0][0] == doc_id:
             match_cnt += 1
     dt = time.time() - start
-    rate = match_cnt/len(train_corpus)
+    rate = match_cnt / len(train_corpus)
     print(f"matched: {match_cnt}/{len(train_corpus)} = {rate:.3f}, "
           f"cost {dt:.3f}s for evaluation")
     return rate
+
 
 def evals_self(model, train_corpus, mapping_to_cat1, mapping_to_cat2, sample=1000):
     match_cnt = 0
@@ -388,9 +434,10 @@ def evals_self(model, train_corpus, mapping_to_cat1, mapping_to_cat2, sample=100
     dt = time.time() - start
     rate_self, rate_cat1, rate_cat2 = match_cnt / sample, match_cat1_cnt / sample, match_cat2_cnt / sample
     print(f"tr_match_rate[{sample}dps]: (self, cat1, cat2) = "
-          f"({rate_self*100:.1f}%, {rate_cat1*100:.1f}%, {rate_cat2*100:.1f}%), "
+          f"({rate_self * 100:.1f}%, {rate_cat1 * 100:.1f}%, {rate_cat2 * 100:.1f}%), "
           f"cost {dt:.3f}s for evaluation")
     return rate_self, rate_cat1, rate_cat2
+
 
 def evals(model, corpus, real_cat, mapping_to_cat):
     pred_cat = -1 * np.ones(len(real_cat))
@@ -402,12 +449,14 @@ def evals(model, corpus, real_cat, mapping_to_cat):
     match_rate = match_hits / len(real_cat)
     return match_rate
 
+
 def infer_evals(model, corpus):
     return [model.infer_vector(c.words) for c in corpus]
 
 
 def df_convert_query2op(df):
     return df.planDescription.apply(lambda x: SqlStuctBefore(x).get_op_feats()).explode()
+
 
 def tokenize_op_descs(df):
     # tokenize reference:
@@ -417,6 +466,7 @@ def tokenize_op_descs(df):
         "(?:(?<=\s)|(?<=^)|(?<=[\[\"()<>,=]))[a-z0-9'_#.+\-*\/:=]*[a-z0-9](?:(?=\s)|(?=$)|(?=[\]():,=<>]))")
     tokens_list = list(map(lambda x: tokenizer.tokenize(x.lower()), df.values))
     return [TaggedDocument(d, [i]) for i, d in enumerate(tokens_list)]
+
 
 def get_operator_descs(input_df):
     """
@@ -434,6 +484,7 @@ def get_operator_descs(input_df):
     all_operators_cat["cat2_index"] = all_operators_cat["cat2"].replace(cat2, list(range(len(cat2))))
     return all_operators, all_operators_cat
 
+
 def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
     train_mask, eval1_mask, eval2_mask = get_tr_val_te_masks(
         all_operators_cat, "cat1_index", "cat2_index", 0.2 if debug else 0.1, 0.2 if debug else 0.1, seed)
@@ -442,8 +493,9 @@ def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
     print(f"get {len(all_operators_tr)} TR, {len(all_operators_eval1)} EVAL1, "
           f"and {len(all_operators_eval2)} EVAL2 rows")
     train_corpus, eval1_corpus, eval2_corpus = [tokenize_op_descs(all_operators_) for all_operators_ in
-        [all_operators_tr, all_operators_eval1, all_operators_eval2]]
+                                                [all_operators_tr, all_operators_eval1, all_operators_eval2]]
     return train_corpus, eval1_corpus, eval2_corpus, train_mask, eval1_mask, eval2_mask
+
 
 def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epochs=200, alpha=0.025, downsamples=1e-3,
                   dm=1, min_count=2, window=5):

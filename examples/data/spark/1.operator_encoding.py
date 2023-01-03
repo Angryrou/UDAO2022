@@ -8,7 +8,7 @@ import argparse, random
 import numpy as np
 from utils.common import BenchmarkUtils
 from utils.data.extractor import get_csvs, SqlStruct, SqlStuctBefore, replace_symbols, evals_self, evals, infer_evals, \
-    get_tr_val_te_masks, get_d2v_model, df_convert_query2op, tokenize_op_descs
+    get_tr_val_te_masks, get_d2v_model, df_convert_query2op, tokenize_op_descs, get_csvs_tr_val_te
 
 
 class Args():
@@ -56,14 +56,11 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     templates = [f"q{i}" for i in BenchmarkUtils.get(bm)]
-    df = get_csvs(templates, src_path_header, cache_header, samplings=["lhs", "bo"])
-    tr_mask, val_mask, te_mask = get_tr_val_te_masks(df=df, groupby_col1="template", groupby_col2="template",
-        frac_val_per_group=0.1, frac_te_per_group=0.1, seed=seed)
-    df_tr, df_val, df_te = df[tr_mask], df[val_mask], df[te_mask]
+    df_tr, df_val, df_te = get_csvs_tr_val_te(templates, src_path_header, cache_header, seed, samplings=["lhs", "bo"])
 
     input_df = df_tr.loc[df_tr.sql_struct_id.drop_duplicates().index] if debug else \
         df_tr.groupby("sql_struct_id").sample(frac=frac_per_struct)
-    input_df = input_df.reset_index().rename(columns={"level_0": "template", "level_1": "vid"}) \
+    input_df = input_df.reset_index().rename(columns={"level_0": "template", "level_1": "qvid"}) \
         .set_index(["sql_struct_id", "id"])
     print(f"get {len(input_df)} queries for d2v training")
 

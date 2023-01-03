@@ -11,12 +11,8 @@ import os
 import numpy as np
 import pandas as pd
 from utils.common import BenchmarkUtils, PickleUtils
-from utils.data.extractor import get_csvs, SqlStruct, SqlStuctBefore, replace_symbols, evals_self, evals
-
-# Word2Vec
-from gensim.models.word2vec import Word2Vec
-from gensim.models.doc2vec import Doc2Vec, TaggedDocument
-from nltk.tokenize import RegexpTokenizer
+from utils.data.extractor import get_csvs, SqlStruct, get_tr_val_te_masks
+from utils.data.feature import CH1_FEATS, CH2_FEATS, CH3_FEATS, CH4_FEATS, OBJS
 
 
 class Args():
@@ -73,6 +69,32 @@ if __name__ == "__main__":
         }, header=cache_header, file_name=struct_cache_name)
         print(f"generated cached structure at {cache_header}/{struct_cache_name}")
 
+    head_cols = ["id", "q_sign", "knob_sign", "template", "sampling", "start_timestamp"]
+    ch1_cols, ch2_cols, ch3_cols, ch4_cols = CH1_FEATS, CH2_FEATS, CH3_FEATS, CH4_FEATS
+    obj_cols = OBJS
+
+    df[ch4_cols] = df.knob_sign.str.split(",", expand=True)
+    df[["k6", "k7", "s4"]] = df[["k6", "k7", "k4"]].astype(bool)
+    df[ch4_cols] = df[ch4_cols].astype(float)
+
+    selected_cols = head_cols + ch1_cols + ch2_cols + ch3_cols + ch4_cols + obj_cols
+    df4model = df[selected_cols]
+    tr_mask, val_mask, te_mask = get_tr_val_te_masks(
+        df=df4model, groupby_col1="template", groupby_col2="template",
+        frac_val_per_group=0.1, frac_te_per_group=0.1, seed=seed)
+    df_tr, df_val, df_te = df4model[tr_mask], df4model[val_mask], df4model[te_mask]
+    col_dict = {"ch1": ch1_cols, "ch2": ch2_cols, "ch3": ch3_cols, "ch4": ch4_cols, "obj": obj_cols}
+    minmax_dict = {}
+    for ch in ["ch1", "ch2", "ch3", "ch4", "obj"]:
+        df_ = df_tr[col_dict[ch]]
+        min_, max_ = df_.min(), df_.max()
+        minmax_dict[ch] = {"min": min_, "max": max_}
+
+    cache_data = {
+        "full_cols": selected_cols, "col_dict": col_dict, "minmax_dict": minmax_dict,
+        "df_tr": [df_tr, df_val, df_te]
+    }
+    PickleUtils.save(cache_data, cache_header, "query_level_cache_data.pkl")
 
     # generate data
 
