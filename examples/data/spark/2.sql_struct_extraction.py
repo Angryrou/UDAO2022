@@ -73,7 +73,7 @@ if __name__ == "__main__":
     obj_cols = OBJS
 
     df[ch4_cols] = df.knob_sign.str.split(",", expand=True)
-    df[["k6", "k7", "s4"]] = df[["k6", "k7", "k4"]].astype(bool)
+    df[["k6", "k7", "s4"]] = (df[["k6", "k7", "s4"]] == "True") + 0
     df[ch4_cols] = df[ch4_cols].astype(float)
 
     selected_cols = head_cols + ch1_cols + ch2_cols + ch3_cols + ch4_cols + obj_cols
@@ -90,7 +90,7 @@ if __name__ == "__main__":
         minmax_dict[ch] = {"min": min_, "max": max_}
     cache_data = {
         "full_cols": selected_cols, "col_dict": col_dict, "minmax_dict": minmax_dict,
-        "df_tr": [df_tr, df_val, df_te]
+        "dfs": [df_tr, df_val, df_te]
     }
     PickleUtils.save(cache_data, cache_header, "query_level_cache_data.pkl")
 
