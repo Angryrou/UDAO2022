@@ -38,7 +38,7 @@ class ArgsGTN(ArgsBase):
         self.parser.add_argument("--nworkers", type=int, default=0)
         self.parser.add_argument("--bs", type=int, default=64)
         self.parser.add_argument("--epochs", type=int, default=2)
-        self.parser.add_argument("--seed", type=int, default=41)
+        self.parser.add_argument("--seed", type=int, default=42)
         self.parser.add_argument('--init-lr', type=float)
         self.parser.add_argument('--min-lr', type=float)
         self.parser.add_argument('--weight-decay', type=float)

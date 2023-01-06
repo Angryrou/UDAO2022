@@ -7,8 +7,7 @@
 import argparse, random
 import numpy as np
 from utils.common import BenchmarkUtils
-from utils.data.extractor import get_csvs, SqlStruct, SqlStuctBefore, replace_symbols, evals_self, evals, infer_evals, \
-    get_tr_val_te_masks, get_d2v_model, df_convert_query2op, tokenize_op_descs, get_csvs_tr_val_te
+from utils.data.extractor import get_d2v_model, get_csvs_tr_val_te
 
 
 class Args():

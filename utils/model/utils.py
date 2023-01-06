@@ -191,6 +191,8 @@ def collate(samples):
 def norm_in_feat_inst(x, minmax):
     return (x - minmax["min"]) / (minmax["max"] - minmax["min"])
 
+def denorm_obj(o, minmax):
+    return o * (minmax["max"] - minmax["min"]) + minmax["min"]
 
 class MyDSBase(Dataset):
     def __init__(self, dataset, col_dict, picked_groups, op_groups, dag_dict, ped=1):
@@ -276,16 +278,18 @@ def loss_compute(y, y_hat, loss_type, obj, loss_ws):
     return loss, loss_dict
 
 
-def model_out(model, x, in_feat_minmax, device, mode="train"):
+def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
     stage_graph, inst_feat, y = x
     if stage_graph is None:
-        batch_insts = norm_in_feat_inst(inst_feat, in_feat_minmax).to(device)
+        batch_insts = inst_feat.to(device)
         batch_y = y.to(device)
+        batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
         batch_y_hat = model.forward(batch_insts)
     else:
         batch_stages = stage_graph.to(device)
-        batch_insts = norm_in_feat_inst(inst_feat, in_feat_minmax).to(device)
+        batch_insts = inst_feat.to(device)
         batch_y = y.to(device)
+        batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
         if model.name == "GTN":
             batch_lap_pos_enc = batch_stages.ndata['lap_pe'].to(device)
             if mode == "train":
@@ -300,6 +304,7 @@ def model_out(model, x, in_feat_minmax, device, mode="train"):
             batch_y_hat = model.forward(batch_stages, device, batch_insts)
         else:
             raise Exception(f"unsupported model_name {model.name}")
+    batch_y_hat = denorm_obj(batch_y_hat, obj_minmax)
     return batch_y, batch_y_hat
 
 
@@ -335,14 +340,14 @@ def get_eval_metrics(y_list, y_hat_list, loss_type, obj, loss_ws, if_y):
         return loss_total, metrics_dict
 
 
-def evaluate_model(model, loader, device, in_feat_minmax, loss_type, obj, loss_ws, if_y=False):
+def evaluate_model(model, loader, device, in_feat_minmax, obj_minmax, loss_type, obj, loss_ws, if_y=False):
     assert obj in OBJ_MAP
     model.eval()
     y_all_list = []
     y_hat_all_list = []
     with th.no_grad():
         for batch_idx, x in enumerate(loader):
-            batch_y, batch_y_hat = model_out(model, x, in_feat_minmax, device, mode="eval")
+            batch_y, batch_y_hat = model_out(model, x, in_feat_minmax, obj_minmax, device, mode="eval")
             y_all_list.append(batch_y)
             y_hat_all_list.append(batch_y_hat)
         return get_eval_metrics(y_all_list, y_hat_all_list, loss_type, obj, loss_ws, if_y)
@@ -417,14 +422,14 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
                for split in ["tr", "val", "te"]}
     picked_groups_in_feat = [ch for ch in picked_groups if ch not in ("ch1", "obj")]
     in_feat_minmax = {
-        "min": th.cat([get_tensor(minmax_dict[ch]["min"].values) for ch in picked_groups_in_feat]),
-        "max": th.cat([get_tensor(minmax_dict[ch]["max"].values) for ch in picked_groups_in_feat])
+        "min": th.cat([get_tensor(minmax_dict[ch]["min"].values, device=device) for ch in picked_groups_in_feat]),
+        "max": th.cat([get_tensor(minmax_dict[ch]["max"].values, device=device) for ch in picked_groups_in_feat])
     }
+    obj_minmax = {"min": get_tensor(minmax_dict["obj"]["min"].values, device=device),
+                  "max": get_tensor(minmax_dict["obj"]["max"].values, device=device)}
 
     view_model_param(model_name, model)
     view_data(dataset)
-
-    tr_set, val_set, te_set = [dataset[split] for split in ["tr", "val", "te"]]
 
     tr_loader = DataLoader(dataset["tr"], batch_size=learning_params['batch_size'], shuffle=True,
                            collate_fn=collate, num_workers=learning_params['num_workers'])
@@ -464,7 +469,7 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
             for batch_idx, x in enumerate(tr_loader):
                 scheduler.step(scheduler.last_epoch + 1)
                 warmup_scheduler.dampen()
-                batch_y, batch_y_hat = model_out(model, x, in_feat_minmax, device, mode="train")
+                batch_y, batch_y_hat = model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train")
                 optimizer.zero_grad()
                 loss, loss_dict = loss_compute(batch_y, batch_y_hat, loss_type, obj, loss_ws)
                 loss.backward()
@@ -487,8 +492,8 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
                         batch_time_tr = (time.time() - ckp_start) / nbatches
 
                     t1 = time.time()
-                    loss_val, m_dict_val = evaluate_model(model, val_loader, device, in_feat_minmax, loss_type, obj,
-                                                          loss_ws, if_y=False)
+                    loss_val, m_dict_val = evaluate_model(model, val_loader, device, in_feat_minmax, obj_minmax,
+                                                          loss_type, obj, loss_ws, if_y=False)
                     eval_time = time.time() - t1
 
                     tst.update(model, epoch, batch_idx, loss_val)
@@ -529,9 +534,10 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
 
     total_time = time.time() - t0
     model.load_state_dict(tst.pop_model_dict(device))
-    loss_val, m_dict_val = evaluate_model(model, val_loader, device, in_feat_minmax, loss_type, obj, loss_ws)
+    loss_val, m_dict_val = evaluate_model(model, val_loader, device, in_feat_minmax, obj_minmax,
+                                          loss_type, obj, loss_ws)
     loss_te, m_dict_te, y_te, y_hat_te = evaluate_model(
-        model, te_loader, device, in_feat_minmax, loss_type, obj, loss_ws, if_y=True)
+        model, te_loader, device, in_feat_minmax, obj_minmax, loss_type, obj, loss_ws, if_y=True)
 
     results = {
         "hp_params": hp_params,
