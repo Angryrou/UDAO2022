@@ -31,4 +31,4 @@ ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data = expose_dat
 )
 
 data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types]
-pipeline(data_meta, data_params, learning_params, net_params, ckp_header)
+model, results = pipeline(data_meta, data_params, learning_params, net_params, ckp_header)

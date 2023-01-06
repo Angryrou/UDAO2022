@@ -191,8 +191,10 @@ def collate(samples):
 def norm_in_feat_inst(x, minmax):
     return (x - minmax["min"]) / (minmax["max"] - minmax["min"])
 
+
 def denorm_obj(o, minmax):
     return o * (minmax["max"] - minmax["min"]) + minmax["min"]
+
 
 class MyDSBase(Dataset):
     def __init__(self, dataset, col_dict, picked_groups, op_groups, dag_dict, ped=1):
@@ -314,7 +316,7 @@ def get_eval_metrics(y_list, y_hat_list, loss_type, obj, loss_ws, if_y):
     loss_total, loss_dict = loss_compute(y, y_hat, loss_type, obj, loss_ws)
     metrics_dict = {}
     for i, m in enumerate(OBJ_MAP[obj]):
-        loss = loss_dict[m]
+        loss = loss_dict[m].item()
         y_i, y_hat_i = y[:, i].detach().cpu().numpy(), y_hat[:, i].detach().cpu().numpy()
         y_err = np.abs(y_i - y_hat_i)
         wmape = (y_err.sum() / y_i.sum()).item()
@@ -374,25 +376,44 @@ def plot_error_rate(y, y_hat, ckp_path):
     plt.savefig(f"{ckp_path}/lat_err.pdf")
 
 
-def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
-    model_name, obj = data_params["model_name"], data_params["obj"]
-    device, loss_type = learning_params["device"], learning_params["loss_type"]
-    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types = data_meta
+def show_results(results, obj):
+    print(json.dumps(str(results), indent=2))
+    print(" \n ".join([
+        "[{}-{}] WMAPE {:.4f} | MAPE {:.4f}| ERR-50,90,95,99 {:.4f},{:.4f},{:.4f},{:.4f} | "
+        "QErr-Mean {:.4f} | QERR-50,90,95,99 ,{:.4f},{:.4f},{:.4f},{:.4f} | CORR {:.4f}".format(
+            m, split, results[f"metric_{split}"][m]["wmape"],
+            *[results[f"metric_{split}"][m][t] for t in ["mape", "err_50", "err_90", "err_95", "err_99"]],
+            *[results[f"metric_{split}"][m][t] for t in ["q_err_mean", "q_err_50", "q_err_90", "q_err_95", "q_err_99"]],
+            results[f"metric_{split}"][m]["corr"]
+        ) for m in OBJ_MAP[obj] for split in ["val", "te"]
+    ]))
+
+
+def augment_net_params(data_params, net_params, data_meta):
+    _, op_feats_data, col_dict, _, dag_dict, n_op_types = data_meta
     op_groups, picked_groups, picked_cols = analyze_cols(data_params, col_dict)
     for ch1 in ALL_OP_FEATS[1:]:
         if ch1 in op_groups:
             assert net_params[f"{ch1}_dim"] == op_feats_data[ch1].shape[1]
     net_params["in_feat_size_inst"] = sum([len(col_dict[ch]) for ch in picked_groups if ch in ["ch2", "ch3", "ch4"]])
     net_params["in_feat_size_op"] = sum([net_params[f"{ch1_}_dim"] for ch1_ in op_groups])
-    net_params["out_feat_size"] = len(OBJ_MAP[obj])
+    net_params["out_feat_size"] = len(OBJ_MAP[data_params["obj"]])
     net_params["op_groups"] = op_groups
     net_params["n_op_types"] = n_op_types
-    add_pe(model_name, dag_dict)
+    return net_params, op_groups, picked_groups, picked_cols
+
+
+def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
+    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types = data_meta
+    device, loss_type = learning_params["device"], learning_params["loss_type"]
+    model_name, obj = data_params["model_name"], data_params["obj"]
+    net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
 
     if data_params["ch1_type"] == "off" and data_params["ch1_cbo"] == "off" and data_params["ch1_enc"] == "off":
         model = PureMLP(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "MLP")
     elif model_name == "GTN":
+        add_pe(model_name, dag_dict)
         model = GraphTransformerNet(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "GTN")
     elif model_name == "TL":
@@ -409,10 +430,12 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
     weights_pth_sign = f"{ckp_path}/best_weight.pth"
     results_pth_sign = f"{ckp_path}/results.pth"
 
-    if if_pth_existed(results_pth_sign):
+    if if_pth_existed(results_pth_sign) and if_pth_existed(weights_pth_sign):
         results = th.load(results_pth_sign, map_location=device)
         print(f"found hps at {results_pth_sign}!")
-        print(json.dumps(str({k: v for k, v in results.items() if k != "analyses"}), indent=2))
+        show_results(results, obj)
+        model.load_state_dict(th.load(weights_pth_sign, map_location=device)["model"])
+        return model, results
 
     print(f"cannot found trained results, start training...")
     print("start preparing data...")
@@ -443,7 +466,7 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
     nbatches = len(tr_loader)
     num_steps = nbatches * learning_params["epochs"]
     lr_scheduler = th.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_steps,
-                                                        eta_min=learning_params["min_lr"])
+                                                           eta_min=learning_params["min_lr"])
     warmup_scheduler = warmup.UntunedLinearWarmup(optimizer)
     tst = TrainStatsTrace(weights_pth_sign)
     ts = time.strftime('%Hh%Mm%Ss_on_%b_%d_%Y')
@@ -555,4 +578,5 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
     }
     th.save(results, results_pth_sign)
     plot_error_rate(y_te, y_hat_te, ckp_path)
-    print(json.dumps(str(results), indent=2))
+    show_results(results, obj)
+    return model, results
