@@ -442,7 +442,7 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
                             weight_decay=learning_params['weight_decay'])
     nbatches = len(tr_loader)
     num_steps = nbatches * learning_params["epochs"]
-    scheduler = th.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_steps,
+    lr_scheduler = th.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_steps,
                                                         eta_min=learning_params["min_lr"])
     warmup_scheduler = warmup.UntunedLinearWarmup(optimizer)
     tst = TrainStatsTrace(weights_pth_sign)
@@ -467,14 +467,15 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
         for epoch in range(learning_params["epochs"]):
             epoch_start_time = time.time()
             for batch_idx, x in enumerate(tr_loader):
-                scheduler.step(scheduler.last_epoch + 1)
-                warmup_scheduler.dampen()
-                batch_y, batch_y_hat = model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train")
                 optimizer.zero_grad()
+                batch_y, batch_y_hat = model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train")
                 loss, loss_dict = loss_compute(batch_y, batch_y_hat, loss_type, obj, loss_ws)
                 loss.backward()
                 th.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
                 optimizer.step()
+
+                with warmup_scheduler.dampening():
+                    lr_scheduler.step()
 
                 if th.isnan(loss):
                     print("get a nan loss in train")
