@@ -36,7 +36,7 @@ class QueryQueue(object):
 
 class Collection(object, metaclass=ABCMeta):
     def __init__(self, benchmark: str, scale_factor: int, knobs: list, seed=42):
-        self.benchmark = benchmark
+        self.benchmark = benchmark.upper()
         self.scale_factor = scale_factor
         self.knobs = knobs
         self.lhs_sampler = LHSSampler(knobs, seed=seed)

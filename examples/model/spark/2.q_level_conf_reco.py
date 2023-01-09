@@ -24,7 +24,7 @@ import pandas as pd
 args = ArgsRecoQ().parse()
 print(args)
 
-bm, sf, pj = args.benchmark, args.scale_factor, f"{args.benchmark}_{args.scale_factor}"
+bm, sf, pj = args.benchmark.lower(), args.scale_factor, f"{args.benchmark.lower()}_{args.scale_factor}"
 debug = False if args.debug == 0 else True
 run = False if args.run == 0 else True
 seed = args.seed
