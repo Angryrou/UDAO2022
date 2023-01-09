@@ -6,12 +6,11 @@
 
 import argparse
 
-from trace.collect.framework import SparkCollect
 from trace.collect.sampler import LHSSampler
 from utils.common import BenchmarkUtils
 from utils.data.configurations import SparkKnobs
 from utils.parameters import VarTypes
-from utils.data.collect import sql_exec
+from utils.data.collect import run_q_confs
 
 import numpy as np
 
@@ -73,7 +72,6 @@ class InnerKnobs(SparkKnobs):
         return samples, inner_knob_df, conf_df
 
 
-
 class Args():
     def __init__(self):
         self.parser = argparse.ArgumentParser()
@@ -95,7 +93,6 @@ class Args():
 
 
 if __name__ == '__main__':
-
     args = Args().parse()
     seed = args.seed
     np.random.seed(seed)
@@ -121,27 +118,8 @@ if __name__ == '__main__':
     print(conf_df.to_string())
     print()
 
-    spark_collect = SparkCollect(
-        benchmark=benchmark,
-        scale_factor=100,
-        spark_knobs=spark_knobs,
-        query_header=query_header,
-        seed=seed
-    )
-
     print(f"2. run {n_lhs} objective values corresponding to the configurations")
-
-    objs = []
-    for conf_dict in conf_df.to_dict("records"):
-        dts = sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid, 1)
-        objs.append(sum(dts) / n_trials)
-    objs = np.array(objs)
+    objs = run_q_confs(benchmark, 100, spark_knobs, query_header, seed, workers, n_trials, out_header, debug, tid, 1,
+                       conf_df)
     print(objs)
     print()
-
-    # print(f"3. get {n_bo} configurations via BO...")
-    # print(f"3.1 parse and normalize all parameters to 0-1")
-    # knob_df2 = spark_knobs.df_conf2knob(conf_df)
-    # samples2 = KnobUtils.knob_normalize(knob_df2, knobs)
-    # assert (knob_df2 == knob_df).all().all()
-    # assert (knob_df2 == KnobUtils.knob_denormalize(samples2, knobs)).all().all()

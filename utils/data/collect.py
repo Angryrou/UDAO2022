@@ -8,6 +8,8 @@ import os
 import time
 import numpy as np
 
+from trace.collect.framework import SparkCollect
+
 
 def flush_all(workers):
     os.system("sync")
@@ -47,3 +49,21 @@ def sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid
     with open(f"{out}/{file_name}.dts", "w") as f:
         f.write(",".join([f"{dt:.3f}" for dt in dts]))
     return dts
+
+
+def run_q_confs(bm, sf, spark_knobs, query_header, out_header, seed, workers, n_trials, debug, tid, qid, conf_df):
+    spark_collect = SparkCollect(
+        benchmark=bm,
+        scale_factor=sf,
+        spark_knobs=spark_knobs,
+        query_header=query_header,
+        seed=seed
+    )
+
+    objs = []
+    for conf_dict in conf_df.to_dict("records"):
+        dts = sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid, qid)
+        objs.append(sum(dts) / n_trials)
+    objs = np.array(objs)
+
+    return objs
