@@ -76,6 +76,7 @@ if os.path.exists(f"{cache_header}/{cache_conf_name}"):
     knob_sign_pareto = cache["knob_sign"]
     conf_df_pareto = cache["conf_df"]
     objs_pareto = cache["objs_pred"]
+    print(f"found cached {len(objs_pareto)} PO configurations at {cache_header}/{cache_conf_name}")
 else:
     knob_df, ch4_norm = get_sample_spark_knobs(knobs, n_samples, seed)
     conf_df = spark_knobs.df_knob2conf(knob_df)
@@ -101,10 +102,10 @@ else:
         "conf_df": conf_df_pareto,
         "objs_pred": objs_pareto
     }, cache_header, cache_conf_name)
-
-print(f"prepared to run {len(conf_df_pareto)} recommended PO configurations")
+    print(f"generated {len(objs_pareto)} PO configurations, cached at {cache_header}/{cache_conf_name}")
 
 if run:
+    print(f"prepared to run {len(conf_df_pareto)} recommended PO configurations")
     objs = run_q_confs(
         bm=bm, sf=sf, spark_knobs=spark_knobs, query_header=args.query_header, out_header=args.out_header, seed=seed,
         workers=BenchmarkUtils.get_workers(args.worker),
