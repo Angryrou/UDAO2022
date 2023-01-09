@@ -223,8 +223,11 @@ def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, model_proxy, col_
 
 
 def get_sample_spark_knobs(knobs, n_samples, seed):
-    lhs_sampler = LHSSampler(knobs, seed=seed)
-    knob_df = lhs_sampler.get_samples(n_samples, debug=False, random_state=seed)
+    np.random.seed(seed)
+    samples = np.random.rand(n_samples, len(knobs))
+    knob_df = KnobUtils.knob_denormalize(samples, knobs)
+    knob_df = knob_df.drop_duplicates()
+    knob_df.index = knob_df.apply(lambda x: KnobUtils.knobs2sign(x, knobs), axis=1)
     conf_norm = KnobUtils.knob_normalize(knob_df, knobs)
     return knob_df, conf_norm
 
