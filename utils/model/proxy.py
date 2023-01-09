@@ -35,13 +35,14 @@ class ModelProxy():
                            "max": get_tensor(obj_minmax["max"].values, device=device)}
 
     def get_stage_emb(self, g, fmt="numpy"):
+        g = g.to(self.device)
         pos_enc = g.ndata["lap_pe"].to(self.device)
         with th.no_grad():
             stage_emb = self.model.forward(g, pos_enc, inst_feat=None)
         if fmt == "torch":
             return stage_emb
         elif fmt == "numpy":
-            return stage_emb.numpy()
+            return stage_emb.cpu().numpy()
         else:
             raise ValueError(fmt)
 
@@ -82,7 +83,7 @@ class ModelProxy():
         if out_fmt == "torch":
             return y_hat
         elif out_fmt == "numpy":
-            return y_hat.numpy()
+            return y_hat.cpu().numpy()
         else:
             raise ValueError(out_fmt)
 
