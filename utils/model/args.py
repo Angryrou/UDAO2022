@@ -20,6 +20,26 @@ class ArgsBase():
         return self.parser.parse_args()
 
 
+class ArgsRecoQ(ArgsBase):
+    def __init__(self):
+        super(ArgsRecoQ, self).__init__()
+        self.parser.add_argument("--ch1-type", type=str, default="on", help="off|on")
+        self.parser.add_argument("--ch1-cbo", type=str, default="off", help="off|on")
+        self.parser.add_argument("--ch1-enc", type=str, default="off", help="off|d2v|w2v")
+        self.parser.add_argument("--ch2", type=str, default="on", help="off|on, input data meta")
+        self.parser.add_argument("--ch3", type=str, default="on", help="off|on, system states")
+        self.parser.add_argument("--ch4", type=str, default="on", help="off|on, configuration")
+        self.parser.add_argument("--obj", type=str, default="latency")
+        self.parser.add_argument("--model-name", type=str, default="GTN")
+        self.parser.add_argument("--template", type=str, default="1")
+        self.parser.add_argument("--template-query", type=int, default=1)
+        self.parser.add_argument("--ckp-sign", type=str, default="40a985a643f1d253")
+        self.parser.add_argument("--n-samples", type=int, default=5000)
+        self.parser.add_argument("--seed", type=int, default=42)
+        self.parser.add_argument("--query-header", type=str, default="resources/tpch-kit/spark-sqls")
+        self.parser.add_argument("--out-header", type=str, default="examples/model/spark/out/2.q_level_conf_reco")
+        self.parser.add_argument("--worker", type=str, default="debug")
+
 class ArgsGTN(ArgsBase):
     def __init__(self):
         super(ArgsGTN, self).__init__()

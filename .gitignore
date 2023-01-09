@@ -138,6 +138,7 @@ resources/scripts
 resources/dataset
 examples/trace/*/internal/*/*
 examples/model/spark/ckp
+examples/model/spark/out
 *.parquet
 *.csv
 *.png

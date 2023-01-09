@@ -27,7 +27,9 @@ import dgl
 from model.architecture.graph_transformer_net import GraphTransformerNet
 from model.architecture.mlp_readout_layer import PureMLP
 from model.metrics import get_loss
+from trace.collect.sampler import LHSSampler
 from utils.common import PickleUtils, plot
+from utils.data.configurations import SparkKnobs, KnobUtils
 from utils.model.parameters import OBJ_MAP, ALL_OP_FEATS, DEFAULT_DTYPE, DEFAULT_DEVICE
 
 
@@ -79,7 +81,7 @@ def add_pe(model_name, dag_dict):
             ValueError(model_name)
 
 
-def expose_data(header, tabular_file, struct_file, op_feats_file, debug):
+def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=False):
     tabular_data = PickleUtils.load(header, tabular_file)
     struct_data = PickleUtils.load(header, struct_file)
     op_feats_data = ...
@@ -91,7 +93,10 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug):
     n_op_types = len(struct_data["global_ops"])
     dag_dict = struct_data["dgl_dict"]
 
-    return ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data
+    if ori:
+        return dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data
+    else:
+        return ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data
 
 
 def analyze_cols(data_params, col_dict):
@@ -112,7 +117,7 @@ def get_str_hash(s):
     return hashlib.sha1(s.encode("utf-8")).hexdigest()[:16]
 
 
-def get_tensor(x, dtype=None, device=None, requires_grad=False, if_sparse=False):
+def get_tensor(x: object, dtype: object = None, device: object = None, requires_grad: object = False, if_sparse: object = False) -> object:
     dtype = DEFAULT_DTYPE if dtype is None else dtype
     device = DEFAULT_DEVICE if device is None else device
     if if_sparse:
@@ -189,11 +194,39 @@ def collate(samples):
 
 
 def norm_in_feat_inst(x, minmax):
-    return (x - minmax["min"]) / (minmax["max"] - minmax["min"])
+    return (x - minmax["min"]) / (minmax["max"].values - minmax["min"])
 
 
 def denorm_obj(o, minmax):
     return o * (minmax["max"] - minmax["min"]) + minmax["min"]
+
+def form_graph(dag_dict, sid, svid, ped, op_groups):  # to add the enc source
+    g = dag_dict[sid].clone()
+    resize_pe(g, ped)
+    if "ch1_cbo" in op_groups:
+        # todo: add cbo feats from a data source, and normalize it
+        g.nodes["cbo"] = ...
+    if "ch1_enc" in op_groups:
+        # add enc feats from a data source (already normalized)
+        g.nodes["enc"] = ...
+    return g
+
+
+def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, model_proxy, col_dict, minmax_dict):
+    record = df[df["q_sign"] == q_sign]
+    sid, svid = record.sql_struct_id[0], record.sql_struct_svid[0]
+    g = form_graph(dag_dict, sid, svid, ped, op_groups)
+    stage_emb = model_proxy.get_stage_emb(g, fmt="numpy")
+    ch2_norm = norm_in_feat_inst(record[col_dict["ch2"]], minmax_dict["ch2"]).values
+    ch3_norm = np.zeros((1, len(col_dict["ch3"])))  # as like in the idle env
+    return stage_emb, ch2_norm, ch3_norm
+
+
+def get_sample_spark_knobs(knobs, n_samples, seed):
+    lhs_sampler = LHSSampler(knobs, seed=seed)
+    knob_df = lhs_sampler.get_samples(n_samples, debug=False, random_state=seed)
+    conf_norm = KnobUtils.knob_normalize(knob_df, knobs)
+    return knob_df, conf_norm
 
 
 class MyDSBase(Dataset):
@@ -221,15 +254,7 @@ class MyDSBase(Dataset):
         if "ch1" in self.picked_groups:
             sid = x[self.col_dict["ch1"][0]].item()
             svid = x[self.col_dict["ch1"][1]].item()
-            g = self.dag_dict[sid].clone()
-            resize_pe(g, self.ped)
-
-            if "ch1_cbo" in self.op_groups:
-                # todo: add cbo feats from a data source, and normalize it
-                g.nodes["cbo"] = ...
-            if "ch1_enc" in self.op_groups:
-                # add enc feats from a data source (already normalized)
-                g.nodes["enc"] = ...
+            g = form_graph(self.dag_dict, sid, svid, self.ped)
         else:
             g = None
         inst_feat = []

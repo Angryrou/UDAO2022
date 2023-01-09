@@ -85,6 +85,8 @@ class GraphTransformerNet(nn.Module):
         if inst_feat is None:
             return hg
         else:
-            hgi = th.cat([hg, inst_feat], dim=1)
-            return th.exp(self.MLP_layer(hgi))
+            return self.mlp_forward(hg, inst_feat)
 
+    def mlp_forward(self, hg, inst_feat):
+        hgi = th.cat([hg, inst_feat], dim=1)
+        return th.exp(self.MLP_layer(hgi))
