@@ -17,15 +17,14 @@ def flush_all(workers):
         os.system(f"ssh {worker} sync")
 
 
-def sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid, qid=1):
+def sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid, qid, if_aqe):
     """return a list of dts in `n_trials`"""
 
     # prepare the scripts for running.
-    out = f"{out_header}/{tid}-{qid}"
-    file_name = spark_collect.save_one_script(tid, str(qid), conf_dict, out_header=out, if_aqe=True)
+    file_name = spark_collect.save_one_script(tid, str(qid), conf_dict, out_header=out_header, if_aqe=if_aqe)
 
     # check if the results has been run already
-    res_file = f"{out}/{file_name}.dts"
+    res_file = f"{out_header}/{file_name}.dts"
     if os.path.exists(res_file):
         try:
             with open(res_file) as f:
@@ -43,15 +42,16 @@ def sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid
             flush_all(workers)
             time.sleep(1)
             start = time.time()
-            os.system(f"bash {out}/{file_name} > {out}/{file_name}_trial_{i + 1}.log 2>&1")
+            os.system(f"bash {out_header}/{file_name} > {out_header}/{file_name}_trial_{i + 1}.log 2>&1")
             dts.append(time.time() - start)
         print(f"{file_name}, trial {i + 1}, {dts[i]:.3f}s")
-    with open(f"{out}/{file_name}.dts", "w") as f:
+    with open(f"{out_header}/{file_name}.dts", "w") as f:
         f.write(",".join([f"{dt:.3f}" for dt in dts]))
     return dts
 
 
-def run_q_confs(bm, sf, spark_knobs, query_header, out_header, seed, workers, n_trials, debug, tid, qid, conf_df):
+def run_q_confs(bm, sf, spark_knobs, query_header, out_header, seed, workers, n_trials, debug, tid, qid, conf_df,
+                if_aqe):
     spark_collect = SparkCollect(
         benchmark=bm,
         scale_factor=sf,
@@ -62,7 +62,7 @@ def run_q_confs(bm, sf, spark_knobs, query_header, out_header, seed, workers, n_
 
     objs = []
     for conf_dict in conf_df.to_dict("records"):
-        dts = sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid, qid)
+        dts = sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid, qid, if_aqe)
         objs.append(sum(dts) / n_trials)
     objs = np.array(objs)
 

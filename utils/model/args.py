@@ -40,7 +40,9 @@ class ArgsRecoQ(ArgsBase):
         self.parser.add_argument("--out-header", type=str, default="examples/model/spark/out/2.q_level_conf_reco/tpch_100")
         self.parser.add_argument("--worker", type=str, default="debug")
         self.parser.add_argument("--run", type=int, default=1)
+        self.parser.add_argument("--if-aqe", type=int, default=1)
         self.parser.add_argument("--gpu", type=str, default="-1")
+
 
 class ArgsGTN(ArgsBase):
     def __init__(self):

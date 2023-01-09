@@ -99,8 +99,8 @@ if __name__ == '__main__':
     benchmark = args.benchmark
     assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
     query_header = args.query_header
-    out_header = f"{args.out_header}/{benchmark}_AQE_enabled"
     tid = args.target_query
+    out_header = f"{args.out_header}/{benchmark}_AQE_enabled/{tid}-1"
     knob_type = args.knob_type
     assert knob_type in ["res", "sql"], f"unsupported knob_type {knob_type}"
     n_lhs = args.num_conf_lhs
@@ -120,6 +120,6 @@ if __name__ == '__main__':
 
     print(f"2. run {n_lhs} objective values corresponding to the configurations")
     objs = run_q_confs(benchmark, 100, spark_knobs, query_header, seed, workers, n_trials, out_header, debug, tid, 1,
-                       conf_df)
+                       conf_df, if_aqe=True)
     print(objs)
     print()

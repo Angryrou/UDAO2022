@@ -66,17 +66,17 @@ stage_emb, ch2_norm, ch3_norm = prepare_data_for_opt(
 spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
 knobs = spark_knobs.knobs
 
-cache_header = f"{out_header}/{tid}-{qid}"
+out_header = f"{out_header}/{tid}-{qid}"
 cache_conf_name = f"po_points_{n_samples}.pkl"
 cache_res_name = f"po_points_{n_samples}_res.pkl"
 
-if os.path.exists(f"{cache_header}/{cache_conf_name}"):
-    cache = PickleUtils.load(cache_header, cache_conf_name)
+if os.path.exists(f"{out_header}/{cache_conf_name}"):
+    cache = PickleUtils.load(out_header, cache_conf_name)
     knob_df_pareto = cache["knob_df"]
     knob_sign_pareto = cache["knob_sign"]
     conf_df_pareto = cache["conf_df"]
     objs_pareto = cache["objs_pred"]
-    print(f"found cached {len(objs_pareto)} PO configurations at {cache_header}/{cache_conf_name}")
+    print(f"found cached {len(objs_pareto)} PO configurations at {out_header}/{cache_conf_name}")
 else:
     knob_df, ch4_norm = get_sample_spark_knobs(knobs, n_samples, seed)
     conf_df = spark_knobs.df_knob2conf(knob_df)
@@ -101,15 +101,17 @@ else:
         "knob_sign": knob_df.iloc[inds_pareto].index.to_list(),
         "conf_df": conf_df_pareto,
         "objs_pred": objs_pareto
-    }, cache_header, cache_conf_name)
-    print(f"generated {len(objs_pareto)} PO configurations, cached at {cache_header}/{cache_conf_name}")
+    }, out_header, cache_conf_name)
+    print(f"generated {len(objs_pareto)} PO configurations, cached at {out_header}/{cache_conf_name}")
 
 if run:
     print(f"prepared to run {len(conf_df_pareto)} recommended PO configurations")
+    if_aqe = False if args.if_aqe == 0 else True
     objs = run_q_confs(
-        bm=bm, sf=sf, spark_knobs=spark_knobs, query_header=args.query_header, out_header=args.out_header, seed=seed,
-        workers=BenchmarkUtils.get_workers(args.worker),
-        n_trials=3, debug=debug, tid=tid, qid=qid, conf_df=conf_df_pareto)
+        bm=bm, sf=sf, spark_knobs=spark_knobs, query_header=query_header,
+        out_header=out_header + ("/aqe_on" if if_aqe else "/aqe_off"),
+        seed=seed, workers=BenchmarkUtils.get_workers(args.worker),
+        n_trials=3, debug=debug, tid=tid, qid=qid, conf_df=conf_df_pareto, if_aqe=if_aqe)
     PickleUtils.save({
         "e2e_objs": objs
-    }, cache_header, f"{cache_res_name}.{TimeUtils.get_current_iso()}")
+    }, out_header, f"{cache_res_name}_{'aqe_on' if if_aqe else 'aqe_off'}.{TimeUtils.get_current_iso()}")
