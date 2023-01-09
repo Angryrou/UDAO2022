@@ -5,21 +5,16 @@
 # Created at 10/28/22
 
 import argparse
-import os
-import time
 
 from trace.collect.framework import SparkCollect
 from trace.collect.sampler import LHSSampler
 from utils.common import BenchmarkUtils
 from utils.data.configurations import SparkKnobs
 from utils.parameters import VarTypes
+from utils.data.collect import sql_exec
 
 import numpy as np
 
-def flush_all(workers):
-    os.system("sync")
-    for worker in workers:
-        os.system(f"ssh {worker} sync")
 
 class InnerKnobs(SparkKnobs):
     def __init__(self, meta_file, knob_type, seed):
@@ -134,44 +129,11 @@ if __name__ == '__main__':
         seed=seed
     )
 
-    def sql_exec(spark_collect, tid, conf_dict, n_trials, workers, out_header, debug):
-        """return a list of dts in `n_trials`"""
-
-        # prepare the scripts for running.
-        out = f"{out_header}/{tid}-1"
-        file_name = spark_collect.save_one_script(tid, "1", conf_dict, out_header=out, if_aqe=True)
-
-        # check if the results has been run already
-        res_file = f"{out}/{file_name}.dts"
-        if os.path.exists(res_file):
-            try:
-                with open(res_file) as f:
-                    dts = [float(dt_str) for dt_str in f.readlines()[0].split(",")]
-                assert len(dts) == n_trials
-                print(f"{res_file} has been found!")
-                return dts
-            except:
-                print(f"{res_file} is not properly generated")
-        dts = []
-        for i in range(n_trials):
-            if debug:
-                dts.append(np.random.rand() * 100)
-            else:
-                flush_all(workers)
-                time.sleep(1)
-                start = time.time()
-                os.system(f"bash {out}/{file_name} > {out}/{file_name}_trial_{i + 1}.log 2>&1")
-                dts.append(time.time() - start)
-            print(f"{file_name}, trial {i + 1}, {dts[i]:.3f}s")
-        with open(f"{out}/{file_name}.dts", "w") as f:
-            f.write(",".join([f"{dt:.3f}" for dt in dts]))
-        return dts
-
     print(f"2. run {n_lhs} objective values corresponding to the configurations")
 
     objs = []
     for conf_dict in conf_df.to_dict("records"):
-        dts = sql_exec(spark_collect, tid, conf_dict, n_trials, workers, out_header, debug)
+        dts = sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid, 1)
         objs.append(sum(dts) / n_trials)
     objs = np.array(objs)
     print(objs)
