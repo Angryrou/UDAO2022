@@ -13,7 +13,7 @@ from utils.data.collect import run_q_confs
 from utils.data.configurations import SparkKnobs
 from utils.model.args import ArgsRecoQ
 from utils.model.parameters import set_data_params, get_gpus
-from utils.model.proxy import ModelProxy
+from utils.model.proxy import ModelProxy, ws_return
 from utils.model.utils import expose_data, analyze_cols, add_pe, prepare_data_for_opt, \
     get_sample_spark_knobs
 from utils.optimization.moo_utils import is_pareto_efficient
@@ -67,8 +67,11 @@ spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
 knobs = spark_knobs.knobs
 
 out_header = f"{out_header}/{tid}-{qid}"
-cache_conf_name = f"po_points_{n_samples}.pkl"
-cache_res_name = f"po_points_{n_samples}_res.pkl"
+assert args.moo in ("bf", "ws")
+moo = args.moo
+moo_suffix = moo if moo == "bf" else f"{moo}_{args.n_weights}"
+cache_conf_name = f"po_points_{n_samples}_{moo_suffix}.pkl"
+cache_res_name = f"po_points_{n_samples}_{moo_suffix}_res.pkl"
 
 if os.path.exists(f"{out_header}/{cache_conf_name}"):
     cache = PickleUtils.load(out_header, cache_conf_name)
@@ -90,8 +93,12 @@ else:
     )
     objs = np.hstack([lats, costs])
     print(f"get {len(objs)} objs, cost {time.time() - start}s")
-    # inds = ws_return(objs, n_weights, seed)
-    inds_pareto = is_pareto_efficient(objs)
+    if args.moo == "bf":
+        inds_pareto = is_pareto_efficient(objs)
+    elif args.moo == "ws":
+        inds_pareto = ws_return(objs, args.n_weights, seed)
+    else:
+        raise ValueError(args.moo)
     objs_pareto = objs[inds_pareto]
     sorted_inds = np.argsort(objs_pareto[:, 0])
     objs_pareto = objs_pareto[sorted_inds]
