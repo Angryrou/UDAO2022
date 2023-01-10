@@ -374,7 +374,7 @@ def main():
     fig_header = f"{out_header}/fig"
     analyze_heuristic_objs(default_obj_dict, heuristic_obj_dict, fig_header)
 
-    pred_header = "examples/model/spark/out"
+    pred_header = "examples/model/spark/out/2.q_level_conf_reco"
     pred_name = "po_points_10000_ws_5000.pkl"
     analyze_tuned_objs(default_obj_dict, heuristic_obj_dict, tuned_obj_dict, fig_header, pred_header, pred_name)
 
