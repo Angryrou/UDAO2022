@@ -307,8 +307,13 @@ def get_objs(q_sign, knob_list, misc):
     objs = objs[sorted_inds]
     return objs
 
+def get_wmape(y, y_hat):
+    y_err = np.abs(y - y_hat)
+    return y_err.sum() / y.sum()
+
+
 def analyze_tuned_objs_model_space(
-        default_obj_dict, heuristic_obj_dict, fig_header, pred_header, pred_name,
+        default_obj_dict, heuristic_obj_dict, tuned_obj_dict, fig_header, pred_header, pred_name,
         data_header, ckp_header, ckp_sign,
 ):
     dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data = expose_data(
@@ -329,12 +334,15 @@ def analyze_tuned_objs_model_space(
     obj_default_mu = default_obj_dict["aqe_on"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
     obj_sql_mu = heuristic_obj_dict["sql"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
     obj_res_mu = heuristic_obj_dict["res"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
+    obj_tuned_mu_off = tuned_obj_dict["aqe_off"][["q_sign", "knob_sign", "lat", "cost"]]\
+        .groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
 
     misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs
     for i in range(22):
         q_sign = QSIGNS[i]
         qid = f"q{i + 1}"
 
+        d = obj_default_mu.loc[q_sign].values
         res, sql = obj_res_mu.loc[q_sign].values, obj_sql_mu.loc[q_sign].values
         res_po_mask, sql_po_mask = is_pareto_efficient(res), is_pareto_efficient(sql)
         d_signs = obj_default_mu.loc[q_sign].sort_values("lat").index.tolist()
@@ -344,16 +352,27 @@ def analyze_tuned_objs_model_space(
         res_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in res_knob_signs_po]
         sql_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in sql_knob_signs_po]
 
+
         default_pred = get_objs(q_sign, d_conf, misc)
         res_po_pred = get_objs(q_sign, res_knobs_po, misc)
         sql_po_pred = get_objs(q_sign, sql_knobs_po, misc)
         tuned_pred = PickleUtils.load(f"{pred_header}/tpch_100/{i + 1}-1", pred_name)["objs_pred"]
+
+        tuned_knob_signs = PickleUtils.load(f"{pred_header}/tpch_100/{i + 1}-1", pred_name)["knob_df"].index
+        tune_off = obj_tuned_mu_off.loc[q_sign].loc[tuned_knob_signs].values
+
+        d_wmape = get_wmape(d[:, 0], default_pred[:, 0])
+        res_wmape = get_wmape(res[:, 0], res_po_pred[:, 0])
+        sql_wmape = get_wmape(sql[:, 0], sql_po_pred[:, 0])
+        tuned_naqe_wmaqe = get_wmape(tune_off[:, 0], tuned_pred[:, 0])
+
         fig, ax = plt.subplots(figsize=(3.5, 3.5))
         plot(
             X=[default_pred[:, 0], res_po_pred[:, 0], sql_po_pred[:, 0], tuned_pred[:, 0]],
             Y=[default_pred[:, 1], res_po_pred[:, 1], sql_po_pred[:, 1], tuned_pred[:, 1]],
             xlabel="latency (s)", ylabel="cost($)",
-            legend=["default", "res_po_pred", "sql_po_pred", "ws_pred"],
+            legend=[f"default_pred({d_wmape:.3f})", f"res_po_pred({res_wmape:.3f})",
+                    f"sql_po_pred({sql_wmape:.3f})", f"ws_pred{tuned_naqe_wmaqe:.3f}"],
             fmts=["ko", "go--", "bo--", "ro--"],
             axes=ax, figsize=(4.5, 3.5))
 
@@ -383,7 +402,7 @@ def main():
     ckp_header = "examples/model/spark/ckp/tpch_100/GTN/latency/on_off_off_on_on_on"
     ckp_sign = "40a985a643f1d253"
     analyze_tuned_objs_model_space(
-        default_obj_dict, heuristic_obj_dict, fig_header, pred_header, pred_name,
+        default_obj_dict, heuristic_obj_dict, tuned_obj_dict, fig_header, pred_header, pred_name,
         data_header, ckp_header, ckp_sign
     )
 
