@@ -292,7 +292,7 @@ def get_objs(q_sign, knob_list, misc):
     knobs = spark_knobs.knobs
     stage_emb, ch2_norm, ch3_norm = prepare_data_for_opt(
         df, q_sign, dag_dict, mp.hp_params["ped"], op_groups, mp, col_dict, minmax_dict)
-    knob_df = pd.DataFrame(data=knob_list, columns=knobs.knob_names)
+    knob_df = pd.DataFrame(data=knob_list, columns=spark_knobs.knob_names)
     ch4_norm = KnobUtils.knob_normalize(knob_df, knobs)
     conf_df = spark_knobs.df_knob2conf(knob_df)
     lats = mp.get_lat(ch1=stage_emb, ch2=ch2_norm, ch3=ch3_norm, ch4=ch4_norm, out_fmt="numpy")
