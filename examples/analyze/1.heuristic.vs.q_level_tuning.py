@@ -343,15 +343,18 @@ def analyze_tuned_objs_model_space(
         qid = f"q{i + 1}"
 
         d = obj_default_mu.loc[q_sign].values
+        d_signs = obj_default_mu.loc[q_sign].sort_values("lat").index.tolist()
+
         res, sql = obj_res_mu.loc[q_sign].values, obj_sql_mu.loc[q_sign].values
         res_po_mask, sql_po_mask = is_pareto_efficient(res), is_pareto_efficient(sql)
-        d_signs = obj_default_mu.loc[q_sign].sort_values("lat").index.tolist()
-        res_knob_signs_po = obj_res_mu.loc[q_sign][res_po_mask].sort_values("lat").index.tolist()
-        sql_knob_signs_po = obj_sql_mu.loc[q_sign][sql_po_mask].sort_values("lat").index.tolist()
+        res_po_df = obj_res_mu.loc[q_sign][res_po_mask].sort_values("lat")
+        sql_po_df = obj_sql_mu.loc[q_sign][sql_po_mask].sort_values("lat")
+        res_po, sql_po = res_po_df.values, sql_po_df.values
+        res_knob_signs_po = res_po_df.index.tolist()
+        sql_knob_signs_po = sql_po_df.index.tolist()
         d_conf = [KnobUtils.sign2knobs(s, knobs) for s in d_signs]
         res_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in res_knob_signs_po]
         sql_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in sql_knob_signs_po]
-
 
         default_pred = get_objs(q_sign, d_conf, misc)
         res_po_pred = get_objs(q_sign, res_knobs_po, misc)
@@ -362,8 +365,8 @@ def analyze_tuned_objs_model_space(
         tune_off = obj_tuned_mu_off.loc[q_sign].loc[tuned_knob_signs].values
 
         d_wmape = get_wmape(d[:, 0], default_pred[:, 0])
-        res_wmape = get_wmape(res[:, 0], res_po_pred[:, 0])
-        sql_wmape = get_wmape(sql[:, 0], sql_po_pred[:, 0])
+        res_wmape = get_wmape(res_po[:, 0], res_po_pred[:, 0])
+        sql_wmape = get_wmape(sql_po[:, 0], sql_po_pred[:, 0])
         tuned_naqe_wmaqe = get_wmape(tune_off[:, 0], tuned_pred[:, 0])
 
         fig, ax = plt.subplots(figsize=(3.5, 3.5))
