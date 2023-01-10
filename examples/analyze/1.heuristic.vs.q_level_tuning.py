@@ -19,12 +19,13 @@ from matplotlib import pyplot as plt
 DATA_COLNS = ["q_sign", "knob_sign", "lat", "cost"]
 
 
-def sqldt_from_appid(url_header, appid):
+def sqldt_from_appid(url_header, appid, if_full_plan=False):
     appid_str = f"{appid:04}" if appid < 10000 else str(appid)
     url_str = f"{url_header}_{appid_str}"
     try:
         data = JsonUtils.load_json_from_url(url_str)
-        lat = JsonUtils.load_json_from_url(f"{url_str}/sql/1")["duration"] / 1000  # secs
+        sql = JsonUtils.load_json_from_url(f"{url_str}/sql/1")
+        lat = sql["duration"] / 1000  # secs
         _, q_sign, knob_sign = data["name"].split("_")
         knobs = knob_sign.split(",")
         k1, k2, k3 = knobs[0], knobs[1], knobs[2]
@@ -32,9 +33,14 @@ def sqldt_from_appid(url_header, appid):
         cores = int(k2)
         nexec = int(k3)
         cost = get_cloud_cost(lat, mem, cores, nexec)
+        print(f"got {q_sign}-{knob_sign}")
+        if if_full_plan:
+            return q_sign, knob_sign, lat, cost, sql
         return q_sign, knob_sign, lat, cost
     except:
         print(f"failed to get {url_str}/sql")
+        if if_full_plan:
+            return "", "", -1, -1, None
         return "", "", -1, -1
 
 
@@ -53,7 +59,7 @@ def get_default_objs(out_header, file_name):
         for aqe_, url_header, url_suffix_start in query_urls:
             url_suffix_end = url_suffix_start + 66 - 1
             ret = [sqldt_from_appid(url_header, appid) for appid in range(url_suffix_start, url_suffix_end + 1)]
-            obj_dict[aqe_] = pd.DataFrame(data=ret, columns=DATA_COLNS)
+            obj_dict[aqe_] = pd.DataFrame(data=ret, columns=DATA_COLNS + ["full_plan"])
         PickleUtils.save(obj_dict, out_header, file_name)
         print(f"finished generating default objs, cost {time.time() - start}s")
     return obj_dict
@@ -108,7 +114,7 @@ def get_heuristic_objs(out_header, file_name):
     return obj_dict
 
 
-def get_tuned_objs(out_header, file_name):
+def get_tuned_objs(out_header, file_name, if_full_plan=False):
     try:
         obj_dict = PickleUtils.load(out_header, file_name)
         print(f"found tuned objs")
@@ -185,4 +191,4 @@ if __name__ == '__main__':
     out_header = "examples/analyze/1.heuristic.vs.q_level_tuning"
     default_obj_dict = get_default_objs(out_header=out_header, file_name="default_objs.pkl")
     heuristic_obj_dict = get_heuristic_objs(out_header=out_header, file_name="res_and_sql_objs.pkl")
-    tuned_obj_dict = get_tuned_objs(out_header=out_header, file_name="tuned_objs.pkl")
+    tuned_obj_dict = get_tuned_objs(out_header=out_header, file_name="tuned_objs.pkl", if_full_plan=True)
