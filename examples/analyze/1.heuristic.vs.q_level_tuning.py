@@ -18,7 +18,7 @@ from matplotlib import pyplot as plt
 
 from utils.data.configurations import SparkKnobs, KnobUtils
 from utils.model.proxy import ModelProxy
-from utils.model.utils import expose_data, prepare_data_for_opt
+from utils.model.utils import expose_data, prepare_data_for_opt, add_pe
 from utils.model.parameters import DEFAULT_DEVICE
 from utils.optimization.moo_utils import is_pareto_efficient
 
@@ -319,6 +319,7 @@ def analyze_tuned_objs_model_space(
         debug=False,
         ori=True
     )
+    add_pe("GTN", dag_dict)
     df = pd.concat(dfs)
     ckp_path = os.path.join(ckp_header, ckp_sign)
     op_groups = ["ch1_type"]
