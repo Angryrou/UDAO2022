@@ -335,12 +335,11 @@ def analyze_tuned_objs_model_space(
         q_sign = QSIGNS[i]
         qid = f"q{i + 1}"
 
-        d = obj_default_mu.loc[q_sign].values
         res, sql = obj_res_mu.loc[q_sign].values, obj_sql_mu.loc[q_sign].values
         res_po_mask, sql_po_mask = is_pareto_efficient(res), is_pareto_efficient(sql)
-        d_signs = obj_default_mu.loc[q_sign].index.tolist()
-        res_knob_signs_po = obj_res_mu.loc[q_sign][res_po_mask].index.tolist()
-        sql_knob_signs_po = obj_sql_mu.loc[q_sign][sql_po_mask].index.tolist()
+        d_signs = obj_default_mu.loc[q_sign].sort_values("lat").index.tolist()
+        res_knob_signs_po = obj_res_mu.loc[q_sign][res_po_mask].sort_values("lat").index.tolist()
+        sql_knob_signs_po = obj_res_mu.loc[q_sign][sql_po_mask].sort_values("lat").index.tolist()
         d_conf = [KnobUtils.sign2knobs(s, knobs) for s in d_signs]
         res_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in res_knob_signs_po]
         sql_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in sql_knob_signs_po]
