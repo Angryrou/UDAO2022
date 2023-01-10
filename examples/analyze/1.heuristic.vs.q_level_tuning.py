@@ -341,10 +341,11 @@ def analyze_tuned_objs_model_space(
         d_signs = obj_default_mu.loc[q_sign].index.tolist()
         res_knob_signs_po = obj_res_mu.loc[q_sign][res_po_mask].index.tolist()
         sql_knob_signs_po = obj_sql_mu.loc[q_sign][sql_po_mask].index.tolist()
+        d_conf = [KnobUtils.sign2knobs(s, knobs) for s in d_signs]
         res_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in res_knob_signs_po]
         sql_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in sql_knob_signs_po]
 
-        default_pred = get_objs(q_sign, d_signs, misc)
+        default_pred = get_objs(q_sign, d_conf, misc)
         res_po_pred = get_objs(q_sign, res_knobs_po, misc)
         sql_po_pred = get_objs(q_sign, sql_knobs_po, misc)
         tuned_pred = PickleUtils.load(f"{pred_header}/tpch_100/{i + 1}-1", pred_name)["objs_pred"]
