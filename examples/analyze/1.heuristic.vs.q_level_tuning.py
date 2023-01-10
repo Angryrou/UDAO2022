@@ -375,7 +375,7 @@ def analyze_tuned_objs_model_space(
             Y=[default_pred[:, 1], res_po_pred[:, 1], sql_po_pred[:, 1], tuned_pred[:, 1]],
             xlabel="latency (s)", ylabel="cost($)",
             legend=[f"default_pred({d_wmape:.3f})", f"res_po_pred({res_wmape:.3f})",
-                    f"sql_po_pred({sql_wmape:.3f})", f"ws_pred{tuned_naqe_wmaqe:.3f}"],
+                    f"sql_po_pred({sql_wmape:.3f})", f"ws_pred({tuned_naqe_wmaqe:.3f})"],
             fmts=["ko", "go--", "bo--", "ro--"],
             axes=ax, figsize=(4.5, 3.5))
 
