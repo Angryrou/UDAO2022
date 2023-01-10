@@ -59,7 +59,7 @@ def get_default_objs(out_header, file_name):
         for aqe_, url_header, url_suffix_start in query_urls:
             url_suffix_end = url_suffix_start + 66 - 1
             ret = [sqldt_from_appid(url_header, appid) for appid in range(url_suffix_start, url_suffix_end + 1)]
-            obj_dict[aqe_] = pd.DataFrame(data=ret, columns=DATA_COLNS + ["full_plan"])
+            obj_dict[aqe_] = pd.DataFrame(data=ret, columns=DATA_COLNS)
         PickleUtils.save(obj_dict, out_header, file_name)
         print(f"finished generating default objs, cost {time.time() - start}s")
     return obj_dict
@@ -128,9 +128,10 @@ def get_tuned_objs(out_header, file_name, if_full_plan=False):
         obj_dict = {}
         for aqe_, url_header, url_suffix_start in query_urls:
             url_suffix_end = url_suffix_start + 357 - 1
-            ret = [sqldt_from_appid(url_header, appid) for appid in range(url_suffix_start, url_suffix_end + 1)]
+            ret = [sqldt_from_appid(url_header, appid, if_full_plan) for appid in range(url_suffix_start, url_suffix_end + 1)]
             obj_dict[aqe_] = {}
-            df = pd.DataFrame(data=ret, columns=DATA_COLNS)
+            cols =  (DATA_COLNS + ["full_plan"]) if if_full_plan else DATA_COLNS
+            df = pd.DataFrame(data=ret, columns=cols)
             obj_dict[aqe_] = df
         PickleUtils.save(obj_dict, out_header, file_name)
         print(f"finished generating tuned objs, cost {time.time() - start}s")
