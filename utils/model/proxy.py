@@ -61,8 +61,14 @@ class ModelProxy():
         inst_feat = np.hstack([np.repeat(ch2, n_rows, axis=0), np.repeat(ch3, n_rows, axis=0), ch4])
         return stage_emb, inst_feat
 
-    def get_lat(self, ch1, ch2, ch3, ch4, out_fmt="numpy"):
+    def get_lat(self, ch1, ch2, ch3, ch4, out_fmt="numpy", dropout=False, n_samples=100):
         stage_emb, inst_feat = self.mesh_knobs(ch1, ch2, ch3, ch4)
+        if dropout:
+            stage_emb = np.repeat(stage_emb, n_samples, axis=0)
+            inst_feat = np.repeat(inst_feat, n_samples, axis=0)
+            self.model.train()
+        else:
+            self.model.eval()
         if not isinstance(stage_emb, th.Tensor):
             stage_emb = get_tensor(stage_emb)
         if not isinstance(inst_feat, th.Tensor):
@@ -70,6 +76,7 @@ class ModelProxy():
 
         loader = DataLoader(dataset=TensorDataset(stage_emb, inst_feat),
                             batch_size=1024, shuffle=False, num_workers=0)
+
         with th.no_grad():
             y_hat_list = []
             for (stage_emb_batch, inst_feat_batch) in loader:
@@ -81,8 +88,17 @@ class ModelProxy():
         y_hat = th.vstack(y_hat_list)
 
         if out_fmt == "torch":
-            return y_hat
+            if dropout:
+                y_hat_mu = y_hat.reshape(-1, n_samples).mean(1, keepdims=True)
+                y_hat_std = y_hat.reshape(-1, n_samples).std(1, keepdims=True)
+                return y_hat_mu, y_hat_std
+            else:
+                return y_hat
         elif out_fmt == "numpy":
+            if dropout:
+                y_hat_mu = y_hat.reshape(-1, n_samples).mean(1, keepdims=True)
+                y_hat_std = y_hat.reshape(-1, n_samples).std(1, keepdims=True)
+                return y_hat_mu.cpu().numpy(), y_hat_std.cpu().numpy()
             return y_hat.cpu().numpy()
         else:
             raise ValueError(out_fmt)
