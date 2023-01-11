@@ -48,7 +48,9 @@ class GraphTransformerNet(nn.Module):
         self.layers.append(
             GraphTransformerLayer(hidden_dim, out_dim, num_heads, dropout,
                                   self.layer_norm, self.batch_norm, self.residual))
-        self.MLP_layer = MLPReadout(out_dim + in_feat_size_inst, out_feat_size, L=n_mlp_layers, dropout=dropout2)
+        self.MLP_layer = MLPReadout(
+            input_dim=out_dim + in_feat_size_inst, hidden_dim=net_params["mlp_dim"], output_dim=out_feat_size,
+            L=n_mlp_layers, dropout=dropout2)
 
     def forward(self, g, h_lap_pos_enc, inst_feat=None):
         """

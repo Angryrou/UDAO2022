@@ -107,6 +107,7 @@ def set_net_params(args):
         "n_heads": 8,
         "hidden_dim": 128,
         "out_dim": 128,
+        "mlp_dim": 128,
         "residual": True,
         "readout": "mean",
         "dropout": 0.0,
@@ -130,6 +131,8 @@ def set_net_params(args):
         net_params["hidden_dim"] = args.hidden_dim
     if args.out_dim is not None:
         net_params["out_dim"] = args.out_dim
+    if args.mlp_dim is not None:
+        net_params["mlp_dim"] = args.mlp_dim
     if args.residual is not None:
         net_params["residual"] = False if args.residual == 0 else True
     if args.readout is not None:

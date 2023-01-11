@@ -132,18 +132,14 @@ def get_hp(data_params, learning_params, net_params, case=""):
         learning_params_list.append("loss_ws")
 
     if case == "GTN":
-        net_params_list = ["ped", "in_feat_size_op", "in_feat_size_inst", "out_feat_size",
-                           "L_gtn", "L_mlp", "n_heads", "hidden_dim", "out_dim", "dropout",
+        net_params_list = ["ped", "in_feat_size_op", "in_feat_size_inst", "out_feat_size", "L_gtn", "L_mlp",
+                           "n_heads", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2",
                            "residual", "readout", "batch_norm", "layer_norm"]
-        if "dropout2" in net_params and net_params["dropout2"] > 0:
-            net_params_list.append("dropout2")
     elif case == "MLP":
-        net_params_list = ["in_feat_size_inst", "out_feat_size", "L_mlp", "hidden_dim"]
-        if "dropout2" in net_params and net_params["dropout2"] > 0:
-            net_params_list.append("dropout2")
+        net_params_list = ["in_feat_size_inst", "out_feat_size", "L_mlp", "hidden_dim", "mlp_dim", "dropout2"]
     elif case == "TL":
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size",
-                           "L_mlp", "hidden_dim", "out_dim", "dropout", "readout"]
+                           "L_mlp", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2", "readout"]
         raise NotImplementedError(case)
     elif case == "RAAL":
         raise NotImplementedError(case)
@@ -462,7 +458,7 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
     weights_pth_sign = f"{ckp_path}/best_weight.pth"
     results_pth_sign = f"{ckp_path}/results.pth"
 
-    if if_pth_existed(results_pth_sign) and if_pth_existed(weights_pth_sign):
+    if (not data_params["debug"]) and if_pth_existed(results_pth_sign) and if_pth_existed(weights_pth_sign):
         results = th.load(results_pth_sign, map_location=device)
         print(f"found hps at {results_pth_sign}!")
         show_results(results, obj)

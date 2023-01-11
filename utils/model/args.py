@@ -78,6 +78,7 @@ class ArgsGTN(ArgsBase):
         self.parser.add_argument("--n-heads", type=int)
         self.parser.add_argument('--hidden-dim', type=int)
         self.parser.add_argument('--out-dim', type=int)
+        self.parser.add_argument('--mlp-dim', type=int)
         self.parser.add_argument('--residual', type=int)
         self.parser.add_argument('--readout', type=str)
         self.parser.add_argument('--dropout', type=float)
