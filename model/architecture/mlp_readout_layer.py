@@ -66,8 +66,7 @@ class PureMLP(nn.Module):
         # self.MLP_layers = MLP_Dropout(in_feat_size_inst, h_dim_list, dropout, out_dim=out_feat_size)
         self.emb = nn.Sequential(
             nn.Linear(in_feat_size_inst, hidden_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(hidden_dim)
+            nn.ReLU()
         )
         dropout2 = net_params["dropout2"]
         self.MLP_layers = MLPReadout(hidden_dim, mlp_dim, out_feat_size, L=n_mlp_layers, dropout=dropout2)
