@@ -35,6 +35,7 @@ class ModelProxy():
                            "max": get_tensor(obj_minmax["max"].values, device=device)}
 
     def get_stage_emb(self, g, fmt="numpy"):
+        self.model.eval()
         g = g.to(self.device)
         pos_enc = g.ndata["lap_pe"].to(self.device)
         with th.no_grad():

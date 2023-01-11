@@ -81,6 +81,7 @@ class ArgsGTN(ArgsBase):
         self.parser.add_argument('--residual', type=int)
         self.parser.add_argument('--readout', type=str)
         self.parser.add_argument('--dropout', type=float)
+        self.parser.add_argument('--dropout2', type=float)
         self.parser.add_argument('--batch-norm', type=int)
         self.parser.add_argument('--layer-norm', type=int)
         self.parser.add_argument("--ch1-type-dim", type=int)

@@ -15,11 +15,12 @@ import torch.nn.functional as F
 
 class MLPReadout(nn.Module):
 
-    def __init__(self, input_dim, output_dim, L=2):  # L=nb_hidden_layers
+    def __init__(self, input_dim, output_dim, L=2, dropout=0.0):  # L=nb_hidden_layers
         super().__init__()
         list_FC_layers = [nn.Linear(input_dim // 2 ** l, input_dim // 2 ** (l + 1), bias=True) for l in range(L)]
         list_FC_layers.append(nn.Linear(input_dim // 2 ** L, output_dim, bias=True))
         self.FC_layers = nn.ModuleList(list_FC_layers)
+        self.dropout_list = [nn.Dropout(p=dropout) for l in range(L)]
         self.L = L
 
     def forward(self, x):
@@ -27,6 +28,7 @@ class MLPReadout(nn.Module):
         for l in range(self.L):
             y = self.FC_layers[l](y)
             y = F.relu(y)
+            y = self.dropout_list[l](y)
         y = self.FC_layers[self.L](y)
         return y
 
@@ -45,7 +47,8 @@ class PureMLP(nn.Module):
             nn.ReLU(),
             nn.BatchNorm1d(hidden_dim)
         )
-        self.MLP_layers = MLPReadout(hidden_dim, out_feat_size, L=n_mlp_layers)
+        dropout2 = 0.0 if "dropout2" not in net_params else net_params["dropout2"]
+        self.MLP_layers = MLPReadout(hidden_dim, out_feat_size, L=n_mlp_layers, dropout=dropout2)
 
     def forward(self, x):
         x = self.emb(x)

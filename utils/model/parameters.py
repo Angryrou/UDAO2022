@@ -110,6 +110,7 @@ def set_net_params(args):
         "residual": True,
         "readout": "mean",
         "dropout": 0.0,
+        "dropout2": 0.0,
         "batch_norm": True,
         "layer_norm": False,
         "ch1_type_dim": 8,
@@ -134,7 +135,9 @@ def set_net_params(args):
     if args.readout is not None:
         net_params["readout"] = args.readout
     if args.dropout is not None:
-        net_params["dropout"] = args.dropout
+        net_params["dropout"] = args.dropout # for GTN
+    if args.dropout2 is not None:
+        net_params["dropout2"] = args.dropout2 # for MLP
     if args.batch_norm is not None:
         net_params["batch_norm"] = False if args.batch_norm == 0 else True
     if args.layer_norm is not None:

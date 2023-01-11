@@ -26,6 +26,7 @@ class GraphTransformerNet(nn.Module):
         hidden_dim = net_params["hidden_dim"]
         out_dim = net_params["out_dim"]
         dropout = net_params["dropout"]
+        dropout2 = 0. if "dropout2" not in net_params else net_params["dropout2"]
         op_groups = net_params["op_groups"]
 
         self.op_type = ("ch1_type" in op_groups)
@@ -47,7 +48,7 @@ class GraphTransformerNet(nn.Module):
         self.layers.append(
             GraphTransformerLayer(hidden_dim, out_dim, num_heads, dropout,
                                   self.layer_norm, self.batch_norm, self.residual))
-        self.MLP_layer = MLPReadout(out_dim + in_feat_size_inst, out_feat_size, L=n_mlp_layers)
+        self.MLP_layer = MLPReadout(out_dim + in_feat_size_inst, out_feat_size, L=n_mlp_layers, dropout=dropout2)
 
     def forward(self, g, h_lap_pos_enc, inst_feat=None):
         """

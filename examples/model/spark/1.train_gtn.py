@@ -11,9 +11,9 @@ from utils.model.utils import expose_data, pipeline
 
 args = ArgsGTN().parse()
 print(args)
-pj = f"{args.benchmark.lower()}_{args.scale_factor.lower()}"
+pj = f"{args.benchmark.lower()}_{args.scale_factor}"
 debug = False if args.debug == 0 else True
-data_header = f"{args.data_header}/{args.benchmark.lower()}_{args.scale_factor.lower()}"
+data_header = f"{args.data_header}/{args.benchmark.lower()}_{args.scale_factor}"
 assert os.path.exists(data_header), f"data not exists at {data_header}"
 assert args.granularity in ("Q", "QS")
 

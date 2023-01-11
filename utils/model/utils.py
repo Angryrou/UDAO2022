@@ -135,8 +135,12 @@ def get_hp(data_params, learning_params, net_params, case=""):
         net_params_list = ["ped", "in_feat_size_op", "in_feat_size_inst", "out_feat_size",
                            "L_gtn", "L_mlp", "n_heads", "hidden_dim", "out_dim", "dropout",
                            "residual", "readout", "batch_norm", "layer_norm"]
+        if "dropout2" in net_params and net_params["dropout2"] > 0:
+            net_params_list.append("dropout2")
     elif case == "MLP":
         net_params_list = ["in_feat_size_inst", "out_feat_size", "L_mlp", "hidden_dim"]
+        if "dropout2" in net_params and net_params["dropout2"] > 0:
+            net_params_list.append("dropout2")
     elif case == "TL":
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size",
                            "L_mlp", "hidden_dim", "out_dim", "dropout", "readout"]
@@ -194,7 +198,7 @@ def collate(samples):
 
 
 def norm_in_feat_inst(x, minmax):
-    return (x - minmax["min"]) / (minmax["max"].values - minmax["min"])
+    return (x - minmax["min"]) / (minmax["max"] - minmax["min"])
 
 
 def denorm_obj(o, minmax):
@@ -257,7 +261,7 @@ class MyDSBase(Dataset):
         if "ch1" in self.picked_groups:
             sid = x[self.col_dict["ch1"][0]].item()
             svid = x[self.col_dict["ch1"][1]].item()
-            g = form_graph(self.dag_dict, sid, svid, self.ped)
+            g = form_graph(self.dag_dict, sid, svid, self.ped, self.op_groups)
         else:
             g = None
         inst_feat = []
