@@ -29,7 +29,7 @@ debug = False if args.debug == 0 else True
 run = False if args.run == 0 else True
 seed = args.seed
 data_header = f"{args.data_header}/{pj}"
-query_header, out_header = args.query_header, args.out_header
+query_header = args.query_header
 assert os.path.exists(data_header), f"data not exists at {data_header}"
 assert args.granularity in ("Q", "QS")
 assert args.model_name == "GTN"
@@ -38,6 +38,8 @@ obj = args.obj
 ckp_sign = args.ckp_sign
 n_samples = args.n_samples
 gpus, device = get_gpus(args.gpu)
+if_robust = False if args.if_robust == 0 else True
+alpha = args.alpha
 
 print("1. preparing data and model")
 data_params = set_data_params(args)
@@ -66,12 +68,15 @@ stage_emb, ch2_norm, ch3_norm = prepare_data_for_opt(
 spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
 knobs = spark_knobs.knobs
 
-out_header = f"{out_header}/{tid}-{qid}"
+out_header = f"{ckp_path}/{tid}-{qid}"
 assert args.moo in ("bf", "ws")
 moo = args.moo
 moo_suffix = moo if moo == "bf" else f"{moo}_{args.n_weights}"
-cache_conf_name = f"po_points_{n_samples}_{moo_suffix}.pkl"
-cache_res_name = f"po_points_{n_samples}_{moo_suffix}_res.pkl"
+cache_sign = f"po_points_{n_samples}_{moo_suffix}"
+if if_robust:
+    cache_sign += f"_alpha_{alpha:.1f}"
+cache_conf_name = f"{cache_sign}.pkl"
+cache_res_name = f"{cache_sign}_res.pkl"
 
 if os.path.exists(f"{out_header}/{cache_conf_name}"):
     cache = PickleUtils.load(out_header, cache_conf_name)
@@ -84,14 +89,35 @@ else:
     knob_df, ch4_norm = get_sample_spark_knobs(knobs, n_samples, seed)
     conf_df = spark_knobs.df_knob2conf(knob_df)
     start = time.time()
-    lats = mp.get_lat(ch1=stage_emb, ch2=ch2_norm, ch3=ch3_norm, ch4=ch4_norm, out_fmt="numpy")
-    costs = get_cloud_cost(
-        lat=lats,
-        mem=conf_df["spark.executor.memory"].str[:-1].astype(int).values.reshape(-1, 1),
-        cores=conf_df["spark.executor.cores"].astype(int).values.reshape(-1, 1),
-        nexec=conf_df["spark.executor.instances"].astype(int).values.reshape(-1, 1)
-    )
-    objs = np.hstack([lats, costs])
+    if if_robust:
+        lats_mu, lats_std = mp.get_lat(ch1=stage_emb, ch2=ch2_norm, ch3=ch3_norm, ch4=ch4_norm,
+                                       out_fmt="numpy", dropout=True)
+        costs_mu = get_cloud_cost(
+            lat=lats_mu,
+            mem=conf_df["spark.executor.memory"].str[:-1].astype(int).values.reshape(-1, 1),
+            cores=conf_df["spark.executor.cores"].astype(int).values.reshape(-1, 1),
+            nexec=conf_df["spark.executor.instances"].astype(int).values.reshape(-1, 1)
+        )
+        costs_std = get_cloud_cost(
+            lat=lats_std,
+            mem=conf_df["spark.executor.memory"].str[:-1].astype(int).values.reshape(-1, 1),
+            cores=conf_df["spark.executor.cores"].astype(int).values.reshape(-1, 1),
+            nexec=conf_df["spark.executor.instances"].astype(int).values.reshape(-1, 1)
+        )
+    else:
+        lats_mu = mp.get_lat(ch1=stage_emb, ch2=ch2_norm, ch3=ch3_norm, ch4=ch4_norm, out_fmt="numpy")
+        lats_std = np.zeros_like(lats_mu)
+        costs_mu = get_cloud_cost(
+            lat=lats_mu,
+            mem=conf_df["spark.executor.memory"].str[:-1].astype(int).values.reshape(-1, 1),
+            cores=conf_df["spark.executor.cores"].astype(int).values.reshape(-1, 1),
+            nexec=conf_df["spark.executor.instances"].astype(int).values.reshape(-1, 1)
+        )
+        costs_std = np.zeros_like(costs_mu)
+
+    objs_mu = np.hstack([lats_mu, costs_mu])
+    objs_std = np.hstack([lats_std, costs_std])
+    objs = objs_mu + alpha * objs_std
     print(f"get {len(objs)} objs, cost {time.time() - start}s")
     if args.moo == "bf":
         inds_pareto = is_pareto_efficient(objs)
@@ -99,15 +125,21 @@ else:
         inds_pareto = ws_return(objs, args.n_weights, seed)
     else:
         raise ValueError(args.moo)
+    sorted_inds = np.argsort(objs[inds_pareto, 0])
+    inds_pareto = np.array(inds_pareto)[sorted_inds]
+
     objs_pareto = objs[inds_pareto]
-    sorted_inds = np.argsort(objs_pareto[:, 0])
-    objs_pareto = objs_pareto[sorted_inds]
     conf_df_pareto = conf_df.iloc[inds_pareto]
     PickleUtils.save({
         "knob_df": knob_df.iloc[inds_pareto],
         "knob_sign": knob_df.iloc[inds_pareto].index.to_list(),
         "conf_df": conf_df_pareto,
-        "objs_pred": objs_pareto
+        "objs_pred": {
+            "objs_pareto": objs_pareto,
+            "objs_pareto_mu": objs_mu[inds_pareto],
+            "objs_pareto_std": objs_std[inds_pareto],
+            "alpha": alpha
+        }
     }, out_header, cache_conf_name)
     print(f"generated {len(objs_pareto)} PO configurations, cached at {out_header}/{cache_conf_name}")
 

@@ -130,8 +130,10 @@ def ws_return(objs, n_ws_pairs, seed):
     weight_pairs = get_weight_pairs(n_ws_pairs, seed)
     assert len(weight_pairs) >= 2
     inds = set()
+
+    objs_norm = (objs - objs.min(0)) / (objs.max(0) - objs.min(0))
     for w_pair in weight_pairs:
-        inds.add(np.argmin((objs * w_pair).sum(1)))
+        inds.add(np.argmin((objs_norm * w_pair).sum(1)))
     inds = list(inds)
-    assert len(is_pareto_efficient(objs[inds])) == len(inds)
+    assert len(is_pareto_efficient(objs_norm[inds])) == len(inds)
     return inds
