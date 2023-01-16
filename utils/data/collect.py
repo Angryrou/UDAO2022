@@ -18,7 +18,10 @@ def flush_all(workers):
 
 
 def sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, tid, qid, if_aqe):
-    """return a list of dts in `n_trials`"""
+    """
+    return a list of dts in `n_trials`, only used in the profiling purpose
+    when we run sqls in the concurrent-running env, we do NOT use `sync`
+    """
 
     # prepare the scripts for running.
     file_name = spark_collect.save_one_script(tid, str(qid), conf_dict, out_header=out_header, if_aqe=if_aqe)
