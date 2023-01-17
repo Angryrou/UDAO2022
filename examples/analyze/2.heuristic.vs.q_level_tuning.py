@@ -3,9 +3,9 @@
 # Description: An initial comparison over tuning
 # (1) res knobs only (20 samples from lhs);
 # (2) sql knobs only (20 samples from lhs);
-# (3) 12 knobs together by using PO solutions based on a Q-level model (WS_10000_samples_5000_weights)
+# (3) 12 knobs together by using PO solutions based on a Q-level model (WS_10000_samples_1000_weights)
 #
-# 1st version - latency.wrong_dropout.20230111
+# 2nd version - latency with new implemented dropout model and weighted sum
 #
 # Created at 10/01/2023
 import os
@@ -270,7 +270,7 @@ def analyze_tuned_objs(default_obj_dict, heuristic_obj_dict, tuned_obj_dict, fig
         tuned_on, tuned_off = obj_tuned_mu_on.loc[q_sign].values, obj_tuned_mu_off.loc[q_sign].values
         res_po, sql_po = get_po_points(res), get_po_points(sql)
         tuned_on_po, tuned_off_po = get_po_points(tuned_on), get_po_points(tuned_off)
-        tuned_pred = PickleUtils.load(f"{pred_header}/tpch_100/{i + 1}-1", pred_name)["objs_pred"]
+        tuned_pred = PickleUtils.load(f"{pred_header}/{i + 1}-1", pred_name)["objs_pred"]
 
         fig, ax = plt.subplots(figsize=(3.5, 3.5))
         plot(
@@ -388,25 +388,119 @@ def analyze_tuned_objs_model_space(
         plt.show()
         plt.close()
 
+def analyze_pred_objs(default_obj_dict, heuristic_obj_dict, fig_header, pred_header, pred_name,
+                      data_header, ckp_header, ckp_sign):
+    dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data = expose_data(
+        header=data_header,
+        tabular_file=f"query_level_cache_data.pkl",
+        struct_file="struct_cache.pkl",
+        op_feats_file=...,
+        debug=False,
+        ori=True
+    )
+    add_pe("GTN", dag_dict)
+    df = pd.concat(dfs)
+    ckp_path = os.path.join(ckp_header, ckp_sign)
+    op_groups = ["ch1_type"]
+    mp = ModelProxy("GTN", ckp_path, minmax_dict["obj"], DEFAULT_DEVICE, op_groups, n_op_types)
+    spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
+    knobs = spark_knobs.knobs
+
+    obj_default_mu = default_obj_dict["aqe_on"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
+    obj_sql_mu = heuristic_obj_dict["sql"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
+    obj_res_mu = heuristic_obj_dict["res"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
+
+    misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs
+    for i in range(22):
+        q_sign = QSIGNS[i]
+        qid = f"q{i + 1}"
+
+        d = obj_default_mu.loc[q_sign].values
+        d_signs = obj_default_mu.loc[q_sign].sort_values("lat").index.tolist()
+        res, sql = obj_res_mu.loc[q_sign].values, obj_sql_mu.loc[q_sign].values
+        res_po_mask, sql_po_mask = is_pareto_efficient(res), is_pareto_efficient(sql)
+        res_po_df = obj_res_mu.loc[q_sign][res_po_mask].sort_values("lat")
+        sql_po_df = obj_sql_mu.loc[q_sign][sql_po_mask].sort_values("lat")
+        res_po, sql_po = res_po_df.values, sql_po_df.values
+        res_knob_signs_po = res_po_df.index.tolist()
+        sql_knob_signs_po = sql_po_df.index.tolist()
+        d_conf = [KnobUtils.sign2knobs(s, knobs) for s in d_signs]
+        res_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in res_knob_signs_po]
+        sql_knobs_po = [KnobUtils.sign2knobs(s, knobs) for s in sql_knob_signs_po]
+
+        default_pred = get_objs(q_sign, d_conf, misc)
+        res_po_pred = get_objs(q_sign, res_knobs_po, misc)
+        sql_po_pred = get_objs(q_sign, sql_knobs_po, misc)
+        objs_pred_alpha0 = PickleUtils.load(f"{pred_header}/{i + 1}-1", f"{pred_name}.pkl")["objs_pred"]
+        objs_pred_alpha2 = PickleUtils.load(f"{pred_header}/{i + 1}-1", f"{pred_name}_alpha_2.0.pkl")["objs_pred"]
+        objs_pred_alpha3 = PickleUtils.load(f"{pred_header}/{i + 1}-1", f"{pred_name}_alpha_3.0.pkl")["objs_pred"]
+        objs_0 = objs_pred_alpha0["objs_pareto"]
+        objs_2 = objs_pred_alpha2["objs_pareto"]
+        objs_3 = objs_pred_alpha3["objs_pareto"]
+
+        d_wmape = get_wmape(d[:, 0], default_pred[:, 0])
+        res_wmape = get_wmape(res_po[:, 0], res_po_pred[:, 0])
+        sql_wmape = get_wmape(sql_po[:, 0], sql_po_pred[:, 0])
+
+        fig, ax = plt.subplots()
+        plot(
+            X=[default_pred[:, 0], res_po_pred[:, 0], sql_po_pred[:, 0], objs_0[:, 0], objs_2[:, 0], objs_3[:, 0]],
+            Y=[default_pred[:, 1], res_po_pred[:, 1], sql_po_pred[:, 1], objs_0[:, 1], objs_2[:, 1], objs_3[:, 1]],
+            xlabel="latency (s)", ylabel="cost($)",
+            legend=[f"default_pred({d_wmape:.3f})", f"res_po_pred({res_wmape:.3f})", f"sql_po_pred({sql_wmape:.3f})",
+                    r"ws_pred,$obj_i=\mu_i$", r"ws_pred,$obj_i=\mu_i + 2\sigma_i$", r"ws_pred,$obj_i=\mu_i + 3\sigma_i$"],
+            fmts=["ko", "go--", "bo--", "ro--", "mo--", "co--"],
+            axes=ax, figsize=(4.5, 3.5))
+        ax.set_title("PO Frontiers in the predicted space")
+        plt.tight_layout()
+        figpath = f"{fig_header}/{qid}_po_pred.pdf"
+        fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
+        plt.show()
+        plt.close()
+
+
+def analyze_actual_objs(default_obj_dict, heuristic_obj_dict, fig_header, pred_header, pred_name,
+                        ckp_header, ckp_sign):
+    obj_default_mu = default_obj_dict["aqe_on"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
+    obj_sql_mu = heuristic_obj_dict["sql"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
+    obj_res_mu = heuristic_obj_dict["res"].groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
+
+    for i in range(22):
+        q_sign = QSIGNS[i]
+        qid = f"q{i + 1}"
+
+        d = obj_default_mu.loc[q_sign].values
+        d_signs = obj_default_mu.loc[q_sign].sort_values("lat").index.tolist()
+        res, sql = obj_res_mu.loc[q_sign].values, obj_sql_mu.loc[q_sign].values
+        res_po_mask, sql_po_mask = is_pareto_efficient(res), is_pareto_efficient(sql)
+        res_po_df = obj_res_mu.loc[q_sign][res_po_mask].sort_values("lat")
+        sql_po_df = obj_sql_mu.loc[q_sign][sql_po_mask].sort_values("lat")
+        res_po, sql_po = res_po_df.values, sql_po_df.values
+
+
+
 
 def main():
     out_header = "examples/analyze/1.heuristic.vs.q_level_tuning"
     default_obj_dict = get_default_objs(out_header=out_header, file_name="default_objs.pkl")
     heuristic_obj_dict = get_heuristic_objs(out_header=out_header, file_name="res_and_sql_objs.pkl")
-    tuned_obj_dict = get_tuned_objs(out_header=out_header, file_name="tuned_objs.pkl", if_full_plan=True)
+    # tuned_obj_dict = get_tuned_objs(out_header=out_header, file_name="tuned_objs.pkl", if_full_plan=True)
 
-    analyze_default_objs(out_header, default_obj_dict)
-
-    fig_header = f"{out_header}/fig"
-    analyze_heuristic_objs(default_obj_dict, heuristic_obj_dict, fig_header)
-
-    pred_header = "examples/model/spark/out/2.q_level_conf_reco"
-    pred_name = "po_points_10000_ws_5000.pkl"
-    analyze_tuned_objs(default_obj_dict, heuristic_obj_dict, tuned_obj_dict, fig_header, pred_header, pred_name)
-
-    data_header = "examples/data/spark/cache/tpch_100"
     ckp_header = "examples/model/spark/ckp/tpch_100/GTN/latency/on_off_off_on_on_on"
-    ckp_sign = "40a985a643f1d253"
+    ckp_sign = "b7698e80492e5d72"
+    fig_header = os.path.join(ckp_header, ckp_sign, "fig")
+    os.makedirs(fig_header, exist_ok=True)
+    pred_header = os.path.join(ckp_header, ckp_sign)
+    pred_name = "po_points_10000_ws_1000"
+    data_header = "examples/data/spark/cache/tpch_100"
+
+    analyze_pred_objs(default_obj_dict, heuristic_obj_dict, fig_header, pred_header, pred_name,
+                      data_header, ckp_header, ckp_sign)
+
+    analyze_actual_objs(default_obj_dict, heuristic_obj_dict, fig_header, pred_header, pred_name,
+                        ckp_header, ckp_sign)
+
+
     analyze_tuned_objs_model_space(
         default_obj_dict, heuristic_obj_dict, tuned_obj_dict, fig_header, pred_header, pred_name,
         data_header, ckp_header, ckp_sign
