@@ -97,12 +97,12 @@ if __name__ == '__main__':
     args = Args().parse()
     seed = args.seed
     np.random.seed(seed)
-    benchmark = args.benchmark
+    benchmark = args.benchmark.lower()
     assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
     query_header = args.query_header
     tid = args.target_query
     if_aqe = False if args.if_aqe == 0 else True
-    out_header = f"{args.out_header}/{benchmark}_aqe_{'on' if if_aqe else 'off'}/{tid}-1"
+    out_header = f"{args.out_header}/{benchmark.lower()}_aqe_{'on' if if_aqe else 'off'}/{tid}-1"
     knob_type = args.knob_type
     assert knob_type in ["res", "sql"], f"unsupported knob_type {knob_type}"
     n_lhs = args.num_conf_lhs

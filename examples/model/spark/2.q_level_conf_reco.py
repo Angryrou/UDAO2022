@@ -83,8 +83,7 @@ if os.path.exists(f"{out_header}/{cache_conf_name}"):
     knob_df_pareto = cache["knob_df"]
     knob_sign_pareto = cache["knob_sign"]
     conf_df_pareto = cache["conf_df"]
-    objs_pareto = cache["objs_pred"]
-    print(f"found cached {len(objs_pareto)} PO configurations at {out_header}/{cache_conf_name}")
+    print(f"found cached {len(conf_df_pareto)} PO configurations at {out_header}/{cache_conf_name}")
 else:
     knob_df, ch4_norm = get_sample_spark_knobs(knobs, n_samples, seed)
     conf_df = spark_knobs.df_knob2conf(knob_df)
@@ -141,12 +140,13 @@ else:
             "alpha": alpha
         }
     }, out_header, cache_conf_name)
-    print(f"generated {len(objs_pareto)} PO configurations, cached at {out_header}/{cache_conf_name}")
+    print(f"generated {len(conf_df_pareto)} PO configurations, cached at {out_header}/{cache_conf_name}")
 
 if run:
     print(f"prepared to run {len(conf_df_pareto)} recommended PO configurations")
     if_aqe = False if args.if_aqe == 0 else True
-    script_header = f"examples/traces/spark/internal/2.knob_hp_tuning/{bm.upper()}_{'aqe_on' if if_aqe else 'aqe_off'}"
+    aqe_sign = "aqe_on" if if_aqe else "aqe_off"
+    script_header = f"examples/trace/spark/internal/2.knob_hp_tuning/{bm.lower()}_{aqe_sign}/{tid}-{qid}"
     objs = run_q_confs(
         bm=bm, sf=sf, spark_knobs=spark_knobs, query_header=query_header,
         out_header=script_header, seed=seed, workers=BenchmarkUtils.get_workers(args.worker),
