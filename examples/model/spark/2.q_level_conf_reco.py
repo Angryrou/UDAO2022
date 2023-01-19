@@ -146,10 +146,10 @@ else:
 if run:
     print(f"prepared to run {len(conf_df_pareto)} recommended PO configurations")
     if_aqe = False if args.if_aqe == 0 else True
+    script_header = f"examples/traces/spark/internal/2.knob_hp_tuning/{bm.upper()}_{'aqe_on' if if_aqe else 'aqe_off'}"
     objs = run_q_confs(
         bm=bm, sf=sf, spark_knobs=spark_knobs, query_header=query_header,
-        out_header=out_header + ("/aqe_on" if if_aqe else "/aqe_off"),
-        seed=seed, workers=BenchmarkUtils.get_workers(args.worker),
+        out_header=script_header, seed=seed, workers=BenchmarkUtils.get_workers(args.worker),
         n_trials=3, debug=debug, tid=tid, qid=qid, conf_df=conf_df_pareto, if_aqe=if_aqe)
     PickleUtils.save({
         "e2e_objs": objs
