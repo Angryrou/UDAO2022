@@ -132,6 +132,6 @@ if __name__ == '__main__':
 
     start2 = time.time()
     with Pool(processes=n_processes) as pool:
-        res = pool.starmap_async(spark_collect.save_one_script, arg_list[:20])
+        res = pool.starmap_async(spark_collect.save_one_script, arg_list)
         res.get()
     print(f"prepared scripts for all queries, cost {time.time() - start2}s")
