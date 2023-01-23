@@ -36,7 +36,7 @@ class QueryQueue(object):
 
 class Collection(object, metaclass=ABCMeta):
     def __init__(self, benchmark: str, scale_factor: int, knobs: list, seed=42):
-        self.benchmark = benchmark.upper()
+        self.benchmark = benchmark.upper() if benchmark.lower() in ("tpch", "tpcds") else "TPCxBB"
         self.scale_factor = scale_factor
         self.knobs = knobs
         self.lhs_sampler = LHSSampler(knobs, seed=seed)
@@ -104,12 +104,13 @@ class SparkCollect(Collection):
     def make_script(self, tid: str, qid: str, knob_sign: str, conf_dict: dict,
                     spath="/opt/hex_users/$USER/chenghao/spark-sql-perf",
                     jpath="/opt/hex_users/$USER/spark-3.2.1-hadoop3.3.0/jdk1.8",
-                    if_aqe=False) -> str:
+                    if_aqe=False, oplan_header="oplan_header") -> str:
         conf_str = "\n".join(f"--conf {k}={v} \\" for k, v in conf_dict.items())
         bm, sf = self.benchmark, self.scale_factor
         name = f"{self.benchmark}{self.scale_factor}_q{tid}-{qid}_{knob_sign}"
 
-        return f"""\
+        if self.benchmark in ("TPCH", "TPCDS"):
+            return f"""\
 # {tid}-{qid}
 # {knob_sign}
 
@@ -141,9 +142,48 @@ name={name}
 --files "$lpath" \\
 --jars ~/spark/examples/jars/scopt_2.12-3.7.1.jar \\
 $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
--b {bm} -t {tid} -q {qid} -s {sf} -l {self.query_header} 
+-b {bm} -t {tid} -q {qid} -s {sf} -l {self.query_header}
+ 
+        """
+        elif self.benchmark == "TPCxBB":
+            return f"""\
+# {tid}-{qid}
+# {knob_sign}
 
-"""
+spath={spath}
+jpath={jpath}
+lpath={spath}/src/main/resources/log4j.properties
+sparkpath=/opt/hex_users/$USER/spark
+respath={spath}/src/main/resources/tpcxbb/res
+name={name}
+
+~/spark/bin/spark-submit \\
+--class chenghao.tpcxbb.RunQuery \\
+--name {name} \\
+--master yarn \\
+--deploy-mode client \\
+--conf spark.executorEnv.JAVA_HOME=${{jpath}} \\
+--conf spark.yarn.appMasterEnv.JAVA_HOME=${{jpath}} \\
+{conf_str}
+--conf spark.yarn.am.cores={conf_dict["spark.executor.cores"]} \
+--conf spark.yarn.am.memory={conf_dict["spark.executor.memory"]} \
+--conf spark.sql.adaptive.enabled={"true" if if_aqe else "false"} \\
+--conf spark.sql.parquet.compression.codec=snappy \
+--conf spark.sql.broadcastTimeout=10000 \
+--conf spark.rpc.askTimeout=12000 \
+--conf spark.shuffle.io.retryWait=60 \
+--conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
+--conf spark.kryoserializer.buffer.max=512m \
+--files=${{respath}}/*.py,${{respath}}/log4j.properties \
+--driver-java-options "-Dlog4j.configuration=file:$lpath" \
+--conf "spark.driver.extraJavaOptions=-Xms20g" \
+--conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:log4j.properties" \
+--jars ${{respath}}/bigbenchqueriesmr.jar,${{respath}}/opennlp-tools-1.6.0.jar,${{sparkpath}}/examples/jars/scopt_2.12-3.7.1.jar \
+$spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar 100 {tid} {qid} {oplan_header} false            
+            
+            """
+        else:
+            raise ValueError(self.benchmark)
 
     def save_one_script(self, tid: str, qid: str, conf_dict: dict, out_header: str, if_aqe: bool):
         knob_dict = self.spark_knobs.conf2knobs(conf_dict)
@@ -154,7 +194,8 @@ $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
             qid=str(qid),
             knob_sign=knob_sign,
             conf_dict=conf_dict,
-            if_aqe=if_aqe
+            if_aqe=if_aqe,
+            oplan_header=f"{out_header}/oplan_header"
         )
         file_name = f"q{tid}-{qid}_{knob_sign}.sh"
         os.makedirs(f"{out_header}", exist_ok=True)
