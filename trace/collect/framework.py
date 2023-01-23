@@ -166,20 +166,20 @@ name={name}
 --conf spark.executorEnv.JAVA_HOME=${{jpath}} \\
 --conf spark.yarn.appMasterEnv.JAVA_HOME=${{jpath}} \\
 {conf_str}
---conf spark.yarn.am.cores={conf_dict["spark.executor.cores"]} \
---conf spark.yarn.am.memory={conf_dict["spark.executor.memory"]} \
+--conf spark.yarn.am.cores={conf_dict["spark.executor.cores"]} \\
+--conf spark.yarn.am.memory={conf_dict["spark.executor.memory"]} \\
 --conf spark.sql.adaptive.enabled={"true" if if_aqe else "false"} \\
---conf spark.sql.parquet.compression.codec=snappy \
---conf spark.sql.broadcastTimeout=10000 \
---conf spark.rpc.askTimeout=12000 \
---conf spark.shuffle.io.retryWait=60 \
---conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
---conf spark.kryoserializer.buffer.max=512m \
---files=${{respath}}/*.py,${{respath}}/log4j.properties \
---driver-java-options "-Dlog4j.configuration=file:$lpath" \
---conf "spark.driver.extraJavaOptions=-Xms20g" \
---conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:log4j.properties" \
---jars ${{respath}}/bigbenchqueriesmr.jar,${{respath}}/opennlp-tools-1.6.0.jar,${{sparkpath}}/examples/jars/scopt_2.12-3.7.1.jar \
+--conf spark.sql.parquet.compression.codec=snappy \\
+--conf spark.sql.broadcastTimeout=10000 \\
+--conf spark.rpc.askTimeout=12000 \\
+--conf spark.shuffle.io.retryWait=60 \\
+--conf spark.serializer=org.apache.spark.serializer.KryoSerializer \\
+--conf spark.kryoserializer.buffer.max=512m \\
+--files=${{respath}}/*.py,${{respath}}/log4j.properties \\
+--driver-java-options "-Dlog4j.configuration=file:$lpath" \\
+--conf "spark.driver.extraJavaOptions=-Xms20g" \\
+--conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:log4j.properties" \\
+--jars ${{respath}}/bigbenchqueriesmr.jar,${{respath}}/opennlp-tools-1.6.0.jar,${{sparkpath}}/examples/jars/scopt_2.12-3.7.1.jar \\
 $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar 100 {tid} {qid} {oplan_header} false            
             
             """
