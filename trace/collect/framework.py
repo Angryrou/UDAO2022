@@ -202,7 +202,7 @@ $spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar 100 {tid} {qid} 
         os.makedirs(f"{out_header}", exist_ok=True)
         with open(f"{out_header}/{file_name}", "w") as f:
             f.write(spark_script)
-        print(f"script {tid}-{qid} prepared for running")
+        print(f"script {tid}-{qid} prepared for running {knob_sign}")
         return file_name
 
 
