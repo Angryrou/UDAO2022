@@ -50,7 +50,7 @@ def extract(submit_index, templates, n_templates, conf_df_dict):
 def submit(lock, current_cores, cores: int, tid: str, qid: str, knob_sign: str, debug: bool, script_header: str, log_header: str):
     script_file = f"{script_header}/{tid}/q{tid}-{qid}_{knob_sign}.sh"
     assert os.path.exists(script_file), FileNotFoundError(script_file)
-    log_file = f"{log_header}/q{tid}-{qid}.log"
+    log_file = f"{log_header}/q{tid}-{qid}_{knob_sign}.log"
 
     print(f"Thread {tid}-{qid}: start running")
     start = time.time()
