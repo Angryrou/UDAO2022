@@ -45,7 +45,7 @@ benchmark = args.benchmark
 assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
 query_header = args.query_header
 if_aqe = False if args.if_aqe == 0 else True
-out_header = f"{args.out_header}/{benchmark}_AQE_{'enabled' if if_aqe else 'disabled'}"
+out_header = f"{args.out_header}/{benchmark}_aqe_{'on' if if_aqe else 'off'}"
 num_templates = args.num_templates
 num_trials = args.num_trials
 workers = BenchmarkUtils.get_workers(args.worker)

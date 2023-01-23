@@ -4,8 +4,13 @@
 
 The python virtual environment
 ```bash
-conda create -n <name> python=3.8
+# cpu
+conda create -n <name> python=3.9
 pip install -r requirements.txt
+# gpu 
+conda create -n udao-gpu python=3.9
+pip install -r requirements.txt
+conda install -c anaconda cudatoolkit=11
 ```
 
 The supportive trace collection projects. Put or solflink those projects under `resources`

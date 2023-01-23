@@ -87,6 +87,7 @@ class Args():
         self.parser.add_argument("--num-trials", type=int, default=3)
         self.parser.add_argument("--debug", type=int, default=0)
         self.parser.add_argument("--worker", type=str, default="debug")
+        self.parser.add_argument("--if-aqe", type=int, default=1)
 
     def parse(self):
         return self.parser.parse_args()
@@ -96,11 +97,12 @@ if __name__ == '__main__':
     args = Args().parse()
     seed = args.seed
     np.random.seed(seed)
-    benchmark = args.benchmark
+    benchmark = args.benchmark.lower()
     assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
     query_header = args.query_header
     tid = args.target_query
-    out_header = f"{args.out_header}/{benchmark}_AQE_enabled/{tid}-1"
+    if_aqe = False if args.if_aqe == 0 else True
+    out_header = f"{args.out_header}/{benchmark.lower()}_aqe_{'on' if if_aqe else 'off'}/{tid}-1"
     knob_type = args.knob_type
     assert knob_type in ["res", "sql"], f"unsupported knob_type {knob_type}"
     n_lhs = args.num_conf_lhs
@@ -119,7 +121,7 @@ if __name__ == '__main__':
     print()
 
     print(f"2. run {n_lhs} objective values corresponding to the configurations")
-    objs = run_q_confs(benchmark, 100, spark_knobs, query_header, seed, workers, n_trials, out_header, debug, tid, 1,
-                       conf_df, if_aqe=True)
+    objs = run_q_confs(benchmark, 100, spark_knobs, query_header, out_header, seed, workers, n_trials, debug, tid, 1,
+                       conf_df, if_aqe=if_aqe)
     print(objs)
     print()
