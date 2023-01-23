@@ -22,8 +22,8 @@ class Args():
         self.parser.add_argument("-s", "--seed", type=int, default=42)
         self.parser.add_argument("-q", "--query-header", type=str, default="resources/tpch-kit/spark-sqls")
         self.parser.add_argument("--num-templates", type=int, default=22)
-        self.parser.add_argument("--num-processes", type=int, default=6)
         self.parser.add_argument("--if-aqe", type=int, default=0)
+        self.parser.add_argument("--worker", type=str, default=None)
 
     def parse(self):
         return self.parser.parse_args()
@@ -36,7 +36,10 @@ if_aqe = False if args.if_aqe == 0 else True
 qid = "1"
 OUT_HEADER = "examples/trace/spark/4.run_all_single_query_env"
 REMOTE_HEADER = "~/chenghao"
-workers = BenchmarkUtils.get_workers(benchmark)
+if args.worker is None:
+    workers = BenchmarkUtils.get_workers(benchmark)
+else:
+    workers = BenchmarkUtils.get_workers(args.worker)
 
 spark_knobs = SparkKnobs(meta_file=args.knob_meta_file)
 knobs = spark_knobs.knobs
