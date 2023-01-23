@@ -176,13 +176,14 @@ def bfs_rec(full_plan: QueryPlanTopology, current_stage: int, stage: dict, stage
     else:
         stage.setdefault(current_stage, []).append(curr_node)
     exchange_node_flag = False
-    if ((curr_node != None) and 'exchange' in (get_node_name(curr_node, nodes)).lower()):
+    if ((curr_node != None) and (('exchange' in (get_node_name(curr_node, nodes)).lower()) or ('subquery' in (get_node_name(curr_node, nodes)).lower()))):# exchange and subquery related operators considered exchange of stages
         exchange_node_flag = True
     if curr_node in topdown_tree.keys():
         for child_node in topdown_tree[curr_node]:
             if exchange_node_flag:
                 save_current_stage = current_stage
                 current_stage = global_stage_counter = global_stage_counter + 1
+                stage.setdefault(current_stage, []).append(curr_node) # the operator demarcating stage change also added to the children nodes belonging in the next stage
                 stage_dependency.append((current_stage, save_current_stage))
             bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, child_node)
     else:#i.e. curr_node is the leaf curr_node
