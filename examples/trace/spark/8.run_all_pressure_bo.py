@@ -154,7 +154,7 @@ if __name__ == '__main__':
     benchmark = args.benchmark
     seed = args.seed
     out_header = f"{args.out_header}/{benchmark}"
-    cache_header = args.cache_header
+    cache_header = os.path.join(args.cache_header, benchmark.lower())
     remote_header = args.remote_header
     n_templates = args.num_templates
     n_processes = args.num_processes

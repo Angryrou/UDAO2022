@@ -42,7 +42,7 @@ if __name__ == '__main__':
     seed = args.seed
     script_header = args.script_header
     out_header = args.out_header
-    cache_header = args.cache_header
+    cache_header = os.path.join(args.cache_header, benchmark.lower())
     n_templates = args.num_templates
     qpt = args.num_queries_per_template_to_run
     debug = args.debug

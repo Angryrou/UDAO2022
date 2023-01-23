@@ -68,7 +68,7 @@ if __name__ == '__main__':
     seed = args.seed
     script_header = args.script_header
     out_header = args.out_header
-    cache_header = args.cache_header
+    cache_header = os.path.join(args.cache_header, benchmark.lower())
     remote_header = args.remote_header
     n_templates = args.num_templates
     n_processes = args.num_processes
