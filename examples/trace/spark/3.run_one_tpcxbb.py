@@ -17,10 +17,10 @@ conf_dict = {k.name: k.default for k in knobs}
 JsonUtils.print_dict(conf_dict)
 
 spark_collect = SparkCollect(
-    benchmark="TPCDS",
+    benchmark="TPCxBB",
     scale_factor=100,
     spark_knobs=spark_knobs,
-    query_header="resources/tpch-kit/spark-sqls",
+    query_header="resources/tpcxbb-kit/spark-sqls",
     seed=SEED
 )
 knob_dict = spark_knobs.conf2knobs(conf_dict)

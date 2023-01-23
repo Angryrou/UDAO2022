@@ -69,6 +69,7 @@ class SparkCollect(Collection):
         super(SparkCollect, self).__init__(benchmark, scale_factor, spark_knobs.knobs, seed)
         self.spark_knobs = spark_knobs
         self.query_header = query_header
+        os.makedirs(query_header, exist_ok=True)
 
     def get_queries(self, n_templates: int, qpt: int):
         """
