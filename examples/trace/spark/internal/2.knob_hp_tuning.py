@@ -115,10 +115,12 @@ if __name__ == '__main__':
     print(f"1. get {n_lhs} configurations via LHS")
     spark_knobs = InnerKnobs(meta_file=args.knob_meta_file, knob_type=knob_type, seed=seed)
     samples, inner_knob_df, conf_df = spark_knobs.get_lhs_samples(n_lhs)
-
+    conf_df.to_csv(f"{out_header}/lhs_{knob_type}.csv", index=None, header=True)
+    
     print(inner_knob_df.to_string())
     print(conf_df.to_string())
     print()
+
 
     print(f"2. run {n_lhs} objective values corresponding to the configurations")
     objs = run_q_confs(benchmark, 100, spark_knobs, query_header, out_header, seed, workers, n_trials, debug, tid, 1,
