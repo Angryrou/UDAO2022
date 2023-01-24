@@ -240,6 +240,13 @@ def plot_pred(fig_header, qid, objs, objs_pred):
     plt.close()
 
 
+def get_po_points(objs):
+    mask = is_pareto_efficient(objs)
+    po_objs = objs[mask]
+    sorted_inds = np.argsort(po_objs[:, 0])  # sorted by the latency
+    po_objs = po_objs[sorted_inds]
+    return po_objs
+
 def plot_actual(d, objs, aqe_sign, fig_header, qid, if_po=True):
     tuned = objs["tuned"]
     if if_po:
@@ -289,7 +296,8 @@ def plot_q_all(qid, meta):
     plot_actual(d_off, obj_off, "aqe_off", fig_header, qid=qid, if_po=True)
 
     # 3. AQE_ON obj_space
-
+    plot_actual(d_on, obj_on, "aqe_on", fig_header, qid=qid, if_po=False)
+    plot_actual(d_on, obj_on, "aqe_on", fig_header, qid=qid, if_po=True)
 
 def main():
     default_obj_dict = get_default_objs(out_header="examples/analyze/1.heuristic.vs.q_level_tuning",
