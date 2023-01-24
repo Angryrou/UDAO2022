@@ -150,6 +150,12 @@ class FileUtils(object):
             rows = f.read().strip().split("\n")
         return rows
 
+    @staticmethod
+    def read_1st_row(filename):
+        with open(filename, "r") as f:
+            row = f.readline().strip()
+        return row
+
 
 def set_figsize(figsize=(3.5, 2.5)):
     """Set the figure size for matplotlib.
