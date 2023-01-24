@@ -73,19 +73,27 @@ class BenchmarkUtils(object):
         elif benchmark.lower() == "tpcds":
             return "1 2 3 4 5 6 7 8 9 10 11 12 13 14a 14b 15 16 17 18 19 20 21 22 23a 23b 24a 24b 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39a 39b 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99".split(
                 " ")
+        elif benchmark.lower() == "tpcxbb":
+            return [str(i) for i in range(1, 31)]
         else:
             raise ValueError(f"{benchmark} is not supported")
 
     @staticmethod
-    def get_workers(benchmark: str):
-        if benchmark.lower() == "tpch":
+    def get_workers(input: str):
+        if input.lower() == "tpch":
             return ["node2", "node3", "node4", "node5", "node6"]
-        elif benchmark.lower() == "tpcds":
+        elif input.lower() == "tpcds":
             return ["node8", "node9", "node10", "node11", "node12"]
-        elif benchmark.lower() == "debug":
+        elif input.lower() == "debug":
+            return ["node14", "node15", "node16", "node17", "node18"]
+        elif input.lower() == "hex1":
+            return ["node2", "node3", "node4", "node5", "node6"]
+        elif input.lower() == "hex2":
+            return ["node8", "node9", "node10", "node11", "node12"]
+        elif input.lower() == "hex3":
             return ["node14", "node15", "node16", "node17", "node18"]
         else:
-            raise ValueError(f"{benchmark} is not supported")
+            raise ValueError(f"{input} is not supported")
 
 
 class TimeUtils(object):
