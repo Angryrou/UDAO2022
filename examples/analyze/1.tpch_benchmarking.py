@@ -31,6 +31,7 @@ DATA_COLNS = ["q_sign", "knob_sign", "lat", "cost"]
 QSIGNS = [f"q{i}-1" for i in range(1, 23)]
 SIGN = "1.tpch_benchmarking"
 
+
 def sqldt_from_appid(url_header, appid, if_full_plan=False):
     url_str = f"{url_header}/{appid}"
     try:
@@ -214,32 +215,6 @@ def get_wmape(y, y_hat):
     return y_err.sum() / y.sum()
 
 
-def plot_pred(fig_header, tid, objs, objs_pred):
-    d, res_po, sql_po, tuned_a0 = objs
-    d_pred, res_po_pred, sql_po_pred, tuned_pred_a0 = objs_pred
-
-    d_wmape = get_wmape(d[:, 0], d_pred[:, 0])
-    res_wmape = get_wmape(res_po[:, 0], res_po_pred[:, 0])
-    sql_wmape = get_wmape(sql_po[:, 0], sql_po_pred[:, 0])
-    tuned_wmape = get_wmape(tuned_a0[:, 0], tuned_pred_a0[:, 0])
-
-    fig, ax = plt.subplots()
-    plot(
-        X=[d_pred[:, 0], res_po_pred[:, 0], sql_po_pred[:, 0], tuned_pred_a0[:, 0]],
-        Y=[d_pred[:, 1], res_po_pred[:, 1], sql_po_pred[:, 1], tuned_pred_a0[:, 1]],
-        xlabel="latency (s)", ylabel="cost($)",
-        legend=[f"default({d_wmape:.3f})", f"res_po({res_wmape:.3f})", f"sql_po({sql_wmape:.3f})",
-                r"ws,$\mu_i$" + f"({tuned_wmape:.3f})"],
-        fmts=["ko", "go--", "bo--", "ro--"],
-        axes=ax, figsize=(4.5, 3.5))
-    ax.set_title("PO Frontiers in the predicted space")
-    plt.tight_layout()
-    figpath = f"{fig_header}/q{tid}_po_pred.pdf"
-    fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
-    plt.show()
-    plt.close()
-
-
 def get_po_points(objs):
     mask = is_pareto_efficient(objs)
     po_objs = objs[mask]
@@ -247,18 +222,100 @@ def get_po_points(objs):
     po_objs = po_objs[sorted_inds]
     return po_objs
 
-def plot_actual(d, objs, aqe_sign, fig_header, tid, if_po=True):
+def calculate_dom_space(po, anchors):
+    po = po[po[:, 0].argsort()]  # sort po by latency.
+    obj_u, obj_n = anchors
+    space = (obj_n - obj_u).prod()
+    dom_space = 0
+    for i in range(len(po)):
+        dom_space += (obj_n - po[i]).prod()
+        obj_n = np.array([obj_n[0], po[i, 1]])
+    return dom_space / space
+
+def get_mimmax(d_off, d_on, obj_off, obj_on):
+    tuned_off = {k: get_po_points(v) for k, v in obj_off["tuned"].items()}
+    tuned_on = {k: get_po_points(v) for k, v in obj_on["tuned"].items()}
+    objs_2d = [d_off, d_on, obj_off["res"], obj_off["sql"], obj_on["res"], obj_on["sql"]] + \
+              [tuned_off[k] for k in [-3, -2, 0, 2, 3]] + [tuned_on[k] for k in [-3, -2, 0, 2, 3]]
+    po_all_2d = np.concatenate(objs_2d)
+    return po_all_2d.min(0), po_all_2d.max(0)
+
+
+def plot_pred(fig_header, tid, objs, objs_pred, if_show=True):
+    fig, ax = plt.subplots(figsize=(4.5, 2.5))
+    X, Y = [o[:, 0] for o in objs_pred], [o[:, 1] for o in objs_pred]
+    wmapes = [get_wmape(o[:, 0], o_pred[:, 0]) for o, o_pred in zip(objs, objs_pred)]
+    labels = [f"{p}({w:.2f})" for p, w in zip(["default", "res_po", "sql_po", "ws,$\mu_i$"], wmapes)]
+    fmts = ["ko", "go--", "bo--", "ro--"]
+    for x, y, fmt, label in zip(X, Y, fmts, labels):
+        ax.plot(x, y, fmt, label=label)
+    ax.legend(handletextpad=0.3, borderaxespad=0.2, fontsize=8.5)
+    ax.grid()
+    ax.set_title("PO Frontiers in the predicted space")
+    ax.set_xlabel("latency (s)")
+    ax.set_ylabel("cost($)")
+    plt.tight_layout()
+    figpath = f"{fig_header}/q{tid}_po_pred.pdf"
+    fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
+    if if_show:
+        plt.show()
+    plt.close()
+
+
+def plot_actual(d, objs, aqe_sign, fig_header, tid, if_po=True, if_show=True):
     tuned = objs["tuned"]
     if if_po:
         tuned = {k: get_po_points(v) for k, v in tuned.items()}
+
     objs_2d = [d, objs["res"], objs["sql"]] + [tuned[k] for k in [-3, -2, 0, 2, 3]]
     X, Y = [o[:, 0] for o in objs_2d], [o[:, 1] for o in objs_2d]
-    labels = [f"default", f"res_po", f"sql_po", r"ws,$\mu_i - 3\sigma_i$", r"ws,$\mu_i - 2\sigma_i$",
-              r"ws,$\mu_i$", r"ws,$\mu_i + 2\sigma_i$", r"ws,$\mu_i + 3\sigma_i$"]
-    #     tuned_colors = sns.color_palette("rocket", 5)
-    #     colors = ["black", "green", "blue"] + tuned_colors
+    labels = ["default", "res_po", "sql_po", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)"]
+    if if_po:
+        # calculate dominated space for each algo.
+        po_all_2d = np.concatenate(objs_2d)
+        anchors = po_all_2d.min(0), po_all_2d.max(0)
+        dom_spaces = [calculate_dom_space(po, anchors) for po in objs_2d]
+        labels = [f"{l}, {ds * 100:.0f}%" for l, ds in zip(labels, dom_spaces)]
 
-    colors = ["black"] + sns.color_palette("bright")
+    colors = ["black", "green", "blue"] + sns.color_palette("rocket", 5)
+    linestyles = ["--"] * len(X)
+    markers = ["o", "o", "o", "v", "^", "X", "<", ">"]
+
+    fig_name = f"q{tid}_po({aqe_sign})_local_anchors" if if_po else f"q{tid}_po({aqe_sign})_raw"
+    fig, ax = plt.subplots(figsize=(4.5, 3.5))
+    for x, y, c, ls, m, label in zip(X, Y, colors, linestyles, markers, labels):
+        ax.plot(x, y, c=c, ls=ls, marker=m, label=label)
+    ax.legend(ncol=2, handletextpad=0.3, borderaxespad=0.2, fontsize=8.5)
+    ax.set_xlabel("latency (s)")
+    ax.set_ylabel("cost($)")
+    ax.set_title(f"PO Frontiers ({aqe_sign.upper()})")
+    ax.grid()
+    plt.tight_layout()
+    figpath = f"{fig_header}/{fig_name}.pdf"
+    fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
+    if if_show:
+        plt.show()
+    plt.close()
+    if if_po:
+        return dom_spaces
+
+
+def plot_actual_glb_anchors(d, objs, aqe_sign, fig_header, tid, if_po=True, anchors=None, if_show=True):
+    tuned = objs["tuned"]
+    assert if_po
+    if if_po:
+        tuned = {k: get_po_points(v) for k, v in tuned.items()}
+        assert anchors is not None
+
+    objs_2d = [d, objs["res"], objs["sql"]] + [tuned[k] for k in [-3, -2, 0, 2, 3]]
+    X, Y = [o[:, 0] for o in objs_2d], [o[:, 1] for o in objs_2d]
+    labels = ["default", "res_po", "sql_po", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)"]
+    if if_po:
+        # calculate dominated space for each algo.
+        dom_spaces = [calculate_dom_space(po, anchors) for po in objs_2d]
+        labels = [f"{l}, {ds * 100:.0f}%" for l, ds in zip(labels, dom_spaces)]
+
+    colors = ["black", "green", "blue"] + sns.color_palette("rocket", 5)
     linestyles = ["--"] * len(X)
     markers = ["o", "o", "o", "v", "^", "X", "<", ">"]
 
@@ -266,18 +323,21 @@ def plot_actual(d, objs, aqe_sign, fig_header, tid, if_po=True):
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
     for x, y, c, ls, m, label in zip(X, Y, colors, linestyles, markers, labels):
         ax.plot(x, y, c=c, ls=ls, marker=m, label=label)
-    ax.legend(ncol=2)
+    ax.legend(ncol=2, handletextpad=0.3, borderaxespad=0.2, fontsize=8.5)
     ax.set_xlabel("latency (s)")
     ax.set_ylabel("cost($)")
     ax.set_title(f"PO Frontiers ({aqe_sign.upper()})")
+    ax.grid()
     plt.tight_layout()
-    figpath = f"{fig_header}/{fig_name}.pdf"
+    figpath = f"{fig_header}/{fig_name}_glb_anchors.pdf"
     fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
-    plt.show()
+    if if_show:
+        plt.show()
     plt.close()
+    return dom_spaces
 
 
-def plot_q_all(tid, meta):
+def plot_q_all(tid, meta, if_show=True):
     default_obj_dict, mp_misc, spark_knob, bm, script_header, out_header, fig_header, pred_header, pred_name = meta
     q_sign = QSIGNS[tid - 1]
     d_off, d_pred = get_obj_and_obj_hat_default(default_objs=default_obj_dict["aqe_off"], q_sign=q_sign, misc=mp_misc)
@@ -289,16 +349,23 @@ def plot_q_all(tid, meta):
     # 1. predicted space
     plot_pred(fig_header, tid,
               objs=[d_off, obj_off["res"], obj_off["sql"], obj_off["tuned"][0]],
-              objs_pred=[d_pred, obj_off["res_pred"], obj_off["sql_pred"], obj_off["tuned_pred"]])
+              objs_pred=[d_pred, obj_off["res_pred"], obj_off["sql_pred"], obj_off["tuned_pred"]],
+              if_show=if_show)
 
+    dom_space_dict = {}
+
+    anchors = get_mimmax(d_off, d_on, obj_off, obj_on)
     # 2. AQE_OFF obj_space
-    plot_actual(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=False)
-    plot_actual(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=True)
+    plot_actual(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=False, if_show=if_show)
+    dom_space_dict["off_local"] = plot_actual(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=True, if_show=if_show)
+    dom_space_dict["off_glb"] = plot_actual_glb_anchors(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=True, anchors=anchors, if_show=if_show)
 
     # 3. AQE_ON obj_space
-    plot_actual(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=False)
-    plot_actual(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=True)
+    plot_actual(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=False, if_show=if_show)
+    dom_space_dict["on_local"] = plot_actual(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=True, if_show=if_show)
+    dom_space_dict["on_glb"] = plot_actual_glb_anchors(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=True, anchors=anchors, if_show=if_show)
 
+    return dom_space_dict
 
 class Args():
     def __init__(self):
@@ -307,6 +374,7 @@ class Args():
 
     def parse(self):
         return self.parser.parse_args()
+
 
 def main():
     default_obj_dict = get_default_objs(out_header="examples/analyze/1.heuristic.vs.q_level_tuning",
@@ -327,8 +395,26 @@ def main():
     meta = default_obj_dict, mp_misc, spark_knob, bm, script_header, out_header, fig_header, pred_header, pred_name
 
     args = Args().parse()
-    for tid in args.template_list.split(","):
-        plot_q_all(tid=int(tid), meta=meta)
+
+    tids = [int(x) for x in args.template_list.split(",")]
+
+    header = ["Q", "default", "res", "sql", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)"]
+    summary = {tid: [] for tid in tids}
+    for tid in tids:
+        summary[tid] = plot_q_all(tid=int(tid), meta=meta, if_show=False)
+
+    for mode in ["off_local", "off_glb", "on_local", "on_glb"]:
+        print(mode)
+        print("&\t".join(header) + "\\\\")
+        s_mode = []
+        for tid, s_ in summary.items():
+            print(f"{tid}&\t" + "&\t".join([f"{i * 100:.0f}\%" for i in s_[mode]]) + "\t\\\\")
+            s_mode.append(s_[mode])
+        s_mode = np.array(s_mode)
+        s_mode_mu, s_mode_std = s_mode.mean(0), s_mode.std(0)
+        print("AVG&\t" + "&\t".join(f"{mu_ * 100:.0f}\%" for mu_ in s_mode_mu) + "\\\\")
+        print("STD&\t" + "&\t".join(f"{std_ * 100:.0f}\%" for std_ in s_mode_std) + "\\\\")
+        print()
 
 
 if __name__ == '__main__':
