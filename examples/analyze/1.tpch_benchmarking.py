@@ -50,7 +50,7 @@ def sqldt_from_appid(url_header, appid, if_full_plan=False):
         cores = int(k2)
         nexec = int(k3)
         cost = get_cloud_cost(lat, mem, cores, nexec)
-        print(f"got {q_sign}-{knob_sign}")
+        print(f"got {q_sign}_{knob_sign}")
         if if_full_plan:
             return q_sign, knob_sign, lat, cost, sql
         return q_sign, knob_sign, lat, cost
