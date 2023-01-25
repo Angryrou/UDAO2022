@@ -9,6 +9,7 @@
 #
 # Created at 10/01/2023
 import os
+import argparse
 import time
 import glob
 
@@ -29,7 +30,6 @@ from utils.optimization.moo_utils import is_pareto_efficient
 DATA_COLNS = ["q_sign", "knob_sign", "lat", "cost"]
 QSIGNS = [f"q{i}-1" for i in range(1, 23)]
 SIGN = "1.tpch_benchmarking"
-
 
 def sqldt_from_appid(url_header, appid, if_full_plan=False):
     url_str = f"{url_header}/{appid}"
@@ -171,8 +171,8 @@ def get_po_obj_and_obj_hat_heuristic(sh, spark_knob, q_sign, misc, hsign="res",
     return po, po_pred
 
 
-def get_tuned(sh, pred_header, qid, pred_name, q_sign):
-    tuned_meta = PickleUtils.load(f"{pred_header}/{qid}-1", f"{pred_name}.pkl")
+def get_tuned(sh, pred_header, tid, pred_name, q_sign):
+    tuned_meta = PickleUtils.load(f"{pred_header}/{tid}-1", f"{pred_name}.pkl")
     knob_signs = tuned_meta["knob_sign"]
     tuned_pred = tuned_meta["objs_pred"]["objs_pareto"]
     tuned = get_obj_df_with_knob_signs(knob_signs, q_sign, sh)[["q_sign", "knob_sign", "lat", "cost"]] \
@@ -180,10 +180,10 @@ def get_tuned(sh, pred_header, qid, pred_name, q_sign):
     return tuned_pred, tuned
 
 
-def get_objs_all(qid, meta, aqe_sign):
-    q_sign = QSIGNS[qid - 1]
+def get_objs_all(tid, meta, aqe_sign):
+    q_sign = QSIGNS[tid - 1]
     default_obj_dict, mp_misc, spark_knob, bm, script_header, out_header, fig_header, pred_header, pred_name = meta
-    sh = os.path.join(script_header, f"{bm}_{aqe_sign}", f"{qid}-1")
+    sh = os.path.join(script_header, f"{bm}_{aqe_sign}", f"{tid}-1")
     try:
         obj = PickleUtils.load(sh, f"{SIGN}.pkl")
     except:
@@ -191,10 +191,10 @@ def get_objs_all(qid, meta, aqe_sign):
             sh=sh, spark_knob=spark_knob, q_sign=q_sign, misc=mp_misc, hsign="res")
         sql_po, sql_po_pred = get_po_obj_and_obj_hat_heuristic(
             sh=sh, spark_knob=spark_knob, q_sign=q_sign, misc=mp_misc, hsign="sql")
-        tuned_pred, tuned0 = get_tuned(sh, pred_header, qid, pred_name, q_sign)
+        tuned_pred, tuned0 = get_tuned(sh, pred_header, tid, pred_name, q_sign)
         tuned_dict = {0: tuned0}
         for a in [-3, -2, 2, 3]:
-            _, tuned = get_tuned(sh, pred_header, qid, f"{pred_name}_alpha_{a:.1f}", q_sign)
+            _, tuned = get_tuned(sh, pred_header, tid, f"{pred_name}_alpha_{a:.1f}", q_sign)
             tuned_dict[a] = tuned
 
         obj = {
@@ -214,7 +214,7 @@ def get_wmape(y, y_hat):
     return y_err.sum() / y.sum()
 
 
-def plot_pred(fig_header, qid, objs, objs_pred):
+def plot_pred(fig_header, tid, objs, objs_pred):
     d, res_po, sql_po, tuned_a0 = objs
     d_pred, res_po_pred, sql_po_pred, tuned_pred_a0 = objs_pred
 
@@ -234,7 +234,7 @@ def plot_pred(fig_header, qid, objs, objs_pred):
         axes=ax, figsize=(4.5, 3.5))
     ax.set_title("PO Frontiers in the predicted space")
     plt.tight_layout()
-    figpath = f"{fig_header}/q{qid}_po_pred.pdf"
+    figpath = f"{fig_header}/q{tid}_po_pred.pdf"
     fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
     plt.show()
     plt.close()
@@ -247,7 +247,7 @@ def get_po_points(objs):
     po_objs = po_objs[sorted_inds]
     return po_objs
 
-def plot_actual(d, objs, aqe_sign, fig_header, qid, if_po=True):
+def plot_actual(d, objs, aqe_sign, fig_header, tid, if_po=True):
     tuned = objs["tuned"]
     if if_po:
         tuned = {k: get_po_points(v) for k, v in tuned.items()}
@@ -262,7 +262,7 @@ def plot_actual(d, objs, aqe_sign, fig_header, qid, if_po=True):
     linestyles = ["--"] * len(X)
     markers = ["o", "o", "o", "v", "^", "X", "<", ">"]
 
-    fig_name = f"q{qid}_po({aqe_sign})" if if_po else f"q{qid}_po({aqe_sign})_raw"
+    fig_name = f"q{tid}_po({aqe_sign})" if if_po else f"q{tid}_po({aqe_sign})_raw"
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
     for x, y, c, ls, m, label in zip(X, Y, colors, linestyles, markers, labels):
         ax.plot(x, y, c=c, ls=ls, marker=m, label=label)
@@ -277,27 +277,36 @@ def plot_actual(d, objs, aqe_sign, fig_header, qid, if_po=True):
     plt.close()
 
 
-def plot_q_all(qid, meta):
+def plot_q_all(tid, meta):
     default_obj_dict, mp_misc, spark_knob, bm, script_header, out_header, fig_header, pred_header, pred_name = meta
-    q_sign = QSIGNS[qid - 1]
+    q_sign = QSIGNS[tid - 1]
     d_off, d_pred = get_obj_and_obj_hat_default(default_objs=default_obj_dict["aqe_off"], q_sign=q_sign, misc=mp_misc)
     d_on, _ = get_obj_and_obj_hat_default(default_objs=default_obj_dict["aqe_on"], q_sign=q_sign, misc=mp_misc)
 
-    obj_off = get_objs_all(qid, meta, "aqe_off")
-    obj_on = get_objs_all(qid, meta, "aqe_on")
+    obj_off = get_objs_all(tid, meta, "aqe_off")
+    obj_on = get_objs_all(tid, meta, "aqe_on")
 
     # 1. predicted space
-    plot_pred(fig_header, qid,
+    plot_pred(fig_header, tid,
               objs=[d_off, obj_off["res"], obj_off["sql"], obj_off["tuned"][0]],
               objs_pred=[d_pred, obj_off["res_pred"], obj_off["sql_pred"], obj_off["tuned_pred"]])
 
     # 2. AQE_OFF obj_space
-    plot_actual(d_off, obj_off, "aqe_off", fig_header, qid=qid, if_po=False)
-    plot_actual(d_off, obj_off, "aqe_off", fig_header, qid=qid, if_po=True)
+    plot_actual(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=False)
+    plot_actual(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=True)
 
     # 3. AQE_ON obj_space
-    plot_actual(d_on, obj_on, "aqe_on", fig_header, qid=qid, if_po=False)
-    plot_actual(d_on, obj_on, "aqe_on", fig_header, qid=qid, if_po=True)
+    plot_actual(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=False)
+    plot_actual(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=True)
+
+
+class Args():
+    def __init__(self):
+        self.parser = argparse.ArgumentParser()
+        self.parser.add_argument("-t", "--template-list", type=str, default="1,18,2,3,4")
+
+    def parse(self):
+        return self.parser.parse_args()
 
 def main():
     default_obj_dict = get_default_objs(out_header="examples/analyze/1.heuristic.vs.q_level_tuning",
@@ -316,11 +325,10 @@ def main():
 
     spark_knob = SparkKnobs()
     meta = default_obj_dict, mp_misc, spark_knob, bm, script_header, out_header, fig_header, pred_header, pred_name
-    plot_q_all(qid=1, meta=meta)
-    plot_q_all(qid=18, meta=meta)
-    plot_q_all(qid=2, meta=meta)
-    plot_q_all(qid=3, meta=meta)
 
+    args = Args().parse()
+    for tid in args.template_list.split(","):
+        plot_q_all(tid=int(tid), meta=meta)
 
 
 if __name__ == '__main__':
