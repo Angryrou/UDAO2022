@@ -242,7 +242,7 @@ def get_mimmax(d_off, d_on, obj_off, obj_on):
 
 
 def plot_pred(fig_header, tid, objs, objs_pred, if_show=True):
-    fig, ax = plt.subplots(figsize=(4.5, 2.5))
+    fig, ax = plt.subplots(figsize=(4.5, 3.5))
     X, Y = [o[:, 0] for o in objs_pred], [o[:, 1] for o in objs_pred]
     wmapes = [get_wmape(o[:, 0], o_pred[:, 0]) for o, o_pred in zip(objs, objs_pred)]
     labels = [f"{p}({w:.2f})" for p, w in zip(["default", "res_po", "sql_po", "ws,$\mu_i$"], wmapes)]
@@ -250,6 +250,9 @@ def plot_pred(fig_header, tid, objs, objs_pred, if_show=True):
     for x, y, fmt, label in zip(X, Y, fmts, labels):
         ax.plot(x, y, fmt, label=label)
     ax.legend(handletextpad=0.3, borderaxespad=0.2, fontsize=8.5)
+    # box = ax.get_position()
+    # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax.grid()
     ax.set_title("PO Frontiers in the predicted space")
     ax.set_xlabel("latency (s)")
@@ -285,6 +288,10 @@ def plot_actual(d, objs, aqe_sign, fig_header, tid, if_po=True, if_show=True):
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
     for x, y, c, ls, m, label in zip(X, Y, colors, linestyles, markers, labels):
         ax.plot(x, y, c=c, ls=ls, marker=m, label=label)
+
+    # box = ax.get_position()
+    # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax.legend(ncol=2, handletextpad=0.3, borderaxespad=0.2, fontsize=8.5)
     ax.set_xlabel("latency (s)")
     ax.set_ylabel("cost($)")
@@ -323,6 +330,10 @@ def plot_actual_glb_anchors(d, objs, aqe_sign, fig_header, tid, if_po=True, anch
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
     for x, y, c, ls, m, label in zip(X, Y, colors, linestyles, markers, labels):
         ax.plot(x, y, c=c, ls=ls, marker=m, label=label)
+
+    # box = ax.get_position()
+    # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax.legend(ncol=2, handletextpad=0.3, borderaxespad=0.2, fontsize=8.5)
     ax.set_xlabel("latency (s)")
     ax.set_ylabel("cost($)")
