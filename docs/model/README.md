@@ -22,6 +22,43 @@ Q-level tuning and benchmarking
 --------------
 ```bash
 export PYTHONPATH="$PWD"
+# run default
+python examples/trace/spark/internal/1.run_default.py --out-header examples/trace/spark/internal/2.knob_hp_tuning --if-aqe 0 --worker hex1
+python examples/trace/spark/internal/1.run_default.py --out-header examples/trace/spark/internal/2.knob_hp_tuning --if-aqe 1 --worker hex1
+
+# run recommended configurations (by default run run 22 sampled queries)
+python -u examples/model/spark/2.q_level_conf_reco.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
+--ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 1000
+    
+for qid in {1..22}; do
+  for aqe in 0 1; do
+    # run manual tuning
+    python examples/trace/spark/internal/2.knob_hp_tuning.py --q-sign $qid --knob-type res --num-conf-lhs 40 --if-aqe $aqe --worker tpch
+    python examples/trace/spark/internal/2.knob_hp_tuning.py --q-sign $qid --knob-type sql --num-conf-lhs 40 --if-aqe $aqe --worker tpch
+    # mapping to augment traces
+    python examples/trace/spark/internal/3.trace_augment.py -b TPCH --q-sign $qid --if-aqe $aqe
+        
+    # run model-based tuning
+    # (1) RS+VC+WS, alpha = 0  
+    python -u examples/model/spark/2.q_level_conf_reco_run.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
+    --ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 1000 --q-signs $qid --if-aqe $aqe --debug 0 --worker tpch \
+    --moo ws --algo vc --alpha 0
+        
+    # (2) RS+RB+WS, alpha = -3, -2, 0, 2, 3
+    for a in -3 -2 0 2 3 ; do 
+        python -u examples/model/spark/2.q_level_conf_reco_run.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
+        --ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 1000 --q-signs $qid --if-aqe $aqe --debug 0 --worker tpch \
+        --moo ws --algo vc --alpha $a
+    done
+    # (3) RS+VC+BF, alpha = 0    
+    # (4) RS+RB+BF, alpha = -3, -2, 0, 2, 3
+  done
+done
+    
+
+
+
+export PYTHONPATH="$PWD"
 # generating reco po points.
 for qid in {1..22}; do
   for alpha in -3.0 -2.0 2.0 3.0 ; do
@@ -54,6 +91,11 @@ done
 for qid in {1..22}; do
   python examples/trace/spark/internal/2.knob_hp_tuning.py --target-query $qid --knob-type res --num-conf-lhs 40 --if-aqe 1 --worker tpch
   python examples/trace/spark/internal/2.knob_hp_tuning.py --target-query $qid --knob-type sql --num-conf-lhs 40 --if-aqe 1 --worker tpch  
+done
+
+for qid in {1..22}; do
+  python examples/trace/spark/internal/2.knob_hp_tuning.py --target-query $qid --knob-type res --num-conf-lhs 40 --if-aqe 0 --worker tpch
+  python examples/trace/spark/internal/2.knob_hp_tuning.py --target-query $qid --knob-type sql --num-conf-lhs 40 --if-aqe 0 --worker tpch  
 done
 
 
