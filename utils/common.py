@@ -162,6 +162,10 @@ class FileUtils(object):
             row = f.readline().strip()
         return row
 
+    @staticmethod
+    def write_str(filename, s):
+        with open(filename, "w") as f:
+            f.write(s)
 
 def set_figsize(figsize=(3.5, 2.5)):
     """Set the figure size for matplotlib.

@@ -76,8 +76,9 @@ if debug:
     templates = templates[:2]
     out_header += "_debug"
 
+
 q_signs = BenchmarkUtils.get_sampled_q_signs(benchmark)
-file_names = [
+for q_sign in q_signs:
     spark_collect.save_one_script(
         tid=q_sign.split("-")[0][1:],
         qid=q_sign.split("-")[1],
@@ -85,14 +86,4 @@ file_names = [
         out_header=f"{out_header}/{q_sign}",
         if_aqe=if_aqe
     )
-    for q_sign in q_signs
-]
-
-
-def flush_all():
-    os.system("sync")
-    for worker in workers:
-        os.system(f"ssh {worker} sync")
-
-for i, (file_name, q_sign) in enumerate(zip(file_names, q_signs)):
     sql_exec(spark_collect, conf_dict, 3, workers, f"{out_header}/{q_sign}", debug, q_sign, if_aqe)
