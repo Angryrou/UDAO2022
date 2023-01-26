@@ -66,14 +66,13 @@ else:
 if_aqe = False if args.if_aqe == 0 else True
 
 out_header = f"{args.out_header}/{benchmark.lower()}_aqe_{'on' if if_aqe else 'off'}/{q_sign}"
-for i in range(1, 23):
-    names = [os.path.basename(x) for x in glob.glob(f"{out_header}/q{i}-1*") if x[-3:] != ".sh"]
-    for name in names:
-        ns = name.split(".")
-        nss = ns[0].split(",")
-        if int(nss[-2]) in s3_adjustable[f"q{i}"]:
-            nss_new = ",".join(nss[:-2] + ["6", nss[-1]])
-            name_new = ".".join([nss_new] + ns[1:])
-            if not os.path.exists(f"q{i}-1/{name_new}"):
-                cmd = f"ln -s {name} {out_header}/{name_new}"
-                os.system(cmd)
+names = [os.path.basename(x) for x in glob.glob(f"{out_header}/{q_sign}*") if x[-3:] != ".sh"]
+for name in names:
+    ns = name.split(".")
+    nss = ns[0].split(",")
+    if int(nss[-2]) in s3_adjustable[q_sign.split("-")[0]]:
+        nss_new = ",".join(nss[:-2] + ["6", nss[-1]])
+        name_new = ".".join([nss_new] + ns[1:])
+        if not os.path.exists(f"{out_header}/{name_new}"):
+            cmd = f"ln -s {name} {out_header}/{name_new}"
+            os.system(cmd)
