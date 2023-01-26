@@ -39,12 +39,15 @@ class ArgsRecoQ(ArgsBase):
         self.parser.add_argument("--query-header", type=str, default="resources/tpch-kit/spark-sqls")
         self.parser.add_argument("--gpu", type=str, default="-1")
 
+
 class ArgsRecoQRun(ArgsRecoQ):
     def __init__(self):
         super(ArgsRecoQRun, self).__init__()
-        self.parser.add_argument("--algo", type=str, default="robust", help="robust|vc")
-        self.parser.add_argument("--moo", type=str, default="bf", help="bf|ws")
-        self.parser.add_argument("--alpha", type=int, default=3, help="for robust optimization")
+        self.parser.add_argument("--algo", type=str, required=True, help="robust|vc")
+        self.parser.add_argument("--moo", type=str, default="ws", help="ws|bf")
+        self.parser.add_argument("--alpha", type=int, default=0, help="for robust optimization")
+        self.parser.add_argument("--if-aqe", type=int, default=0)
+        self.parser.add_argument("--worker", type=str, default="debug")
 
 class ArgsGTN(ArgsBase):
     def __init__(self):
