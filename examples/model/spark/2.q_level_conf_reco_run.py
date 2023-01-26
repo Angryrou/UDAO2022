@@ -7,19 +7,11 @@
 import os
 import time
 
-from trace.parser.spark import get_cloud_cost
 from utils.common import BenchmarkUtils, PickleUtils, TimeUtils, FileUtils
 from utils.data.collect import run_q_confs
 from utils.data.configurations import SparkKnobs
 from utils.model.args import ArgsRecoQRun
 from utils.model.parameters import set_data_params, get_gpus
-from utils.model.proxy import ModelProxy, ws_return
-from utils.model.utils import expose_data, analyze_cols, add_pe, prepare_data_for_opt, \
-    get_sample_spark_knobs
-from utils.optimization.moo_utils import is_pareto_efficient
-
-import numpy as np
-import pandas as pd
 
 args = ArgsRecoQRun().parse()
 print(args)
