@@ -126,14 +126,14 @@ for q_sign in q_signs:
     objs_mu = np.hstack([lats_mu, costs_mu])
     objs_std = np.hstack([lats_std, costs_std])
     options = [("vc", "ws", 0), ("vc", "bf", 0)] + \
-              [("robust", moo_, alpha_) for alpha_ in [-3, -2, 0, 2, 3] for moo_ in ["ws", "bf"]]
+              [("robust", algo_, alpha_) for alpha_ in [-3, -2, 0, 2, 3] for algo_ in ["ws", "bf"]]
 
     total_cache = {}
-    for mode, moo, alpha in options:
+    for algo, moo, alpha in options:
         assert moo in ["ws", "bf"]
         moo_sign = moo if moo == "bf" else f"{moo}({args.n_weights})"
         start = time.time()
-        if mode == "vc":
+        if algo == "vc":
             objs = np.hstack([objs_mu, (objs_std / objs_mu).sum(1, keepdims=True)])
         else:
             objs = objs_mu + alpha * objs_std
@@ -144,7 +144,7 @@ for q_sign in q_signs:
 
         objs_pareto = objs[inds_pareto]
         conf_df_pareto = conf_df.iloc[inds_pareto]
-        cache_conf_name = f"{cache_prefix}_po_{mode}_{moo_sign}_alpha({alpha:.0f}).pkl"
+        cache_conf_name = f"{cache_prefix}_po_{algo}_{moo_sign}_alpha({alpha:.0f}).pkl"
         dt = time.time() - start
         conf_cache = {
             "knob_df": knob_df.iloc[inds_pareto],
@@ -159,7 +159,7 @@ for q_sign in q_signs:
             "duration_pred": dt_pred,
             "duration_reco": dt
         }
-        total_cache[(mode, moo, alpha)] = conf_cache
+        total_cache[(algo, moo, alpha)] = conf_cache
         PickleUtils.save(conf_cache, out_header, cache_conf_name)
-        print(f"({mode}, {moo}, {alpha}): generated {len(conf_df_pareto)} PO configurations, "
+        print(f"({algo}, {moo}, {alpha}): generated {len(conf_df_pareto)} PO configurations, "
               f"cached at {out_header}/{cache_conf_name}, cost {dt:.0f}s")
