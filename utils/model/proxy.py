@@ -120,9 +120,11 @@ def get_weight_pairs(n, seed, ndim=2):
         wp = np.vstack([wp1, wp2])
 
     else:
+        wp1 = np.eye(ndim)
         np.random.seed(seed)
-        wp = np.random.rand(n, ndim)
-        wp = np.exp(wp) / np.exp(wp).sum(1, keepdims=True)
+        wp2 = np.random.rand(n - ndim, ndim)
+        wp2 = np.exp(wp2) / np.exp(wp2).sum(1, keepdims=True)
+        wp = np.vstack([wp1, wp2])
     return wp
 
 
