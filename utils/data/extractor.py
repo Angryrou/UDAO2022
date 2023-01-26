@@ -332,7 +332,7 @@ class SqlStructData():
             return None
 
 
-class SqlStuctBefore():
+class SqlStructBefore():
     def __init__(self, desc):
         self.struct, self.nodes_desc = construct_from_plan(desc)
 
@@ -343,7 +343,7 @@ class SqlStuctBefore():
             return [self.nodes_desc[nid] for nid in id_order]
 
 
-class SqlStuctAfter():
+class SqlStructAfter():
     def __init__(self, d):
         self.struct = construct_from_metrics(d["sql_struct_sign"])
         self.nodes_metric = self.get_nodes_metric(d["nodes"])
@@ -363,8 +363,8 @@ class SqlStruct():
     def __init__(self, d: dict):
         self.d = d
         self.id = d["sql_struct_id"]
-        self.struct_before = SqlStuctBefore(d["planDescription"])
-        self.struct_after = SqlStuctAfter(d)
+        self.struct_before = SqlStructBefore(d["planDescription"])
+        self.struct_after = SqlStructAfter(d)
         self.p1 = self.struct_after.struct  # metric
         self.p2 = self.struct_before.struct  # planDesc
 
@@ -455,7 +455,7 @@ def infer_evals(model, corpus):
 
 
 def df_convert_query2op(df):
-    return df.planDescription.apply(lambda x: SqlStuctBefore(x).get_op_feats()).explode()
+    return df.planDescription.apply(lambda x: SqlStructBefore(x).get_op_feats()).explode()
 
 
 def tokenize_op_descs(df):
@@ -472,7 +472,7 @@ def get_operator_descs(input_df):
     """
     return all_operators and all_operators_cat with cat1=(operator_type), cat2=(struct_id, operator_type)
     """
-    # operator's desc will be cleaned for "\n" and "\n\n" at `SqlStuctBefore`.
+    # operator's desc will be cleaned for "\n" and "\n\n" at `SqlStructBefore`.
     all_operators = df_convert_query2op(input_df)
     all_operators = all_operators.apply(replace_symbols)
     all_operators_cat = all_operators.apply(lambda x: x.split()[0]).reset_index()

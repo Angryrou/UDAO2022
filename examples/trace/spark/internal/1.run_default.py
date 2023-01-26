@@ -45,7 +45,7 @@ benchmark = args.benchmark
 assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
 query_header = args.query_header
 if_aqe = False if args.if_aqe == 0 else True
-out_header = f"{args.out_header}/{benchmark}_aqe_{'on' if if_aqe else 'off'}"
+out_header = f"{args.out_header}/{benchmark.lower()}_aqe_{'on' if if_aqe else 'off'}"
 num_templates = args.num_templates
 num_trials = args.num_trials
 workers = BenchmarkUtils.get_workers(args.worker)
@@ -55,6 +55,7 @@ debug = False if args.debug == 0 else True
 spark_knobs = SparkKnobs(meta_file=args.knob_meta_file)
 knobs = spark_knobs.knobs
 conf_dict = {k.name: k.default for k in knobs}
+conf_dict["spark.sql.autoBroadcastJoinThreshold"] = "320MB"
 JsonUtils.print_dict(conf_dict)
 
 spark_collect = SparkCollect(
@@ -75,15 +76,16 @@ if debug:
     templates = templates[:2]
     out_header += "_debug"
 
+q_signs = BenchmarkUtils.get_sampled_q_signs(benchmark)
 file_names = [
     spark_collect.save_one_script(
-        tid=tid,
-        qid="1",
+        tid=q_sign.split("-")[0][1:],
+        qid=q_sign.split("-")[1],
         conf_dict=conf_dict,
-        out_header=out_header,
+        out_header=os.path.join(out_header, q_sign),
         if_aqe=if_aqe
     )
-    for tid in templates
+    for q_sign in q_signs
 ]
 
 

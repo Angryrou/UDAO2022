@@ -225,6 +225,7 @@ def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, model_proxy, col_
 def get_sample_spark_knobs(knobs, n_samples, seed):
     np.random.seed(seed)
     samples = np.random.rand(n_samples, len(knobs))
+    samples[:, -2] = 1 # always set s3 (autoBroadcastJoinThreshold) as the largest (320M in our case)
     knob_df = KnobUtils.knob_denormalize(samples, knobs)
     knob_df = knob_df.drop_duplicates()
     knob_df.index = knob_df.apply(lambda x: KnobUtils.knobs2sign(x, knobs), axis=1)
