@@ -82,7 +82,7 @@ file_names = [
         tid=q_sign.split("-")[0][1:],
         qid=q_sign.split("-")[1],
         conf_dict=conf_dict,
-        out_header=os.path.join(out_header, q_sign),
+        out_header=os.path.join(out_header, q_sign[1:]),
         if_aqe=if_aqe
     )
     for q_sign in q_signs
