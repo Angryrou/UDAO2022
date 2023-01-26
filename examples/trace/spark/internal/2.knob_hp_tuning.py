@@ -5,6 +5,7 @@
 # Created at 10/28/22
 
 import argparse
+import re
 
 from trace.collect.sampler import LHSSampler
 from utils.common import BenchmarkUtils
@@ -80,7 +81,7 @@ class Args():
         self.parser.add_argument("-s", "--seed", type=int, default=42)
         self.parser.add_argument("-q", "--query-header", type=str, default="resources/tpch-kit/spark-sqls")
         self.parser.add_argument("--out-header", type=str, default="examples/trace/spark/internal/2.knob_hp_tuning")
-        self.parser.add_argument("--target-query", type=str, default="1")
+        self.parser.add_argument("--q-sign", type=str, default="1")
         self.parser.add_argument("--knob-type", type=str, default="res", help="res|sql")
         self.parser.add_argument("--num-conf-lhs", type=int, default=20)
         self.parser.add_argument("--num-conf-bo", type=int, default=20)
@@ -100,9 +101,16 @@ if __name__ == '__main__':
     benchmark = args.benchmark.lower()
     assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
     query_header = args.query_header
-    tid = args.target_query
+    if bool(re.match(r"^q[0-9]+-[0-9]+$", args.q_sign)):
+        q_sign = args.q_sign
+    else:
+        try:
+            q_sign = BenchmarkUtils.get_sampled_q_signs(benchmark)[int(args.q_sign) - 1]
+        except:
+            raise ValueError(args.q_sign)
+
     if_aqe = False if args.if_aqe == 0 else True
-    out_header = f"{args.out_header}/{benchmark.lower()}_aqe_{'on' if if_aqe else 'off'}/{tid}-1"
+    out_header = f"{args.out_header}/{benchmark.lower()}_aqe_{'on' if if_aqe else 'off'}/{q_sign}"
     knob_type = args.knob_type
     assert knob_type in ["res", "sql"], f"unsupported knob_type {knob_type}"
     n_lhs = args.num_conf_lhs
@@ -121,9 +129,8 @@ if __name__ == '__main__':
     print(conf_df.to_string())
     print()
 
-
     print(f"2. run {n_lhs} objective values corresponding to the configurations")
-    objs = run_q_confs(benchmark, 100, spark_knobs, query_header, out_header, seed, workers, n_trials, debug, tid, 1,
+    objs = run_q_confs(benchmark, 100, spark_knobs, query_header, out_header, seed, workers, n_trials, debug, q_sign,
                        conf_df, if_aqe=if_aqe)
     print(objs)
     print()
