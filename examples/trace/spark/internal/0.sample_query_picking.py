@@ -20,7 +20,6 @@ df = get_csvs(
     samplings=["lhs", "bo"]
 )
 
-
 struct_dgl_dict = struct_cache["struct_dgl_dict"]
 struct_dict = struct_cache["struct_dict"]
 # {tid: [n_bhj, s3, sid]}
@@ -54,12 +53,45 @@ for tid in range(1, 23):
 
 print(",".join(target_qsigns))
 
-# print("q\tn_bhj\ts3\tsid")
-# for k, (v1, v2, v3) in min_s3_dict.items():
-#     print(f"{k}\t{v1}\t{v2}\t{v3}")
-
-
-
-
-
-
+# s3_to_nbhj_map = {f"q{i}": {} for i in range(1, 23)}
+# for r in df.iterrows():
+#     k = r[0][0]
+#     s3 = r[1]["knob_sign"].split(",")[-2]
+#     n_bhj = len([o for o in SqlStructAfter(r[1].to_dict()).struct.nnames if o == "BroadcastHashJoin"])
+#     if s3 in s3_to_nbhj_map[k]:
+#         s3_to_nbhj_map[k][s3].add(n_bhj)
+#     else:
+#         s3_to_nbhj_map[k][s3] = set([n_bhj])
+#
+# s3_to_nbhj_map2 = {k: {kk: min(vv) for kk, vv in v.items()} for k, v in s3_to_nbhj_map.items()}
+# s3_adjustable = {}
+# for k, v in s3_to_nbhj_map2.items():
+#     s3_6 = v["6"]
+#     rlist = [i for i in range(6) if v[str(i)] == s3_6]
+#     s3_adjustable[k] = rlist
+#
+# ------------------------------------------------------------------------------------------------------------
+# get:
+# s3_adjustable = {
+#     'q1': [0, 1, 2, 3, 4, 5],
+#     'q2': [4, 5],
+#     'q3': [4, 5],
+#     'q4': [0, 1, 2, 3, 4, 5],
+#     'q5': [3, 4, 5],
+#     'q6': [0, 1, 2, 3, 4, 5],
+#     'q7': [5],
+#     'q8': [],
+#     'q9': [],
+#     'q10': [5],
+#     'q11': [0, 1, 2, 3, 4, 5],
+#     'q12': [5],
+#     'q13': [0, 1, 2, 3, 4, 5],
+#     'q14': [],
+#     'q15': [0, 1, 2, 3, 4, 5],
+#     'q16': [],
+#     'q17': [1, 2, 3, 4, 5],
+#     'q18': [0, 1, 2, 3, 4, 5],
+#     'q19': [3, 4, 5],
+#     'q20': [],
+#     'q21': [4, 5],
+#     'q22': [0, 1, 2, 3, 4, 5]}

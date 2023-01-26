@@ -55,7 +55,6 @@ debug = False if args.debug == 0 else True
 spark_knobs = SparkKnobs(meta_file=args.knob_meta_file)
 knobs = spark_knobs.knobs
 conf_dict = {k.name: k.default for k in knobs}
-conf_dict["spark.sql.autoBroadcastJoinThreshold"] = "320MB"
 JsonUtils.print_dict(conf_dict)
 
 spark_collect = SparkCollect(
