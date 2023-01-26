@@ -82,7 +82,7 @@ file_names = [
         tid=q_sign.split("-")[0][1:],
         qid=q_sign.split("-")[1],
         conf_dict=conf_dict,
-        out_header=os.path.join(out_header, q_sign[1:]),
+        out_header=f"{out_header}/{q_sign}",
         if_aqe=if_aqe
     )
     for q_sign in q_signs
@@ -96,12 +96,12 @@ def flush_all():
 
 
 dts = np.zeros((num_templates, num_trials))
-for i, file_name in enumerate(file_names):
+for i, (file_name, q_sign) in enumerate(zip(file_names, q_signs)):
     for j in range(args.num_trials):
         flush_all()
         time.sleep(2)
         start = time.time()
-        os.system(f"bash {out_header}/{file_name} > {out_header}/{file_name}_trial_{j + 1}.log 2>&1")
+        os.system(f"bash {out_header}/{q_sign}/{file_name} > {out_header}/{q_sign}/{file_name}_trial_{j + 1}.log 2>&1")
         dt = time.time() - start
         dts[i, j] = dt
         print(f"{file_name}, trial {j + 1}: {dt:.3f}s")
