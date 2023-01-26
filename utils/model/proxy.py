@@ -105,18 +105,30 @@ class ModelProxy():
             raise ValueError(out_fmt)
 
 
-def get_weight_pairs(n, seed):
-    n1 = n // 2 # get n1 in uniformed dist
-    n2 = n - n1 # get n2 randomly generated
+def get_weight_pairs(n, seed, ndim=2):
+    assert ndim > 1
+    if ndim == 2:
+        n1 = n // 2 # get n1 in uniformed dist
+        n2 = n - n1 # get n2 randomly generated
 
-    wp1_1 = np.hstack([np.arange(0, 1, 1 / (n1 - 1)), np.array([1])]).reshape(-1, 1)
-    wp1 = np.hstack([wp1_1, 1 - wp1_1])
+        wp1_1 = np.hstack([np.arange(0, 1, 1 / (n1 - 1)), np.array([1])]).reshape(-1, 1)
+        wp1 = np.hstack([wp1_1, 1 - wp1_1])
 
-    np.random.seed(seed)
-    wp2 = np.random.rand(n2, 2)
-    wp2 = np.exp(wp2) / np.exp(wp2).sum(1, keepdims=True)
-    wp = np.vstack([wp1, wp2])
+        np.random.seed(seed)
+        wp2 = np.random.rand(n2, 2)
+        wp2 = np.exp(wp2) / np.exp(wp2).sum(1, keepdims=True)
+        wp = np.vstack([wp1, wp2])
+
+    else:
+        np.random.seed(seed)
+        wp = np.random.rand(n, ndim)
+        wp = np.exp(wp) / np.exp(wp).sum(1, keepdims=True)
     return wp
+
+
+def bf_return(objs):
+    mask = is_pareto_efficient(objs)
+    return np.arange(len(objs))[mask]
 
 
 def ws_return(objs, n_ws_pairs, seed):
@@ -127,7 +139,8 @@ def ws_return(objs, n_ws_pairs, seed):
     :param seed: random seed
     :return inds: indices of po solutions
     """
-    weight_pairs = get_weight_pairs(n_ws_pairs, seed)
+    ndim = objs.shape[1]
+    weight_pairs = get_weight_pairs(n_ws_pairs, seed, ndim=ndim)
     assert len(weight_pairs) >= 2
     inds = set()
 

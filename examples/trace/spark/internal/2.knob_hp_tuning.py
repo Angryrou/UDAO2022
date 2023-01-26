@@ -101,13 +101,7 @@ if __name__ == '__main__':
     benchmark = args.benchmark.lower()
     assert benchmark.lower() == "tpch", f"unsupported benchmark {benchmark}"
     query_header = args.query_header
-    if bool(re.match(r"^q[0-9]+-[0-9]+$", args.q_sign)):
-        q_sign = args.q_sign
-    else:
-        try:
-            q_sign = BenchmarkUtils.get_sampled_q_signs(benchmark)[int(args.q_sign) - 1]
-        except:
-            raise ValueError(args.q_sign)
+    q_sign = BenchmarkUtils.extract_sampled_q_sign(benchmark, args.q_sign)
 
     if_aqe = False if args.if_aqe == 0 else True
     out_header = f"{args.out_header}/{benchmark.lower()}_aqe_{'on' if if_aqe else 'off'}/{q_sign}"

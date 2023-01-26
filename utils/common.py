@@ -2,7 +2,7 @@
 #
 # Created at 9/16/22
 
-import os, json, pickle, datetime, ciso8601, glob
+import os, json, pickle, datetime, ciso8601, glob, re
 import time
 import urllib.request
 import matplotlib.pyplot as plt
@@ -101,6 +101,27 @@ class BenchmarkUtils(object):
             return "q1-1,q2-1,q3-3,q4-1,q5-2,q6-1,q7-2,q8-19,q9-18,q10-1,q11-1,q12-5,q13-1,q14-12,q15-1,q16-1,q17-1,q18-1,q19-1,q20-6,q21-2,q22-1".split(",")
         else:
             raise ValueError(benchmark)
+
+    @staticmethod
+    def extract_sampled_q_sign(benchmark: str, sign: str):
+        if bool(re.match(r"^q[0-9]+-[0-9]+$", sign)):
+            q_sign = sign
+        else:
+            try:
+                q_sign = BenchmarkUtils.get_sampled_q_signs(benchmark)[int(sign) - 1]
+            except:
+                raise ValueError(sign)
+        return q_sign
+
+    @staticmethod
+    def get_tid(q_sign) -> int:
+        tid = int("".join([d for d in q_sign.split("-")[0] if d.isdigit()]))
+        return tid
+
+    @staticmethod
+    def get_qid(q_sign) -> int:
+        qid = int(q_sign.split("-")[1])
+        return qid
 
 class TimeUtils(object):
 
