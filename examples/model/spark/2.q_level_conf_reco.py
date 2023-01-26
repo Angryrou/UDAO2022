@@ -165,5 +165,5 @@ for q_sign in q_signs:
               f"cached at {out_header}/{cache_conf_name}, cost {dt:.0f}s")
 
     stats = [[k[0], k[1], k[2], len(v["conf_df"])] for k, v in total_cache.items()]
-    df = pd.DataFrame(data=stats, columns=["algo", "moo", "alpha", "n_reco_conf"])
-    df.to_csv(f"{out_header}/{cache_prefix}_bf_ws({args.n_weights})", index=False)
+    df_save = pd.DataFrame(data=stats, columns=["algo", "moo", "alpha", "n_reco_conf"])
+    df_save.to_csv(f"{out_header}/{cache_prefix}_bf_ws({args.n_weights}).csv", index=False)
