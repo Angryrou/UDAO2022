@@ -7,6 +7,7 @@
 import argparse
 import glob, os
 import re
+import sys
 
 from utils.common import BenchmarkUtils
 
@@ -67,6 +68,10 @@ if_aqe = False if args.if_aqe == 0 else True
 
 out_header = f"{args.out_header}/{benchmark.lower()}_aqe_{'on' if if_aqe else 'off'}/{q_sign}"
 names = [os.path.basename(x) for x in glob.glob(f"{out_header}/{q_sign}*") if x[-3:] != ".sh"]
+
+if if_aqe and len(s3_adjustable[q_sign.split("-")[0]]) < 6:
+    sys.exit(1)
+
 for name in names:
     ns = name.split(".")
     nss = ns[0].split(",")
