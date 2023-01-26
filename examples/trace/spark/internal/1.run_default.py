@@ -79,11 +79,5 @@ if debug:
 
 q_signs = BenchmarkUtils.get_sampled_q_signs(benchmark)
 for q_sign in q_signs:
-    spark_collect.save_one_script(
-        tid=q_sign.split("-")[0][1:],
-        qid=q_sign.split("-")[1],
-        conf_dict=conf_dict,
-        out_header=f"{out_header}/{q_sign}",
-        if_aqe=if_aqe
-    )
+    print(f"start working on {q_sign}")
     sql_exec(spark_collect, conf_dict, 3, workers, f"{out_header}/{q_sign}", debug, q_sign, if_aqe)

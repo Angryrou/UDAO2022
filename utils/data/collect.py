@@ -39,6 +39,7 @@ def sql_exec(spark_collect, conf_dict, n_trials, workers, out_header, debug, q_s
             return dts
         except:
             print(f"{res_file} is not properly generated")
+    print(f"not found {res_file}")
     dts = []
     for i in range(n_trials):
         if debug:
