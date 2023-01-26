@@ -16,7 +16,8 @@ import time
 import numpy as np
 
 from trace.collect.framework import SparkCollect
-from utils.common import JsonUtils, BenchmarkUtils, PickleUtils, TimeUtils
+from utils.common import JsonUtils, BenchmarkUtils, PickleUtils, TimeUtils, FileUtils
+from utils.data.collect import sql_exec
 from utils.data.configurations import SparkKnobs, KnobUtils
 
 
@@ -93,30 +94,5 @@ def flush_all():
     for worker in workers:
         os.system(f"ssh {worker} sync")
 
-
-dts = np.zeros((num_templates, num_trials))
 for i, (file_name, q_sign) in enumerate(zip(file_names, q_signs)):
-    for j in range(args.num_trials):
-        flush_all()
-        time.sleep(2)
-        start = time.time()
-        os.system(f"bash {out_header}/{q_sign}/{file_name} > {out_header}/{q_sign}/{file_name}_trial_{j + 1}.log 2>&1")
-        dt = time.time() - start
-        dts[i, j] = dt
-        print(f"{file_name}, trial {j + 1}: {dt:.3f}s")
-
-try:
-    stats_name = f"durations_{num_templates}x{num_trials}_{TimeUtils.get_current_iso()}.pkl"
-    PickleUtils.save(dts, out_header, stats_name)
-    print(f"dts are saved at {out_header}/{stats_name}")
-except Exception as e:
-    print(e)
-    raise
-
-dts_mu = dts.mean(1)
-dts_std = dts.std(1)
-
-print(f"qid \t duration (s) with AQE {'enabled' if if_aqe else 'disabled'}")
-for i in range(num_templates):
-    qid = i + 1
-    print(f"{qid}-1\t{dts_mu[i]:.3f} +- {dts_std[i]:.3f} s")
+    sql_exec(spark_collect, conf_dict, 3, workers, f"{out_header}/{q_sign}", debug, q_sign, if_aqe)
