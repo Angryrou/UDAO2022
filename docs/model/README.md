@@ -28,7 +28,7 @@ python examples/trace/spark/internal/1.run_default.py --out-header examples/trac
 
 # run recommended configurations (by default run run 22 sampled queries)
 python -u examples/model/spark/2.q_level_conf_reco.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
---ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 1000
+--ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 5000
     
 for qid in {1..22}; do
   for aqe in 0 1; do
