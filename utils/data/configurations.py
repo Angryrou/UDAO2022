@@ -91,7 +91,7 @@ class KnobUtils(object):
         knob_values = [
             int(v_str) if k.type == VarTypes.INTEGER else (
                 float(v_str) if k.type == VarTypes.FLOAT else (
-                    bool(v_str) if k.type == VarTypes.BOOL else v_str
+                    (v_str.lower() in ["true", "1"]) if k.type == VarTypes.BOOL else v_str
                 )
             )
             for v_str, k in zip(knob_values_str, knobs)
