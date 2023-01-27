@@ -15,7 +15,7 @@ import glob
 
 import pandas as pd
 
-from utils.common import JsonUtils, PickleUtils, plot, FileUtils
+from utils.common import JsonUtils, PickleUtils, FileUtils, BenchmarkUtils
 from trace.parser.spark import get_cloud_cost
 import numpy as np
 from matplotlib import pyplot as plt
@@ -28,9 +28,25 @@ from utils.model.parameters import DEFAULT_DEVICE
 from utils.optimization.moo_utils import is_pareto_efficient
 
 DATA_COLNS = ["q_sign", "knob_sign", "lat", "cost"]
-QSIGNS = [f"q{i}-1" for i in range(1, 23)]
 SIGN = "1.tpch_benchmarking"
 
+def get_mp(data_header, ckp_header, ckp_sign):
+    dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data = expose_data(
+        header=data_header,
+        tabular_file=f"query_level_cache_data.pkl",
+        struct_file="struct_cache.pkl",
+        op_feats_file=...,
+        debug=False,
+        ori=True
+    )
+    add_pe("GTN", dag_dict)
+    df = pd.concat(dfs)
+    ckp_path = os.path.join(ckp_header, ckp_sign)
+    op_groups = ["ch1_type"]
+    mp = ModelProxy("GTN", ckp_path, minmax_dict["obj"], DEFAULT_DEVICE, op_groups, n_op_types)
+    spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
+    misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs
+    return misc
 
 def sqldt_from_appid(url_header, appid, if_full_plan=False):
     url_str = f"{url_header}/{appid}"
@@ -58,45 +74,23 @@ def sqldt_from_appid(url_header, appid, if_full_plan=False):
         print(f"failed to get {url_str}/sql, {e}")
         raise Exception(e)
 
-
-def get_default_objs(out_header, file_name):
-    try:
-        obj_dict = PickleUtils.load(out_header, file_name)
-        print(f"found default objs")
-    except:
-        print(f"not found default objs, generating...")
-    #         start = time.time()
-    #         query_urls = [
-    #             ("aqe_off", "http://10.0.0.1:18088/api/v1/applications/application_1667868712223", 1),
-    #             ("aqe_on", "http://10.0.0.1:18088/api/v1/applications/application_1667868712223", 67),
-    #         ]
-    #         obj_dict = {}
-    #         for aqe_, url_header, url_suffix_start in query_urls:
-    #             url_suffix_end = url_suffix_start + 66 - 1
-    #             ret = [sqldt_from_appid(url_header, appid) for appid in range(url_suffix_start, url_suffix_end + 1)]
-    #             obj_dict[aqe_] = pd.DataFrame(data=ret, columns=DATA_COLNS)
-    #         PickleUtils.save(obj_dict, out_header, file_name)
-    #         print(f"finished generating default objs, cost {time.time() - start}s")
-    return obj_dict
-
-
-def get_mp(data_header, ckp_header, ckp_sign):
-    dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data = expose_data(
-        header=data_header,
-        tabular_file=f"query_level_cache_data.pkl",
-        struct_file="struct_cache.pkl",
-        op_feats_file=...,
-        debug=False,
-        ori=True
-    )
-    add_pe("GTN", dag_dict)
-    df = pd.concat(dfs)
-    ckp_path = os.path.join(ckp_header, ckp_sign)
-    op_groups = ["ch1_type"]
-    mp = ModelProxy("GTN", ckp_path, minmax_dict["obj"], DEFAULT_DEVICE, op_groups, n_op_types)
-    spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
-    misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs
-    return misc
+def get_obj_df_with_knob_signs(knob_signs, q_sign, sh, api_header="http://10.0.0.1:18088/api/v1/applications"):
+    obj_df_list = []
+    for knob_sign in knob_signs:
+        file_prefix = f"{q_sign}_{knob_sign}"
+        assert len(glob.glob(f"{sh}/{file_prefix}*.dts")) > 0
+        try:
+            obj_df_i = PickleUtils.load(sh, f"{file_prefix}_objs.pkl")
+            print(f"found {file_prefix}_obj.pkl")
+        except:
+            appids = [FileUtils.read_1st_row(p) for p in glob.glob(f"{sh}/{file_prefix}*.log")]
+            ret = [sqldt_from_appid(api_header, appid) for appid in appids]
+            obj_df_i = pd.DataFrame(data=ret, columns=DATA_COLNS)
+            obj_df_i = obj_df_i[obj_df_i["lat"] != -1]
+            PickleUtils.save(obj_df_i, sh, file_name=f"{file_prefix}_objs.pkl")
+        obj_df_list.append(obj_df_i)
+    obj_df = pd.concat(obj_df_list)
+    return obj_df
 
 
 def get_objs(q_sign, knob_list, misc):
@@ -119,45 +113,35 @@ def get_objs(q_sign, knob_list, misc):
     objs = objs[sorted_inds]
     return objs
 
+def get_po_obj_and_obj_hat_default(sh, spark_knobs, q_sign, misc,
+                                   api_header="http://10.0.0.1:18088/api/v1/applications"):
+    try:
+        obj_df = PickleUtils.load(sh, file_name="default_objs.pkl")
+    except:
+        knobs = spark_knobs.knobs
+        conf_dict = {k.name: k.default for k in knobs}
+        conf_df = pd.DataFrame.from_records([conf_dict])
+        df = spark_knobs.df_conf2knob(conf_df)
+        knob_signs = df.apply(lambda x: KnobUtils.knobs2sign(x, spark_knobs.knobs), axis=1)
+        obj_df = get_obj_df_with_knob_signs(knob_signs, q_sign, sh, api_header)
+        PickleUtils.save(obj_df, sh, file_name=f"default_objs.pkl")
 
-def get_obj_and_obj_hat_default(default_objs, q_sign, misc):
-    df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs = misc
-    obj_default_mu = default_objs.groupby(["q_sign", "knob_sign"]).mean().loc[QSIGNS]
-    d = obj_default_mu.loc[q_sign].values
-    d_signs = obj_default_mu.loc[q_sign].sort_values("lat").index.tolist()
-    d_conf = [KnobUtils.sign2knobs(s, spark_knobs.knobs) for s in d_signs]
-    d_pred = get_objs(q_sign, d_conf, misc)
+    df = obj_df.groupby(["q_sign", "knob_sign"]).mean().loc[q_sign]
+    d = df.values
+    d_knobs = [KnobUtils.sign2knobs(s, spark_knobs.knobs) for s in df.index.tolist()]
+    d_pred = get_objs(q_sign, d_knobs, misc)
     return d, d_pred
 
 
-def get_obj_df_with_knob_signs(knob_signs, q_sign, sh, api_header="http://10.0.0.1:18088/api/v1/applications"):
-    obj_df_list = []
-    for knob_sign in knob_signs:
-        file_prefix = f"{q_sign}_{knob_sign}"
-        assert len(glob.glob(f"{sh}/{file_prefix}*.dts")) > 0
-        try:
-            obj_df_i = PickleUtils.load(sh, f"{file_prefix}_objs.pkl")
-            print(f"found {file_prefix}_obj.pkl")
-        except:
-            appids = [FileUtils.read_1st_row(p) for p in glob.glob(f"{sh}/{file_prefix}*.log")]
-            ret = [sqldt_from_appid(api_header, appid) for appid in appids]
-            obj_df_i = pd.DataFrame(data=ret, columns=DATA_COLNS)
-            obj_df_i = obj_df_i[obj_df_i["lat"] != -1]
-            PickleUtils.save(obj_df_i, sh, file_name=f"{file_prefix}_objs.pkl")
-        obj_df_list.append(obj_df_i)
-    obj_df = pd.concat(obj_df_list)
-    return obj_df
-
-
-def get_po_obj_and_obj_hat_heuristic(sh, spark_knob, q_sign, misc, hsign="res",
+def get_po_obj_and_obj_hat_heuristic(sh, spark_knobs, q_sign, misc, hsign="res",
                                      api_header="http://10.0.0.1:18088/api/v1/applications"):
     try:
         obj_df = PickleUtils.load(sh, file_name=f"lhs_{hsign}_objs.pkl")
     except:
         conf_df = pd.read_csv(f"{sh}/lhs_{hsign}.csv")
         conf_df["spark.shuffle.compress"] = conf_df["spark.shuffle.compress"].map(lambda x: "true" if x else "false")
-        df = spark_knob.df_conf2knob(conf_df)
-        knob_signs = df.apply(lambda x: KnobUtils.knobs2sign(x, spark_knob.knobs), axis=1)
+        df = spark_knobs.df_conf2knob(conf_df)
+        knob_signs = df.apply(lambda x: KnobUtils.knobs2sign(x, spark_knobs.knobs), axis=1)
         obj_df = get_obj_df_with_knob_signs(knob_signs, q_sign, sh, api_header)
         PickleUtils.save(obj_df, sh, file_name=f"lhs_{hsign}_objs.pkl")
 
@@ -171,81 +155,64 @@ def get_po_obj_and_obj_hat_heuristic(sh, spark_knob, q_sign, misc, hsign="res",
     po_pred = get_objs(q_sign, po_knobs, misc)
     return po, po_pred
 
-
-def get_tuned(sh, pred_header, tid, pred_name, q_sign):
-    tuned_meta = PickleUtils.load(f"{pred_header}/{tid}-1", f"{pred_name}.pkl")
+def get_tuned(sh, pred_header, pred_name, q_sign):
+    tuned_meta = PickleUtils.load(f"{pred_header}/{q_sign}", f"{pred_name}.pkl")
     knob_signs = tuned_meta["knob_sign"]
     tuned_pred = tuned_meta["objs_pred"]["objs_pareto"]
     tuned = get_obj_df_with_knob_signs(knob_signs, q_sign, sh)[["q_sign", "knob_sign", "lat", "cost"]] \
         .groupby(["q_sign", "knob_sign"]).mean().loc[q_sign].loc[knob_signs].values
-    return tuned_pred, tuned
+    return tuned, tuned_pred
 
-
-def get_objs_all(tid, meta, aqe_sign):
-    q_sign = QSIGNS[tid - 1]
-    default_obj_dict, mp_misc, spark_knob, bm, script_header, out_header, fig_header, pred_header, pred_name = meta
-    sh = os.path.join(script_header, f"{bm}_{aqe_sign}", f"{tid}-1")
+def get_objs_all(q_sign, meta, aqe_sign):
+    mp_misc, spark_knobs, bm, script_header, out_header, fig_header, pred_header, pred_name_prefix = meta
+    sh = os.path.join(script_header, f"{bm}_{aqe_sign}", q_sign)
     try:
         obj = PickleUtils.load(sh, f"{SIGN}.pkl")
     except:
+        default, default_pred = get_po_obj_and_obj_hat_default(
+            sh=sh, spark_knobs=spark_knobs, q_sign=q_sign, misc=mp_misc)
         res_po, res_po_pred = get_po_obj_and_obj_hat_heuristic(
-            sh=sh, spark_knob=spark_knob, q_sign=q_sign, misc=mp_misc, hsign="res")
+            sh=sh, spark_knobs=spark_knobs, q_sign=q_sign, misc=mp_misc, hsign="res")
         sql_po, sql_po_pred = get_po_obj_and_obj_hat_heuristic(
-            sh=sh, spark_knob=spark_knob, q_sign=q_sign, misc=mp_misc, hsign="sql")
-        tuned_pred, tuned0 = get_tuned(sh, pred_header, tid, pred_name, q_sign)
-        tuned_dict = {0: tuned0}
-        for a in [-3, -2, 2, 3]:
-            _, tuned = get_tuned(sh, pred_header, tid, f"{pred_name}_alpha_{a:.1f}", q_sign)
-            tuned_dict[a] = tuned
+            sh=sh, spark_knobs=spark_knobs, q_sign=q_sign, misc=mp_misc, hsign="sql")
+
+        vc_po, vc_po_pred = get_tuned(sh, pred_header, f"{pred_name_prefix}_vc_ws(5000)_alpha(0)", q_sign)
+
+        tuned_dict, tuned_pred = {}, None
+        for a in [-3, -2, 0, 2, 3]:
+            pred_name = f"{pred_name_prefix}_robust_ws(5000)_alpha({a})"
+            if a == 0:
+                tuned0, tuned_pred = get_tuned(sh, pred_header, pred_name, q_sign)
+                tuned_dict[0] = tuned0
+            else:
+                tuned, _ = get_tuned(sh, pred_header, f"{pred_name_prefix}_robust_ws(5000)_alpha({a})", q_sign)
+                tuned_dict[a] = tuned
 
         obj = {
+            "default": default,
+            "default_pred": default_pred,
             "res": res_po,
             "res_pred": res_po_pred,
             "sql": sql_po,
             "sql_pred": sql_po_pred,
+            "vc": vc_po,
+            "vc_pred": vc_po_pred,
             "tuned": tuned_dict,
             "tuned_pred": tuned_pred
         }
         PickleUtils.save(obj, sh, f"{SIGN}.pkl")
     return obj
 
-
 def get_wmape(y, y_hat):
     y_err = np.abs(y - y_hat)
     return y_err.sum() / y.sum()
 
 
-def get_po_points(objs):
-    mask = is_pareto_efficient(objs)
-    po_objs = objs[mask]
-    sorted_inds = np.argsort(po_objs[:, 0])  # sorted by the latency
-    po_objs = po_objs[sorted_inds]
-    return po_objs
-
-def calculate_dom_space(po, anchors):
-    po = po[po[:, 0].argsort()]  # sort po by latency.
-    obj_u, obj_n = anchors
-    space = (obj_n - obj_u).prod()
-    dom_space = 0
-    for i in range(len(po)):
-        dom_space += (obj_n - po[i]).prod()
-        obj_n = np.array([obj_n[0], po[i, 1]])
-    return dom_space / space
-
-def get_mimmax(d_off, d_on, obj_off, obj_on):
-    tuned_off = {k: get_po_points(v) for k, v in obj_off["tuned"].items()}
-    tuned_on = {k: get_po_points(v) for k, v in obj_on["tuned"].items()}
-    objs_2d = [d_off, d_on, obj_off["res"], obj_off["sql"], obj_on["res"], obj_on["sql"]] + \
-              [tuned_off[k] for k in [-3, -2, 0, 2, 3]] + [tuned_on[k] for k in [-3, -2, 0, 2, 3]]
-    po_all_2d = np.concatenate(objs_2d)
-    return po_all_2d.min(0), po_all_2d.max(0)
-
-
-def plot_pred(fig_header, tid, objs, objs_pred, if_show=True):
+def plot_pred(fig_header, q_sign, objs, objs_pred, if_show=True):
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
     X, Y = [o[:, 0] for o in objs_pred], [o[:, 1] for o in objs_pred]
     wmapes = [get_wmape(o[:, 0], o_pred[:, 0]) for o, o_pred in zip(objs, objs_pred)]
-    labels = [f"{p}({w:.2f})" for p, w in zip(["default", "res_po", "sql_po", "ws,$\mu_i$"], wmapes)]
+    labels = [f"{p}({w:.2f})" for p, w in zip(["default", "res_po", "sql_po", "ws"], wmapes)]
     fmts = ["ko", "go--", "bo--", "ro--"]
     for x, y, fmt, label in zip(X, Y, fmts, labels):
         ax.plot(x, y, fmt, label=label)
@@ -258,21 +225,53 @@ def plot_pred(fig_header, tid, objs, objs_pred, if_show=True):
     ax.set_xlabel("latency (s)")
     ax.set_ylabel("cost($)")
     plt.tight_layout()
-    figpath = f"{fig_header}/q{tid}_po_pred.pdf"
+    figpath = f"{fig_header}/{q_sign}_po_pred.pdf"
     fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
     if if_show:
         plt.show()
     plt.close()
 
+def get_po_points(objs):
+    mask = is_pareto_efficient(objs)
+    po_objs = objs[mask]
+    sorted_inds = np.argsort(po_objs[:, 0])  # sorted by the latency
+    po_objs = po_objs[sorted_inds]
+    return po_objs
 
-def plot_actual(d, objs, aqe_sign, fig_header, tid, if_po=True, if_show=True):
+def get_mimmax(obj_off, obj_on):
+    tuned_off = {k: get_po_points(v) for k, v in obj_off["tuned"].items()}
+    tuned_on = {k: get_po_points(v) for k, v in obj_on["tuned"].items()}
+    vc_off = get_po_points(obj_off["vc"])
+    vc_on = get_po_points(obj_on["vc"])
+    objs_2d = [obj_off["default"], obj_off["res"], obj_off["sql"], vc_off] + \
+              [obj_on["default"], obj_on["res"], obj_on["sql"], vc_on] + \
+              [tuned_off[k] for k in [-3, -2, 0, 2, 3]] + \
+              [tuned_on[k] for k in [-3, -2, 0, 2, 3]]
+    po_all_2d = np.concatenate(objs_2d)
+    return po_all_2d.min(0), po_all_2d.max(0)
+
+
+def calculate_dom_space(po, anchors):
+    po = po[po[:, 0].argsort()]  # sort po by latency.
+    obj_u, obj_n = anchors
+    space = (obj_n - obj_u).prod()
+    dom_space = 0
+    for i in range(len(po)):
+        dom_space += (obj_n - po[i]).prod()
+        obj_n = np.array([obj_n[0], po[i, 1]])
+    return dom_space / space
+
+def plot_actual(objs, aqe_sign, fig_header, q_sign, if_po=True, if_show=True):
     tuned = objs["tuned"]
     if if_po:
         tuned = {k: get_po_points(v) for k, v in tuned.items()}
+        objs_vc = get_po_points(objs["vc"])
+    else:
+        objs_vc = objs["vc"]
 
-    objs_2d = [d, objs["res"], objs["sql"]] + [tuned[k] for k in [-3, -2, 0, 2, 3]]
+    objs_2d = [objs["default"], objs["res"], objs["sql"]] + [tuned[k] for k in [-3, -2, 0, 2, 3]] + [objs_vc]
     X, Y = [o[:, 0] for o in objs_2d], [o[:, 1] for o in objs_2d]
-    labels = ["default", "res_po", "sql_po", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)"]
+    labels = ["default", "res_po", "sql_po", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)", "vc"]
     if if_po:
         # calculate dominated space for each algo.
         po_all_2d = np.concatenate(objs_2d)
@@ -280,11 +279,11 @@ def plot_actual(d, objs, aqe_sign, fig_header, tid, if_po=True, if_show=True):
         dom_spaces = [calculate_dom_space(po, anchors) for po in objs_2d]
         labels = [f"{l}, {ds * 100:.0f}%" for l, ds in zip(labels, dom_spaces)]
 
-    colors = ["black", "green", "blue"] + sns.color_palette("rocket", 5)
+    colors = ["black", "green", "blue"] + sns.color_palette("rocket", 5) + ["purple"]
     linestyles = ["--"] * len(X)
-    markers = ["o", "o", "o", "v", "^", "X", "<", ">"]
+    markers = ["o", "o", "o", "v", "^", "X", "<", ">", "+"]
 
-    fig_name = f"q{tid}_po({aqe_sign})_local_anchors" if if_po else f"q{tid}_po({aqe_sign})_raw"
+    fig_name = f"{q_sign}_po({aqe_sign})_local_anchors" if if_po else f"{q_sign}_po({aqe_sign})_raw"
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
     for x, y, c, ls, m, label in zip(X, Y, colors, linestyles, markers, labels):
         ax.plot(x, y, c=c, ls=ls, marker=m, label=label)
@@ -306,27 +305,27 @@ def plot_actual(d, objs, aqe_sign, fig_header, tid, if_po=True, if_show=True):
     if if_po:
         return dom_spaces
 
-
-def plot_actual_glb_anchors(d, objs, aqe_sign, fig_header, tid, if_po=True, anchors=None, if_show=True):
+def plot_actual_glb_anchors(objs, aqe_sign, fig_header, q_sign, if_po=True, anchors=None, if_show=True):
     tuned = objs["tuned"]
     assert if_po
-    if if_po:
-        tuned = {k: get_po_points(v) for k, v in tuned.items()}
-        assert anchors is not None
 
-    objs_2d = [d, objs["res"], objs["sql"]] + [tuned[k] for k in [-3, -2, 0, 2, 3]]
+    tuned = {k: get_po_points(v) for k, v in tuned.items()}
+    objs_vc = get_po_points(objs["vc"])
+    assert anchors is not None
+
+    objs_2d = [objs["default"], objs["res"], objs["sql"]] + [tuned[k] for k in [-3, -2, 0, 2, 3]] + [objs_vc]
     X, Y = [o[:, 0] for o in objs_2d], [o[:, 1] for o in objs_2d]
-    labels = ["default", "res_po", "sql_po", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)"]
-    if if_po:
-        # calculate dominated space for each algo.
-        dom_spaces = [calculate_dom_space(po, anchors) for po in objs_2d]
-        labels = [f"{l}, {ds * 100:.0f}%" for l, ds in zip(labels, dom_spaces)]
+    labels = ["default", "res_po", "sql_po", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)", "vc"]
+    # calculate dominated space for each algo.
+    dom_spaces = [calculate_dom_space(po, anchors) for po in objs_2d]
+    labels = [f"{l}, {ds * 100:.0f}%" for l, ds in zip(labels, dom_spaces)]
 
-    colors = ["black", "green", "blue"] + sns.color_palette("rocket", 5)
+
+    colors = ["black", "green", "blue"] + sns.color_palette("rocket", 5) + ["magenta"]
     linestyles = ["--"] * len(X)
-    markers = ["o", "o", "o", "v", "^", "X", "<", ">"]
+    markers = ["o", "o", "o", "v", "^", "X", "<", ">", "+"]
 
-    fig_name = f"q{tid}_po({aqe_sign})" if if_po else f"q{tid}_po({aqe_sign})_raw"
+    fig_name = f"{q_sign }_po({aqe_sign})_glb_anchors"
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
     for x, y, c, ls, m, label in zip(X, Y, colors, linestyles, markers, labels):
         ax.plot(x, y, c=c, ls=ls, marker=m, label=label)
@@ -340,7 +339,7 @@ def plot_actual_glb_anchors(d, objs, aqe_sign, fig_header, tid, if_po=True, anch
     ax.set_title(f"PO Frontiers ({aqe_sign.upper()})")
     ax.grid()
     plt.tight_layout()
-    figpath = f"{fig_header}/{fig_name}_glb_anchors.pdf"
+    figpath = f"{fig_header}/{fig_name}.pdf"
     fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
     if if_show:
         plt.show()
@@ -348,71 +347,69 @@ def plot_actual_glb_anchors(d, objs, aqe_sign, fig_header, tid, if_po=True, anch
     return dom_spaces
 
 
-def plot_q_all(tid, meta, if_show=True):
-    default_obj_dict, mp_misc, spark_knob, bm, script_header, out_header, fig_header, pred_header, pred_name = meta
-    q_sign = QSIGNS[tid - 1]
-    d_off, d_pred = get_obj_and_obj_hat_default(default_objs=default_obj_dict["aqe_off"], q_sign=q_sign, misc=mp_misc)
-    d_on, _ = get_obj_and_obj_hat_default(default_objs=default_obj_dict["aqe_on"], q_sign=q_sign, misc=mp_misc)
+def plot_q_all(q_sign, meta, if_show=True):
+    mp_misc, spark_knobs, bm, script_header, out_header, fig_header, pred_header, pred_name_prefix = meta
 
-    obj_off = get_objs_all(tid, meta, "aqe_off")
-    obj_on = get_objs_all(tid, meta, "aqe_on")
+    obj_off = get_objs_all(q_sign, meta, "aqe_off")
+    obj_on = get_objs_all(q_sign, meta, "aqe_on")
 
     # 1. predicted space
-    plot_pred(fig_header, tid,
-              objs=[d_off, obj_off["res"], obj_off["sql"], obj_off["tuned"][0]],
-              objs_pred=[d_pred, obj_off["res_pred"], obj_off["sql_pred"], obj_off["tuned_pred"]],
-              if_show=if_show)
+    plot_pred(
+        fig_header, q_sign,
+        objs=[obj_off["default"], obj_off["res"], obj_off["sql"], obj_off["tuned"][0]],
+        objs_pred=[obj_off["default_pred"], obj_off["res_pred"], obj_off["sql_pred"], obj_off["tuned_pred"]],
+        if_show=True)
 
     dom_space_dict = {}
-
-    anchors = get_mimmax(d_off, d_on, obj_off, obj_on)
+    anchors = get_mimmax(obj_off, obj_on)
     # 2. AQE_OFF obj_space
-    plot_actual(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=False, if_show=if_show)
-    dom_space_dict["off_local"] = plot_actual(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=True, if_show=if_show)
-    dom_space_dict["off_glb"] = plot_actual_glb_anchors(d_off, obj_off, "aqe_off", fig_header, tid=tid, if_po=True, anchors=anchors, if_show=if_show)
+    plot_actual(obj_off, "aqe_off", fig_header, q_sign, if_po=False, if_show=if_show)
+    dom_space_dict["off_local"] = plot_actual(obj_off, "aqe_off", fig_header, q_sign, if_po=True, if_show=if_show)
+    dom_space_dict["off_glb"] = plot_actual_glb_anchors(
+        obj_off, "aqe_off", fig_header, q_sign, if_po=True, anchors=anchors, if_show=if_show)
 
     # 3. AQE_ON obj_space
-    plot_actual(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=False, if_show=if_show)
-    dom_space_dict["on_local"] = plot_actual(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=True, if_show=if_show)
-    dom_space_dict["on_glb"] = plot_actual_glb_anchors(d_on, obj_on, "aqe_on", fig_header, tid=tid, if_po=True, anchors=anchors, if_show=if_show)
+    plot_actual(obj_on, "aqe_on", fig_header, q_sign, if_po=False, if_show=if_show)
+    dom_space_dict["on_local"] = plot_actual(obj_on, "aqe_on", fig_header, q_sign, if_po=True, if_show=if_show)
+    dom_space_dict["on_glb"] = plot_actual_glb_anchors(
+        obj_on, "aqe_on", fig_header, q_sign, if_po=True, anchors=anchors, if_show=if_show)
 
     return dom_space_dict
 
 class Args():
     def __init__(self):
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument("-t", "--template-list", type=str, default="1,18,2,3,4")
+        self.parser.add_argument("--q-signs", type=str, default=None)
 
     def parse(self):
         return self.parser.parse_args()
 
 
 def main():
-    default_obj_dict = get_default_objs(out_header="examples/analyze/1.heuristic.vs.q_level_tuning",
-                                        file_name="default_objs.pkl")
-
     bm = "tpch"
     out_header = "examples/analyze/1.tpch_benchmarking"
     script_header = "examples/trace/spark/internal/2.knob_hp_tuning"
     ckp_header = "examples/model/spark/ckp/tpch_100/GTN/latency/on_off_off_on_on_on"
     ckp_sign = "b7698e80492e5d72"
     pred_header = os.path.join(ckp_header, ckp_sign)
-    pred_name = "po_points_10000_ws_1000"
+    pred_name_prefix = "rs(10000x100)_po"
     fig_header = os.path.join(ckp_header, ckp_sign, "fig")
+    os.makedirs(fig_header, exist_ok=True)
     data_header = "examples/data/spark/cache/tpch_100"
     mp_misc = get_mp(data_header, ckp_header, ckp_sign)
 
-    spark_knob = SparkKnobs()
-    meta = default_obj_dict, mp_misc, spark_knob, bm, script_header, out_header, fig_header, pred_header, pred_name
+    spark_knobs = SparkKnobs()
+    meta = mp_misc, spark_knobs, bm, script_header, out_header, fig_header, pred_header, pred_name_prefix
 
     args = Args().parse()
+    q_signs = BenchmarkUtils.get_sampled_q_signs(bm) if args.q_signs is None else \
+        [BenchmarkUtils.extract_sampled_q_sign(bm, sign) for sign in args.q_signs.split(",")]
+    summary = {q_sign: [] for q_sign in q_signs}
 
-    tids = [int(x) for x in args.template_list.split(",")]
+    header = ["Q", "default", "res", "sql", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)", "vc"]
 
-    header = ["Q", "default", "res", "sql", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)"]
-    summary = {tid: [] for tid in tids}
-    for tid in tids:
-        summary[tid] = plot_q_all(tid=int(tid), meta=meta, if_show=False)
+    for q_sign in q_signs:
+        summary[q_sign] = plot_q_all(q_sign=q_sign, meta=meta, if_show=False)
 
     for mode in ["off_local", "off_glb", "on_local", "on_glb"]:
         print(mode)
