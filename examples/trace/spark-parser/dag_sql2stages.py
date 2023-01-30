@@ -65,7 +65,7 @@ def get_dgl_graph(edges : list[Edge]):
         v_list.append(toId)
     u, v = th.tensor(u_list), th.tensor(v_list)
     dgl_graph = dgl.graph((u, v))
-    print(f'dgl {dgl_graph}')
+    #print(f'dgl {dgl_graph}')
     return dgl_graph
 
 
@@ -380,71 +380,71 @@ def get_json_data_using_proxy(url):
     #print(data)
     return json.loads(data)
 
+if __name__ == "__main__":
+    #print(sys.getrecursionlimit())
+    sys.setrecursionlimit(5000)
+    #print(sys.getrecursionlimit())
+    #Example query:
+    #url = "http://node13-opa:18088/api/v1/applications/application_1666993404824_4998/sql"
+    #url = "http://node13-opa:18088/api/v1/applications/application_1666973014171_0012/sql"
 
-#print(sys.getrecursionlimit())
-sys.setrecursionlimit(5000)
-#print(sys.getrecursionlimit())
-#Example query:
-#url = "http://node13-opa:18088/api/v1/applications/application_1666993404824_4998/sql"
-#url = "http://node13-opa:18088/api/v1/applications/application_1666973014171_0012/sql"
+    urls = {}
+    # Test url
+    #urls['application_1666973014171_0015'] = "http://node13-opa:18088/api/v1/applications/application_1666973014171_0015/sql"
 
-urls = {}
-# Test url
-#urls['application_1666973014171_0015'] = "http://node13-opa:18088/api/v1/applications/application_1666973014171_0015/sql"
+    # Queries without AQE:
+    # application_1666973014171_0012 (Q1) - application_1666973014171_0075 (Q22), step by 3
+    for i in range(12,76,3):
+        qrun = str(i).zfill(4)
+        #print(qrun)
+        app_id = f'application_1666973014171_{qrun}'
+        urls[app_id] = f'http://node13-opa:18088/api/v1/applications/{app_id}/sql'
 
-# Queries without AQE:
-# application_1666973014171_0012 (Q1) - application_1666973014171_0075 (Q22), step by 3
-for i in range(12,76,3):
-    qrun = str(i).zfill(4)
-    #print(qrun)
-    app_id = f'application_1666973014171_{qrun}'
-    urls[app_id] = f'http://node13-opa:18088/api/v1/applications/{app_id}/sql'
+    # Queries with AQE (skip query 9)
+    # application_1666973014171_0078 (Q1) - application_1666973014171_0141 (Q22), step by 3.
+    for i in range(78,142,3):
+        if i in [102,103,104]:#skipping query 9
+            continue
+        qrun = str(i).zfill(4)
+        #print(qrun)
+        app_id = f'application_1666973014171_{qrun}'
+        urls[app_id] = f'http://node13-opa:18088/api/v1/applications/{app_id}/sql'
 
-# Queries with AQE (skip query 9)
-# application_1666973014171_0078 (Q1) - application_1666973014171_0141 (Q22), step by 3.
-for i in range(78,142,3):
-    if i in [102,103,104]:#skipping query 9
-        continue
-    qrun = str(i).zfill(4)
-    #print(qrun)
-    app_id = f'application_1666973014171_{qrun}'
-    urls[app_id] = f'http://node13-opa:18088/api/v1/applications/{app_id}/sql'
+    for app_id, url in urls.items():
+        print(f'Processing {app_id}')
+        # sql_id = 0 is doing `use TPCH_100`, skip.
+        # sql_id = 1 -> analyses
+        data = get_json_data_using_proxy(url) # get a json file as a dictionary from the url
 
-for app_id, url in urls.items():
-    print(f'Processing {app_id}')
-    # sql_id = 0 is doing `use TPCH_100`, skip.
-    # sql_id = 1 -> analyses
-    data = get_json_data_using_proxy(url) # get a json file as a dictionary from the url
+        sql_data = data[1]
+        assert sql_data["id"] == 1
 
-    sql_data = data[1]
-    assert sql_data["id"] == 1
+        # WARN: use the nodeId and edgeId instead of the index.
+        nodes = [Node(n) for n in sql_data["nodes"]]
+        edges = sql_data["edges"]
+        # topdowntree, root, leaves = get_topdowntree_root_leaves(edges)
+        # # leaves = get_leaves_rev_edges(edges)
 
-    # WARN: use the nodeId and edgeId instead of the index.
-    nodes = [Node(n) for n in sql_data["nodes"]]
-    edges = sql_data["edges"]
-    # topdowntree, root, leaves = get_topdowntree_root_leaves(edges)
-    # # leaves = get_leaves_rev_edges(edges)
+        full_plan = QueryPlanTopology(nodes, edges)
+        stage_to_nodes, stage_dependencies = get_sub_sqls_using_topdown_tree(full_plan)
+        print(f"Stage allocation to subqueries : {stage_to_nodes}")
+        print(f"Stage dependencies : {stage_dependencies}")
+        stage2plan = get_subsql_plans(full_plan, stage_to_nodes)
 
-    full_plan = QueryPlanTopology(nodes, edges)
-    stage_to_nodes, stage_dependencies = get_sub_sqls_using_topdown_tree(full_plan)
-    print(f"Stage allocation to subqueries : {stage_to_nodes}")
-    print(f"Stage dependencies : {stage_dependencies}")
-    stage2plan = get_subsql_plans(full_plan, stage_to_nodes)
+        # stageids_to_stages, stage_to_nodeids, stage2plan = get_sub_sqls(full_plan)
+        # print(f'Stageids to stages => {stageids_to_stages}')
+        # print(f'Stage to nodeIds => {stage_to_nodeids}')
+        #print(f'Stage to plan => {stage2plan}')
+        print(f'Saving visualization for full plan')
+        topo_visualization(full_plan, app_id, title="full_plan")
+        full_plan_dgl = get_dgl_graph(edges)
+        dgl_subplans = {}
+        for stageId, subplan in stage2plan.items():
+            print(f'Saving subplan visualization for stage {stageId}')
+            topo_visualization(subplan, app_id, title=f"stage_{stageId}")
+            dgl_subplan = get_dgl_graph(subplan.edges)
+            dgl_subplans[stageId] = dgl_subplan
 
-    # stageids_to_stages, stage_to_nodeids, stage2plan = get_sub_sqls(full_plan)
-    # print(f'Stageids to stages => {stageids_to_stages}')
-    # print(f'Stage to nodeIds => {stage_to_nodeids}')
-    #print(f'Stage to plan => {stage2plan}')
-    print(f'Saving visualization for full plan')
-    topo_visualization(full_plan, app_id, title="full_plan")
-    full_plan_dgl = get_dgl_graph(edges)
-    dgl_subplans = {}
-    for stageId, subplan in stage2plan.items():
-        print(f'Saving subplan visualization for stage {stageId}')
-        topo_visualization(subplan, app_id, title=f"stage_{stageId}")
-        dgl_subplan = get_dgl_graph(subplan.edges)
-        dgl_subplans[stageId] = dgl_subplan
-
-    # todo: [later], how to get the dependency among stages.
-    print(f'Saving stage dependency visualization')
-    dependency_visualization(stage_dependencies, app_id, title=f"stage_dependencies")
+        # todo: [later], how to get the dependency among stages.
+        print(f'Saving stage dependency visualization')
+        dependency_visualization(stage_dependencies, app_id, title=f"stage_dependencies")
