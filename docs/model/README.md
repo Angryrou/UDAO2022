@@ -48,8 +48,8 @@ for qid in 1 18 {2..17} {19..22}; do
     # (2) RS+RB+WS, alpha = -3, -2, 0, 2, 3
     for a in -3 -2 0 2 3 ; do 
         python -u examples/model/spark/2.q_level_conf_reco_run.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
-        --ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 1000 --q-signs $qid --if-aqe $aqe --debug 0 --worker tpch \
-        --moo ws --algo vc --alpha $a
+        --ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 5000 --q-signs $qid --if-aqe $aqe --debug 0 --worker tpch \
+        --moo ws --algo robust --alpha $a
     done
     # (3) RS+VC+BF, alpha = 0    
     # (4) RS+RB+BF, alpha = -3, -2, 0, 2, 3
@@ -57,7 +57,7 @@ for qid in 1 18 {2..17} {19..22}; do
 done
 
 # analyzing
-python examples/analyze/1.heuristic.vs.q_level_tuning.py 
+python examples/analyze/1.tpch_benchmarking.py 
 
 ```
 
