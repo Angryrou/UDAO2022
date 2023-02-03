@@ -66,20 +66,31 @@ try:
     print(f"{cbo_cache_name} found")
 except:
     print(f"{cbo_cache_name} not found, generating...")
-    x = lp_df
-    x["size"], x["nrows"] = zip(*x.apply(lambda x: extract_ofeats(x["logical_plan"].splitlines()), axis=1))
-    x = x[["q_sign", "size", "nrows"]]
-    x["template"] = x.q_sign.apply(lambda x: x.split("-")[0])
-    x["qid"] = x.q_sign.apply(lambda x: int(x.split("-")[1]))
-    cbo_cache = {}
+    df = lp_df
+    df["size"], df["nrows"] = zip(*df.apply(lambda x: extract_ofeats(x["logical_plan"].splitlines()), axis=1))
+    df = df[["q_sign", "size", "nrows"]]
+    df["template"] = df.q_sign.apply(lambda x: x.split("-")[0])
+    df["qid"] = df.q_sign.apply(lambda x: int(x.split("-")[1]))
+    ofeat_dict = {}
     for tid in BenchmarkUtils.get(bm):
-        xx = x[x["template"] == f"q{tid}"]
+        xx = df[df["template"] == f"q{tid}"]
         xx = xx.sort_values("qid")
         xx_feat = xx[["qid", "size", "nrows"]].explode(["size", "nrows"])
         xx_feat["size"] = xx_feat["size"].apply(lambda x: format_size(x))
         xx_feat["nrows"] = xx_feat["nrows"].astype(float)
-        cbo_cache[int(tid)] = xx_feat[["size", "nrows"]].values.reshape(len(xx), -1, 2)
-    PickleUtils.save(cbo_cache, cache_header, cbo_cache_name)
+        feat_np = xx_feat[["size", "nrows"]].values.reshape(len(xx), -1, 2)
+        ofeat_dict[int(tid)] = np.concatenate([feat_np, np.log(feat_np)], axis=2)
+
+    templates = [f"q{i}" for i in BenchmarkUtils.get(bm)]
+    df_tr, _, _ = get_csvs_tr_val_te(templates, src_path_header, cache_header, seed)
+    ofeats = np.concatenate([v[df_tr.loc[f"q{1}"].q_sign.apply(lambda x: int(x.split("-")[1])).values].reshape(-1, 4)
+                             for k, v in ofeat_dict.items()], axis=0)
+    minmax = {"min": ofeats.min(0), "max": ofeats.max(0)}
+    PickleUtils.save({
+        "ofeat_dict": ofeat_dict,
+        "minmax": minmax
+    }, cache_header, cbo_cache_name)
+    print(f"{cbo_cache_name} generated.")
 
 # (2) a dict mapping from sql_struct_id to a mapping from physical_nids to logical_nids
 struct_cache = PickleUtils.load(cache_header, "struct_cache.pkl")

@@ -26,7 +26,7 @@ ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data = expose_dat
     header=data_header,
     tabular_file=f"{'query_level' if args.granularity == 'Q' else 'stage_level'}_cache_data.pkl",
     struct_file="struct_cache.pkl",
-    op_feats_file=...,
+    op_feats_file="logical_plans.parquet",
     debug=debug
 )
 
