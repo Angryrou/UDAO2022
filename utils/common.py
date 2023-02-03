@@ -171,6 +171,13 @@ class ParquetUtils(object):
 
 
 class FileUtils(object):
+
+    @staticmethod
+    def read_file(filename):
+        with open(filename, "r") as f:
+            rows = f.read().strip()
+        return rows
+
     @staticmethod
     def read_file_as_rows(filename):
         with open(filename, "r") as f:
