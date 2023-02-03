@@ -39,7 +39,7 @@ q_signs = BenchmarkUtils.get_sampled_q_signs(bm) if args.q_signs is None else \
 
 print("1. preparing data and model")
 data_params = set_data_params(args)
-dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data = expose_data(
+dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
     header=data_header,
     tabular_file=f"{'query_level' if args.granularity == 'Q' else 'stage_level'}_cache_data.pkl",
     struct_file="struct_cache.pkl",

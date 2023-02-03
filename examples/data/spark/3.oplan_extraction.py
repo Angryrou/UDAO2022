@@ -24,7 +24,7 @@ class Args():
         self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
         self.parser.add_argument("--scale-factor", type=int, default=100)
         self.parser.add_argument("--src-path-header", type=str, default="resources/dataset/tpch_100_query_traces")
-        self.parser.add_argument("--oplan-path-header", type=str, default="resources/dataset/tpch_oplans")
+        self.parser.add_argument("--oplan-path-header", type=str, default="resources/dataset/tpch_100_oplans")
         self.parser.add_argument("--cache-header", type=str, default="examples/data/spark/cache")
         self.parser.add_argument("--debug", type=int, default=1)
         self.parser.add_argument("--seed", type=int, default=42)
@@ -43,7 +43,7 @@ cache_header = f"{args.cache_header}/{bm}_{sf}"
 debug = False if args.debug == 0 else True
 seed = args.seed
 
-# preprocess the tpch_oplans
+# preprocess the tpch_100_oplans
 oplan_name = "logical_plans.parquet"
 try:
     lp_df = ParquetUtils.parquet_read(cache_header, oplan_name)
@@ -72,16 +72,16 @@ except:
     df["template"] = df.q_sign.apply(lambda x: x.split("-")[0])
     df["qid"] = df.q_sign.apply(lambda x: int(x.split("-")[1]))
     ofeat_dict = {}
-    for tid in BenchmarkUtils.get(bm):
-        xx = df[df["template"] == f"q{tid}"]
+    templates = [f"q{i}" for i in BenchmarkUtils.get(bm)]
+    for tid in templates:
+        xx = df[df["template"] == tid]
         xx = xx.sort_values("qid")
         xx_feat = xx[["qid", "size", "nrows"]].explode(["size", "nrows"])
         xx_feat["size"] = xx_feat["size"].apply(lambda x: format_size(x))
         xx_feat["nrows"] = xx_feat["nrows"].astype(float)
         feat_np = xx_feat[["size", "nrows"]].values.reshape(len(xx), -1, 2)
-        ofeat_dict[int(tid)] = np.concatenate([feat_np, np.log(feat_np)], axis=2)
+        ofeat_dict[tid] = np.concatenate([feat_np, np.log(feat_np)], axis=2)
 
-    templates = [f"q{i}" for i in BenchmarkUtils.get(bm)]
     df_tr, _, _ = get_csvs_tr_val_te(templates, src_path_header, cache_header, seed)
     ofeats = np.concatenate([v[df_tr.loc[f"q{1}"].q_sign.apply(lambda x: int(x.split("-")[1])).values].reshape(-1, 4)
                              for k, v in ofeat_dict.items()], axis=0)
@@ -123,21 +123,3 @@ p2l = L2P_MAP[bm]
 for k, v in struct_dgl_dict.items():
     assert len(v.get_nnames()) == len(p2l[k])
 
-# debug
-# if debug:
-#     q_signs = BenchmarkUtils.get_sampled_q_signs(bm)
-#     df1 = lp_df[lp_df.q_sign.isin(q_signs)].set_index("q_sign").loc[q_signs]
-# else:
-#     df1 = lp_df.set_index("q_sign")
-# templates = [f"q{i}" for i in BenchmarkUtils.get(bm)]
-# df2 = get_csvs(templates, src_path_header, cache_header, samplings=["lhs", "bo"]).reset_index().set_index("q_sign")
-#
-# def get_plans(q_sign, df1, df2):
-#     lp = df1.loc[q_sign].splitlines()
-#     desc = df2.loc[q_sign]["planDescription"]
-#     plans = list_strip(re.compile("={2,}").split(desc))
-#     tree_str, details_str = list_strip(plans[1].split("\\n\\n\\n"))
-#     pp = tree_str.split("\\n")
-#     if len(plans) == 4:
-#         ...
-#     return lp, pp

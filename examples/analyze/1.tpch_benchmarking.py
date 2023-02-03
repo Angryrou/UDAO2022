@@ -31,7 +31,7 @@ DATA_COLNS = ["q_sign", "knob_sign", "lat", "cost"]
 SIGN = "1.tpch_benchmarking"
 
 def get_mp(data_header, ckp_header, ckp_sign):
-    dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data = expose_data(
+    dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
         header=data_header,
         tabular_file=f"query_level_cache_data.pkl",
         struct_file="struct_cache.pkl",

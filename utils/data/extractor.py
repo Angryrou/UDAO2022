@@ -60,6 +60,7 @@ def get_csvs(templates, header, cache_header, samplings=["lhs", "bo"]):
         df = pd.concat(df_dict)
         structure_list = df["sql_struct_sign"].unique().tolist()
         df["sql_struct_id"] = df["sql_struct_sign"].apply(lambda x: structure_list.index(x))
+        df["qid"] = df["q_sign"].apply(lambda x: int(x.split("-")[1]))
         for sid in range(len(structure_list)):
             matches = (df["sql_struct_id"] == sid)
             df.loc[matches, "sql_struct_svid"] = np.arange(sum(matches))
