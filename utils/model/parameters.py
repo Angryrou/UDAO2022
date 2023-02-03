@@ -115,7 +115,7 @@ def set_net_params(args):
         "batch_norm": True,
         "layer_norm": False,
         "ch1_type_dim": 8,
-        "ch1_cbo_dim": 2,
+        "ch1_cbo_dim": 4,
         "ch1_enc_dim": 16,
     }
 
@@ -151,6 +151,8 @@ def set_net_params(args):
         net_params["ch1_cbo_dim"] = args.ch1_cbo_dim
     if args.ch1_enc_dim is not None:
         net_params["ch1_enc_dim"] = args.ch1_enc_dim
+
+    assert net_params["ch1_cbo_dim"] == 4
     return net_params
 
 

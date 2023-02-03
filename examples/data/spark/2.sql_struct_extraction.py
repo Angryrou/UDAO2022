@@ -51,6 +51,7 @@ if __name__ == "__main__":
         struct_dgl_dict = struct_cache["struct_dgl_dict"]
         global_ops = struct_cache["global_ops"]
         dgl_dict = struct_cache["dgl_dict"]
+        q2struct = struct_cache["q2struct"]
         print(f"find cached structures at {cache_header}/{struct_cache_name}")
     except:
         print(f"cannot find cached structure, start generating...")
@@ -58,11 +59,13 @@ if __name__ == "__main__":
         struct_dgl_dict = {d["sql_struct_id"]: SqlStruct(d) for d in struct_dict.values()}
         global_ops = sorted(list(set.union(*[set(v.get_nnames()) for k, v in struct_dgl_dict.items()])))
         dgl_dict = {k: v.get_dgl(global_ops) for k, v in struct_dgl_dict.items()}
+        q2struct = {x[0]: x[1] for x in df[["q_sign", "sql_struct_id"]].values}
         PickleUtils.save({
             "struct_dict": struct_dict,
             "struct_dgl_dict": struct_dgl_dict,
             "global_ops": global_ops,
-            "dgl_dict": dgl_dict
+            "dgl_dict": dgl_dict,
+            "q2struct": q2struct
         }, header=cache_header, file_name=struct_cache_name)
         print(f"generated cached structure at {cache_header}/{struct_cache_name}")
 
@@ -94,7 +97,6 @@ if __name__ == "__main__":
     }
     PickleUtils.save(cache_data, cache_header, "query_level_cache_data.pkl")
 
-    # generate data
 
     # 2. get structure mappings
     #   - QueryStage -> [operators]

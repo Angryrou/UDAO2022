@@ -60,6 +60,7 @@ def get_csvs(templates, header, cache_header, samplings=["lhs", "bo"]):
         df = pd.concat(df_dict)
         structure_list = df["sql_struct_sign"].unique().tolist()
         df["sql_struct_id"] = df["sql_struct_sign"].apply(lambda x: structure_list.index(x))
+        df["qid"] = df["q_sign"].apply(lambda x: int(x.split("-")[1]))
         for sid in range(len(structure_list)):
             matches = (df["sql_struct_id"] == sid)
             df.loc[matches, "sql_struct_svid"] = np.arange(sum(matches))
@@ -132,6 +133,15 @@ def plot_nx_graph(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title:
     os.makedirs(dir_to_save, exist_ok=True)
     p.write_png(dir_to_save + '/' + title + '.png')
 
+def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str, nodes_desc: dict):
+    node_id2name_new = {}
+    for k, v in node_id2name.items():
+        assert v.split()[0] == v, (k, v)
+        if v == "Scan":
+            tbl = nodes_desc[k].split("tpch_100.")[1].split()[0]
+            v = f"Scan({tbl})"
+        node_id2name_new[k] = v
+    plot_nx_graph(G, node_id2name_new, dir_name, title)
 
 def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: str):
     G = dgl.to_networkx(g)
@@ -383,6 +393,75 @@ class SqlStruct():
         g = self.p1.g
         g.ndata["op_gid"] = th.LongTensor([global_ops.index(name) for name in self.p1.nnames])
         return g
+
+
+def extract_ofeats(lp, all=False):
+    nops = len(lp)
+    nids = np.arange(nops)
+    from_ids, to_ids = get_tree_structure_internal(nids, lp)
+    from2to, to2from = {}, {}
+    for f, t in zip(from_ids, to_ids):
+        if f in from2to:
+            from2to[f].append(t)
+        else:
+            from2to[f] = [t]
+        if t in to2from:
+            to2from[t].append(f)
+        else:
+            to2from[t] = [f]
+
+    nnames, sizes, nrows = [None] * nops, [None] * nops, [None] * nops
+    for nid in reversed(nids):
+        l = lp[nid]
+        a, b, c = re.split(r"([a-z])", l, 1, flags=re.I)
+        name = (b + c).split(" ")[0]
+        if name == "Relation":
+            name = (b + c).split("[")[0]
+        nnames[nid] = name
+        sizes[nid] = l.split("sizeInBytes=")[1].split("B")[0] + "B"
+        if "rowCount=" in l:
+            nrows[nid] = l.split("rowCount=")[1].split(")")[0]
+        else:
+            assert nid in to2from and len(to2from[nid]) == 1
+            pid = to2from[nid][0]
+            assert nrows[pid] is not None
+            nrows[nid] = nrows[pid]
+    if all:
+        return sizes, nrows, nnames, from_ids, to_ids
+    return sizes, nrows
+
+def format_size(x):
+    n, unit = x.split()
+    if unit == "B":
+        return float(n)
+    elif unit == "KiB":
+        return float(n) * 1024
+    elif unit == "MiB":
+        return float(n) * 1024 * 1024
+    elif unit == "GiB":
+        return float(n) * 1024 * 1024 * 1024
+    else:
+        raise ValueError(x)
+
+class LogicalStruct():
+
+    def __init__(self, lp):
+        self.lp = lp
+        nops = len(lp)
+        nids = np.arange(nops)
+        sizes, nrows, nnames, from_ids, to_ids = extract_ofeats(lp, all=True)
+        self.struct = SqlStructData(
+            nids=nids,
+            nnames=nnames,
+            node_id2name={i: n for i, n in zip(nids, nnames)},
+            from_ids=from_ids,
+            to_ids=to_ids,
+            old=None
+        )
+        self.nids = nids
+        self.nnames = nnames
+        self.sizes = sizes
+        self.nrows = nrows
 
 
 def replace_symbols(s):

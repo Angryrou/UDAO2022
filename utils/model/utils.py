@@ -30,6 +30,7 @@ from model.metrics import get_loss
 from trace.collect.sampler import LHSSampler
 from utils.common import PickleUtils, plot
 from utils.data.configurations import SparkKnobs, KnobUtils
+from utils.data.feature import L2P_MAP
 from utils.model.parameters import OBJ_MAP, ALL_OP_FEATS, DEFAULT_DTYPE, DEFAULT_DEVICE
 
 
@@ -84,19 +85,20 @@ def add_pe(model_name, dag_dict):
 def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=False):
     tabular_data = PickleUtils.load(header, tabular_file)
     struct_data = PickleUtils.load(header, struct_file)
-    op_feats_data = ...
+    op_feats_data = {k: PickleUtils.load(header, v) for k, v in op_feats_file.items()}
     col_dict, minmax_dict, dfs = tabular_data["col_dict"], tabular_data["minmax_dict"], tabular_data["dfs"]
     col_groups = ["ch1", "ch2", "ch3", "ch4", "obj"]
     assert set(col_groups) == set(minmax_dict.keys())
     ds_dict = DatasetDict({split: Dataset.from_pandas(df.sample(frac=0.01) if debug else df)
                            for split, df in zip(["tr", "val", "te"], dfs)})
-    n_op_types = len(struct_data["global_ops"])
     dag_dict = struct_data["dgl_dict"]
+    n_op_types = len(struct_data["global_ops"])
+    struct2template = {v["sql_struct_id"]: v["template"] for v in struct_data["struct_dict"].values()}
 
     if ori:
-        return dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data
+        return dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data
     else:
-        return ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, op_feats_data
+        return ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data
 
 
 def analyze_cols(data_params, col_dict):
@@ -200,22 +202,28 @@ def norm_in_feat_inst(x, minmax):
 def denorm_obj(o, minmax):
     return o * (minmax["max"] - minmax["min"]) + minmax["min"]
 
-def form_graph(dag_dict, sid, svid, ped, op_groups):  # to add the enc source
+def form_graph(dag_dict, sid, qid, ped, op_groups, op_feats, struct2template):  # to add the enc source
     g = dag_dict[sid].clone()
     resize_pe(g, ped)
     if "ch1_cbo" in op_groups:
         # todo: add cbo feats from a data source, and normalize it
-        g.nodes["cbo"] = ...
+        l2p = op_feats["cbo"]["l2p"][sid]
+        lp_feat = op_feats["cbo"]["ofeat_dict"][struct2template[sid]][qid]
+        pp_feat = lp_feat[l2p]
+        minmax = op_feats["cbo"]["minmax"]
+        pp_feat_norm = norm_in_feat_inst(pp_feat, minmax)
+        g.ndata["cbo"] = get_tensor(pp_feat_norm)
     if "ch1_enc" in op_groups:
         # add enc feats from a data source (already normalized)
-        g.nodes["enc"] = ...
+        g.ndata["enc"] = ...
     return g
 
 
-def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, model_proxy, col_dict, minmax_dict):
+def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, op_feats, struct2template,
+                         model_proxy, col_dict, minmax_dict):
     record = df[df["q_sign"] == q_sign]
-    sid, svid = record.sql_struct_id[0], record.sql_struct_svid[0]
-    g = form_graph(dag_dict, sid, svid, ped, op_groups)
+    sid, qid = record.sql_struct_id[0], record.qid[0]
+    g = form_graph(dag_dict, sid, qid, ped, op_groups, op_feats, struct2template)
     stage_emb = model_proxy.get_stage_emb(g, fmt="numpy")
     ch2_norm = norm_in_feat_inst(record[col_dict["ch2"]], minmax_dict["ch2"]).values
     ch3_norm = np.zeros((1, len(col_dict["ch3"])))  # as like in the idle env
@@ -234,7 +242,7 @@ def get_sample_spark_knobs(knobs, n_samples, seed):
 
 
 class MyDSBase(Dataset):
-    def __init__(self, dataset, col_dict, picked_groups, op_groups, dag_dict, ped=1):
+    def __init__(self, dataset, op_feats, col_dict, picked_groups, op_groups, dag_dict, struct2template, ped=1):
         super(MyDSBase, self).__init__(
             arrow_table=dataset._data,
             info=dataset._info,
@@ -247,18 +255,20 @@ class MyDSBase(Dataset):
         self._format_columns = dataset._format_columns
         self._output_all_columns = dataset._output_all_columns
         self.dataset = dataset
+        self.op_feats = op_feats
         self.col_dict = col_dict
         self.picked_groups = picked_groups
         self.op_groups = op_groups
         self.dag_dict = dag_dict
+        self.struct2template = struct2template
         self.ped = ped
 
     def __getitem__(self, item):
         x = super(MyDSBase, self).__getitem__(item)
         if "ch1" in self.picked_groups:
             sid = x[self.col_dict["ch1"][0]].item()
-            svid = x[self.col_dict["ch1"][1]].item()
-            g = form_graph(self.dag_dict, sid, svid, self.ped, self.op_groups)
+            qid = x[self.col_dict["ch1"][1]].item()
+            g = form_graph(self.dag_dict, sid, qid, self.ped, self.op_groups, self.op_feats, self.struct2template)
         else:
             g = None
         inst_feat = []
@@ -419,11 +429,8 @@ def show_results(results, obj):
 
 
 def augment_net_params(data_params, net_params, data_meta):
-    _, op_feats_data, col_dict, _, dag_dict, n_op_types = data_meta
+    _, op_feats_data, col_dict, _, dag_dict, n_op_types, _ = data_meta
     op_groups, picked_groups, picked_cols = analyze_cols(data_params, col_dict)
-    for ch1 in ALL_OP_FEATS[1:]:
-        if ch1 in op_groups:
-            assert net_params[f"{ch1}_dim"] == op_feats_data[ch1].shape[1]
     net_params["in_feat_size_inst"] = sum([len(col_dict[ch]) for ch in picked_groups if ch in ["ch2", "ch3", "ch4"]])
     net_params["in_feat_size_op"] = sum([net_params[f"{ch1_}_dim"] for ch1_ in op_groups])
     net_params["out_feat_size"] = len(OBJ_MAP[data_params["obj"]])
@@ -433,7 +440,7 @@ def augment_net_params(data_params, net_params, data_meta):
 
 
 def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
-    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types = data_meta
+    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template = data_meta
     device, loss_type = learning_params["device"], learning_params["loss_type"]
     model_name, obj = data_params["model_name"], data_params["obj"]
     net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
@@ -470,7 +477,8 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
     print("start preparing data...")
 
     ds_dict.set_format(type="torch", columns=picked_cols)
-    dataset = {split: MyDSBase(ds_dict[split], col_dict, picked_groups, op_groups, dag_dict, net_params["ped"])
+    dataset = {split: MyDSBase(ds_dict[split], op_feats_data, col_dict, picked_groups, op_groups,
+                               dag_dict, struct2template, net_params["ped"])
                for split in ["tr", "val", "te"]}
     picked_groups_in_feat = [ch for ch in picked_groups if ch not in ("ch1", "obj")]
     in_feat_minmax = {
