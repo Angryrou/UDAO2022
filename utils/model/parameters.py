@@ -147,12 +147,12 @@ def set_net_params(args):
         net_params["layer_norm"] = False if args.layer_norm == 0 else True
     if args.ch1_type_dim is not None:
         net_params["ch1_type_dim"] = args.ch1_type_dim
-    if args.ch1_type_dim is not None:
+    if args.ch1_cbo_dim is not None:
         net_params["ch1_cbo_dim"] = args.ch1_cbo_dim
     if args.ch1_enc_dim is not None:
         net_params["ch1_enc_dim"] = args.ch1_enc_dim
 
-    assert net_params["ch1_cbo_dim"] == 4
+    assert net_params["ch1_cbo_dim"] == 4, ValueError(net_params["ch1_cbo_dim"])
     return net_params
 
 
