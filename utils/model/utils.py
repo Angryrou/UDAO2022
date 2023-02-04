@@ -208,7 +208,8 @@ def form_graph(dag_dict, sid, qid, ped, op_groups, op_feats, struct2template):  
     if "ch1_cbo" in op_groups:
         # todo: add cbo feats from a data source, and normalize it
         l2p = op_feats["cbo"]["l2p"][sid]
-        lp_feat = op_feats["cbo"]["ofeat_dict"][struct2template[sid]][qid]
+        # qid index from 1
+        lp_feat = op_feats["cbo"]["ofeat_dict"][struct2template[sid]][qid - 1]
         pp_feat = lp_feat[l2p]
         minmax = op_feats["cbo"]["minmax"]
         pp_feat_norm = norm_in_feat_inst(pp_feat, minmax)
