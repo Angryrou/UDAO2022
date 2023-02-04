@@ -33,7 +33,7 @@ class GraphTransformerNet(nn.Module):
         self.op_cbo = ("ch1_cbo" in op_groups)
         self.op_enc = ("ch1_enc" in op_groups)
         if self.op_type:
-            self.op_type_embedder = nn.Embedding(net_params["n_op_types"], net_params["ch1_type_dim"])
+            self.op_embedder = nn.Embedding(net_params["n_op_types"], net_params["ch1_type_dim"])
         self.residual = net_params["residual"]
         self.readout = net_params["readout"]
         self.batch_norm = net_params["batch_norm"]
@@ -60,7 +60,7 @@ class GraphTransformerNet(nn.Module):
         # input embedding
         op_list = []
         if self.op_type:
-            op_list.append(self.op_type_embedder(g.ndata["op_gid"]))
+            op_list.append(self.op_embedder(g.ndata["op_gid"]))
         if self.op_cbo:
             op_list.append(g.ndata["cbo"])
         if self.op_enc:
