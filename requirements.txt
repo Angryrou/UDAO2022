@@ -14,7 +14,6 @@ backcall==0.2.0
 beautifulsoup4==4.11.1
 bleach==5.0.1
 botorch==0.8.1
-certifi @ file:///croot/certifi_1671487769961/work/certifi
 cffi==1.15.1
 charset-normalizer==2.1.1
 ciso8601==2.3.0
@@ -157,9 +156,6 @@ terminado==0.17.1
 threadpoolctl==3.1.0
 tinycss2==1.2.1
 tomli==2.0.1
-torch==1.13.1
-torchaudio==0.13.1+cpu
-torchvision==0.14.1+cpu
 tornado==6.2
 tqdm==4.64.1
 traitlets==5.8.0
