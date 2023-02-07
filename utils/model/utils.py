@@ -224,8 +224,8 @@ def form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2templa
 def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, op_feats, struct2template,
                          model_proxy, col_dict, minmax_dict):
     record = df[df["q_sign"] == q_sign]
-    sid, qid = record.sql_struct_id[0], record.qid[0]
-    g = form_graph(dag_dict, sid, qid, ped, op_groups, op_feats, struct2template)
+    sid, svid, qid = record.sql_struct_id[0], record.sql_struct_svid[0], record.qid[0]
+    g = form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2template)
     stage_emb = model_proxy.get_stage_emb(g, fmt="numpy")
     ch2_norm = norm_in_feat_inst(record[col_dict["ch2"]], minmax_dict["ch2"]).values
     ch3_norm = np.zeros((1, len(col_dict["ch3"])))  # as like in the idle env
@@ -269,7 +269,7 @@ class MyDSBase(Dataset):
         x = super(MyDSBase, self).__getitem__(item)
         if "ch1" in self.picked_groups:
             sid = x[self.col_dict["ch1"][0]].item()
-            svid = x[self.col_dict["ch1"][0]].item()
+            svid = x[self.col_dict["ch1"][1]].item()
             qid = x[self.col_dict["ch1"][2]].item()
             g = form_graph(self.dag_dict, sid, svid, qid, self.ped, self.op_groups, self.op_feats, self.struct2template)
         else:
