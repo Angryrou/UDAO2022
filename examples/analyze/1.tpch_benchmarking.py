@@ -149,7 +149,6 @@ def get_po_obj_and_obj_hat_heuristic(sh, spark_knobs, q_sign, misc, hsign="res",
         obj_df = get_obj_df_with_knob_signs(knob_signs, q_sign, sh, api_header)
         PickleUtils.save(obj_df, sh, file_name=f"lhs_{hsign}_objs.pkl")
 
-    df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs = misc
     obj_mu = obj_df.groupby(["q_sign", "knob_sign"]).mean().loc[[q_sign]]
     po_mask = is_pareto_efficient(obj_mu.loc[q_sign].values)
     po_df = obj_mu.loc[q_sign][po_mask].sort_values("lat")
