@@ -22,6 +22,7 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 
 from utils.data.configurations import SparkKnobs, KnobUtils
+from utils.data.feature import L2P_MAP
 from utils.model.proxy import ModelProxy
 from utils.model.utils import expose_data, prepare_data_for_opt, add_pe
 from utils.model.parameters import DEFAULT_DEVICE
@@ -30,22 +31,25 @@ from utils.optimization.moo_utils import is_pareto_efficient
 DATA_COLNS = ["q_sign", "knob_sign", "lat", "cost"]
 SIGN = "1.tpch_benchmarking"
 
-def get_mp(data_header, ckp_header, ckp_sign):
+def get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm):
     dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
         header=data_header,
         tabular_file=f"query_level_cache_data.pkl",
         struct_file="struct_cache.pkl",
-        op_feats_file=...,
+        op_feats_file=op_feats_file,
         debug=False,
         ori=True
     )
     add_pe("GTN", dag_dict)
+    if "cbo" in op_feats_data:
+        op_feats_data["cbo"]["l2p"] = L2P_MAP[bm.lower()]
+
     df = pd.concat(dfs)
     ckp_path = os.path.join(ckp_header, ckp_sign)
     op_groups = ["ch1_type"]
     mp = ModelProxy("GTN", ckp_path, minmax_dict["obj"], DEFAULT_DEVICE, op_groups, n_op_types)
     spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
-    misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs
+    misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs, struct2template, op_feats_data
     return misc
 
 def sqldt_from_appid(url_header, appid, if_full_plan=False):
@@ -94,10 +98,10 @@ def get_obj_df_with_knob_signs(knob_signs, q_sign, sh, api_header="http://10.0.0
 
 
 def get_objs(q_sign, knob_list, misc):
-    df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs = misc
+    df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs, struct2template, op_feats = misc
     knobs = spark_knobs.knobs
     stage_emb, ch2_norm, ch3_norm = prepare_data_for_opt(
-        df, q_sign, dag_dict, mp.hp_params["ped"], op_groups, mp, col_dict, minmax_dict)
+        df, q_sign, dag_dict, mp.hp_params["ped"], op_groups, op_feats, struct2template, mp, col_dict, minmax_dict)
     knob_df = pd.DataFrame(data=knob_list, columns=spark_knobs.knob_names)
     ch4_norm = KnobUtils.knob_normalize(knob_df, knobs)
     conf_df = spark_knobs.df_knob2conf(knob_df)
@@ -164,7 +168,7 @@ def get_tuned(sh, pred_header, pred_name, q_sign):
     return tuned, tuned_pred
 
 def get_objs_all(q_sign, meta, aqe_sign):
-    mp_misc, spark_knobs, bm, script_header, out_header, fig_header, pred_header, pred_name_prefix = meta
+    mp_misc, spark_knobs, bm, script_header, out_header, pred_header, pred_name_prefix = meta
     sh = os.path.join(script_header, f"{bm}_{aqe_sign}", q_sign)
     try:
         obj = PickleUtils.load(sh, f"{SIGN}.pkl")
@@ -347,9 +351,7 @@ def plot_actual_glb_anchors(objs, aqe_sign, fig_header, q_sign, if_po=True, anch
     return dom_spaces
 
 
-def plot_q_all(q_sign, meta, if_show=True):
-    mp_misc, spark_knobs, bm, script_header, out_header, fig_header, pred_header, pred_name_prefix = meta
-
+def plot_q_all(q_sign, meta, fig_header, if_show=True):
     obj_off = get_objs_all(q_sign, meta, "aqe_off")
     obj_on = get_objs_all(q_sign, meta, "aqe_on")
 
@@ -396,10 +398,11 @@ def main():
     fig_header = os.path.join(ckp_header, ckp_sign, "fig")
     os.makedirs(fig_header, exist_ok=True)
     data_header = "examples/data/spark/cache/tpch_100"
-    mp_misc = get_mp(data_header, ckp_header, ckp_sign)
+    op_feats_file = {}
+    mp_misc = get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm)
 
     spark_knobs = SparkKnobs()
-    meta = mp_misc, spark_knobs, bm, script_header, out_header, fig_header, pred_header, pred_name_prefix
+    meta = mp_misc, spark_knobs, bm, script_header, out_header, pred_header, pred_name_prefix
 
     args = Args().parse()
     q_signs = BenchmarkUtils.get_sampled_q_signs(bm) if args.q_signs is None else \
@@ -409,7 +412,7 @@ def main():
     header = ["Q", "default", "res", "sql", "ws(-3)", "ws(-2)", "ws", "ws(+2)", "ws(+3)", "vc"]
 
     for q_sign in q_signs:
-        summary[q_sign] = plot_q_all(q_sign=q_sign, meta=meta, if_show=False)
+        summary[q_sign] = plot_q_all(q_sign=q_sign, meta=meta, fig_header=fig_header, if_show=False)
 
     for mode in ["off_local", "off_glb", "on_local", "on_glb"]:
         print(mode)

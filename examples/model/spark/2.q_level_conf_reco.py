@@ -10,6 +10,7 @@ import time
 from trace.parser.spark import get_cloud_cost
 from utils.common import BenchmarkUtils, PickleUtils
 from utils.data.configurations import SparkKnobs
+from utils.data.feature import L2P_MAP
 from utils.model.args import ArgsRecoQ
 from utils.model.parameters import set_data_params, get_gpus
 from utils.model.proxy import ModelProxy, ws_return, bf_return
@@ -39,14 +40,24 @@ q_signs = BenchmarkUtils.get_sampled_q_signs(bm) if args.q_signs is None else \
 
 print("1. preparing data and model")
 data_params = set_data_params(args)
-dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
+
+op_feats_file = {}
+if data_params["ch1_cbo"] == "on":
+    op_feats_file["cbo"] = "cbo_cache.pkl"
+if data_params["ch1_enc"] != "off":
+    ch1_enc = data_params["ch1_enc"]
+    op_feats_file["enc"] = f"enc_cache_{ch1_enc}.pkl"
+dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats = expose_data(
     header=data_header,
     tabular_file=f"{'query_level' if args.granularity == 'Q' else 'stage_level'}_cache_data.pkl",
     struct_file="struct_cache.pkl",
-    op_feats_file=...,
+    op_feats_file=op_feats_file,
     debug=debug,
     ori=True
 )
+if data_params["ch1_cbo"] == "on":
+    op_feats["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
+
 add_pe(model_name, dag_dict)
 print("data loaded")
 op_groups, picked_groups, picked_cols = analyze_cols(data_params, col_dict)
@@ -94,7 +105,7 @@ for q_sign in q_signs:
     except:
         start = time.time()
         stage_emb, ch2_norm, ch3_norm = prepare_data_for_opt(
-            df, q_sign, dag_dict, mp.hp_params["ped"], op_groups, mp, col_dict, minmax_dict)
+            df, q_sign, dag_dict, mp.hp_params["ped"], op_groups, op_feats, struct2template, mp, col_dict, minmax_dict)
 
         # get predicted data
         knob_df, ch4_norm = get_sample_spark_knobs(knobs, n_samples, seed=BenchmarkUtils.get_tid(q_sign))
