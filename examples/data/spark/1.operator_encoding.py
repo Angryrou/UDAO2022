@@ -100,8 +100,7 @@ def eval(op_df):
     op_df_cat["cat2_index"] = op_df_cat["cat2"].replace(cat2, list(range(len(cat2))))
 
 
-# if __name__ == "__main__":
-def main():
+if __name__ == "__main__":
     args = Args().parse()
     print(args)
     bm = args.benchmark.lower()
