@@ -216,7 +216,7 @@ def form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2templa
         g.ndata["cbo"] = get_tensor(pp_feat_norm)
     if "ch1_enc" in op_groups:
         # add enc feats from a data source (already normalized)
-        enc = op_feats["enc"]["op_encs"][op_feats["enc"]["oid_dict"][sid][svid]]
+        enc = op_feats["enc"]["op_encs"][op_feats["enc"]["oid_dict"][sid][int(svid)]]
         g.ndata["enc"] = get_tensor(enc)
     return g
 
