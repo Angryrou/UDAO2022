@@ -3,12 +3,11 @@
 # Description: e2e training via GTN
 #
 # Created at 03/01/2023
-from utils.data.feature import L2P_MAP
 
 if __name__ == "__main__":
 
     import os
-
+    from utils.data.feature import L2P_MAP
     from utils.model.args import ArgsGTN
     from utils.model.parameters import set_params
     from utils.model.utils import expose_data, pipeline
@@ -29,8 +28,9 @@ if __name__ == "__main__":
     op_feats_file = {}
     if data_params["ch1_cbo"] == "on":
         op_feats_file["cbo"] = "cbo_cache.pkl"
-    if data_params["ch1_enc"] == "on":
-        op_feats_file["enc"] = "enc_cache.pkl"
+    if data_params["ch1_enc"] != "off":
+        ch1_enc = data_params["ch1_enc"]
+        op_feats_file["enc"] = f"enc_cache_{ch1_enc}.pkl"
 
 
     ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(

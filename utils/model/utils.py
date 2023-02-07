@@ -202,7 +202,7 @@ def norm_in_feat_inst(x, minmax):
 def denorm_obj(o, minmax):
     return o * (minmax["max"] - minmax["min"]) + minmax["min"]
 
-def form_graph(dag_dict, sid, qid, ped, op_groups, op_feats, struct2template):  # to add the enc source
+def form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2template):  # to add the enc source
     g = dag_dict[sid].clone()
     resize_pe(g, ped)
     if "ch1_cbo" in op_groups:
@@ -216,7 +216,8 @@ def form_graph(dag_dict, sid, qid, ped, op_groups, op_feats, struct2template):  
         g.ndata["cbo"] = get_tensor(pp_feat_norm)
     if "ch1_enc" in op_groups:
         # add enc feats from a data source (already normalized)
-        g.ndata["enc"] = ...
+        enc = op_feats["enc"]["op_encs"][op_feats["enc"]["oid_dict"][sid][svid]]
+        g.ndata["enc"] = get_tensor(enc)
     return g
 
 
@@ -268,8 +269,9 @@ class MyDSBase(Dataset):
         x = super(MyDSBase, self).__getitem__(item)
         if "ch1" in self.picked_groups:
             sid = x[self.col_dict["ch1"][0]].item()
-            qid = x[self.col_dict["ch1"][1]].item()
-            g = form_graph(self.dag_dict, sid, qid, self.ped, self.op_groups, self.op_feats, self.struct2template)
+            svid = x[self.col_dict["ch1"][0]].item()
+            qid = x[self.col_dict["ch1"][2]].item()
+            g = form_graph(self.dag_dict, sid, svid, qid, self.ped, self.op_groups, self.op_feats, self.struct2template)
         else:
             g = None
         inst_feat = []

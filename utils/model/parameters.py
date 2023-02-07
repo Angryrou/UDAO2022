@@ -116,7 +116,7 @@ def set_net_params(args):
         "layer_norm": False,
         "ch1_type_dim": 8,
         "ch1_cbo_dim": 4,
-        "ch1_enc_dim": 16,
+        "ch1_enc_dim": 32,
     }
 
     if args.ped is not None:

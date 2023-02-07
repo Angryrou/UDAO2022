@@ -6,11 +6,17 @@ The python virtual environment
 ```bash
 # cpu
 conda create -n <name> python=3.9
+conda install pytorch torchvision torchaudio cpuonly -c pytorch # version 1.13.1
 pip install -r requirements.txt
+
 # gpu 
 conda create -n udao-gpu python=3.9
-pip install -r requirements.txt
-conda install -c anaconda cudatoolkit=11
+conda install pytorch torchvision torchaudio pytorch-cuda=11.6 -c pytorch -c nvidia # version 1.13.1
+pip install -r requirements-gpu.txt
+conda install -c dglteam dgl-cuda11.6==0.9.1post1
+conda install -c anaconda cudatoolkit=11 # to be able to run dgl's gpu version
+
+
 ```
 
 The supportive trace collection projects. Put or solflink those projects under `resources`

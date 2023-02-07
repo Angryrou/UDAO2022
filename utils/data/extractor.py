@@ -16,8 +16,7 @@ from networkx.algorithms import isomorphism
 from utils.common import JsonUtils, ParquetUtils, PickleUtils
 
 from gensim.models.word2vec import Word2Vec
-from gensim.models.doc2vec import Doc2Vec, TaggedDocument
-from nltk.tokenize import RegexpTokenizer
+from gensim.models.doc2vec import Doc2Vec
 
 
 def get_tr_val_te_masks(df, groupby_col1, groupby_col2, frac_val_per_group, frac_te_per_group, seed):
@@ -27,7 +26,10 @@ def get_tr_val_te_masks(df, groupby_col1, groupby_col2, frac_val_per_group, frac
     n_rows = len(df)
     val_mask, te_mask = np.array([False] * n_rows), np.array([False] * n_rows)
     df = df.reset_index()
-    val_index = df.groupby(groupby_col1).sample(frac=frac_val_per_group).index
+    val_index1 = df.groupby(groupby_col1).sample(frac=frac_val_per_group).index
+    val_index2 = df.groupby(groupby_col1).sample(frac=frac_val_per_group, random_state=seed).index
+    assert (val_index1 == val_index2).all()
+    val_index = val_index1
     val_mask[val_index] = True
     frac_te_per_group = frac_te_per_group / (1 - frac_val_per_group)
     te_index = df[~val_mask].groupby(groupby_col2).sample(frac=frac_te_per_group).index
@@ -133,6 +135,7 @@ def plot_nx_graph(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title:
     os.makedirs(dir_to_save, exist_ok=True)
     p.write_png(dir_to_save + '/' + title + '.png')
 
+
 def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str, nodes_desc: dict):
     node_id2name_new = {}
     for k, v in node_id2name.items():
@@ -142,6 +145,7 @@ def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str
             v = f"Scan({tbl})"
         node_id2name_new[k] = v
     plot_nx_graph(G, node_id2name_new, dir_name, title)
+
 
 def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: str):
     G = dgl.to_networkx(g)
@@ -430,6 +434,7 @@ def extract_ofeats(lp, all=False):
         return sizes, nrows, nnames, from_ids, to_ids
     return sizes, nrows
 
+
 def format_size(x):
     n, unit = x.split()
     if unit == "B":
@@ -442,6 +447,7 @@ def format_size(x):
         return float(n) * 1024 * 1024 * 1024
     else:
         raise ValueError(x)
+
 
 class LogicalStruct():
 
@@ -476,6 +482,14 @@ def replace_symbols(s):
         .replace(" - ", " rMINUS ") \
         .replace(" / ", " rDIV ") \
         .replace(" * ", " rMUL ")
+
+
+def remove_hash_suffix(s):
+    return re.sub("#[0-9]+[L]*[,]*", " ", s)
+
+
+def brief_clean(s):
+    return re.sub("[^A-Za-z\'_]+", " ", s).lower()
 
 
 def self_eval_ori(model, train_corpus):
@@ -537,49 +551,10 @@ def df_convert_query2op(df):
     return df.planDescription.apply(lambda x: SqlStructBefore(x).get_op_feats()).explode()
 
 
-def tokenize_op_descs(df):
-    # tokenize reference:
-    # https://towardsdatascience.com/dynamic-word-tokenization-with-regex-tokenizer-801ae839d1cd
-    # https://regex101.com/
-    tokenizer = RegexpTokenizer(
-        "(?:(?<=\s)|(?<=^)|(?<=[\[\"()<>,=]))[a-z0-9'_#.+\-*\/:=]*[a-z0-9](?:(?=\s)|(?=$)|(?=[\]():,=<>]))")
-    tokens_list = list(map(lambda x: tokenizer.tokenize(x.lower()), df.values))
-    return [TaggedDocument(d, [i]) for i, d in enumerate(tokens_list)]
-
-
-def get_operator_descs(input_df):
-    """
-    return all_operators and all_operators_cat with cat1=(operator_type), cat2=(struct_id, operator_type)
-    """
-    # operator's desc will be cleaned for "\n" and "\n\n" at `SqlStructBefore`.
-    all_operators = df_convert_query2op(input_df)
-    all_operators = all_operators.apply(replace_symbols)
-    all_operators_cat = all_operators.apply(lambda x: x.split()[0]).reset_index()
-    all_operators_cat.columns = ["struct_id", "id", "cat1"]
-    all_operators_cat["cat2"] = all_operators_cat.apply(lambda r: f"{r['struct_id']}-{r['cat1']}", axis=1)
-    cat1 = sorted(all_operators_cat.cat1.unique())
-    cat2 = sorted(all_operators_cat.cat2.unique())
-    all_operators_cat["cat1_index"] = all_operators_cat["cat1"].replace(cat1, list(range(len(cat1))))
-    all_operators_cat["cat2_index"] = all_operators_cat["cat2"].replace(cat2, list(range(len(cat2))))
-    return all_operators, all_operators_cat
-
-
-def prepare_operator_tokens(all_operators, all_operators_cat, debug, seed):
-    train_mask, eval1_mask, eval2_mask = get_tr_val_te_masks(
-        all_operators_cat, "cat1_index", "cat2_index", 0.2 if debug else 0.1, 0.2 if debug else 0.1, seed)
-    all_operators_tr, all_operators_eval1, all_operators_eval2 = \
-        all_operators[train_mask], all_operators[eval1_mask], all_operators[eval2_mask]
-    print(f"get {len(all_operators_tr)} TR, {len(all_operators_eval1)} EVAL1, "
-          f"and {len(all_operators_eval2)} EVAL2 rows")
-    train_corpus, eval1_corpus, eval2_corpus = [tokenize_op_descs(all_operators_) for all_operators_ in
-                                                [all_operators_tr, all_operators_eval1, all_operators_eval2]]
-    return train_corpus, eval1_corpus, eval2_corpus, train_mask, eval1_mask, eval2_mask
-
-
-def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epochs=200, alpha=0.025, downsamples=1e-3,
-                  dm=1, min_count=2, window=5):
-    n_rows = len(input_df)
-    model_prefix = f"d2v_ndp{n_rows}_vsize{vec_size}_epochs{epochs}_alpha={alpha:.3f}"
+def get_enc_model(cache_header, corpus, n_rows, workers, debug, vec_size=20, epochs=200, alpha=0.025, downsamples=1e-3,
+                  dm=1, min_count=2, window=5, mode="w2v"):
+    assert mode in ("w2v", "d2v")
+    model_prefix = f"{mode}_ndp{n_rows}_vsize{vec_size}_epochs{epochs}_alpha={alpha:.3f}"
     if downsamples != 1e-3:
         model_prefix += f"_downsamples={downsamples:.5f}"
     if dm != 1:
@@ -589,7 +564,8 @@ def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epo
     if window != 5:
         model_prefix += f"_window={window}"
     try:
-        model = Doc2Vec.load(f"{cache_header}/{model_prefix}.model")
+        model = Doc2Vec.load(f"{cache_header}/{model_prefix}.model") if mode == "d2v" else \
+            Word2Vec.load(f"{cache_header}/{model_prefix}.model")
         meta_dict = PickleUtils.load(cache_header, f"{model_prefix}.meta")
         n_tr_samples = meta_dict["n_tr_samples"]
         n_corpus_tr = meta_dict["n_corpus_tr"]
@@ -600,12 +576,8 @@ def get_d2v_model(cache_header, input_df, workers, seed, debug, vec_size=20, epo
         rate2_cat2 = meta_dict["rate2_cat2"]
         print(f"found {model_prefix}.model at {cache_header}")
     except:
+        train_corpus, eval1_corpus, eval1_cat1, eval2_corpus, eval2_cat2 = corpus
         print(f"cannot find {model_prefix} model at {cache_header}, start generating...")
-        all_operators, all_operators_cat = get_operator_descs(input_df)
-        train_corpus, eval1_corpus, eval2_corpus, train_mask, eval1_mask, eval2_mask = prepare_operator_tokens(
-            all_operators, all_operators_cat, debug, seed)
-        eval1_cat1, eval2_cat2 = all_operators_cat.cat1_index[eval1_mask], all_operators_cat.cat2_index[eval2_mask]
-
         model = Doc2Vec(vector_size=vec_size, alpha=alpha, workers=workers, sample=downsamples,
                         dm=dm, min_count=min_count, window=window)
         model.build_vocab(train_corpus)
