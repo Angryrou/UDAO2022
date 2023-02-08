@@ -98,7 +98,7 @@ class BenchmarkUtils(object):
     @staticmethod
     def get_sampled_q_signs(benchmark: str):
         if benchmark.lower() == "tpch":
-            return "q1-1,q2-1,q3-3,q4-1,q5-2,q6-1,q7-2,q8-19,q9-18,q10-1,q11-1,q12-5,q13-1,q14-12,q15-1,q16-1,q17-1,q18-1,q19-1,q20-6,q21-2,q22-1".split(",")
+            return "q1-1,q2-1,q3-3,q4-1,q5-2,q6-1,q7-2,q8-19,q9-18,q10-1,q11-1,q12-5,q13-1,q14-1,q15-1,q16-1,q17-1,q18-1,q19-1,q20-6,q21-2,q22-1".split(",")
         else:
             raise ValueError(benchmark)
 
