@@ -232,10 +232,13 @@ def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, op_feats, struct2
     return stage_emb, ch2_norm, ch3_norm
 
 
-def get_sample_spark_knobs(knobs, n_samples, seed):
+def get_sample_spark_knobs(knobs, n_samples, bm, q_sign, seed):
     np.random.seed(seed)
     samples = np.random.rand(n_samples, len(knobs))
-    samples[:, -2] = 1 # always set s3 (autoBroadcastJoinThreshold) as the largest (320M in our case)
+    if bm == "tpch" and q_sign.split("-")[0] == "q14":
+        samples[:, -2] = 0
+    else:
+        samples[:, -2] = 1 # always set s3 (autoBroadcastJoinThreshold) as the largest (320M in our case)
     knob_df = KnobUtils.knob_denormalize(samples, knobs)
     knob_df = knob_df.drop_duplicates()
     knob_df.index = knob_df.apply(lambda x: KnobUtils.knobs2sign(x, knobs), axis=1)

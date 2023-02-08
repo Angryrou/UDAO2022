@@ -108,7 +108,7 @@ for q_sign in q_signs:
             df, q_sign, dag_dict, mp.hp_params["ped"], op_groups, op_feats, struct2template, mp, col_dict, minmax_dict)
 
         # get predicted data
-        knob_df, ch4_norm = get_sample_spark_knobs(knobs, n_samples, seed=BenchmarkUtils.get_tid(q_sign))
+        knob_df, ch4_norm = get_sample_spark_knobs(knobs, n_samples, bm, q_sign, seed=BenchmarkUtils.get_tid(q_sign))
         conf_df = spark_knobs.df_knob2conf(knob_df)
         lats_mu, lats_std = mp.get_lat(ch1=stage_emb, ch2=ch2_norm, ch3=ch3_norm, ch4=ch4_norm,
                                        out_fmt="numpy", dropout=True)
