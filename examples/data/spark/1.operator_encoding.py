@@ -152,7 +152,6 @@ if __name__ == "__main__":
         d2v_model.build_vocab(corpus)
         d2v_model.train(corpus, total_examples=d2v_model.corpus_count, epochs=args.epochs)
         op_encs = d2v_model.dv.get_normed_vectors()
-        raise NotImplementedError
     else:
         raise ValueError(mode)
 
