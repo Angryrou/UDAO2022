@@ -64,7 +64,7 @@ def sample_knobs(n_samples, spark_knobs, seed=42):
     knob_df = KnobUtils.knob_denormalize(samples, knobs)
     knob_df = knob_df.drop_duplicates()
     knob_df.index = knob_df.apply(lambda x: KnobUtils.knobs2sign(x, knobs), axis=1)
-    print(f"generated {knob_df.shape[1]}/{n_samples} unique configurations")
+    print(f"generated {knob_df.shape[0]}/{n_samples} unique configurations")
     return knob_df
 
 
@@ -125,6 +125,7 @@ if __name__ == "__main__":
     q_signs, mp, spark_knobs, misc = data_preparation()
     res = {}
     for q_sign in q_signs:
+        print(f"start working on {q_sign}")
         reco_confs = reco_configurations(mp, q_sign, spark_knobs, misc)
         assert isinstance(reco_confs, pd.DataFrame) and (reco_confs.columns == spark_knobs.knob_names).all(), \
             "invalid reco_confs format"

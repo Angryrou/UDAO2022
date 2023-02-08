@@ -3,21 +3,26 @@
 
 ## Step-by-step Instruction
 
-```bash
-# git clone the project of the specific branch `moo-with-model-uncertainty`
-git clone -b moo-with-model-uncertainty git@github.com:Angryrou/UDAO2022.git
+1. Fetch the repo and set up the python environment.
+    ```bash
+    # git clone the project of the specific branch `moo-with-model-uncertainty`
+    git clone --depth 1 -b moo-with-model-uncertainty git@github.com:Angryrou/UDAO2022.git
+    
+    cd UDAO2022 
+    # set up the python virtual environment (cpu-only)
+    # make sure conda has been installed in advance
+    conda create -n udao python=3.9
+    conda activate udao
+    conda install pytorch torchvision torchaudio cpuonly -c pytorch # version 1.13.1
+    pip install -r requirements.txt
+    ```
 
-cd UDAO2022 
-# set up the python virtual environment (cpu-only)
-# make sure conda has been installed in advance
-conda create -n udao python=3.9
-conda activate udao
-conda install pytorch torchvision torchaudio cpuonly -c pytorch # version 1.13.1
-pip install -r requirements.txt
-
-export PYTHONPATH=$PWD
-ptyhon biao/main.py # be sure to run under UDAO2022 to enable other packages in the repository. 
-```
+2. Run the code for MOO with model uncertainty.
+    ```bash
+    # be sure to run under `UDAO2022` to enable other packages in the repository. 
+    export PYTHONPATH=$PWD
+    python biao/main.py
+    ```
 
 ## Brief Intro.
 
