@@ -4,34 +4,22 @@
 #
 # Created at 12/23/22
 
-import argparse, random
+import argparse
 import multiprocessing as mp
+
 from utils.common import BenchmarkUtils, PickleUtils
 from utils.data.extractor import replace_symbols, remove_hash_suffix, df_convert_query2op, brief_clean, get_csvs
 
 from gensim.models.phrases import Phrases, Phraser
-from gensim.models import Word2Vec, TfidfModel
+from gensim.models import Word2Vec, TfidfModel, Doc2Vec
 from gensim.corpora import Dictionary
+from gensim.models.doc2vec import TaggedDocument
+from nltk import WhitespaceTokenizer
 
 import numpy as np
 
 from utils.model.utils import get_str_hash
-
-
-def get_operator_descs(all_operators):
-    """
-    return all_operators and all_operators_cat with cat1=(operator_type), cat2=(struct_id, operator_type)
-    """
-    # operator's desc will be cleaned for "\n" and "\n\n" at `SqlStructBefore`.
-    all_operators_cat = all_operators.apply(lambda x: x.split()[0]).reset_index()
-    all_operators_cat.columns = ["struct_id", "qid", "cat1"]
-    all_operators_cat["cat2"] = all_operators_cat.apply(lambda r: f"{r['struct_id']}-{r['cat1']}", axis=1)
-    cat1 = sorted(all_operators_cat.cat1.unique())
-    cat2 = sorted(all_operators_cat.cat2.unique())
-    all_operators_cat["cat1_index"] = all_operators_cat["cat1"].replace(cat1, list(range(len(cat1))))
-    all_operators_cat["cat2_index"] = all_operators_cat["cat2"].replace(cat2, list(range(len(cat2))))
-    return all_operators_cat
-
+from sklearn.metrics.pairwise import cosine_similarity
 
 class Args():
     def __init__(self):
@@ -82,22 +70,35 @@ def data_preparation(df, cache_header):
             "op_df": op_df_unique
         }, cache_header, "enc_cache_meta.pkl")
         print(f"get {n_unique} unique clean operator desc out of {n_ori} operators")
-
-    op_descs = [row.split() for row in op_df["planDescription"]]
-    phrases = Phrases(op_descs, min_count=30, progress_per=1000)
-    bigram = Phraser(phrases)
-    op_descriptions = bigram[op_descs]
-    return op_df, oid_dict, op_descriptions
+    return op_df, oid_dict
 
 
-def eval(op_df):
-    op_df_cat = op_df.apply(lambda x: x.split()[0]).reset_index()
-    op_df_cat.columns = ["struct_id", "qid", "cat1"]
-    op_df_cat["cat2"] = op_df_cat.apply(lambda r: f"{r['struct_id']}-{r['cat1']}", axis=1)
+def get_operator_descs(op_df):
+    """
+    return op_df and op_df_cat with cat1=(operator_type), cat2=(struct_id, operator_type)
+    """
+    # operator's desc will be cleaned for "\n" and "\n\n" at `SqlStructBefore`.
+    op_df_cat = op_df.planDescription.apply(lambda x: x.split()[0]).reset_index()
+    op_df_cat.columns = ["sid", "svid", "cat1"]
+    op_df_cat["cat2"] = op_df_cat.apply(lambda r: f"{r['sid']}-{r['cat1']}", axis=1)
     cat1 = sorted(op_df_cat.cat1.unique())
     cat2 = sorted(op_df_cat.cat2.unique())
     op_df_cat["cat1_index"] = op_df_cat["cat1"].replace(cat1, list(range(len(cat1))))
     op_df_cat["cat2_index"] = op_df_cat["cat2"].replace(cat2, list(range(len(cat2))))
+    return op_df_cat
+
+def self_eval(op_df, op_encs):
+    op_df_cat = get_operator_descs(op_df)
+    dists = cosine_similarity(op_encs, op_encs)
+    closet_ids = dists.argsort()[-2, :]
+    self_cat1 = op_df_cat.cat1_index.values
+    closet_cat1 = op_df_cat.cat1_index.values[closet_ids]
+    rate_cat1 = sum(self_cat1 == closet_cat1) / len(self_cat1)
+    self_cat2 = op_df_cat.cat2_index.values
+    closet_cat2 = op_df_cat.cat2_index.values[closet_ids]
+    rate_cat2 = sum(self_cat2 == closet_cat2) / len(self_cat2)
+    print(f"match rate: cat1 ({rate_cat1*100:.0f}%), cat2 ({rate_cat2 * 100:.0f}%)")
+
 
 
 if __name__ == "__main__":
@@ -112,9 +113,13 @@ if __name__ == "__main__":
 
     templates = [f"q{i}" for i in BenchmarkUtils.get(bm)]
     df = get_csvs(templates, src_path_header, cache_header, samplings=["lhs", "bo"])
-    op_df, oid_dict, op_descriptions = data_preparation(df, cache_header)
+    op_df, oid_dict = data_preparation(df, cache_header)
 
     if mode == "w2v":
+        op_descs = [row.split() for row in op_df["planDescription"]]
+        phrases = Phrases(op_descs, min_count=30)
+        bigram = Phraser(phrases)
+        op_descriptions = bigram[op_descs]
         w2v_model = Word2Vec(min_count=1,
                              window=args.window,  # 3
                              vector_size=args.vec_size,  # 32
@@ -122,10 +127,11 @@ if __name__ == "__main__":
                              alpha=args.alpha,  # 0.025
                              min_alpha=0.0007,
                              workers=mp.cpu_count() - 1)
-        w2v_model.build_vocab(op_descriptions, progress_per=10000)
+        w2v_model.build_vocab(op_descriptions)
         w2v_model.train(op_descriptions, total_examples=w2v_model.corpus_count, epochs=args.epochs, report_delay=1)
         print(f"get {w2v_model.wv.vectors.shape[0]} words from word2vec")
 
+        # https://stackoverflow.com/a/31738627
         dictionary = Dictionary()
         BoW_corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in op_descriptions]
         tfidf = TfidfModel(BoW_corpus, smartirs='ntc')
@@ -133,6 +139,19 @@ if __name__ == "__main__":
         op_encs = np.array([np.mean([w2v_model.wv.get_vector(dictionary[wid], norm=True) * freq for wid, freq in wt], 0)
                             for wt in tfidf[BoW_corpus]])
     elif mode == "d2v":
+        tokenizer = WhitespaceTokenizer()
+        tokens_list = list(map(lambda x: tokenizer.tokenize(x), op_df.planDescription))
+        corpus = [TaggedDocument(d, [i]) for i, d in enumerate(tokens_list)]
+        d2v_model = Doc2Vec(min_count=1,
+                            window=args.window,
+                            vector_size=args.vec_size,
+                            sample=0.1,
+                            alpha=args.alpha,
+                            min_alpha=0.0007,
+                            workers=mp.cpu_count() - 1)
+        d2v_model.build_vocab(corpus)
+        d2v_model.train(corpus, total_examples=d2v_model.corpus_count, epochs=args.epochs)
+        op_encs = d2v_model.dv.get_normed_vectors()
         raise NotImplementedError
     else:
         raise ValueError(mode)
@@ -141,3 +160,5 @@ if __name__ == "__main__":
         "oid_dict": oid_dict,
         "op_encs": op_encs
     }, cache_header, f"enc_cache_{mode}.pkl")
+
+    self_eval(op_df, op_encs)
