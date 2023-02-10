@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-from trace.collect.framework import QueryQueue, error_handler, SparkCollect
+from trace.collect.framework import error_handler, SparkCollect
 from trace.collect.sampler import BOSampler
 from trace.parser.spark import get_cloud_cost
 from utils.common import BenchmarkUtils, PickleUtils, FileUtils, JsonUtils
@@ -110,6 +110,7 @@ def submit(
     if debug:
         lat = random.randint(1, 5)
     else:
+        start = time.time()
         cmd = f"bash {header}/{file_name} > {log_file} 2>&1"
         subprocess.check_output(cmd, shell=True, timeout=3600 * 2)
         assert os.path.exists(log_file)
@@ -117,11 +118,14 @@ def submit(
         if "error" in log:
             lat = np.inf
         else:
-            rows = log.split("\n")
-            appid, url_head = rows[0], rows[1]
-            url_str = f"{url_head}/api/v1/applications/{appid}"
-            data = JsonUtils.load_json_from_url(url_str)
-            lat = data["attempts"][0]["duration"] / 1000  # seconds
+            try:
+                rows = log.split("\n")
+                appid, url_head = rows[0], rows[1]
+                url_str = f"{url_head}/api/v1/applications/{appid}"
+                data = JsonUtils.load_json_from_url(url_str)
+                lat = data["attempts"][0]["duration"] / 1000  # seconds
+            except:
+                lat = time.time() - start
     cost = get_cloud_cost(
         lat=lat,
         mem=int(conf_dict["spark.executor.memory"][:-1]),
