@@ -20,7 +20,6 @@ class Args():
         self.parser.add_argument("-k", "--knob-meta-file", type=str, default="resources/knob-meta/spark.json")
         self.parser.add_argument("-s", "--seed", type=int, default=42)
         self.parser.add_argument("--script-header", type=str, default="resources/scripts/tpch-lhs")
-        self.parser.add_argument("--out-header", type=str, default="examples/trace/spark/7.run_all_pressure_test")
         self.parser.add_argument("--cache-header", type=str, default="examples/trace/spark/cache")
         self.parser.add_argument("--num-templates", type=int, default=22)
         self.parser.add_argument("--num-queries-per-template-to-run", type=int, default=400)
