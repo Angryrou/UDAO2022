@@ -165,8 +165,7 @@ def submit(
           f"{X.shape} -> {observed['X'].shape} -> {observed_dict[q_sign]['X'].shape}")
 
 
-# if __name__ == '__main__':
-def main():
+if __name__ == '__main__':
     args = Args().parse()
 
     benchmark = args.benchmark
