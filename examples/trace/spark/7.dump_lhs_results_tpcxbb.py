@@ -92,7 +92,7 @@ if __name__ == '__main__':
                 for i, (_, conf_i) in enumerate(df_q.iterrows()):
                     if (i + 1) % 100 == 0:
                         print(f"finished parsing {i+1}/{len(df_q)} configurations")
-                    lat_list[i], cost_list[i] = get_obj(tid, qid, df_q, log_header)
+                    lat_list[i], cost_list[i] = get_obj(tid, qid, conf_i, log_header)
                 df_q["lat"] = lat_list
                 df_q["cost"] = cost_list
                 PickleUtils.save(df_q, cache_header_q, f"q{tid}-{qid}.pkl")
