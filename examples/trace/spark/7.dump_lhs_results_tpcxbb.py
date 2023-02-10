@@ -62,7 +62,6 @@ if __name__ == '__main__':
     benchmark = args.benchmark
     seed = args.seed
     script_header = args.script_header
-    out_header = args.out_header
     cache_header = os.path.join(args.cache_header, benchmark.lower())
     log_header = args.log_header
     n_templates = args.num_templates
