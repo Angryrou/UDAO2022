@@ -99,10 +99,10 @@ class BOSampler(BaseSampler):
         assert observed_inputs.min() >= 0 and observed_inputs.max() <= 1, \
             "the observed inputs we take should be normalized to 0-1"
 
-        X_tr = th.from_numpy(observed_inputs).to(th.float)
+        X_tr = th.from_numpy(observed_inputs).to(th.double)
         y_tr = th.from_numpy(
             (observed_outputs - observed_outputs.min()) / (observed_outputs.max() - observed_outputs.min())
-        ).to(th.float)
+        ).to(th.double)
         gp = SingleTaskGP(X_tr, - y_tr)
         if optimizer == "default":
             # L-BFGS-B
