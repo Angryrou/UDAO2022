@@ -17,13 +17,13 @@ from trace.parser.spark import get_cloud_cost
 class Args():
     def __init__(self):
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
+        self.parser.add_argument("-b", "--benchmark", type=str, default="TPCxBB")
         self.parser.add_argument("-k", "--knob-meta-file", type=str, default="resources/knob-meta/spark.json")
         self.parser.add_argument("-s", "--seed", type=int, default=42)
-        self.parser.add_argument("--script-header", type=str, default="resources/scripts/tpch-lhs")
+        self.parser.add_argument("--script-header", type=str, default="resources/scripts/tpcxbb-lhs")
         self.parser.add_argument("--cache-header", type=str, default="examples/trace/spark/cache")
         self.parser.add_argument("--log-header", type=str, default="examples/trace/spark/6.run_all_pressure_test_tpcxbb/log")
-        self.parser.add_argument("--num-templates", type=int, default=22)
+        self.parser.add_argument("--num-templates", type=int, default=30)
         self.parser.add_argument("--debug", type=int, default=0)
 
     def parse(self):
