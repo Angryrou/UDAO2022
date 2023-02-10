@@ -53,7 +53,7 @@ def get_obj(tid, qid, conf_i, log_header):
         else:
             raise Exception(f"failed to analyze {url_str}")
     else:
-        return -1, -1
+        raise FileNotFoundError(file_path)
 
 if __name__ == '__main__':
 
