@@ -83,8 +83,6 @@ def submit(
         lock_misc,
         bo_misc,
         cores: int,
-        tid: str,
-        qid: str,
         q_sign: str,
         knob_sign: str,
         conf_dict: dict,
@@ -94,6 +92,9 @@ def submit(
         target_obj_id: int,
         if_aqe: bool
 ):
+    s1, s2 = q_sign.split("-")
+    tid, qid = s1[1:], s2
+
     lock, current_cores, spark_collect, observed_dict, next_sample_dict, bo_trials_dict, \
     objs_scaler_dict, knob_signs_dict = lock_misc
     bo_sampler, knobs, sgd_lr, sgd_epochs = bo_misc
@@ -164,7 +165,8 @@ def submit(
           f"{X.shape} -> {observed['X'].shape} -> {observed_dict[q_sign]['X'].shape}")
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
+def main():
     args = Args().parse()
 
     benchmark = args.benchmark
@@ -215,7 +217,6 @@ if __name__ == '__main__':
     qids_random_ordered = np.apply_along_axis(np.random.permutation, axis=1, arr=qid_tmp)\
                             .reshape(-1, n_templates, 5).transpose(0, 2, 1)\
                             .reshape(-1, n_templates).reshape(1, -1).squeeze()
-
     q_sign_injection = [f"q{tid}-{tq_dict[tid][qid]}" for tid, qid in zip(tids_random_ordered, qids_random_ordered)]
     q_signs = np.unique(q_sign_injection)
 
@@ -296,7 +297,6 @@ if __name__ == '__main__':
 
     while submit_index < total_queries:
         target_obj_id = 0 if submit_index < (total_queries // 2) else 1
-        tid, qid = tids_random_ordered[submit_index], qids_random_ordered[submit_index]
         q_sign = q_sign_injection[submit_index]
         if debug and q_sign not in q_signs:
             submit_index += 1
@@ -311,7 +311,7 @@ if __name__ == '__main__':
             if cores + current_cores.value < cluster_cores:
                 current_cores.value += cores
                 if_submit = True
-                print(f"Main Process: submit {tid}-{qid}, current_cores = {current_cores.value}")
+                print(f"Main Process: submit {q_sign}, current_cores = {current_cores.value}")
             else:
                 if_submit = False
         if if_submit:
@@ -321,7 +321,7 @@ if __name__ == '__main__':
             bo_misc = bo_sampler, knobs, sgd_lr, sgd_epochs
 
             pool.apply_async(func=submit,
-                             args=(lock_misc, bo_misc, cores, tid, qid, q_sign, knob_sign,
+                             args=(lock_misc, bo_misc, cores, q_sign, knob_sign,
                                    conf_dict, debug, out_header, next_sample, target_obj_id, if_aqe),
                              error_callback=error_handler)
             submit_index += 1

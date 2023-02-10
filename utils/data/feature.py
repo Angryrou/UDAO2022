@@ -93,6 +93,7 @@ class NmonUtils(object):
 
     @staticmethod
     def nmon_remote_reset(workers, remote_header):
+        NmonUtils.nmon_remote_stop(workers)
         return "\n".join(f"""ssh {worker} rm -f {remote_header}/*.nmon""" for worker in workers)
 
     @staticmethod
