@@ -87,7 +87,7 @@ if __name__ == '__main__':
                 print(f"found df_q at {cache_header_q}/q{tid}-{qid}.pkl")
             except:
                 print(f"not found df_q, start generating")
-                df_q = df_t.loc[qid]
+                df_q = df_t.loc[qid].copy()
                 lat_list, cost_list = [-1] * len(df_q), [-1] * len(df_q)
                 for i, (_, conf_i) in enumerate(df_q.iterrows()):
                     if (i + 1) % 100 == 0:
