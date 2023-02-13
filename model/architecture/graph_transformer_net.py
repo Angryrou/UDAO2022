@@ -8,6 +8,7 @@
 import torch as th
 import torch.nn as nn
 import dgl
+
 from .graph_transformer_layer import GraphTransformerLayer
 from .mlp_readout_layer import MLPReadout
 
@@ -15,7 +16,7 @@ from .mlp_readout_layer import MLPReadout
 class GraphTransformerNet(nn.Module):
     def __init__(self, net_params):
         super().__init__()
-        self.name = "GTN"
+        name = net_params["name"]
         ped = net_params["ped"]
         in_feat_size_op = net_params["in_feat_size_op"]
         in_feat_size_inst = net_params["in_feat_size_inst"]
@@ -29,6 +30,7 @@ class GraphTransformerNet(nn.Module):
         dropout2 = 0. if "dropout2" not in net_params else net_params["dropout2"]
         op_groups = net_params["op_groups"]
 
+        self.name = name
         self.op_type = ("ch1_type" in op_groups)
         self.op_cbo = ("ch1_cbo" in op_groups)
         self.op_enc = ("ch1_enc" in op_groups)
@@ -40,13 +42,22 @@ class GraphTransformerNet(nn.Module):
         self.layer_norm = net_params["layer_norm"]
         self.embedding_lap_pos_enc = nn.Linear(ped, hidden_dim)
         self.embedding_h = nn.Linear(in_feat_size_op, hidden_dim)
+
+        if name == "QF":
+            max_dist = net_params["max_dist"]
+            self.attention_weights = nn.Parameter(th.zeros(max_dist))
+        else:
+            self.attention_weights = None
+
         self.layers = nn.ModuleList(
-            [GraphTransformerLayer(hidden_dim, hidden_dim, num_heads, dropout,
-                                   self.layer_norm, self.batch_norm, self.residual)
+            [GraphTransformerLayer(name, hidden_dim, hidden_dim, num_heads, dropout,
+                                   self.layer_norm, self.batch_norm, self.residual,
+                                   attention_weights=self.attention_weights)
              for _ in range(n_gcn_layers - 1)])
         self.layers.append(
-            GraphTransformerLayer(hidden_dim, out_dim, num_heads, dropout,
-                                  self.layer_norm, self.batch_norm, self.residual))
+            GraphTransformerLayer(name, hidden_dim, out_dim, num_heads, dropout,
+                                  self.layer_norm, self.batch_norm, self.residual,
+                                  attention_weights=self.attention_weights))
         self.MLP_layer = MLPReadout(
             input_dim=out_dim + in_feat_size_inst, hidden_dim=net_params["mlp_dim"], output_dim=out_feat_size,
             L=n_mlp_layers, dropout=dropout2)

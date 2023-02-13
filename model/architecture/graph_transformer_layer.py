@@ -31,6 +31,12 @@ def scaled_exp(field, scale_constant):
 
     return func
 
+def add_att_weights_bias(field):
+
+    def func(edges):
+        return {field: edges.data[field] + edges.data["att_weights"]}
+
+    return func
 
 """
     Single Attention Head
@@ -38,11 +44,13 @@ def scaled_exp(field, scale_constant):
 
 
 class MultiHeadAttentionLayer(nn.Module):
-    def __init__(self, in_dim, out_dim, num_heads, use_bias):
+    def __init__(self, name, in_dim, out_dim, num_heads, use_bias, attention_weights):
         super().__init__()
 
+        self.name = name
         self.out_dim = out_dim
         self.num_heads = num_heads
+        self.attention_weights = attention_weights
 
         if use_bias:
             self.Q = nn.Linear(in_dim, out_dim * num_heads, bias=True)
@@ -55,13 +63,25 @@ class MultiHeadAttentionLayer(nn.Module):
 
     def propagate_attention(self, g):
         # Compute attention score
-        g.apply_edges(src_dot_dst('K_h', 'Q_h', 'score'))  # , edges)
-        g.apply_edges(scaled_exp('score', np.sqrt(self.out_dim)))
+        if self.name == "GTN":
+            g.apply_edges(src_dot_dst('K_h', 'Q_h', 'score'))  # , edges)
+            g.apply_edges(scaled_exp('score', np.sqrt(self.out_dim)))
 
-        # Send weighted values to target nodes
-        eids = g.edges()
-        g.send_and_recv(eids, fn.src_mul_edge('V_h', 'score', 'V_h'), fn.sum('V_h', 'wV'))
-        g.send_and_recv(eids, fn.copy_edge('score', 'score'), fn.sum('score', 'z'))
+            # Send weighted values to target nodes
+            eids = g.edges()
+            g.send_and_recv(eids, fn.src_mul_edge('V_h', 'score', 'V_h'), fn.sum('V_h', 'wV'))
+            g.send_and_recv(eids, fn.copy_edge('score', 'score'), fn.sum('score', 'z'))
+
+        elif self.name == "RAAL":
+            ...
+
+        elif self.name == "QF":
+            g.apply_edges(src_dot_dst('K_h', 'Q_h', 'score'))  # , edges)
+            g.apply_edges(scaled_exp('score', np.sqrt(self.out_dim)))
+
+
+        else:
+            raise ValueError(self.name)
 
     def forward(self, g, h):
 
@@ -75,9 +95,30 @@ class MultiHeadAttentionLayer(nn.Module):
         g.ndata['K_h'] = K_h.view(-1, self.num_heads, self.out_dim)
         g.ndata['V_h'] = V_h.view(-1, self.num_heads, self.out_dim)
 
-        self.propagate_attention(g)
+        if self.name == "GTN":
+            g.apply_edges(src_dot_dst('K_h', 'Q_h', 'score'))  # , edges)
+            g.apply_edges(scaled_exp('score', np.sqrt(self.out_dim)))
 
-        head_out = g.ndata['wV'] / (g.ndata['z'] + torch.full_like(g.ndata['z'], 1e-6))
+            # Send weighted values to target nodes
+            eids = g.edges()
+            g.send_and_recv(eids, fn.src_mul_edge('V_h', 'score', 'V_h'), fn.sum('V_h', 'wV'))
+            g.send_and_recv(eids, fn.copy_edge('score', 'score'), fn.sum('score', 'z'))
+            head_out = g.ndata['wV'] / (g.ndata['z'] + torch.full_like(g.ndata['z'], 1e-6))
+        elif self.name == "RAAL":
+            ...
+        elif self.name == "QF":
+            g.apply_edges(src_dot_dst('K_h', 'Q_h', 'score'))  # , edges)
+            g.apply_edges(scaled_exp('score', np.sqrt(self.out_dim)))
+            g.edata["att_weights"] = torch.index_select(self.attention_weights, 0, g.edata["dist"] - 1).reshape(-1, 1, 1)
+            g.apply_edges(add_att_weights_bias("score"))
+
+            # Send weighted values to target nodes
+            eids = g.edges()
+            g.send_and_recv(eids, fn.src_mul_edge('V_h', 'score', 'V_h'), fn.sum('V_h', 'wV'))
+            g.send_and_recv(eids, fn.copy_edge('score', 'score'), fn.sum('score', 'z'))
+            head_out = g.ndata['wV'] / (g.ndata['z'] + torch.full_like(g.ndata['z'], 1e-6))
+        else:
+            ValueError(self.name)
 
         return head_out
 
@@ -87,10 +128,11 @@ class GraphTransformerLayer(nn.Module):
         Param:
     """
 
-    def __init__(self, in_dim, out_dim, num_heads, dropout=0.0, layer_norm=False, batch_norm=True, residual=True,
-                 use_bias=False):
+    def __init__(self, name, in_dim, out_dim, num_heads, dropout=0.0, layer_norm=False, batch_norm=True, residual=True,
+                 use_bias=False, attention_weights=None):
         super().__init__()
 
+        self.name = name
         self.in_channels = in_dim
         self.out_channels = out_dim
         self.num_heads = num_heads
@@ -99,7 +141,8 @@ class GraphTransformerLayer(nn.Module):
         self.layer_norm = layer_norm
         self.batch_norm = batch_norm
 
-        self.attention = MultiHeadAttentionLayer(in_dim, out_dim // num_heads, num_heads, use_bias)
+        self.attention = MultiHeadAttentionLayer(name, in_dim, out_dim // num_heads,
+                                                 num_heads, use_bias, attention_weights)
 
         self.O = nn.Linear(out_dim, out_dim)
 

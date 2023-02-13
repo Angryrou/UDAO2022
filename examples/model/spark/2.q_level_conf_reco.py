@@ -53,12 +53,12 @@ dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_f
     struct_file="struct_cache.pkl",
     op_feats_file=op_feats_file,
     debug=debug,
-    ori=True
+    ori=True,
+    model_name=model_name
 )
 if data_params["ch1_cbo"] == "on":
     op_feats["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
 
-add_pe(model_name, dag_dict)
 print("data loaded")
 op_groups, picked_groups, picked_cols = analyze_cols(data_params, col_dict)
 ckp_header = f"examples/model/spark/ckp/{pj}/{model_name}/{obj}/" \

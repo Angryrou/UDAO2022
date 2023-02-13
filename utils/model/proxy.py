@@ -24,6 +24,8 @@ class ModelProxy():
             "op_groups": op_groups,
             "n_op_types": n_op_types
         }}
+        if "name" not in hp_params:
+            hp_params["name"] = model_name
         model = GraphTransformerNet(hp_params).to(device=device)
         model.load_state_dict(th.load(weights_pth_sign, map_location=device)["model"])
         print(f"model loaded.")

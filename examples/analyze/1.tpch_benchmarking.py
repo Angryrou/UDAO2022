@@ -31,7 +31,7 @@ from utils.optimization.moo_utils import is_pareto_efficient
 DATA_COLNS = ["q_sign", "knob_sign", "lat", "cost"]
 SIGN = "1.tpch_benchmarking"
 
-def get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm):
+def get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm, model_name):
     dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
         header=data_header,
         tabular_file=f"query_level_cache_data.pkl",
@@ -40,7 +40,6 @@ def get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm):
         debug=False,
         ori=True
     )
-    add_pe("GTN", dag_dict)
     if "cbo" in op_feats_data:
         op_feats_data["cbo"]["l2p"] = L2P_MAP[bm.lower()]
 
@@ -397,8 +396,9 @@ def main():
     fig_header = os.path.join(ckp_header, ckp_sign, "fig")
     os.makedirs(fig_header, exist_ok=True)
     data_header = "examples/data/spark/cache/tpch_100"
+    model_name = "GTN"
     op_feats_file = {}
-    mp_misc = get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm)
+    mp_misc = get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm, model_name)
 
     spark_knobs = SparkKnobs()
     meta = mp_misc, spark_knobs, bm, script_header, out_header, pred_header, pred_name_prefix

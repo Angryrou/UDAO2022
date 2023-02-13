@@ -3,6 +3,7 @@
 # Description: e2e training via GTN
 #
 # Created at 03/01/2023
+from utils.common import PickleUtils
 
 if __name__ == "__main__":
 
@@ -10,7 +11,7 @@ if __name__ == "__main__":
     from utils.data.feature import L2P_MAP
     from utils.model.args import ArgsGTN
     from utils.model.parameters import set_params
-    from utils.model.utils import expose_data, pipeline
+    from utils.model.utils import expose_data, pipeline, add_pe
 
     args = ArgsGTN().parse()
     print(args)
@@ -38,7 +39,8 @@ if __name__ == "__main__":
         tabular_file=f"{'query_level' if args.granularity == 'Q' else 'stage_level'}_cache_data.pkl",
         struct_file="struct_cache.pkl",
         op_feats_file=op_feats_file,
-        debug=debug
+        debug=debug,
+        model_name=model_name
     )
     if data_params["ch1_cbo"] == "on":
         op_feats_data["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]

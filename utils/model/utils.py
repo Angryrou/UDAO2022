@@ -70,19 +70,15 @@ def get_random_flips(lap_pe, device):
 
 def add_pe(model_name, dag_dict):
     for k, dag in dag_dict.items():
-        if model_name == "GTN":
+        if model_name in ("GTN", "RAAL", "QF"):
             dag.ndata["lap_pe"] = get_laplacian_pe(dgl.to_bidirected(dag), dag.num_nodes() - 2)
-        elif model_name == "RAAL":
-            raise NotImplementedError
-        elif model_name == "QF":
-            raise NotImplementedError
         elif model_name == "TL":
             break
         else:
             ValueError(model_name)
 
 
-def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=False):
+def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=False, model_name="GTN"):
     tabular_data = PickleUtils.load(header, tabular_file)
     struct_data = PickleUtils.load(header, struct_file)
     op_feats_data = {k: PickleUtils.load(header, v) for k, v in op_feats_file.items()}
@@ -91,7 +87,21 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
     assert set(col_groups) == set(minmax_dict.keys())
     ds_dict = DatasetDict({split: Dataset.from_pandas(df.sample(frac=0.01) if debug else df)
                            for split, df in zip(["tr", "val", "te"], dfs)})
-    dag_dict = struct_data["dgl_dict"]
+    if model_name == "GTN":
+        dag_dict = struct_data["dgl_dict"]
+        add_pe(model_name, dag_dict)
+    elif model_name == "QF":
+        dag_dict_ori = struct_data["dgl_dict"]
+        add_pe(model_name, dag_dict_ori)
+        dag_dict = PickleUtils.load(header, "qf_dgl.pkl")
+        for i, g in dag_dict.items():
+            dag_dict[i].ndata["lap_pe"] = dag_dict_ori[i].ndata["lap_pe"]
+        max_dist = max([v.edata["dist"].max().item() for v in dag_dict.values()])
+        dag_dict["max_dist"] = max_dist
+    elif model_name == "RAAL":
+        ...
+    else:
+        raise ValueError(model_name)
     n_op_types = len(struct_data["global_ops"])
     struct2template = {v["sql_struct_id"]: v["template"] for v in struct_data["struct_dict"].values()}
 
@@ -133,7 +143,7 @@ def get_hp(data_params, learning_params, net_params, case=""):
     if len(OBJ_MAP[data_params["obj"]]) > 1:
         learning_params_list.append("loss_ws")
 
-    if case == "GTN":
+    if case in ("GTN", "RAAL", "QF"):
         net_params_list = ["ped", "in_feat_size_op", "in_feat_size_inst", "out_feat_size", "L_gtn", "L_mlp",
                            "n_heads", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2",
                            "residual", "readout", "batch_norm", "layer_norm"]
@@ -143,12 +153,10 @@ def get_hp(data_params, learning_params, net_params, case=""):
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size",
                            "L_mlp", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2", "readout"]
         raise NotImplementedError(case)
-    elif case == "RAAL":
-        raise NotImplementedError(case)
-    elif case == "QF":
-        raise NotImplementedError(case)
     else:
         raise Exception(f"unsupported case {case}")
+    if case == "QF":
+        net_params_list += ["max_dist"]
 
     for ch1_ in net_params["op_groups"]:
         net_params_list.append(f"{ch1_}_dim")
@@ -337,15 +345,11 @@ def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
         batch_insts = inst_feat.to(device)
         batch_y = y.to(device)
         batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
-        if model.name == "GTN":
+        if model.name in ("GTN", "RAAL", "QF"):
             batch_lap_pos_enc = batch_stages.ndata['lap_pe'].to(device)
             if mode == "train":
                 batch_lap_pos_enc = get_random_flips(batch_lap_pos_enc, device)
             batch_y_hat = model.forward(batch_stages, batch_lap_pos_enc, batch_insts)
-        elif model.name == "RAAL":
-            raise NotImplementedError
-        elif model.name == "QF":
-            raise NotImplementedError
         elif model.name == "TL":
             raise NotImplementedError
             batch_y_hat = model.forward(batch_stages, device, batch_insts)
@@ -454,15 +458,17 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
     if data_params["ch1_type"] == "off" and data_params["ch1_cbo"] == "off" and data_params["ch1_enc"] == "off":
         model = PureMLP(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "MLP")
-    elif model_name == "GTN":
-        add_pe(model_name, dag_dict)
+    elif model_name in ("GTN", "RAAL"):
+        net_params["name"] = model_name
         model = GraphTransformerNet(net_params).to(device=device)
-        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "GTN")
-    elif model_name == "TL":
-        raise NotImplementedError()
+        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, model_name)
     elif model_name == "QF":
-        raise NotImplementedError()
-    elif model_name == "RAAL":
+        assert "max_dist" in dag_dict
+        net_params["name"] = model_name
+        net_params["max_dist"] = dag_dict["max_dist"]
+        model = GraphTransformerNet(net_params).to(device=device)
+        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, model_name)
+    elif model_name == "TL":
         raise NotImplementedError()
     else:
         raise ValueError(model_name)
