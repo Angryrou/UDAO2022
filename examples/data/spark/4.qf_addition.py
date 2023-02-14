@@ -18,7 +18,6 @@ class Args():
         self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
         self.parser.add_argument("--scale-factor", type=int, default=100)
         self.parser.add_argument("--src-path-header", type=str, default="resources/dataset/tpch_100_query_traces")
-        self.parser.add_argument("--oplan-path-header", type=str, default="resources/dataset/tpch_100_oplans")
         self.parser.add_argument("--cache-header", type=str, default="examples/data/spark/cache")
         self.parser.add_argument("--debug", type=int, default=1)
         self.parser.add_argument("--seed", type=int, default=42)
@@ -33,7 +32,7 @@ bm = args.benchmark.lower()
 sf = args.scale_factor
 cache_header = f"{args.cache_header}/{bm}_{sf}"
 struct_cache = PickleUtils.load(cache_header, "struct_cache.pkl")
-cache_name = "QF_plus.pkl"
+cache_name = "qf_dgl.pkl"
 
 
 struct_dgl_dict, dgl_dict = struct_cache["struct_dgl_dict"], struct_cache["dgl_dict"]
@@ -98,4 +97,4 @@ for i, d in d_dict.items():
     #     f"{id}-{q_sign}"
     # )
 
-PickleUtils.save(new_dgl_dict, cache_header, "qf_dgl.pkl", overwrite=True)
+PickleUtils.save(new_dgl_dict, cache_header, cache_name, overwrite=True)
