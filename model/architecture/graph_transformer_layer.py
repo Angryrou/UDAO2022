@@ -104,7 +104,8 @@ class MultiHeadAttentionLayer(nn.Module):
                 QK = torch.matmul(Q.transpose(1, 2), K.transpose(1, 2).transpose(2, 3)).transpose(1, 2).clamp(-5, 5)
                 srcs, dsts, eids = gg_list[0].edges(form='all', order='srcdst')
                 score_list = [
-                    QK[:, src, :, dst] / QK[:, src, :, self.add_misc[sid][eid]].sum(-1)
+                    QK[:, src, :, dst] / (QK[:, src, :, self.add_misc[sid][eid]].sum(-1) +
+                                          torch.full_like(QK[:, src, :, dst], 1e-6))
                     for src, dst, eid in zip(srcs.cpu().numpy(), dsts.cpu().numpy(), eids.cpu().numpy())
                 ]
                 gb.edata["score"] = torch.cat(score_list, dim=1).view(-1, self.num_heads, 1)
@@ -116,7 +117,7 @@ class MultiHeadAttentionLayer(nn.Module):
             #     K = gg.ndata["K_h"] # (n_nodes, n_heads, n_dim)
             #     sid = gg.ndata["sid"][0].cpu().item()
             #     # (n_nodes, n_heads, n_nodes)
-            #     QK = torch.matmul(Q.transpose(0, 1), K.transpose(0, 1).transpose(1, 2)).transpose(0, 1)
+            #     QK = torch.matmul(Q.transpose(0, 1), K.transpose(0, 1).transpose(1, 2)).transpose(0, 1).clamp(-5, 5)
             #     srcs, dsts, eids = gg.edges(form='all', order='srcdst')
             #     gg.edata["score"] = torch.cat([
             #         QK[src:src+1, :, dst] / QK[src:src+1, :, self.add_misc[sid][eid]].sum(-1)
