@@ -90,6 +90,11 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
     if model_name == "GTN":
         dag_dict = struct_data["dgl_dict"]
         add_pe(model_name, dag_dict)
+    elif model_name == "RAAL":
+        dag_dict = struct_data["dgl_dict"]
+        add_pe(model_name, dag_dict)
+        non_siblings_map = PickleUtils.load(header, "raal_dgl.pkl")
+        dag_dict["non_siblings_map"] = non_siblings_map
     elif model_name == "QF":
         dag_dict_ori = struct_data["dgl_dict"]
         add_pe(model_name, dag_dict_ori)
@@ -98,8 +103,6 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
             dag_dict[i].ndata["lap_pe"] = dag_dict_ori[i].ndata["lap_pe"]
         max_dist = max([v.edata["dist"].max().item() for v in dag_dict.values()])
         dag_dict["max_dist"] = max_dist
-    elif model_name == "RAAL":
-        ...
     else:
         raise ValueError(model_name)
     n_op_types = len(struct_data["global_ops"])
@@ -213,6 +216,7 @@ def denorm_obj(o, minmax):
 def form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2template):  # to add the enc source
     g = dag_dict[sid].clone()
     resize_pe(g, ped)
+    g.ndata["sid"] = get_tensor([sid] * g.num_nodes(), dtype=th.int)
     if "ch1_cbo" in op_groups:
         # todo: add cbo feats from a data source, and normalize it
         l2p = op_feats["cbo"]["l2p"][sid]
@@ -458,8 +462,14 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
     if data_params["ch1_type"] == "off" and data_params["ch1_cbo"] == "off" and data_params["ch1_enc"] == "off":
         model = PureMLP(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "MLP")
-    elif model_name in ("GTN", "RAAL"):
+    elif model_name == "GTN":
         net_params["name"] = model_name
+        model = GraphTransformerNet(net_params).to(device=device)
+        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, model_name)
+    elif model_name == "RAAL":
+        assert "non_siblings_map" in dag_dict
+        net_params["name"] = model_name
+        net_params["non_siblings_map"] = dag_dict["non_siblings_map"]
         model = GraphTransformerNet(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, model_name)
     elif model_name == "QF":

@@ -45,19 +45,34 @@ class GraphTransformerNet(nn.Module):
 
         if name == "QF":
             max_dist = net_params["max_dist"]
-            self.attention_weights = nn.Parameter(th.zeros(max_dist))
+            self.attention_weights = nn.Parameter(th.zeros(max_dist)) # fixme: should be renamed to `attention_bias`
+            self.layers = nn.ModuleList(
+                [GraphTransformerLayer(name, hidden_dim, hidden_dim, num_heads, dropout,
+                                       self.layer_norm, self.batch_norm, self.residual,
+                                       add_misc=self.attention_weights)
+                 for _ in range(n_gcn_layers - 1)])
+            self.layers.append(
+                GraphTransformerLayer(name, hidden_dim, out_dim, num_heads, dropout,
+                                      self.layer_norm, self.batch_norm, self.residual,
+                                      add_misc=self.attention_weights))
         else:
-            self.attention_weights = None
+            if name == "GTN":
+                self.add_misc = None
+            elif name == "RAAL":
+                self.add_misc = net_params["non_siblings_map"]
+            else:
+                raise ValueError(name)
 
-        self.layers = nn.ModuleList(
-            [GraphTransformerLayer(name, hidden_dim, hidden_dim, num_heads, dropout,
-                                   self.layer_norm, self.batch_norm, self.residual,
-                                   attention_weights=self.attention_weights)
-             for _ in range(n_gcn_layers - 1)])
-        self.layers.append(
-            GraphTransformerLayer(name, hidden_dim, out_dim, num_heads, dropout,
-                                  self.layer_norm, self.batch_norm, self.residual,
-                                  attention_weights=self.attention_weights))
+            self.layers = nn.ModuleList(
+                [GraphTransformerLayer(name, hidden_dim, hidden_dim, num_heads, dropout,
+                                       self.layer_norm, self.batch_norm, self.residual,
+                                       add_misc=self.add_misc)
+                 for _ in range(n_gcn_layers - 1)])
+            self.layers.append(
+                GraphTransformerLayer(name, hidden_dim, out_dim, num_heads, dropout,
+                                      self.layer_norm, self.batch_norm, self.residual,
+                                      add_misc=self.add_misc))
+
         self.MLP_layer = MLPReadout(
             input_dim=out_dim + in_feat_size_inst, hidden_dim=net_params["mlp_dim"], output_dim=out_feat_size,
             L=n_mlp_layers, dropout=dropout2)
