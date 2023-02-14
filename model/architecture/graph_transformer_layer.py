@@ -101,7 +101,7 @@ class MultiHeadAttentionLayer(nn.Module):
                 gb = dgl.batch(gg_list)
                 Q = gb.ndata["Q_h"].reshape(n_gg, -1, self.num_heads, self.out_dim)
                 K = gb.ndata["K_h"].reshape(n_gg, -1, self.num_heads, self.out_dim)
-                QK = torch.matmul(Q.transpose(1, 2), K.transpose(1, 2).transpose(2, 3)).transpose(1, 2)
+                QK = torch.matmul(Q.transpose(1, 2), K.transpose(1, 2).transpose(2, 3)).transpose(1, 2).clamp(-5, 5)
                 srcs, dsts, eids = gg_list[0].edges(form='all', order='srcdst')
                 score_list = [
                     QK[:, src, :, dst] / QK[:, src, :, self.add_misc[sid][eid]].sum(-1)
@@ -110,7 +110,6 @@ class MultiHeadAttentionLayer(nn.Module):
                 gb.edata["score"] = torch.cat(score_list, dim=1).view(-1, self.num_heads, 1)
                 gb_list.append(gb)
             g = dgl.batch(gb_list)
-
 
             # for gg in g_list:
             #     Q = gg.ndata["Q_h"] # (n_nodes, n_heads, n_dim)
