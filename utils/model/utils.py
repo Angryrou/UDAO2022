@@ -150,6 +150,8 @@ def get_hp(data_params, learning_params, net_params, case=""):
         net_params_list = ["ped", "in_feat_size_op", "in_feat_size_inst", "out_feat_size", "L_gtn", "L_mlp",
                            "n_heads", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2",
                            "residual", "readout", "batch_norm", "layer_norm"]
+        if net_params["out_norm"] is not None:
+            net_params_list.append("out_norm")
     elif case == "MLP":
         net_params_list = ["in_feat_size_inst", "out_feat_size", "L_mlp", "hidden_dim", "mlp_dim", "dropout2"]
     elif case == "TL":

@@ -91,3 +91,4 @@ class ArgsGTN(ArgsBase):
         self.parser.add_argument("--ch1-type-dim", type=int)
         self.parser.add_argument("--ch1-cbo-dim", type=int)
         self.parser.add_argument("--ch1-enc-dim", type=int)
+        self.parser.add_argument("--out-norm", type=str)

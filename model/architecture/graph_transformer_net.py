@@ -9,6 +9,7 @@ import torch as th
 import torch.nn as nn
 import dgl
 
+from .IsoBN import IsoBN
 from .graph_transformer_layer import GraphTransformerLayer
 from .mlp_readout_layer import MLPReadout
 
@@ -42,6 +43,17 @@ class GraphTransformerNet(nn.Module):
         self.layer_norm = net_params["layer_norm"]
         self.embedding_lap_pos_enc = nn.Linear(ped, hidden_dim)
         self.embedding_h = nn.Linear(in_feat_size_op, hidden_dim)
+
+        if "out_norm" not in net_params or net_params["out_norm"] is None:
+            self.out_norm = None
+        elif net_params["out_norm"] == "BN":
+            self.out_norm = nn.BatchNorm1d(out_dim)
+        elif net_params["out_norm"] == "LN":
+            self.out_norm = nn.LayerNorm(out_dim)
+        elif net_params["out_norm"] == "IsoBN":
+            self.out_norm = IsoBN(out_dim)
+        else:
+            raise ValueError(net_params["out_norm"])
 
         if name == "QF":
             max_dist = net_params["max_dist"]
@@ -109,6 +121,9 @@ class GraphTransformerNet(nn.Module):
             hg = dgl.mean_nodes(g, "h")
         else:
             raise NotImplementedError
+
+        if self.out_norm is not None:
+            hg = self.out_norm(hg)
 
         if inst_feat is None:
             return hg
