@@ -87,6 +87,9 @@ python -u examples/trace/spark-parser/2.tabular_generator_query_level.py -b TPCD
 ```
 
 
+tpcxbb-bo (hex3) - 150*48*2=14700
+65653	- application_1673193553615_80352
+
 3. maintain traces in SparkSQL
 
 | Database         | Tables                                                                                                |
