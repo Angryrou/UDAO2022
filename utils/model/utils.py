@@ -24,6 +24,7 @@ from tensorboardX import SummaryWriter
 import pytorch_warmup as warmup
 import dgl
 
+from model.architecture.avg_mlp import AVGMLP
 from model.architecture.graph_transformer_net import GraphTransformerNet
 from model.architecture.mlp_readout_layer import PureMLP
 from model.metrics import get_loss
@@ -70,7 +71,7 @@ def get_random_flips(lap_pe, device):
 
 def add_pe(model_name, dag_dict):
     for k, dag in dag_dict.items():
-        if model_name in ("GTN", "RAAL", "QF"):
+        if model_name in ("GTN", "RAAL", "QF", "AVGMLP"):
             dag.ndata["lap_pe"] = get_laplacian_pe(dgl.to_bidirected(dag), dag.num_nodes() - 2)
         elif model_name == "TL":
             break
@@ -87,7 +88,7 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
     assert set(col_groups) == set(minmax_dict.keys())
     ds_dict = DatasetDict({split: Dataset.from_pandas(df.sample(frac=0.01) if debug else df)
                            for split, df in zip(["tr", "val", "te"], dfs)})
-    if model_name == "GTN":
+    if model_name in ("GTN", "AVGMLP"):
         dag_dict = struct_data["dgl_dict"]
         add_pe(model_name, dag_dict)
     elif model_name == "RAAL":
@@ -154,6 +155,11 @@ def get_hp(data_params, learning_params, net_params, case=""):
             net_params_list.append("out_norm")
     elif case == "MLP":
         net_params_list = ["in_feat_size_inst", "out_feat_size", "L_mlp", "hidden_dim", "mlp_dim", "dropout2"]
+    elif case == "AVGMLP":
+        net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size", "L_mlp", "out_dim",
+                           "mlp_dim", "dropout2"]
+        if net_params["out_norm"] is not None:
+            net_params_list.append("out_norm")
     elif case == "TL":
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size",
                            "L_mlp", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2", "readout"]
@@ -356,6 +362,8 @@ def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
             if mode == "train":
                 batch_lap_pos_enc = get_random_flips(batch_lap_pos_enc, device)
             batch_y_hat = model.forward(batch_stages, batch_lap_pos_enc, batch_insts)
+        elif model.name == "AVGMLP":
+            batch_y_hat = model.forward(batch_stages, batch_insts)
         elif model.name == "TL":
             raise NotImplementedError
             batch_y_hat = model.forward(batch_stages, device, batch_insts)
@@ -480,6 +488,9 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
         net_params["max_dist"] = dag_dict["max_dist"]
         model = GraphTransformerNet(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, model_name)
+    elif model_name == "AVGMLP":
+        model = AVGMLP(net_params).to(device=device)
+        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "AVGMLP")
     elif model_name == "TL":
         raise NotImplementedError()
     else:

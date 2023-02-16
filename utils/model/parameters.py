@@ -47,7 +47,7 @@ def set_data_params(args):
         assert args.obj == "latency"
     elif args.granularity == "QS":
         assert args.obj in ("stage_lat", "stage_dt", "stage_both")
-    assert args.model_name in ("GTN", "RAAL", "QF", "TL")
+    assert args.model_name in ("GTN", "RAAL", "QF", "TL", "AVGMLP")
     assert args.debug in (0, 1)
 
     return {
