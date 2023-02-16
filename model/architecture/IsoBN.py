@@ -26,7 +26,8 @@ class IsoBN(nn.Module):
                 self.cov.data += momentum * (cov.data - self.cov.data)
                 self.std.data += momentum * (std.data - self.std.data)
 
-            corr = torch.clamp(self.cov / torch.ger(self.std, self.std), -1, 1)
+            corr = torch.clamp(self.cov / (torch.ger(self.std, self.std) +
+                                           torch.full_like(torch.ger(self.std, self.std), 1e-6)), -1, 1)
             gamma = (corr ** 2).mean(1)
             denorm = (gamma * self.std)
             scale = 1 / (denorm + eps) ** beta
