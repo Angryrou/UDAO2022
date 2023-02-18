@@ -9,11 +9,11 @@ if __name__ == "__main__":
 
     import os
     from utils.data.feature import L2P_MAP
-    from utils.model.args import ArgsGTN
+    from utils.model.args import ArgsTrain
     from utils.model.parameters import set_params
     from utils.model.utils import expose_data, pipeline, add_pe
 
-    args = ArgsGTN().parse()
+    args = ArgsTrain().parse()
     print(args)
     pj = f"{args.benchmark.lower()}_{args.scale_factor}"
     debug = False if args.debug == 0 else True

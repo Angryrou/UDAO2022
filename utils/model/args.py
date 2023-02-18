@@ -49,9 +49,9 @@ class ArgsRecoQRun(ArgsRecoQ):
         self.parser.add_argument("--if-aqe", type=int, default=0)
         self.parser.add_argument("--worker", type=str, default="debug")
 
-class ArgsGTN(ArgsBase):
+class ArgsTrain(ArgsBase):
     def __init__(self):
-        super(ArgsGTN, self).__init__()
+        super(ArgsTrain, self).__init__()
         # data_params
         self.parser.add_argument("--ch1-type", type=str, default="on", help="off|on")
         self.parser.add_argument("--ch1-cbo", type=str, default="off", help="off|on")
