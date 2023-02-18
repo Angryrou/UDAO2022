@@ -21,11 +21,16 @@ if __name__ == "__main__":
     assert args.granularity in ("Q", "QS")
 
     tid = args.tid
-    pj = f"{args.benchmark.lower()}_{args.scale_factor}_{tid}"
+    finetune_header = args.finetune_header
+
     data_params, learning_params, net_params = set_params(args)
     obj, model_name = data_params["obj"], data_params["model_name"]
-    ckp_header = f"examples/model/spark/ckp/{pj}/{model_name}/{obj}/" \
-                 f"{'_'.join([data_params[f] for f in ['ch1_type', 'ch1_cbo', 'ch1_enc', 'ch2', 'ch3', 'ch4']])}"
+    if finetune_header is None:
+        pj = f"{args.benchmark.lower()}_{args.scale_factor}_{tid}"
+        ckp_header = f"examples/model/spark/ckp/{pj}/{model_name}/{obj}/" \
+                     f"{'_'.join([data_params[f] for f in ['ch1_type', 'ch1_cbo', 'ch1_enc', 'ch2', 'ch3', 'ch4']])}"
+    else:
+        ckp_header = f"{finetune_header}/finetune_{tid}"
 
     op_feats_file = {}
     if data_params["ch1_cbo"] == "on":
@@ -48,4 +53,4 @@ if __name__ == "__main__":
 
     ds_dict = ds_dict_all.filter(lambda e: e["template"] == tid)
     data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template]
-    model, results = pipeline(data_meta, data_params, learning_params, net_params, ckp_header)
+    model, results = pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header)

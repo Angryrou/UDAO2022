@@ -463,7 +463,7 @@ def augment_net_params(data_params, net_params, data_meta):
     return net_params, op_groups, picked_groups, picked_cols
 
 
-def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
+def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header=None):
     ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template = data_meta
     device, loss_type = learning_params["device"], learning_params["loss_type"]
     model_name, obj = data_params["model_name"], data_params["obj"]
@@ -507,6 +507,10 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header):
         show_results(results, obj)
         model.load_state_dict(th.load(weights_pth_sign, map_location=device)["model"])
         return model, results
+
+    if finetune_header is not None:
+        trained_weights = th.load(f"{finetune_header}/best_weight.pth", map_location=device)["model"]
+        model.load_state_dict(trained_weights)
 
     print(f"cannot found trained results, start training...")
     print("start preparing data...")
