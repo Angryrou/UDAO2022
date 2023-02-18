@@ -64,7 +64,7 @@ for qid in 1 18 {2..17} {19..22}; do
 done
 
 # analyzing
-python examples/analyze/1.tpch_benchmarking.py 
+python examples/experiments/1.tpch_benchmarking.py 
 
 ```
 

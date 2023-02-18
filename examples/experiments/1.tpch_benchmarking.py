@@ -387,7 +387,7 @@ class Args():
 
 def main():
     bm = "tpch"
-    out_header = "examples/analyze/1.tpch_benchmarking"
+    out_header = "examples/experiments/1.tpch_benchmarking"
     script_header = "examples/trace/spark/internal/2.knob_hp_tuning"
     ckp_header = "examples/model/spark/ckp/tpch_100/GTN/latency/on_off_off_on_on_on"
     ckp_sign = "b7698e80492e5d72"
