@@ -38,7 +38,8 @@ def get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm, model_name):
         struct_file="struct_cache.pkl",
         op_feats_file=op_feats_file,
         debug=False,
-        ori=True
+        ori=True,
+        model_name=model_name
     )
     if "cbo" in op_feats_data:
         op_feats_data["cbo"]["l2p"] = L2P_MAP[bm.lower()]
