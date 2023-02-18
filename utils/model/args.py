@@ -92,3 +92,8 @@ class ArgsTrain(ArgsBase):
         self.parser.add_argument("--ch1-cbo-dim", type=int)
         self.parser.add_argument("--ch1-enc-dim", type=int)
         self.parser.add_argument("--out-norm", type=str)
+
+class ArgsTrainSubset(ArgsTrain):
+    def __init__(self):
+        super(ArgsTrainSubset, self).__init__()
+        self.parser.add_argument("--tid", type=str, default="q9")
