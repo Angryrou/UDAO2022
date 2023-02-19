@@ -9,11 +9,11 @@ if __name__ == "__main__":
 
     import os
     from utils.data.feature import L2P_MAP
-    from utils.model.args import ArgsTrainSubset
+    from utils.model.args import ArgsTrainTemplate
     from utils.model.parameters import set_params
     from utils.model.utils import expose_data, pipeline, add_pe
 
-    args = ArgsTrainSubset().parse()
+    args = ArgsTrainTemplate().parse()
     print(args)
     debug = False if args.debug == 0 else True
     data_header = f"{args.data_header}/{args.benchmark.lower()}_{args.scale_factor}"
