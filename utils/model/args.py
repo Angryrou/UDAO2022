@@ -99,4 +99,4 @@ class ArgsTrainSubset(ArgsTrain):
         self.parser.add_argument("--tid", type=str, default="q9")
         self.parser.add_argument("--finetune-header", type=str, help="None for training from scratch",
                                  default=None)
-        # "examples/models/spark/ckp/tpch_100/AVGMLP/latency/on_on_w2v_on_on_on/4ab746c8c1ddda18"
+        # "examples/model/spark/ckp/tpch_100/AVGMLP/latency/on_on_w2v_on_on_on/4ab746c8c1ddda18"
