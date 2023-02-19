@@ -34,7 +34,7 @@ python examples/trace/spark/internal/1.run_default.py --out-header examples/trac
 python examples/trace/spark/internal/1.run_default.py --out-header examples/trace/spark/internal/2.knob_hp_tuning --if-aqe 1 --worker hex1
 
 # run recommended configurations (by default run run 22 sampled queries)
-python -u examples/model/spark/2.q_level_conf_reco.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
+python -u examples/model/spark/q_level_conf_reco.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
 --ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 5000
     
 #for qid in {1..22}; do
@@ -48,13 +48,13 @@ for qid in 1 18 {2..17} {19..22}; do
         
     # run model-based tuning
     # (1) RS+VC+WS, alpha = 0  
-    python -u examples/model/spark/2.q_level_conf_reco_run.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
+    python -u examples/model/spark/q_level_conf_reco_run.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
     --ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 5000 --q-signs $qid --if-aqe $aqe --debug 0 --worker tpch \
     --moo ws --algo vc --alpha 0
         
     # (2) RS+RB+WS, alpha = -3, -2, 0, 2, 3
     for a in -3 -2 0 2 3 ; do 
-        python -u examples/model/spark/2.q_level_conf_reco_run.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
+        python -u examples/model/spark/q_level_conf_reco_run.py --ch1-type on --ch1-cbo off --ch1-enc off --ch2 on --ch3 on --ch4 on \
         --ckp-sign b7698e80492e5d72 --n-samples 10000 --n-weights 5000 --q-signs $qid --if-aqe $aqe --debug 0 --worker tpch \
         --moo ws --algo robust --alpha $a
     done
