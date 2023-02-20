@@ -7,6 +7,8 @@
 import torch as th
 
 OBJ_MAP = {
+    "latbuck20": ["latbuck20"],
+    "tid": ["tid"],
     "latency": ["latency"],
     "stage_lat": ["stage_lat"],
     "stage_dt": ["stage_dt"],
@@ -44,7 +46,7 @@ def set_data_params(args):
     assert args.ch3 in ("on", "off")
     assert args.ch4 in ("on", "off")
     if args.granularity == "Q":
-        assert args.obj == "latency"
+        assert args.obj in ("latency", "latbuck20", "tid")
     elif args.granularity == "QS":
         assert args.obj in ("stage_lat", "stage_dt", "stage_both")
     assert args.model_name in ("GTN", "RAAL", "QF", "TL", "AVGMLP")

@@ -6,6 +6,7 @@
 
 import torch as th
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 def get_loss(y, y_hat, loss_type):
@@ -19,6 +20,8 @@ def get_loss(y, y_hat, loss_type):
         loss = th.mean(th.abs(y_hat - y) / (y + 1e-3))
     elif loss_type == "mape+wmape":
         loss = nn.L1Loss(reduction="sum")(y_hat, y) / y.sum() + th.mean(th.abs(y_hat - y) / (y + 1e-3))
+    elif loss_type == "nll":
+        loss = F.nll_loss(y_hat, y)
     else:
         raise Exception(f"loss_type {loss_type} not supported")
     return loss

@@ -5,6 +5,7 @@
 # Created at 16/02/2023
 import torch as th
 import torch.nn as nn
+import torch.nn.functional as F
 import dgl
 
 from model.architecture.IsoBN import IsoBN
@@ -50,7 +51,8 @@ class AVGMLP(nn.Module):
         else:
             raise ValueError(net_params["out_norm"])
 
-    def forward(self, g, inst_feat):
+    def forward(self, g, inst_feat, mode="rgr"):
+        assert mode in ["rgr", "clf"]
         op_list = []
         if self.op_type:
             op_list.append(self.op_embedder(g.ndata["op_gid"]))
@@ -66,4 +68,11 @@ class AVGMLP(nn.Module):
             hg = self.out_norm(hg)
 
         hgi = th.cat([hg, inst_feat], dim=1)
-        return th.exp(self.MLP_layers.forward(hgi))
+        out = self.MLP_layers.forward(hgi)
+
+        if mode == "rgr":
+            return th.exp(out)
+        elif mode == "clf":
+            return F.log_softmax(out, dim=1)
+        else:
+            raise ValueError(mode)

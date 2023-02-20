@@ -79,15 +79,32 @@ def add_pe(model_name, dag_dict):
             ValueError(model_name)
 
 
-def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=False, model_name="GTN"):
+def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=False,
+                model_name="GTN", obj="latency"):
     tabular_data = PickleUtils.load(header, tabular_file)
     struct_data = PickleUtils.load(header, struct_file)
     op_feats_data = {k: PickleUtils.load(header, v) for k, v in op_feats_file.items()}
     col_dict, minmax_dict, dfs = tabular_data["col_dict"], tabular_data["minmax_dict"], tabular_data["dfs"]
+    col_dict["obj"] = OBJ_MAP[obj]
     col_groups = ["ch1", "ch2", "ch3", "ch4", "obj"]
     assert set(col_groups) == set(minmax_dict.keys())
-    ds_dict = DatasetDict({split: Dataset.from_pandas(df.sample(frac=0.01) if debug else df)
-                           for split, df in zip(["tr", "val", "te"], dfs)})
+    df_dict = {}
+    if obj in ("latency"):
+        df_dict = {split: (df.sample(frac=0.01) if debug else df) for split, df in zip(["tr", "val", "te"], dfs)}
+    elif obj == "latbuck20":
+        for split, df in zip(["tr", "val", "te"], dfs):
+            df_ = df.sample(frac=0.01) if debug else df
+            df_[obj] = df_["latency"] // 20
+            df_.loc[df_[obj] >= 18, obj] = 18
+            df_dict[split] = df_
+    elif obj == "tid":
+        for split, df in zip(["tr", "val", "te"], dfs):
+            df_ = df.sample(frac=0.01) if debug else df
+            df_["tid"] = df_["template"].apply(lambda a: int(a[1:]) - 1)
+    else:
+        raise ValueError(obj)
+    ds_dict = DatasetDict({k: Dataset.from_pandas(v) for k, v in df_dict.items()})
+
     if model_name in ("GTN", "AVGMLP"):
         dag_dict = struct_data["dgl_dict"]
         add_pe(model_name, dag_dict)
@@ -133,7 +150,8 @@ def get_str_hash(s):
     return hashlib.sha1(s.encode("utf-8")).hexdigest()[:16]
 
 
-def get_tensor(x: object, dtype: object = None, device: object = None, requires_grad: object = False, if_sparse: object = False) -> object:
+def get_tensor(x: object, dtype: object = None, device: object = None, requires_grad: object = False,
+               if_sparse: object = False) -> object:
     dtype = DEFAULT_DTYPE if dtype is None else dtype
     device = DEFAULT_DEVICE if device is None else device
     if if_sparse:
@@ -214,12 +232,23 @@ def collate(samples):
     return batched_stage, insts, ys
 
 
+def collate_clf(samples):
+    stages, insts, ys = map(list, zip(*samples))
+    insts = th.FloatTensor(insts)
+    ys = th.FloatTensor(ys).to(th.long)
+    if ys.dim() == 1:
+        ys = ys.unsqueeze(1)
+    batched_stage = dgl.batch(stages) if stages[0] is not None else None
+    return batched_stage, insts, ys
+
+
 def norm_in_feat_inst(x, minmax):
     return (x - minmax["min"]) / (minmax["max"] - minmax["min"])
 
 
 def denorm_obj(o, minmax):
     return o * (minmax["max"] - minmax["min"]) + minmax["min"]
+
 
 def form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2template):  # to add the enc source
     g = dag_dict[sid].clone()
@@ -258,7 +287,7 @@ def get_sample_spark_knobs(knobs, n_samples, bm, q_sign, seed):
     if bm == "tpch" and q_sign.split("-")[0] == "q14":
         samples[:, -2] = 0
     else:
-        samples[:, -2] = 1 # always set s3 (autoBroadcastJoinThreshold) as the largest (320M in our case)
+        samples[:, -2] = 1  # always set s3 (autoBroadcastJoinThreshold) as the largest (320M in our case)
     knob_df = KnobUtils.knob_denormalize(samples, knobs)
     knob_df = knob_df.drop_duplicates()
     knob_df.index = knob_df.apply(lambda x: KnobUtils.knobs2sign(x, knobs), axis=1)
@@ -373,6 +402,18 @@ def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
     return batch_y, batch_y_hat
 
 
+def model_out_clf(model, x, in_feat_minmax, device):
+    stage_graph, inst_feat, y = x
+    assert stage_graph is not None
+    batch_stages = stage_graph.to(device)
+    batch_insts = inst_feat.to(device)
+    batch_y = y.to(device)
+    batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
+    assert model.name == "AVGMLP"
+    batch_y_hat = model.forward(batch_stages, batch_insts, mode="clf")
+    return batch_y, batch_y_hat
+
+
 def get_eval_metrics(y_list, y_hat_list, loss_type, obj, loss_ws, if_y):
     y = th.vstack(y_list)
     y_hat = th.vstack(y_hat_list)
@@ -418,6 +459,27 @@ def evaluate_model(model, loader, device, in_feat_minmax, obj_minmax, loss_type,
         return get_eval_metrics(y_all_list, y_hat_all_list, loss_type, obj, loss_ws, if_y)
 
 
+def evaluate_model_clf(model, loader, device, in_feat_minmax, obj, if_y=False):
+    assert obj in OBJ_MAP
+    model.eval()
+    y_all_list = []
+    y_hat_all_list = []
+    with th.no_grad():
+        for batch_idx, x in enumerate(loader):
+            batch_y, batch_y_hat = model_out_clf(model, x, in_feat_minmax, device)
+            y_all_list.append(batch_y)
+            y_hat_all_list.append(batch_y_hat)
+        y = th.vstack(y_all_list)
+        y_hat_flat = th.vstack(y_hat_all_list)
+        loss = get_loss(y.squeeze(), y_hat_flat, loss_type="nll")
+
+        y_hat = y_hat_flat.max(1, keepdim=True)[1]
+        rate = y_hat.eq(y.view_as(y_hat)).sum().item() / len(y)
+        if if_y:
+            return loss, rate, y, y_hat, y_hat_flat
+        return loss, rate
+
+
 def plot_error_rate(y, y_hat, ckp_path):
     sorted_index = np.argsort(y[:, 0])
     y, y_hat = y[:, 0][sorted_index], y_hat[:, 0][sorted_index]
@@ -440,20 +502,28 @@ def plot_error_rate(y, y_hat, ckp_path):
 
 
 def show_results(results, obj):
-    print(json.dumps(str(results), indent=2))
-    print(" \n ".join([
-        "[{}-{}] WMAPE {:.4f} | MAPE {:.4f}| ERR-50,90,95,99 {:.4f},{:.4f},{:.4f},{:.4f} | "
-        "QErr-Mean {:.4f} | QERR-50,90,95,99 ,{:.4f},{:.4f},{:.4f},{:.4f} | CORR {:.4f}".format(
-            m, split, results[f"metric_{split}"][m]["wmape"],
-            *[results[f"metric_{split}"][m][t] for t in ["mape", "err_50", "err_90", "err_95", "err_99"]],
-            *[results[f"metric_{split}"][m][t] for t in ["q_err_mean", "q_err_50", "q_err_90", "q_err_95", "q_err_99"]],
-            results[f"metric_{split}"][m]["corr"]
-        ) for m in OBJ_MAP[obj] for split in ["val", "te"]
-    ]))
+    if obj in ("latency"):
+        print(json.dumps(str(results), indent=2))
+        print("\n".join([
+            "[{}-{}] WMAPE {:.4f} | MAPE {:.4f}| ERR-50,90,95,99 {:.4f},{:.4f},{:.4f},{:.4f} | "
+            "QErr-Mean {:.4f} | QERR-50,90,95,99 ,{:.4f},{:.4f},{:.4f},{:.4f} | CORR {:.4f}".format(
+                m, split, results[f"metric_{split}"][m]["wmape"],
+                *[results[f"metric_{split}"][m][t] for t in ["mape", "err_50", "err_90", "err_95", "err_99"]],
+                *[results[f"metric_{split}"][m][t] for t in
+                  ["q_err_mean", "q_err_50", "q_err_90", "q_err_95", "q_err_99"]],
+                results[f"metric_{split}"][m]["corr"]
+            ) for m in OBJ_MAP[obj] for split in ["val", "te"]
+        ]))
+    elif obj in ("latbuck20", "tid"):
+        print(json.dumps(str(results), indent=2))
+        print("[VAL] | Loss: {:.4f} | Rate: {:.4f}".format(results["loss_val"], results["rate_val"]))
+        print("[TE ] | Loss: {:.4f} | Rate: {:.4f}".format(results["loss_te"], results["rate_te"]))
+    else:
+        ValueError(obj)
 
 
 def augment_net_params(data_params, net_params, data_meta):
-    _, op_feats_data, col_dict, _, dag_dict, n_op_types, _ = data_meta
+    _, op_feats_data, col_dict, _, dag_dict, n_op_types, _ = data_meta[:7]
     op_groups, picked_groups, picked_cols = analyze_cols(data_params, col_dict)
     net_params["in_feat_size_inst"] = sum([len(col_dict[ch]) for ch in picked_groups if ch in ["ch2", "ch3", "ch4"]])
     net_params["in_feat_size_op"] = sum([net_params[f"{ch1_}_dim"] for ch1_ in op_groups])
@@ -463,11 +533,9 @@ def augment_net_params(data_params, net_params, data_meta):
     return net_params, op_groups, picked_groups, picked_cols
 
 
-def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header=None):
-    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template = data_meta
-    device, loss_type = learning_params["device"], learning_params["loss_type"]
+def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag_dict, finetune_header):
+    device = learning_params["device"]
     model_name, obj = data_params["model_name"], data_params["obj"]
-    net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
 
     if data_params["ch1_type"] == "off" and data_params["ch1_cbo"] == "off" and data_params["ch1_enc"] == "off":
         model = PureMLP(net_params).to(device=device)
@@ -506,15 +574,20 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
         print(f"found hps at {results_pth_sign}!")
         show_results(results, obj)
         model.load_state_dict(th.load(weights_pth_sign, map_location=device)["model"])
-        return model, results
+        return True, (model, results)
 
     if finetune_header is not None:
         trained_weights = th.load(f"{finetune_header}/best_weight.pth", map_location=device)["model"]
         model.load_state_dict(trained_weights)
 
     print(f"cannot found trained results, start training...")
-    print("start preparing data...")
+    return False, (model, hp_params, hp_prefix_sign, ckp_path, model_name, obj, weights_pth_sign, results_pth_sign)
 
+
+def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
+               dag_dict, struct2template, learning_params, net_params, minmax_dict, coll):
+    device = learning_params["device"]
+    print("start preparing data...")
     ds_dict.set_format(type="torch", columns=picked_cols)
     dataset = {split: MyDSBase(ds_dict[split], op_feats_data, col_dict, picked_groups, op_groups,
                                dag_dict, struct2template, net_params["ped"])
@@ -527,24 +600,25 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
     obj_minmax = {"min": get_tensor(minmax_dict["obj"]["min"].values, device=device),
                   "max": get_tensor(minmax_dict["obj"]["max"].values, device=device)}
 
-    view_model_param(model_name, model)
-    view_data(dataset)
-
     tr_loader = DataLoader(dataset["tr"], batch_size=learning_params['batch_size'], shuffle=True,
-                           collate_fn=collate, num_workers=learning_params['num_workers'])
+                           collate_fn=coll, num_workers=learning_params['num_workers'])
     val_loader = DataLoader(dataset["val"], batch_size=learning_params['batch_size'], shuffle=False,
-                            collate_fn=collate, num_workers=learning_params['num_workers'])
+                            collate_fn=coll, num_workers=learning_params['num_workers'])
     te_loader = DataLoader(dataset["te"], batch_size=learning_params['batch_size'], shuffle=False,
-                           collate_fn=collate, num_workers=learning_params['num_workers'])
+                           collate_fn=coll, num_workers=learning_params['num_workers'])
 
+    return dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader
+
+
+def setup_train(weights_pth_sign, model, learning_params, nbatches, ckp_header, hp_prefix_sign, hp_params):
+    tst = TrainStatsTrace(weights_pth_sign)
     optimizer = optim.AdamW(model.parameters(), lr=learning_params['init_lr'],
                             weight_decay=learning_params['weight_decay'])
-    nbatches = len(tr_loader)
     num_steps = nbatches * learning_params["epochs"]
     lr_scheduler = th.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_steps,
                                                            eta_min=learning_params["min_lr"])
     warmup_scheduler = warmup.UntunedLinearWarmup(optimizer)
-    tst = TrainStatsTrace(weights_pth_sign)
+
     ts = time.strftime('%Hh%Mm%Ss_on_%b_%d_%Y')
     log_dir = f"{ckp_header}/{hp_prefix_sign}/{ts}_log"
     writer = SummaryWriter(log_dir=log_dir)
@@ -554,10 +628,37 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
     random.seed(learning_params['seed'])
     np.random.seed(learning_params['seed'])
     th.manual_seed(learning_params['seed'])
-    if device.type == 'cuda':
+    if learning_params["device"].type == 'cuda':
         th.cuda.manual_seed(learning_params['seed'])
 
     loss_ws = learning_params["loss_ws"]
+    return ts, tst, optimizer, lr_scheduler, warmup_scheduler, writer, loss_ws
+
+
+def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header=None):
+    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template = data_meta
+    device, loss_type = learning_params["device"], learning_params["loss_type"]
+    net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
+
+    # model setup
+    exist, ret = setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag_dict, finetune_header)
+    if exist:
+        return ret
+    model, hp_params, hp_prefix_sign, ckp_path, model_name, obj, weights_pth_sign, results_pth_sign = ret
+
+    # data setup
+    dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader = setup_data(
+        ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
+        dag_dict, struct2template, learning_params, net_params, minmax_dict, coll=collate)
+
+    view_model_param(model_name, model)
+    view_data(dataset)
+
+    # training setup
+    nbatches = len(tr_loader)
+    ts, tst, optimizer, lr_scheduler, warmup_scheduler, writer, loss_ws = \
+        setup_train(weights_pth_sign, model, learning_params, nbatches, ckp_header, hp_prefix_sign, hp_params)
+
     t0 = time.time()
     try:
         model.train()
@@ -654,5 +755,114 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
     }
     th.save(results, results_pth_sign)
     plot_error_rate(y_te, y_hat_te, ckp_path)
+    show_results(results, obj)
+    return model, results
+
+
+def pipeline_classifier(data_meta, data_params, learning_params, net_params, ckp_header):
+    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, ncats = data_meta
+    device, loss_type = learning_params["device"], learning_params["loss_type"]
+    net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
+    net_params["out_feat_size"] = ncats
+
+    # model setup
+    exist, ret = setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag_dict, None)
+    if exist:
+        return ret
+    model, hp_params, hp_prefix_sign, ckp_path, model_name, obj, weights_pth_sign, results_pth_sign = ret
+
+    # data setup
+    dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader = setup_data(
+        ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
+        dag_dict, struct2template, learning_params, net_params, minmax_dict, coll=collate_clf)
+
+    view_model_param(model_name, model)
+    view_data(dataset)
+
+    # training setup
+    nbatches = len(tr_loader)
+    ts, tst, optimizer, lr_scheduler, warmup_scheduler, writer, loss_ws = \
+        setup_train(weights_pth_sign, model, learning_params, nbatches, ckp_header, hp_prefix_sign, hp_params)
+
+    t0 = time.time()
+    try:
+        model.train()
+        if_break = False
+        ckp_start = time.time()
+        for epoch in range(learning_params["epochs"]):
+            epoch_start_time = time.time()
+            for batch_idx, x in enumerate(tr_loader):
+                optimizer.zero_grad()
+                batch_y, batch_y_hat = model_out_clf(model, x, in_feat_minmax, device)
+                loss = get_loss(batch_y.squeeze(), batch_y_hat, loss_type="nll")
+                loss.backward()
+                th.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                optimizer.step()
+
+                with warmup_scheduler.dampening():
+                    lr_scheduler.step()
+
+                if th.isnan(loss):
+                    print("get a nan loss in train")
+                    if_break = True
+                elif th.isinf(loss):
+                    print("get a inf loss in train")
+                    if_break = True
+
+                if batch_idx == (nbatches - 1):
+                    batch_time_tr = (time.time() - ckp_start) / nbatches
+
+                    t1 = time.time()
+                    loss_val, rate_val = evaluate_model_clf(model, val_loader, device, in_feat_minmax, obj)
+                    eval_time = time.time() - t1
+
+                    tst.update(model, epoch, batch_idx, loss_val)
+                    cur_lr = optimizer.param_groups[0]["lr"]
+                    writer.add_scalar("train/_loss", loss.detach().item(), epoch * nbatches + batch_idx)
+                    writer.add_scalar("val/_loss", loss_val, epoch * nbatches + batch_idx)
+                    writer.add_scalar("val/_rate", rate_val, epoch * nbatches + batch_idx)
+                    writer.add_scalar("learning_rate", cur_lr, epoch * nbatches + batch_idx)
+                    writer.add_scalar("batch_time", batch_time_tr, epoch * nbatches + batch_idx)
+
+                    print("Epoch {:03d} | Batch {:06d} | LR: {:.8f} | TR Loss {:.6f} | VAL Loss {:.6f} | "
+                          "VAL Rate {:.6f} | s/ba {:.3f} | s/eval {:.3f} ".format(
+                        epoch, batch_idx, cur_lr, loss.detach().item(), loss_val, rate_val, batch_time_tr, eval_time))
+                    epoch_time = time.time() - epoch_start_time
+                    print(f"Epoch {epoch} cost {epoch_time} s.")
+                    print("-" * 89)
+                    ckp_start = time.time()
+                    model.train()
+
+                if if_break:
+                    break
+
+            if if_break:
+                break
+
+    except KeyboardInterrupt:
+        print('-' * 89)
+        print('Exiting from training early because of KeyboardInterrupt')
+
+    total_time = time.time() - t0
+    model.load_state_dict(tst.pop_model_dict(device))
+    loss_val, rate_val = evaluate_model_clf(model, val_loader, device, in_feat_minmax, obj)
+    loss_te, rate_te, y_te, y_hat_te, y_hat_flat_te = evaluate_model_clf(
+        model, te_loader, device, in_feat_minmax, obj, if_y=True)
+
+    results = {
+        "hp_params": hp_params,
+        "Epoch": tst.best_epoch,
+        "Batch": tst.best_batch,
+        "Total_time": total_time,
+        "timestamp": ts,
+        "loss_val": loss_val,
+        "loss_te": loss_te,
+        "rate_val": rate_val,
+        "rate_te": rate_te,
+        "y_te": y_te,
+        "y_te_hat": y_hat_te,
+        "y_te_hat_flat": y_hat_flat_te
+    }
+    th.save(results, results_pth_sign)
     show_results(results, obj)
     return model, results
