@@ -127,7 +127,11 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
     n_op_types = len(struct_data["global_ops"])
     struct2template = {v["sql_struct_id"]: v["template"] for v in struct_data["struct_dict"].values()}
 
-    clf_feat = None if clf_feat_file is None else PickleUtils.load_file(clf_feat_file)
+    clf_feat = None
+    if clf_feat_file is not None:
+        clf_feat = PickleUtils.load_file(clf_feat_file)
+        clf_feat_mask = clf_feat["tr"].std(0) > 0
+        clf_feat = {k: v[:, clf_feat_mask] for k, v in clf_feat.items()}
     if ori:
         return dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data, clf_feat
     else:
@@ -633,6 +637,11 @@ def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_
         "min": th.cat([get_tensor(minmax_dict[ch]["min"].values, device=device) for ch in picked_groups_in_feat]),
         "max": th.cat([get_tensor(minmax_dict[ch]["max"].values, device=device) for ch in picked_groups_in_feat])
     }
+    if clf_feat is not None:
+        clf_feat_minmax = {"min": clf_feat["tr"].min(0), "max": clf_feat["tr"].max(0)}
+        for mm in ["min", "max"]:
+            in_feat_minmax[mm] = th.cat([in_feat_minmax[mm], get_tensor(clf_feat_minmax[mm], device=device)])
+
     obj_minmax = {"min": get_tensor(minmax_dict["obj"]["min"].values, device=device),
                   "max": get_tensor(minmax_dict["obj"]["max"].values, device=device)}
 
