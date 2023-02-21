@@ -60,8 +60,9 @@ if __name__ == "__main__":
     data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, ncats]
     model, results, hp_params, hp_prefix_sign = pipeline_classifier(
         data_meta, data_params, learning_params, net_params, ckp_header)
+    ckp_path = os.path.join(ckp_header, hp_prefix_sign)
 
-    if os.path.exists(f"{ckp_header}/clf_feats.pkl"):
+    if os.path.exists(f"{ckp_path}/clf_feats.pkl"):
         print("clf_feats.pkl existed.")
     else:
         print("start generating clf_feats.pkl...")
@@ -70,16 +71,11 @@ if __name__ == "__main__":
             ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
             dag_dict, struct2template, learning_params, net_params, minmax_dict, coll=collate_clf, train_shuffle=False)
         device = learning_params["device"]
-        feat_tr = expose_clf_feats(model, tr_loader, device, in_feat_minmax, obj)
-        feat_val = expose_clf_feats(model, val_loader, device, in_feat_minmax, obj)
-        feat_te = expose_clf_feats(model, te_loader, device, in_feat_minmax, obj)
-
-        PickleUtils.save({
-            "tr": feat_tr,
-            "val": feat_val,
-            "te": feat_te
-        }, ckp_header, "clf_feats.pkl")
-
-        print(f"{ckp_header}/clf_feats.pkl generated ")
+        feat_dict = {}
+        for mode, loader in zip(["tr", "val", "te"], [tr_loader, val_loader, te_loader]):
+            print(f"start generating feats for split: {mode}")
+            feat_dict[mode] = expose_clf_feats(model, loader, device, in_feat_minmax, obj)
+        PickleUtils.save(feat_dict, ckp_path, "clf_feats.pkl")
+        print(f"{ckp_path}/clf_feats.pkl generated ")
 
 

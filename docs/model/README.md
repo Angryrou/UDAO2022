@@ -22,6 +22,27 @@ python examples/model/spark/1.train.py --ch1-type on --ch1-cbo off --ch1-enc on 
 --loss-type wmape --L-gtn 3 --L-mlp 3 --hidden-dim 128 --out-dim 128 --ch1-type-dim 8 --ch1-cbo-dim 4 --n-heads 4 \
 --dropout 0.2 --ped 8
 
+# AVGMLP example
+...
+
+# AVGMLP pretrain example
+gpu=$1
+x=$2
+obj=$3
+cbo=on
+enc=w2v
+read -r lr dim1 dp lgtn nhead bs mn onorm lmlp eps dim2 adim <<< $x
+echo $lr, $dim1, $dp, $lgtn, $nhead, $bs, $mn, $onorm, $lmlp, $eps, $dim2, $cbo, $enc, $adim
+export PYTHONPATH="$PWD"
+export TMPDIR=/tmp
+python examples/model/spark/2.pretrain_classifier.py --ch1-type on --ch1-cbo $cbo --ch1-enc $enc --ch2 on --ch3 on --ch4 on \
+--obj $obj --model-name $mn --nworkers 6 --bs $bs --epochs $eps --init-lr $lr --min-lr 1e-5 --weight-decay 1e-2 \
+--loss-type wmape --L-gtn $lgtn --L-mlp $lmlp --hidden-dim $dim1 --out-dim $dim1 --mlp-dim $dim2 --ch1-type-dim 8 \
+--ch1-cbo-dim 4 --ch1-enc-dim 32 --n-heads $nhead --dropout2 $dp --ped 8 --gpu $gpu --out-norm $onorm --agg-dim $adim
+
+# AVGMLP pretrain feat generate example
+...
+
 ```
 
 

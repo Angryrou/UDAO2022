@@ -501,6 +501,8 @@ def expose_clf_feats(model, loader, device, in_feat_minmax, obj):
         for batch_idx, x in enumerate(loader):
             batch_feat = model_out_clf_feat(model, x, in_feat_minmax, device).cpu().numpy()
             feat_list.append(batch_feat)
+            if (batch_idx + 1) % 10 == 0:
+                print(f"{batch_idx + 1}/{len(loader)} batches finished.")
         feats = np.vstack(feat_list)
         return feats
 
