@@ -40,33 +40,44 @@ class MLPReadout(nn.Module):
         list_FC_layers = [nn.Linear(input_dim, hidden_dim)]
         for l in range(L - 1):
             list_FC_layers.append(nn.Linear(hidden_dim, hidden_dim))
+
         if agg_dim is None:
             list_FC_layers.append(nn.Linear(hidden_dim, output_dim))
         else:
-            a_list = []
-            if isinstance(agg_dim, int):
-                a_list.append(agg_dim)
-            elif isinstance(agg_dim, str):
-                try:
-                    a_list += [int(a) for a in agg_dim.split(",")]
-                except:
-                    raise ValueError(agg_dim)
-            a_list.append(output_dim)
+            try:
+                a_list = [int(a) for a in agg_dim.split(",")]
+            except:
+                raise ValueError(agg_dim)
             old_d = hidden_dim
             for a in a_list:
                 list_FC_layers.append(nn.Linear(old_d, a))
                 old_d = a
+            list_FC_layers.append(nn.Linear(old_d, output_dim))
+
         self.FC_layers = nn.ModuleList(list_FC_layers)
+
+        if dropout == 0:
+            list_BN_layers =[nn.BatchNorm1d(hidden_dim)]
+            for l in range(L - 1):
+                list_BN_layers.append(nn.BatchNorm1d(hidden_dim))
+            if agg_dim is not None:
+                for a in a_list:
+                    list_BN_layers.append(nn.BatchNorm1d(a))
+            self.BN_layers = nn.ModuleList(list_BN_layers)
+
         self.dropout = dropout
         self.L = L
 
     def forward(self, x):
         y = x
-        for l in range(self.L):
+        for l in range(len(self.FC_layers) - 1):
             y = self.FC_layers[l](y)
             y = F.relu(y)
-            y = F.dropout(y, self.dropout, training=self.training)
-        y = self.FC_layers[self.L](y)
+            if self.dropout == 0:
+                y = self.BN_layers[l](y)
+            else:
+                y = F.dropout(y, self.dropout, training=self.training)
+        y = self.FC_layers[-1](y)
         return y
 
 class PureMLP(nn.Module):

@@ -100,7 +100,8 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
     elif obj == "tid":
         for split, df in zip(["tr", "val", "te"], dfs):
             df_ = df.sample(frac=0.01) if debug else df
-            df_["tid"] = df_["template"].apply(lambda a: int(a[1:]) - 1)
+            df_[obj] = df_["template"].apply(lambda a: int(a[1:]) - 1)
+            df_dict[split] = df_
     else:
         raise ValueError(obj)
     ds_dict = DatasetDict({k: Dataset.from_pandas(v) for k, v in df_dict.items()})
