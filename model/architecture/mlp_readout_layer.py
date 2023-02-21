@@ -68,6 +68,17 @@ class MLPReadout(nn.Module):
         self.dropout = dropout
         self.L = L
 
+    def forward_feat(self, x):
+        y = x
+        for l in range(len(self.FC_layers) - 1):
+            y = self.FC_layers[l](y)
+            y = F.relu(y)
+            if self.dropout == 0:
+                y = self.BN_layers[l](y)
+            else:
+                y = F.dropout(y, self.dropout, training=self.training)
+        return y
+
     def forward(self, x):
         y = x
         for l in range(len(self.FC_layers) - 1):

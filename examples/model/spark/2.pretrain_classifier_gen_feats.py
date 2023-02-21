@@ -3,6 +3,7 @@
 # Description: pretrain a classifier model
 #
 # Created at 03/01/2023
+from utils.common import PickleUtils
 
 if __name__ == "__main__":
 
@@ -10,7 +11,8 @@ if __name__ == "__main__":
     from utils.data.feature import L2P_MAP
     from utils.model.args import ArgsTrain
     from utils.model.parameters import set_params
-    from utils.model.utils import expose_data, pipeline_classifier
+    from utils.model.utils import expose_data, pipeline_classifier, augment_net_params, setup_data, collate_clf, \
+    expose_clf_feats
 
     args = ArgsTrain().parse()
     print(args)
@@ -56,5 +58,28 @@ if __name__ == "__main__":
         op_feats_data["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
 
     data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, ncats]
-    pipeline_classifier(data_meta, data_params, learning_params, net_params, ckp_header)
+    model, results, hp_params, hp_prefix_sign = pipeline_classifier(
+        data_meta, data_params, learning_params, net_params, ckp_header)
+
+    if os.path.exists(f"{ckp_header}/clf_feats.pkl"):
+        print("clf_feats.pkl existed.")
+    else:
+        print("start generating clf_feats.pkl...")
+        net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
+        dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader = setup_data(
+            ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
+            dag_dict, struct2template, learning_params, net_params, minmax_dict, coll=collate_clf, train_shuffle=False)
+        device = learning_params["device"]
+        feat_tr = expose_clf_feats(model, tr_loader, device, in_feat_minmax, obj)
+        feat_val = expose_clf_feats(model, val_loader, device, in_feat_minmax, obj)
+        feat_te = expose_clf_feats(model, te_loader, device, in_feat_minmax, obj)
+
+        PickleUtils.save({
+            "tr": feat_tr,
+            "val": feat_val,
+            "te": feat_te
+        }, ckp_header, "clf_feats.pkl")
+
+        print(f"{ckp_header}/clf_feats.pkl generated ")
+
 

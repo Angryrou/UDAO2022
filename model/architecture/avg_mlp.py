@@ -56,7 +56,7 @@ class AVGMLP(nn.Module):
         else:
             raise ValueError(net_params["out_norm"])
 
-    def forward(self, g, inst_feat, mode="rgr"):
+    def forward(self, g, inst_feat, mode="rgr", out="-1"):
         assert mode in ["rgr", "clf"]
         op_list = []
         if self.op_type:
@@ -73,11 +73,14 @@ class AVGMLP(nn.Module):
             hg = self.out_norm(hg)
 
         hgi = th.cat([hg, inst_feat], dim=1)
-        out = self.MLP_layers.forward(hgi)
-
-        if mode == "rgr":
-            return th.exp(out)
-        elif mode == "clf":
-            return F.log_softmax(out, dim=1)
-        else:
-            raise ValueError(mode)
+        if out == "-1":
+            out = self.MLP_layers.forward(hgi)
+            if mode == "rgr":
+                return th.exp(out)
+            elif mode == "clf":
+                return F.log_softmax(out, dim=1)
+            else:
+                raise ValueError(mode)
+        elif out == "-2":
+            out = self.MLP_layers.forward_feat(hgi)
+            return out

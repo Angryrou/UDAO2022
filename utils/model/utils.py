@@ -417,6 +417,17 @@ def model_out_clf(model, x, in_feat_minmax, device):
     return batch_y, batch_y_hat
 
 
+def model_out_clf_feat(model, x, in_feat_minmax, device):
+    stage_graph, inst_feat, y = x
+    assert stage_graph is not None
+    batch_stages = stage_graph.to(device)
+    batch_insts = inst_feat.to(device)
+    batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
+    assert model.name == "AVGMLP"
+    clf_feat = model.forward(batch_stages, batch_insts, mode="clf", out="-2")
+    return clf_feat
+
+
 def get_eval_metrics(y_list, y_hat_list, loss_type, obj, loss_ws, if_y):
     y = th.vstack(y_list)
     y_hat = th.vstack(y_hat_list)
@@ -481,6 +492,17 @@ def evaluate_model_clf(model, loader, device, in_feat_minmax, obj, if_y=False):
         if if_y:
             return loss, rate, y, y_hat, y_hat_flat
         return loss, rate
+
+def expose_clf_feats(model, loader, device, in_feat_minmax, obj):
+    assert obj in OBJ_MAP
+    model.eval()
+    feat_list = []
+    with th.no_grad():
+        for batch_idx, x in enumerate(loader):
+            batch_feat = model_out_clf_feat(model, x, in_feat_minmax, device).cpu().numpy()
+            feat_list.append(batch_feat)
+        feats = np.vstack(feat_list)
+        return feats
 
 
 def plot_error_rate(y, y_hat, ckp_path):
@@ -577,7 +599,7 @@ def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag
         print(f"found hps at {results_pth_sign}!")
         show_results(results, obj)
         model.load_state_dict(th.load(weights_pth_sign, map_location=device)["model"])
-        return True, (model, results)
+        return True, (model, results, hp_params, hp_prefix_sign)
 
     if finetune_header is not None:
         trained_weights = th.load(f"{finetune_header}/best_weight.pth", map_location=device)["model"]
@@ -588,7 +610,7 @@ def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag
 
 
 def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
-               dag_dict, struct2template, learning_params, net_params, minmax_dict, coll):
+               dag_dict, struct2template, learning_params, net_params, minmax_dict, coll, train_shuffle=True):
     device = learning_params["device"]
     print("start preparing data...")
     ds_dict.set_format(type="torch", columns=picked_cols)
@@ -603,7 +625,7 @@ def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_
     obj_minmax = {"min": get_tensor(minmax_dict["obj"]["min"].values, device=device),
                   "max": get_tensor(minmax_dict["obj"]["max"].values, device=device)}
 
-    tr_loader = DataLoader(dataset["tr"], batch_size=learning_params['batch_size'], shuffle=True,
+    tr_loader = DataLoader(dataset["tr"], batch_size=learning_params['batch_size'], shuffle=train_shuffle,
                            collate_fn=coll, num_workers=learning_params['num_workers'])
     val_loader = DataLoader(dataset["val"], batch_size=learning_params['batch_size'], shuffle=False,
                             collate_fn=coll, num_workers=learning_params['num_workers'])
