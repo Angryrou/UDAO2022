@@ -179,6 +179,8 @@ def get_hp(data_params, learning_params, net_params, case=""):
                            "mlp_dim", "dropout2"]
         if "out_norm" in net_params and net_params["out_norm"] is not None:
             net_params_list.append("out_norm")
+        if "agg_dim" in net_params and net_params["agg_dim"] is not None:
+            net_params_list.append("agg_dim")
     elif case == "TL":
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size",
                            "L_mlp", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2", "readout"]
