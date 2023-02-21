@@ -119,7 +119,8 @@ def set_net_params(args):
         "ch1_type_dim": 8,
         "ch1_cbo_dim": 4,
         "ch1_enc_dim": 32,
-        "out_norm": None
+        "out_norm": None,
+        "agg_dim": None
     }
 
     if args.ped is not None:
@@ -157,6 +158,8 @@ def set_net_params(args):
     if args.out_norm is not None:
         assert args.out_norm in ["BN", "LN", "IsoBN", "None"], ValueError(args.out_norm)
         net_params["out_norm"] = args.out_norm if args.out_norm != "None" else None
+    if args.agg_dim is not None:
+        net_params["agg_dim"] = args.agg_dim if args.agg_dim != "None" else None
 
     assert net_params["ch1_cbo_dim"] == 4, ValueError(net_params["ch1_cbo_dim"])
     return net_params

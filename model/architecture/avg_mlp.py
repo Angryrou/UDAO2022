@@ -36,9 +36,14 @@ class AVGMLP(nn.Module):
             nn.ReLU()
         )
 
+        if "agg_dim" not in net_params or net_params["agg_dim"] is None:
+            agg_dim = None
+        else:
+            agg_dim = net_params["agg_dim"]
+            assert agg_dim != "None"
         self.MLP_layers = MLPReadout(
             input_dim=out_dim + in_feat_size_inst, hidden_dim=mlp_dim, output_dim=out_feat_size,
-            L=n_mlp_layers, dropout=dropout2)
+            L=n_mlp_layers, dropout=dropout2, agg_dim=agg_dim)
 
         if "out_norm" not in net_params or net_params["out_norm"] is None:
             self.out_norm = None

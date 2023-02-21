@@ -84,10 +84,14 @@ class GraphTransformerNet(nn.Module):
                 GraphTransformerLayer(name, hidden_dim, out_dim, num_heads, dropout,
                                       self.layer_norm, self.batch_norm, self.residual,
                                       add_misc=self.add_misc))
-
+        if "agg_dim" not in net_params or net_params["agg_dim"] is None:
+            agg_dim = None
+        else:
+            agg_dim = net_params["agg_dim"]
+            assert agg_dim != "None"
         self.MLP_layer = MLPReadout(
             input_dim=out_dim + in_feat_size_inst, hidden_dim=net_params["mlp_dim"], output_dim=out_feat_size,
-            L=n_mlp_layers, dropout=dropout2)
+            L=n_mlp_layers, dropout=dropout2, agg_dim=agg_dim)
 
     def forward(self, g, h_lap_pos_enc, inst_feat=None):
         """

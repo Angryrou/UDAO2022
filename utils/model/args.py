@@ -92,6 +92,7 @@ class ArgsTrain(ArgsBase):
         self.parser.add_argument("--ch1-cbo-dim", type=int)
         self.parser.add_argument("--ch1-enc-dim", type=int)
         self.parser.add_argument("--out-norm", type=str)
+        self.parser.add_argument("--agg-dim", type=str)
 
 class ArgsTrainTemplate(ArgsTrain):
     def __init__(self):

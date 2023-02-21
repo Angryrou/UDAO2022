@@ -35,12 +35,27 @@ class MLPReadout_old(nn.Module):
 
 class MLPReadout(nn.Module):
 
-    def __init__(self, input_dim, hidden_dim, output_dim, L=2, dropout=0.0):  # L=nb_hidden_layers
+    def __init__(self, input_dim, hidden_dim, output_dim, L=2, dropout=0.0, agg_dim=None):  # L=nb_hidden_layers
         super().__init__()
         list_FC_layers = [nn.Linear(input_dim, hidden_dim)]
         for l in range(L - 1):
             list_FC_layers.append(nn.Linear(hidden_dim, hidden_dim))
-        list_FC_layers.append(nn.Linear(hidden_dim, output_dim))
+        if agg_dim is None:
+            list_FC_layers.append(nn.Linear(hidden_dim, output_dim))
+        else:
+            a_list = []
+            if isinstance(agg_dim, int):
+                a_list.append(agg_dim)
+            elif isinstance(agg_dim, str):
+                try:
+                    a_list += [int(a) for a in agg_dim.split(",")]
+                except:
+                    raise ValueError(agg_dim)
+            a_list.append(output_dim)
+            old_d = hidden_dim
+            for a in a_list:
+                list_FC_layers.append(nn.Linear(old_d, a))
+                old_d = a
         self.FC_layers = nn.ModuleList(list_FC_layers)
         self.dropout = dropout
         self.L = L
@@ -69,7 +84,13 @@ class PureMLP(nn.Module):
             nn.ReLU()
         )
         dropout2 = net_params["dropout2"]
-        self.MLP_layers = MLPReadout(hidden_dim, mlp_dim, out_feat_size, L=n_mlp_layers, dropout=dropout2)
+        if "agg_dim" not in net_params or net_params["agg_dim"] is None:
+            agg_dim = None
+        else:
+            agg_dim = net_params["agg_dim"]
+            assert agg_dim != "None"
+        self.MLP_layers = MLPReadout(hidden_dim, mlp_dim, out_feat_size, L=n_mlp_layers,
+                                     dropout=dropout2, agg_dim=agg_dim)
 
     def forward(self, x):
         x = self.emb(x)
