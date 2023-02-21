@@ -28,13 +28,13 @@ if __name__ == "__main__":
         cats = [f"q{i}" for i in range(1, 23)]
         ncats = len(cats)
     elif obj == "latbuck20":
-        cats = [f"b20_{i}" for i in range(18)] + ["others"] # 20 choices
+        cats = [f"b20_{i}" for i in range(18)] + ["others"] # 19 choices
         ncats = len(cats)
     else:
         raise ValueError(obj)
 
     ckp_header = f"examples/model/spark/ckp/{pj}/{model_name}/{obj}/" \
-                 f"{'_'.join([data_params[f] for f in ['ch1_type', 'ch1_cbo', 'ch1_enc']])}"
+                 f"{'_'.join([data_params[f] for f in ['ch1_type', 'ch1_cbo', 'ch1_enc', 'ch2', 'ch3', 'ch4']])}"
 
     op_feats_file = {}
     if data_params["ch1_cbo"] == "on":
