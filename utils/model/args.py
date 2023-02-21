@@ -61,6 +61,7 @@ class ArgsTrain(ArgsBase):
         self.parser.add_argument("--ch4", type=str, default="on", help="off|on, configuration")
         self.parser.add_argument("--obj", type=str, default="latency")
         self.parser.add_argument("--model-name", type=str, default="GTN")
+        self.parser.add_argument("--clf-feat", type=str, default=None)
 
         # learning_params
         self.parser.add_argument("--gpu", type=str, default="-1")

@@ -45,7 +45,7 @@ if __name__ == "__main__":
         ch1_enc = data_params["ch1_enc"]
         op_feats_file["enc"] = f"enc_cache_{ch1_enc}.pkl"
 
-    ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
+    ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data, _ = expose_data(
         header=data_header,
         tabular_file=f"{'query_level' if args.granularity == 'Q' else 'stage_level'}_cache_data.pkl",
         struct_file="struct_cache.pkl",

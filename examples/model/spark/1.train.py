@@ -32,16 +32,17 @@ if __name__ == "__main__":
         ch1_enc = data_params["ch1_enc"]
         op_feats_file["enc"] = f"enc_cache_{ch1_enc}.pkl"
 
-    ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
+    ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data, clf_feat = expose_data(
         header=data_header,
         tabular_file=f"{'query_level' if args.granularity == 'Q' else 'stage_level'}_cache_data.pkl",
         struct_file="struct_cache.pkl",
         op_feats_file=op_feats_file,
         debug=debug,
-        model_name=model_name
+        model_name=model_name,
+        clf_feat_file=data_params["clf_feat"]
     )
     if data_params["ch1_cbo"] == "on":
         op_feats_data["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
 
-    data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template]
+    data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, clf_feat]
     model, results = pipeline(data_meta, data_params, learning_params, net_params, ckp_header)

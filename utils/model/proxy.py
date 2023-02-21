@@ -14,7 +14,11 @@ from utils.optimization.moo_utils import is_pareto_efficient
 
 class ModelProxy():
 
-    def __init__(self, model_name, ckp_path, obj_minmax, device, op_groups, n_op_types):
+    def __init__(self, model_name, ckp_path, obj_minmax, device, op_groups, n_op_types, clf_feat):
+        # TODO: include clf_feat
+        if clf_feat is not None:
+            raise NotImplementedError
+
         assert model_name == "GTN"
         results_pth_sign = f"{ckp_path}/results.pth"
         weights_pth_sign = f"{ckp_path}/best_weight.pth"
@@ -32,6 +36,7 @@ class ModelProxy():
         self.results = results
         self.hp_params = hp_params
         self.model = model
+        self.clf_feat = clf_feat
         self.device = device
         self.obj_minmax = {"min": get_tensor(obj_minmax["min"].values, device=device),
                            "max": get_tensor(obj_minmax["max"].values, device=device)}

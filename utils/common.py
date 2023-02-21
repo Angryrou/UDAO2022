@@ -63,6 +63,12 @@ class PickleUtils(object):
         with open(path, "rb") as f:
             return pickle.load(f)
 
+    @staticmethod
+    def load_file(path):
+        if not os.path.exists(path):
+            raise FileNotFoundError(path)
+        with open(path, "rb") as f:
+            return pickle.load(f)
 
 class BenchmarkUtils(object):
 

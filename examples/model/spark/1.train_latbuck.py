@@ -11,7 +11,7 @@ if __name__ == "__main__":
     from utils.data.feature import L2P_MAP
     from utils.model.args import ArgsTrainLatBuck
     from utils.model.parameters import set_params
-    from utils.model.utils import expose_data, pipeline, add_pe
+    from utils.model.utils import expose_data, pipeline
 
     args = ArgsTrainLatBuck().parse()
     print(args)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         ch1_enc = data_params["ch1_enc"]
         op_feats_file["enc"] = f"enc_cache_{ch1_enc}.pkl"
 
-    ds_dict_all, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
+    ds_dict_all, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data, clf_feat = expose_data(
         header=data_header,
         tabular_file=f"{'query_level' if args.granularity == 'Q' else 'stage_level'}_cache_data.pkl",
         struct_file="struct_cache.pkl",
@@ -60,5 +60,5 @@ if __name__ == "__main__":
         op_feats_data["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
 
     ds_dict = ds_dict_all.filter(lambda e: e["latency"] // bsize == bid)
-    data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template]
+    data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, clf_feat]
     model, results = pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header)

@@ -80,7 +80,7 @@ def add_pe(model_name, dag_dict):
 
 
 def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=False,
-                model_name="GTN", obj="latency"):
+                model_name="GTN", obj="latency", clf_feat_file=None):
     tabular_data = PickleUtils.load(header, tabular_file)
     struct_data = PickleUtils.load(header, struct_file)
     op_feats_data = {k: PickleUtils.load(header, v) for k, v in op_feats_file.items()}
@@ -127,10 +127,11 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
     n_op_types = len(struct_data["global_ops"])
     struct2template = {v["sql_struct_id"]: v["template"] for v in struct_data["struct_dict"].values()}
 
+    clf_feat = None if clf_feat_file is None else PickleUtils.load_file(clf_feat_file)
     if ori:
-        return dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data
+        return dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data, clf_feat
     else:
-        return ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data
+        return ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data, clf_feat
 
 
 def analyze_cols(data_params, col_dict):
@@ -193,7 +194,9 @@ def get_hp(data_params, learning_params, net_params, case=""):
     for ch1_ in net_params["op_groups"]:
         net_params_list.append(f"{ch1_}_dim")
 
-    param_dict = OrderedDict({**{p: learning_params[p] for p in learning_params_list},
+    data_params_list = ["clf_feat"] if data_params["clf_feat"] is not None else []
+    param_dict = OrderedDict({**{p: data_params[p] for p in data_params_list},
+                              **{p: learning_params[p] for p in learning_params_list},
                               **{p: net_params[p] for p in net_params_list}})
     hp_prefix_sign = get_str_hash(json.dumps(param_dict, indent=2))
     if data_params["debug"]:
@@ -299,7 +302,8 @@ def get_sample_spark_knobs(knobs, n_samples, bm, q_sign, seed):
 
 
 class MyDSBase(Dataset):
-    def __init__(self, dataset, op_feats, col_dict, picked_groups, op_groups, dag_dict, struct2template, ped=1):
+    def __init__(self, dataset, op_feats, col_dict, picked_groups, op_groups, dag_dict, struct2template,
+                 ped=1, clf_feat=None):
         super(MyDSBase, self).__init__(
             arrow_table=dataset._data,
             info=dataset._info,
@@ -319,6 +323,7 @@ class MyDSBase(Dataset):
         self.dag_dict = dag_dict
         self.struct2template = struct2template
         self.ped = ped
+        self.clf_feat = None if clf_feat is None else clf_feat.tolist()
 
     def __getitem__(self, item):
         x = super(MyDSBase, self).__getitem__(item)
@@ -334,6 +339,9 @@ class MyDSBase(Dataset):
             if ch in ("ch1", "obj"):
                 continue
             inst_feat += [x[c] for c in self.col_dict[ch]]
+        if self.clf_feat is not None:
+            inst_feat += self.clf_feat[item]
+
         assert "obj" in self.picked_groups
         y = [x[c] for c in self.col_dict["obj"]]
         return g, inst_feat, y
@@ -611,13 +619,14 @@ def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag
     return False, (model, hp_params, hp_prefix_sign, ckp_path, model_name, obj, weights_pth_sign, results_pth_sign)
 
 
-def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
-               dag_dict, struct2template, learning_params, net_params, minmax_dict, coll, train_shuffle=True):
+def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups, dag_dict, struct2template,
+               learning_params, net_params, minmax_dict, coll, train_shuffle=True, clf_feat=None):
     device = learning_params["device"]
     print("start preparing data...")
     ds_dict.set_format(type="torch", columns=picked_cols)
     dataset = {split: MyDSBase(ds_dict[split], op_feats_data, col_dict, picked_groups, op_groups,
-                               dag_dict, struct2template, net_params["ped"])
+                               dag_dict, struct2template, net_params["ped"],
+                               clf_feat=clf_feat[split] if clf_feat is not None else None)
                for split in ["tr", "val", "te"]}
     picked_groups_in_feat = [ch for ch in picked_groups if ch not in ("ch1", "obj")]
     in_feat_minmax = {
@@ -663,9 +672,13 @@ def setup_train(weights_pth_sign, model, learning_params, nbatches, ckp_header, 
 
 
 def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header=None):
-    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template = data_meta
+    ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, clf_feat = data_meta
     device, loss_type = learning_params["device"], learning_params["loss_type"]
     net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
+    if clf_feat is not None:
+        assert "tr" in clf_feat
+        clf_feat_dim = clf_feat["tr"].shape[1]
+        net_params["in_feat_size_inst"] += clf_feat_dim
 
     # model setup
     exist, ret = setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag_dict, finetune_header)
@@ -676,7 +689,7 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
     # data setup
     dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader = setup_data(
         ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
-        dag_dict, struct2template, learning_params, net_params, minmax_dict, coll=collate)
+        dag_dict, struct2template, learning_params, net_params, minmax_dict, coll=collate, clf_feat=clf_feat)
 
     view_model_param(model_name, model)
     view_data(dataset)

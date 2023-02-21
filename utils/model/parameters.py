@@ -3,6 +3,7 @@
 # Description: set data_params, learning_params, net_params for modeling training
 #
 # Created at 03/01/2023
+import os.path
 
 import torch as th
 
@@ -51,6 +52,8 @@ def set_data_params(args):
         assert args.obj in ("stage_lat", "stage_dt", "stage_both")
     assert args.model_name in ("GTN", "RAAL", "QF", "TL", "AVGMLP")
     assert args.debug in (0, 1)
+    if args.clf_feat is not None:
+        assert os.path.exists(args.clf_feat)
 
     return {
         "ch1_type": args.ch1_type,
@@ -61,6 +64,7 @@ def set_data_params(args):
         "ch4": args.ch4,
         "obj": args.obj,
         "model_name": args.model_name,
+        "clf_feat": args.clf_feat,
         "debug": False if args.debug == 0 else True
     }
 

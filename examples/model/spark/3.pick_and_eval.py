@@ -43,7 +43,7 @@ op_feats_file = {
 }
 data_header="examples/data/spark/cache/tpch_100"
 
-ds_dict_all, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
+ds_dict_all, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data, clf_feat = expose_data(
     header=data_header,
     tabular_file=f"query_level_cache_data.pkl",
     struct_file="struct_cache.pkl",
@@ -51,6 +51,7 @@ ds_dict_all, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_fe
     debug=False,
     model_name=model_name
 )
+assert clf_feat is None
 op_feats_data["cbo"]["l2p"] = L2P_MAP["tpch"]
 ds_te_all = ds_dict_all["te"]
 ds_te_all.set_format(type="torch", columns=picked_cols)

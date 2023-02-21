@@ -47,14 +47,15 @@ if data_params["ch1_cbo"] == "on":
 if data_params["ch1_enc"] != "off":
     ch1_enc = data_params["ch1_enc"]
     op_feats_file["enc"] = f"enc_cache_{ch1_enc}.pkl"
-dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats = expose_data(
+dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats, clf_feat = expose_data(
     header=data_header,
     tabular_file=f"{'query_level' if args.granularity == 'Q' else 'stage_level'}_cache_data.pkl",
     struct_file="struct_cache.pkl",
     op_feats_file=op_feats_file,
     debug=debug,
     ori=True,
-    model_name=model_name
+    model_name=model_name,
+    clf_feat_file=data_params["clf_feat"]
 )
 if data_params["ch1_cbo"] == "on":
     op_feats["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
@@ -64,7 +65,7 @@ op_groups, picked_groups, picked_cols = analyze_cols(data_params, col_dict)
 ckp_header = f"examples/model/spark/ckp/{pj}/{model_name}/{obj}/" \
              f"{'_'.join([data_params[f] for f in ['ch1_type', 'ch1_cbo', 'ch1_enc', 'ch2', 'ch3', 'ch4']])}"
 ckp_path = os.path.join(ckp_header, ckp_sign)
-mp = ModelProxy(model_name, ckp_path, minmax_dict["obj"], device, op_groups, n_op_types)
+mp = ModelProxy(model_name, ckp_path, minmax_dict["obj"], device, op_groups, n_op_types, clf_feat)
 df = pd.concat(dfs)
 
 spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")

@@ -32,7 +32,7 @@ DATA_COLNS = ["q_sign", "knob_sign", "lat", "cost"]
 SIGN = "1.tpch_benchmarking"
 
 def get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm, model_name):
-    dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data = expose_data(
+    dfs, ds_dict, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, op_feats_data, clf_feat = expose_data(
         header=data_header,
         tabular_file=f"query_level_cache_data.pkl",
         struct_file="struct_cache.pkl",
@@ -49,7 +49,7 @@ def get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm, model_name):
     op_groups = ["ch1_type"]
     mp = ModelProxy("GTN", ckp_path, minmax_dict["obj"], DEFAULT_DEVICE, op_groups, n_op_types)
     spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
-    misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs, struct2template, op_feats_data
+    misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs, struct2template, op_feats_data, clf_feat
     return misc
 
 def sqldt_from_appid(url_header, appid, if_full_plan=False):
