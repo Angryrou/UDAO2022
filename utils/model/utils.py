@@ -400,7 +400,8 @@ def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
         batch_stages = stage_graph.to(device)
         batch_insts = inst_feat.to(device)
         batch_y = y.to(device)
-        batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
+        if len(in_feat_minmax) > 0:
+            batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
         if model.name in ("GTN", "RAAL", "QF"):
             batch_lap_pos_enc = batch_stages.ndata['lap_pe'].to(device)
             if mode == "train":
@@ -633,10 +634,13 @@ def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_
                                clf_feat=clf_feat[split] if clf_feat is not None else None)
                for split in ["tr", "val", "te"]}
     picked_groups_in_feat = [ch for ch in picked_groups if ch not in ("ch1", "obj")]
-    in_feat_minmax = {
-        "min": th.cat([get_tensor(minmax_dict[ch]["min"].values, device=device) for ch in picked_groups_in_feat]),
-        "max": th.cat([get_tensor(minmax_dict[ch]["max"].values, device=device) for ch in picked_groups_in_feat])
-    }
+    if len(picked_groups_in_feat) == 0:
+        in_feat_minmax = {}
+    else:
+        in_feat_minmax = {
+            "min": th.cat([get_tensor(minmax_dict[ch]["min"].values, device=device) for ch in picked_groups_in_feat]),
+            "max": th.cat([get_tensor(minmax_dict[ch]["max"].values, device=device) for ch in picked_groups_in_feat])
+        }
     if clf_feat is not None:
         clf_feat_minmax = {"min": clf_feat["tr"].min(0), "max": clf_feat["tr"].max(0)}
         for mm in ["min", "max"]:
