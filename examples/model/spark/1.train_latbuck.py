@@ -3,7 +3,6 @@
 # Description: e2e training via GTN
 #
 # Created at 03/01/2023
-from utils.common import PickleUtils
 
 if __name__ == "__main__":
 
