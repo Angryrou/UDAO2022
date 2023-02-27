@@ -53,4 +53,4 @@ if __name__ == "__main__":
 
     ds_dict = ds_dict_all.filter(lambda e: e["template"] == tid)
     data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, clf_feat]
-    model, results = pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header)
+    pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header)

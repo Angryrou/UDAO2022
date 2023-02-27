@@ -45,4 +45,4 @@ if __name__ == "__main__":
         op_feats_data["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
 
     data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, clf_feat]
-    model, results = pipeline(data_meta, data_params, learning_params, net_params, ckp_header)
+    model, results, hp_params, hp_prefix_sign = pipeline(data_meta, data_params, learning_params, net_params, ckp_header)
