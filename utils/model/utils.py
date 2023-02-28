@@ -126,7 +126,7 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
             dag_dict[i].ndata["lap_pe"] = dag_dict_ori[i].ndata["lap_pe"]
         max_dist = max([v.edata["dist"].max().item() for v in dag_dict.values()])
         dag_dict["max_dist"] = max_dist
-    elif model_name == "GCN":
+    elif model_name in ("GCN", "GATv2"):
         dag_dict = struct_data["dgl_dict"]
         dag_dict = {k: dgl.add_self_loop(dag) for k, dag in dag_dict.items()}
     else:
@@ -199,7 +199,11 @@ def get_hp(data_params, learning_params, net_params, case=""):
         if "agg_dim" in net_params and net_params["agg_dim"] is not None:
             net_params_list.append("agg_dim")
     elif case == "GATv2":
-        raise NotImplementedError
+        net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size", "L_gtn", "L_mlp", "n_heads",
+                           "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2", "residual", "readout",
+                           "layer_norm"]
+        if "agg_dim" in net_params and net_params["agg_dim"] is not None:
+            net_params_list.append("agg_dim")
     elif case == "TL":
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size",
                            "L_mlp", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2", "readout"]
@@ -421,7 +425,7 @@ def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
             if mode == "train":
                 batch_lap_pos_enc = get_random_flips(batch_lap_pos_enc, device)
             batch_y_hat = model.forward(batch_stages, batch_lap_pos_enc, batch_insts)
-        elif model.name in ("AVGMLP", "GCN"):
+        elif model.name in ("AVGMLP", "GCN", "GATv2"):
             batch_y_hat = model.forward(batch_stages, batch_insts)
         elif model.name == "TL":
             raise NotImplementedError
