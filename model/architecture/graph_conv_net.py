@@ -37,9 +37,12 @@ class GCN(nn.Module):
         if self.op_type:
             self.op_embedder = nn.Embedding(net_params["n_op_types"], net_params["ch1_type_dim"])
         self.readout = net_params["readout"]
-        self.embedding_h = nn.Linear(in_feat_size_op, hidden_dim)
 
-        assert in_feat_size_op > hidden_dim
+        if in_feat_size_op < hidden_dim:
+            self.embedding_h = nn.Linear(in_feat_size_op, hidden_dim)
+        else:
+            self.embedding_h = None
+
         layers = [GraphConv(in_feat_size_op, hidden_dim)]
         for i in range(n_gcn_layers - 1):
             layers.append(GraphConv(hidden_dim, hidden_dim // 2))
@@ -65,6 +68,9 @@ class GCN(nn.Module):
         if self.op_enc:
             op_list.append(g.ndata["enc"])
         h = th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
+        if self.embedding_h is not None:
+            h = self.embedding_h(h)
+            h = F.relu(h)
 
         for conv in self.convs:
             h = conv(g, h)
