@@ -49,7 +49,7 @@ class GCN(nn.Module):
             layers.append(GraphConv(hidden_dim, hidden_dim // 2))
             hidden_dim = hidden_dim // 2
 
-        assert hidden_dim > out_dim
+        assert hidden_dim >= out_dim
         layers.append(GraphConv(hidden_dim, out_dim))
         self.convs = nn.ModuleList(layers)
 
