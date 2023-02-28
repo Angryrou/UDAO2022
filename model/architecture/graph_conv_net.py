@@ -38,15 +38,18 @@ class GCN(nn.Module):
             self.op_embedder = nn.Embedding(net_params["n_op_types"], net_params["ch1_type_dim"])
         self.readout = net_params["readout"]
 
+        layers = []
         if in_feat_size_op < hidden_dim:
             self.embedding_h = nn.Linear(in_feat_size_op, hidden_dim)
         else:
             self.embedding_h = None
+            layers.append(GraphConv(in_feat_size_op, hidden_dim))
 
-        layers = [GraphConv(in_feat_size_op, hidden_dim)]
         for i in range(n_gcn_layers - 1):
             layers.append(GraphConv(hidden_dim, hidden_dim // 2))
             hidden_dim = hidden_dim // 2
+
+        assert hidden_dim > out_dim
         layers.append(GraphConv(hidden_dim, out_dim))
         self.convs = nn.ModuleList(layers)
 
