@@ -25,6 +25,8 @@ import pytorch_warmup as warmup
 import dgl
 
 from model.architecture.avg_mlp import AVGMLP
+from model.architecture.graph_attention_net import GATv2
+from model.architecture.graph_conv_net import GCN
 from model.architecture.graph_transformer_net import GraphTransformerNet
 from model.architecture.mlp_readout_layer import PureMLP
 from model.metrics import get_loss
@@ -53,6 +55,8 @@ def get_laplacian_pe(g, pos_enc_dim=16):
 
 
 def resize_pe(g, pos_enc_dim):
+    if "lap_pe" not in g.ndata:
+        return g
     cur_enc_dim = g.ndata['lap_pe'].shape[1]
     if cur_enc_dim < pos_enc_dim:
         g.ndata['lap_pe'] = F.pad(g.ndata['lap_pe'], pad=(0, pos_enc_dim - cur_enc_dim), mode='constant', value=0)
@@ -122,6 +126,9 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
             dag_dict[i].ndata["lap_pe"] = dag_dict_ori[i].ndata["lap_pe"]
         max_dist = max([v.edata["dist"].max().item() for v in dag_dict.values()])
         dag_dict["max_dist"] = max_dist
+    elif model_name == "GCN":
+        dag_dict = struct_data["dgl_dict"]
+        dag_dict = {k: dgl.add_self_loop(dag) for k, dag in dag_dict.items()}
     else:
         raise ValueError(model_name)
     n_op_types = len(struct_data["global_ops"])
@@ -186,6 +193,13 @@ def get_hp(data_params, learning_params, net_params, case=""):
             net_params_list.append("out_norm")
         if "agg_dim" in net_params and net_params["agg_dim"] is not None:
             net_params_list.append("agg_dim")
+    elif case == "GCN":
+        net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size", "L_gtn", "L_mlp",
+                           "hidden_dim", "out_dim", "mlp_dim", "dropout2", "readout"]
+        if "agg_dim" in net_params and net_params["agg_dim"] is not None:
+            net_params_list.append("agg_dim")
+    elif case == "GATv2":
+        raise NotImplementedError
     elif case == "TL":
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size",
                            "L_mlp", "hidden_dim", "out_dim", "mlp_dim", "dropout", "dropout2", "readout"]
@@ -407,7 +421,7 @@ def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
             if mode == "train":
                 batch_lap_pos_enc = get_random_flips(batch_lap_pos_enc, device)
             batch_y_hat = model.forward(batch_stages, batch_lap_pos_enc, batch_insts)
-        elif model.name == "AVGMLP":
+        elif model.name in ("AVGMLP", "GCN"):
             batch_y_hat = model.forward(batch_stages, batch_insts)
         elif model.name == "TL":
             raise NotImplementedError
@@ -599,6 +613,14 @@ def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag
     elif model_name == "AVGMLP":
         model = AVGMLP(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "AVGMLP")
+    elif model_name == "GCN":
+        net_params["name"] = model_name
+        model = GCN(net_params).to(device=device)
+        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "GCN")
+    elif model_name == "GATv2":
+        net_params["name"] = model_name
+        model = GATv2(net_params).to(device=device)
+        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "GATv2")
     elif model_name == "TL":
         raise NotImplementedError()
     else:
@@ -809,7 +831,7 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
     th.save(results, results_pth_sign)
     plot_error_rate(y_te, y_hat_te, ckp_path)
     show_results(results, obj)
-    return model, results
+    return model, results, hp_params, hp_prefix_sign
 
 
 def pipeline_classifier(data_meta, data_params, learning_params, net_params, ckp_header):
@@ -918,4 +940,4 @@ def pipeline_classifier(data_meta, data_params, learning_params, net_params, ckp
     }
     th.save(results, results_pth_sign)
     show_results(results, obj)
-    return model, results
+    return model, results, hp_params, hp_prefix_sign
