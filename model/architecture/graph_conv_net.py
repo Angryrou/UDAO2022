@@ -73,11 +73,11 @@ class GCN(nn.Module):
         h = th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
         if self.embedding_h is not None:
             h = self.embedding_h(h)
-            h = F.relu(h)
+            h = F.leaky_relu(h)
 
         for conv in self.convs:
             h = conv(g, h)
-            h = F.relu(h)
+            h = F.leaky_relu(h)
 
         g.ndata["h"] = h
         if self.readout == "sum":
