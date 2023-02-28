@@ -630,6 +630,7 @@ def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag
     else:
         raise ValueError(model_name)
 
+    view_model_param(model_name, model)
     ckp_path = os.path.join(ckp_header, hp_prefix_sign)
     os.makedirs(ckp_path, exist_ok=True)
     weights_pth_sign = f"{ckp_path}/best_weight.pth"
@@ -855,7 +856,7 @@ def pipeline_classifier(data_meta, data_params, learning_params, net_params, ckp
         ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
         dag_dict, struct2template, learning_params, net_params, minmax_dict, coll=collate_clf)
 
-    view_model_param(model_name, model)
+    # view_model_param(model_name, model)
     view_data(dataset)
 
     # training setup
