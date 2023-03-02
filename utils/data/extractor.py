@@ -426,10 +426,18 @@ def extract_ofeats(lp, all=False):
         if "rowCount=" in l:
             nrows[nid] = l.split("rowCount=")[1].split(")")[0]
         else:
-            assert nid in to2from and len(to2from[nid]) == 1
-            pid = to2from[nid][0]
-            assert nrows[pid] is not None
-            nrows[nid] = nrows[pid]
+            assert nid in to2from
+            if len(to2from[nid]) == 1:
+                pid = to2from[nid][0]
+                assert nrows[pid] is not None
+                nrows[nid] = nrows[pid]
+            elif len(to2from[nid]) == 2:
+                pid1, pid2 = to2from[nid]
+                assert nrows[pid1] is not None and nrows[pid2] is not None
+                assert float(nrows[pid1]) * float(nrows[pid2]) == 0
+                nrows[nid] = "0"
+            else:
+                raise NotImplementedError
     if all:
         return sizes, nrows, nnames, from_ids, to_ids
     return sizes, nrows
@@ -445,6 +453,8 @@ def format_size(x):
         return float(n) * 1024 * 1024
     elif unit == "GiB":
         return float(n) * 1024 * 1024 * 1024
+    elif unit == "TiB":
+        return float(n) * 1024 * 1024 * 1024 * 1024
     else:
         raise ValueError(x)
 

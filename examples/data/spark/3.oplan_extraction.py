@@ -25,7 +25,9 @@ class Args():
         self.parser.add_argument("--scale-factor", type=int, default=100)
         self.parser.add_argument("--src-path-header", type=str, default="resources/dataset/tpch_100_query_traces")
         self.parser.add_argument("--oplan-path-header", type=str, default="resources/dataset/tpch_100_oplans")
+        self.parser.add_argument("--oplan-name", type=str, default="logical_plans.parquet")
         self.parser.add_argument("--cache-header", type=str, default="examples/data/spark/cache")
+        self.parser.add_argument("--cbo-cache-name", type=str, default="cbo_cache.pkl")
         self.parser.add_argument("--debug", type=int, default=1)
         self.parser.add_argument("--seed", type=int, default=42)
 
@@ -44,7 +46,7 @@ debug = False if args.debug == 0 else True
 seed = args.seed
 
 # preprocess the tpch_100_oplans
-oplan_name = "logical_plans.parquet"
+oplan_name = args.oplan_name
 try:
     lp_df = ParquetUtils.parquet_read(cache_header, oplan_name)
     print(f"found {oplan_name}")
@@ -60,7 +62,7 @@ except:
     print(f"{oplan_name} generated, cost {time.time() - start}s")
 
 # (1) cbo feat cache for ALL queries: (tid, qid) -> a lsit of (size, nrow)
-cbo_cache_name = "cbo_cache.pkl"
+cbo_cache_name = args.cbo_cache_name
 try:
     cbo_cache = PickleUtils.load(cache_header, cbo_cache_name)
     print(f"{cbo_cache_name} found")
@@ -80,7 +82,7 @@ except:
         xx_feat["size"] = xx_feat["size"].apply(lambda x: format_size(x))
         xx_feat["nrows"] = xx_feat["nrows"].astype(float)
         feat_np = xx_feat[["size", "nrows"]].values.reshape(len(xx), -1, 2)
-        ofeat_dict[tid] = np.concatenate([feat_np, np.log(feat_np)], axis=2)
+        ofeat_dict[tid] = np.concatenate([feat_np, np.log(feat_np + 1e-6)], axis=2)
 
     df_tr, _, _ = get_csvs_tr_val_te(templates, src_path_header, cache_header, seed)
     ofeats = np.concatenate([v[df_tr.loc[f"q{1}"].q_sign.apply(lambda x: int(x.split("-")[1])).values].reshape(-1, 4)
