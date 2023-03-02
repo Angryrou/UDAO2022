@@ -41,7 +41,7 @@ def get_gpus(gpu):
 
 def set_data_params(args):
     assert args.ch1_type in ("on", "off")
-    assert args.ch1_cbo in ("on", "off")
+    assert args.ch1_cbo in ("on", "off", "on2")
     assert args.ch1_enc in ("off", "w2v", "d2v")
     assert args.ch2 in ("on", "off")
     assert args.ch3 in ("on", "off")

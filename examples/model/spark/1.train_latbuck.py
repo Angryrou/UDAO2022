@@ -42,6 +42,9 @@ if __name__ == "__main__":
     op_feats_file = {}
     if data_params["ch1_cbo"] == "on":
         op_feats_file["cbo"] = "cbo_cache.pkl"
+    elif data_params["ch1_cbo"] == "on2":
+        op_feats_file["cbo"] = "cbo_cache_recollect.pkl"
+
     if data_params["ch1_enc"] != "off":
         ch1_enc = data_params["ch1_enc"]
         op_feats_file["enc"] = f"enc_cache_{ch1_enc}.pkl"
@@ -55,7 +58,7 @@ if __name__ == "__main__":
         model_name=model_name
     )
 
-    if data_params["ch1_cbo"] == "on":
+    if data_params["ch1_cbo"] in ("on", "on2"):
         op_feats_data["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
 
     ds_dict = ds_dict_all.filter(lambda e: e["latency"] // bsize == bid)

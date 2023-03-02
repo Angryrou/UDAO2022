@@ -54,7 +54,7 @@ class ArgsTrain(ArgsBase):
         super(ArgsTrain, self).__init__()
         # data_params
         self.parser.add_argument("--ch1-type", type=str, default="on", help="off|on")
-        self.parser.add_argument("--ch1-cbo", type=str, default="off", help="off|on")
+        self.parser.add_argument("--ch1-cbo", type=str, default="off", help="off|on|on2")
         self.parser.add_argument("--ch1-enc", type=str, default="off", help="off|d2v|w2v")
         self.parser.add_argument("--ch2", type=str, default="on", help="off|on, input data meta")
         self.parser.add_argument("--ch3", type=str, default="on", help="off|on, system states")
