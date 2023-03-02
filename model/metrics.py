@@ -20,6 +20,8 @@ def get_loss(y, y_hat, loss_type):
         loss = th.mean(th.abs(y_hat - y) / (y + 1e-3))
     elif loss_type == "mape+wmape":
         loss = nn.L1Loss(reduction="sum")(y_hat, y) / y.sum() + th.mean(th.abs(y_hat - y) / (y + 1e-3))
+    elif loss_type == "mse":
+        loss = nn.MSELoss()(y_hat, y)
     elif loss_type == "nll":
         loss = F.nll_loss(y_hat, y)
     else:

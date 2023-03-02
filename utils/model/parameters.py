@@ -94,7 +94,7 @@ def set_learning_params(args):
     if args.ckp_interval is not None:
         learning_params["ckp_interval"] = args.ckp_interval
     if args.loss_type is not None:
-        assert args.loss_type in {"msle", "wmape", "mae", "mape"}
+        assert args.loss_type in {"msle", "wmape", "mae", "mape", "mse"}
         learning_params['loss_type'] = args.loss_type
     if len(OBJ_MAP[args.obj]) > 1:
         assert args.loss_ws is not None
