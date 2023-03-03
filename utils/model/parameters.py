@@ -50,7 +50,7 @@ def set_data_params(args):
         assert args.obj in ("latency", "latbuck20", "tid")
     elif args.granularity == "QS":
         assert args.obj in ("stage_lat", "stage_dt", "stage_both")
-    assert args.model_name in ("GTN", "RAAL", "QF", "TL", "AVGMLP", "GCN", "GATv2")
+    assert args.model_name in ("GTN", "RAAL", "QF", "TL", "AVGMLP", "GCN", "GATv2", "GIN")
     assert args.debug in (0, 1)
     if args.clf_feat is not None:
         assert os.path.exists(args.clf_feat)

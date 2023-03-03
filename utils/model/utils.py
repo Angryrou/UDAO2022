@@ -27,6 +27,7 @@ import dgl
 from model.architecture.avg_mlp import AVGMLP
 from model.architecture.graph_attention_net import GATv2
 from model.architecture.graph_conv_net import GCN
+from model.architecture.graph_isomorphism_net import GIN
 from model.architecture.graph_transformer_net import GraphTransformerNet
 from model.architecture.mlp_readout_layer import PureMLP
 from model.metrics import get_loss
@@ -126,7 +127,7 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
             dag_dict[i].ndata["lap_pe"] = dag_dict_ori[i].ndata["lap_pe"]
         max_dist = max([v.edata["dist"].max().item() for v in dag_dict.values()])
         dag_dict["max_dist"] = max_dist
-    elif model_name in ("GCN", "GATv2"):
+    elif model_name in ("GCN", "GATv2", "GIN"):
         dag_dict = struct_data["dgl_dict"]
         dag_dict = {k: dgl.add_self_loop(dag) for k, dag in dag_dict.items()}
     else:
@@ -193,7 +194,7 @@ def get_hp(data_params, learning_params, net_params, case=""):
             net_params_list.append("out_norm")
         if "agg_dim" in net_params and net_params["agg_dim"] is not None:
             net_params_list.append("agg_dim")
-    elif case == "GCN":
+    elif case in ["GCN", "GIN"]:
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size", "L_gtn", "L_mlp",
                            "hidden_dim", "out_dim", "mlp_dim", "dropout2", "readout"]
         if "agg_dim" in net_params and net_params["agg_dim"] is not None:
@@ -425,7 +426,7 @@ def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
             if mode == "train":
                 batch_lap_pos_enc = get_random_flips(batch_lap_pos_enc, device)
             batch_y_hat = model.forward(batch_stages, batch_lap_pos_enc, batch_insts)
-        elif model.name in ("AVGMLP", "GCN", "GATv2"):
+        elif model.name in ("AVGMLP", "GCN", "GATv2", "GIN"):
             batch_y_hat = model.forward(batch_stages, batch_insts)
         elif model.name == "TL":
             raise NotImplementedError
@@ -621,6 +622,10 @@ def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag
         net_params["name"] = model_name
         model = GCN(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "GCN")
+    elif model_name == "GIN":
+        net_params["name"] = model_name
+        model = GIN(net_params).to(device=device)
+        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "GIN")
     elif model_name == "GATv2":
         net_params["name"] = model_name
         model = GATv2(net_params).to(device=device)
