@@ -7,6 +7,7 @@
 if __name__ == "__main__":
 
     import os
+    import numpy as np
     from utils.data.feature import L2P_MAP
     from utils.model.args import ArgsTrainLatBuck
     from utils.model.parameters import set_params
@@ -24,9 +25,11 @@ if __name__ == "__main__":
     finetune_header = args.finetune_header
 
     if args.benchmark.lower() == "tpch" and args.scale_factor == 100:
-        if bsize == 20:
+        if bsize == "20":
             assert bid in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23], \
                 ValueError(bid)
+        elif bsize in ("3h", "3w", "3c"):
+            assert bid in [0, 1, 2], ValueError(bid)
         else:
             raise ValueError(bsize)
 
@@ -61,6 +64,27 @@ if __name__ == "__main__":
     if data_params["ch1_cbo"] in ("on", "on2"):
         op_feats_data["cbo"]["l2p"] = L2P_MAP[args.benchmark.lower()]
 
-    ds_dict = ds_dict_all.filter(lambda e: e["latency"] // bsize == bid)
+    if bsize == "20":
+        ds_dict = ds_dict_all.filter(lambda e: e["latency"] // 20 == bid)
+    elif bsize in ("3h", "3w", "3c"):
+        if bsize == "3c":
+            lat_splits = [10, 100]
+        else:
+            def get_3bid(l, ls):
+                if l < ls[0]:
+                    return 0
+                if l < ls[1]:
+                    return 1
+                return 2
+            lats = np.hstack([v["latency"] for v in ds_dict_all.values()])
+            if bsize == "3h": # equal-height split
+                lat_splits = np.percentile(lats, [33, 67])
+            else: # equal-width split
+                lmin, lmax = min(lats), max(lats)
+                gap = lmax - lmin
+                lat_splits = [lmin + gap / 3, lmin + gap / 3 * 2]
+        ds_dict = ds_dict_all.filter(lambda e: get_3bid(e["latency"], lat_splits) == bid)
+    else:
+        raise ValueError
     data_meta = [ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, clf_feat]
     pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header)
