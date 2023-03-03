@@ -67,15 +67,16 @@ if __name__ == "__main__":
     if bsize == "20":
         ds_dict = ds_dict_all.filter(lambda e: e["latency"] // 20 == bid)
     elif bsize in ("3h", "3w", "3c"):
+        def get_3bid(l, ls):
+            if l < ls[0]:
+                return 0
+            if l < ls[1]:
+                return 1
+            return 2
+        
         if bsize == "3c":
             lat_splits = [10, 100]
         else:
-            def get_3bid(l, ls):
-                if l < ls[0]:
-                    return 0
-                if l < ls[1]:
-                    return 1
-                return 2
             lats = np.hstack([v["latency"] for v in ds_dict_all.values()])
             if bsize == "3h": # equal-height split
                 lat_splits = np.percentile(lats, [33, 67])
