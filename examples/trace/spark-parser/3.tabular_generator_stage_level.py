@@ -35,7 +35,7 @@ def match_inds(x, y):
     :return: a list of the index of the most recent machine trace to each query
     """
     m, n = len(x), len(y)
-    assert x[-1] < y[-1] - 5
+    assert x[-1] < y[-1] + 5
     # O(logn + m)
     ret = np.zeros(m).astype(int)
     j = max(np.where(x[0] > y)[0])
@@ -69,14 +69,14 @@ if __name__ == "__main__":
         df_tabular = ParquetUtils.parquet_read_multiple(tabular_path, matches)
     else:
         df_tabular = ParquetUtils.parquet_read(tabular_path, tabular_tmp_name)
-    print(f"originally, get {df_tabular.shape[0]} stages in {df_tabular.id.unique().size} queries to parse")
+    print(f"Got {df_tabular.shape[0]} stages in {df_tabular.id.unique().size} queries to parse, originally.")
     df_meta = df_tabular.groupby(["id", "stage_id"]).size()
     failed_ids = df_meta[df_meta>1].reset_index().id.unique().tolist()
     JsonUtils.save_json(failed_ids, f"{dst}/failed_appids.txt")
     df_tabular = df_tabular[~df_tabular.id.isin(failed_ids)]
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("first_task_launched_time")
     x = df_tabular["first_task_launched_time"].values
-    print(f"After filtering failures, get {len(x)} stages in {df_tabular.id.unique().size} queries to parse")
+    print(f"Got {len(x)} stages in {df_tabular.id.unique().size} queries to parse, after filtering failures, ")
 
     mach_cols = ["timestamp", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]
     df_mach = ParquetUtils.parquet_read(mach_path, "mach_traces.parquet")
