@@ -60,6 +60,8 @@ if __name__ == "__main__":
     mach_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/1.mach"
     tabular_path = f"{dst_path_header}/{bm}_{sf}_{sampling}/3.tabular_stages"
     tabular_tmp_name = args.tabular_tmp_name
+    dst = f"{tabular_path}/query_traces"
+    os.makedirs(dst, exist_ok=True)
 
     tmp_cols = ["id", "name", "q_sign", "knob_sign", "planDescription", "nodes", "edges",
                 "start_timestamp", "latency", "err"]
@@ -70,7 +72,7 @@ if __name__ == "__main__":
     print(f"originally, get {df_tabular.shape[0]} stages in {df_tabular.id.unique().size} queries to parse")
     df_meta = df_tabular.groupby(["id", "stage_id"]).size()
     failed_ids = df_meta[df_meta>1].reset_index().id.unique().tolist()
-    JsonUtils.save_json(failed_ids, f"{tabular_path}/query_traces/failed_appids.txt")
+    JsonUtils.save_json(failed_ids, f"{dst}/failed_appids.txt")
     df_tabular = df_tabular[~df_tabular.id.isin(failed_ids)]
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("first_task_launched_time")
     x = df_tabular["first_task_launched_time"].values
@@ -87,9 +89,6 @@ if __name__ == "__main__":
     df_tabular[mach_cols] = df_mach.iloc[yinds].values
     df_tabular["template"] = df_tabular.q_sign.str.split("-").str[0]
     df_dict = {k: v for k, v in df_tabular.groupby("template")}
-
-    dst = f"{tabular_path}/query_traces"
-    os.makedirs(dst, exist_ok=True)
     for k, v in df_tabular.groupby("template"):
         v.to_csv(f"{dst}/{k}_{sampling}.csv", sep="\u0001", index=False)
     print(f"saved for csvs at {dst}/*")
