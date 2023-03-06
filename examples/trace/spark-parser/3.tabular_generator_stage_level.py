@@ -41,8 +41,11 @@ def match_inds(x, y):
     j = max(np.where(x[0] > y)[0])
     ret[0] = j
     for i, xi in enumerate(x[1:]):
-        while xi > y[j + 1]:  # break when xi >= y[j + 1]
-            j += 1
+        if j + 1 < n:
+            while xi > y[j + 1]:  # break when xi >= y[j + 1]
+                j += 1
+        else:
+            print(f"{xi} -> {y[j]}")
         ret[i + 1] = j
 
     # O(mlogn)
