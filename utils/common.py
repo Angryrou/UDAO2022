@@ -38,11 +38,17 @@ class JsonUtils(object):
         return data
 
     @staticmethod
-    def extract_json_list(l, keys:list):
+    def extract_json_list(l, keys: list):
         for key in keys:
             for l_ in l:
                 assert key in l_, f"{key} is not in {l_}"
         return [[l_[key] for l_ in l] for key in keys]
+
+    @staticmethod
+    def save_json(d, des_file):
+        json_data = json.dumps(d, indent=2)
+        with open(des_file, "w") as f:
+            f.write(json_data)
 
 class PickleUtils(object):
 
