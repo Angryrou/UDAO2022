@@ -70,6 +70,23 @@ def get_csvs(templates, header, cache_header, samplings=["lhs", "bo"]):
         print(f"generated cached {fname} at {cache_header}")
     return df
 
+def get_csvs_stage(header, cache_header, samplings=["lhs", "bo"]):
+    fname = f"csvs_stage.parquet"
+    try:
+        df = ParquetUtils.parquet_read(cache_header, fname)
+        print(f"found cached {fname} at {cache_header}")
+    except:
+        df_s = []
+        for sampling in samplings:
+            file_path = f"{header}/{sampling}.csv"
+            assert os.path.exists(file_path)
+            df = pd.read_csv(file_path, sep="\u0001")
+            df["sampling"] = sampling
+            df_s.append(df)
+        df = pd.concat(df_s).reset_index()
+        ParquetUtils.parquet_write(df, cache_header, fname)
+        print(f"generated cached {fname} at {cache_header}")
+    return df
 
 def get_csvs_tr_val_te(templates, header, cache_header, seed, samplings=["lhs", "bo"]):
     df = get_csvs(templates, header, cache_header, samplings)

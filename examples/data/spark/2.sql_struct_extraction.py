@@ -4,11 +4,11 @@
 #
 # Created at 12/23/22
 
-import argparse, random
+import argparse, random, os
 
 import numpy as np
 from utils.common import BenchmarkUtils, PickleUtils
-from utils.data.extractor import get_csvs, SqlStruct, get_tr_val_te_masks
+from utils.data.extractor import get_csvs, SqlStruct, get_tr_val_te_masks, get_csvs_stage
 from utils.data.feature import CH1_FEATS, CH2_FEATS, CH3_FEATS, CH4_FEATS, OBJS
 
 
@@ -17,7 +17,7 @@ class Args():
         self.parser = argparse.ArgumentParser()
         self.parser.add_argument("-b", "--benchmark", type=str, default="TPCH")
         self.parser.add_argument("--scale-factor", type=int, default=100)
-        self.parser.add_argument("--src-path-header", type=str, default="resources/dataset/tpch_100_query_traces")
+        self.parser.add_argument("--src-path-header", type=str, default="resources/dataset")
         self.parser.add_argument("--cache-header", type=str, default="examples/data/spark/cache")
         self.parser.add_argument("--debug", type=int, default=0)
         self.parser.add_argument("--if-plot", type=int, default=1)
@@ -41,7 +41,12 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     templates = [f"q{i}" for i in BenchmarkUtils.get(bm)]
-    df = get_csvs(templates, src_path_header, cache_header, samplings=["lhs", "bo"])
+    src_path_header_query = os.path.join(src_path_header, f"{bm}_{sf}_query_traces")
+    df = get_csvs(templates, src_path_header_query, cache_header, samplings=["lhs", "bo"])
+
+    src_path_header_stage = os.path.join(src_path_header, f"{bm}_{sf}_stage_traces")
+    df_stage = get_csvs_stage(src_path_header_stage, cache_header, samplings=["lhs", "bo"])
+
 
     # 1. get unique query structures with operator types.
     struct_cache_name = "struct_cache.pkl"
@@ -103,4 +108,4 @@ if __name__ == "__main__":
     #   - SQL -> [QueryStages] + {QueryStageDep - a DGL} / blocked by Exchanges and Subqueries
     #   - QueryStage -> [stages]
 
-    # 4. generate data for queryStage-level modeling
+    # 3. generate data for queryStage-level modeling
