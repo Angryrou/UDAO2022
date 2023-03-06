@@ -62,7 +62,7 @@ class HCF(BaseModel):
         :param real_conf: numpy.array[int]
         :return: normalized to 0-1
         """
-        var_min, var_max = self.get_conf_range_for_wl()
+        var_max, var_min = self.get_conf_range_for_wl()
         normalized_conf = (config - var_min) / (var_max - var_min)
         return normalized_conf
 
