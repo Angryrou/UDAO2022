@@ -78,7 +78,7 @@ if __name__ == "__main__":
     print(f"Got {df_tabular.shape[0]} stages in {df_tabular.id.unique().size} queries to parse, originally.")
     df_meta = df_tabular.groupby(["id", "stage_id"]).size()
     failed_ids = df_meta[df_meta>1].reset_index().id.unique().tolist()
-    JsonUtils.save_json(failed_ids, f"{dst}/failed_appids.txt")
+    JsonUtils.save_json(failed_ids, f"{dst}/{sampling}_failed_appids.txt")
     df_tabular = df_tabular[~df_tabular.id.isin(failed_ids)]
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("first_task_launched_time")
     x = df_tabular["first_task_launched_time"].values
