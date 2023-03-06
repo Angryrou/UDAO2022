@@ -93,8 +93,5 @@ if __name__ == "__main__":
 
     yinds = match_inds(x, y)
     df_tabular[mach_cols] = df_mach.iloc[yinds].values
-    df_tabular["template"] = df_tabular.q_sign.str.split("-").str[0]
-    df_dict = {k: v for k, v in df_tabular.groupby("template")}
-    for k, v in df_tabular.groupby("template"):
-        v.to_csv(f"{dst}/{k}_{sampling}.csv", sep="\u0001", index=False)
+    df_tabular.to_csv(f"{dst}/{sampling}.csv", sep="\u0001", index=False)
     print(f"saved for csvs at {dst}/*")
