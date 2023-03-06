@@ -44,6 +44,9 @@ def match_inds(x, y):
         if j + 1 < n:
             while xi > y[j + 1]:  # break when xi >= y[j + 1]
                 j += 1
+                if j+1 == n:
+                    print(f"{xi} -> {y[j]}")
+                    break
         else:
             print(f"{xi} -> {y[j]}")
         ret[i + 1] = j
