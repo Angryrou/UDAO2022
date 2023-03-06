@@ -67,14 +67,14 @@ if __name__ == "__main__":
         df_tabular = ParquetUtils.parquet_read_multiple(tabular_path, matches)
     else:
         df_tabular = ParquetUtils.parquet_read(tabular_path, tabular_tmp_name)
-    print(f"originally, get {df_tabular.shape[0]} stages in {df_tabular.id.unique().size()} queries to parse")
+    print(f"originally, get {df_tabular.shape[0]} stages in {df_tabular.id.unique().size} queries to parse")
     df_meta = df_tabular.groupby(["id", "stage_id"]).size()
     failed_ids = df_meta[df_meta>1].reset_index().id.unique().tolist()
     JsonUtils.save_json(failed_ids, f"{tabular_path}/query_traces/failed_appids.txt")
     df_tabular = df_tabular[~df_tabular.id.isin(failed_ids)]
     df_tabular = df_tabular[df_tabular.err.isna()].sort_values("first_task_launched_time")
     x = df_tabular["first_task_launched_time"].values
-    print(f"After filtering failures, get {len(x)} stages in {df_tabular.id.unique().size()} queries to parse")
+    print(f"After filtering failures, get {len(x)} stages in {df_tabular.id.unique().size} queries to parse")
 
     mach_cols = ["timestamp", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]
     df_mach = ParquetUtils.parquet_read(mach_path, "mach_traces.parquet")
