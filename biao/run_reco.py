@@ -33,15 +33,12 @@ for q_sign, df in reco_all_dict.items():
     print(f"{q_sign}: {df.drop_duplicates().shape[0]}")
 
 spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
-for pkl in pkls:
-    reco_dict = PickleUtils.load(reco_header, pkl)
-    print(f"start running for {pkl}")
-    for q_sign, df in reco_dict.items():
-        print(f"prepared to run {len(df)} recommended PO configurations for {q_sign}")
-        script_header = f"examples/trace/spark/internal/2.knob_hp_tuning/{bm}_{aqe_sign}/{q_sign}"
-        conf_df = spark_knobs.df_knob2conf(df)
-        run_q_confs(
-            bm=bm, sf=sf, spark_knobs=spark_knobs, query_header=query_header,
-            out_header=script_header, seed=seed, workers=workers,
-            n_trials=3, debug=debug, q_sign=q_sign, conf_df=conf_df, if_aqe=False)
-    print(f"finished running for {pkl}")
+for q_sign, df in reco_all_dict.items():
+    print(f"prepared to run {len(df)} recommended PO configurations for {q_sign}")
+    script_header = f"examples/trace/spark/internal/2.knob_hp_tuning/{bm}_{aqe_sign}/{q_sign}"
+    conf_df = spark_knobs.df_knob2conf(df)
+    run_q_confs(
+        bm=bm, sf=sf, spark_knobs=spark_knobs, query_header=query_header,
+        out_header=script_header, seed=seed, workers=workers,
+        n_trials=3, debug=debug, q_sign=q_sign, conf_df=conf_df, if_aqe=False)
+    print(f"finished running for {q_sign}")
