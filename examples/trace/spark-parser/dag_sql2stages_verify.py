@@ -14,7 +14,7 @@ import dgl, torch as th # pip install dgl==0.9.1
 import dag_sql2stages as viz
 import math
 import pandas as pd
-
+from utils.common import PickleUtils
 
 def read_csv(file: str):
     df = pd.read_csv(file, sep="\u0001", index_col=[0, 1])
@@ -57,11 +57,32 @@ def get_stage_info(filename: str):
             completed_stages_dict.setdefault(app,[]).append(stage)
     return completed_stages_dict
 
+def check_multiple_operators(QStage_dict: dict, nodes: [viz.Node]):
+    multi_ops = False
+    for key, value in QStage_dict.items():
+        stage_multi_ops_cnt = 0
+        for curr_node in value:
+            curr_node_name = (viz.get_node_name(curr_node, nodes)).lower()
+            if re.search('|'.join(['join']), curr_node_name):
+            # if curr_node_name in ['sort', 'hash']:
+                stage_multi_ops_cnt = stage_multi_ops_cnt + 1
+        if stage_multi_ops_cnt > 1:
+            #print(f'#operator {stage_multi_ops_cnt} Multi-op stage {key} : {value}')
+            print(f' : stage {key} => {stage_multi_ops_cnt} joins\n {value}')
+        multi_ops = multi_ops or (True if stage_multi_ops_cnt>1 else False)
+    return multi_ops
+
+
 if __name__ == "__main__":
     # app_id, name, q_sign, knob_sign, nodes, edges = read_csv("tpcds_repr_split_verify.csv")
-    #df = read_csv("tpcds_repr_split_verify.csv")
-    df = read_csv("tpch_repr_split_verify.csv")
-    completed_stages = get_stage_info("tpch_repr_stage_status.csv")
+    # input from csv files instead of fetching online
+    # df = read_csv("dag_sql2stages_verify_input/tpcds_repr_split_verify.csv")
+    # df = read_csv("dag_sql2stages_verify_input/tpch_repr_split_verify.csv")
+    df = read_csv("dag_sql2stages_verify_input/tpch_repr_split_verify-test.csv")
+    # TPCH completed stages info provided in csv for verification.
+    completed_stages = get_stage_info("dag_sql2stages_verify_input/tpch_repr_stage_status.csv")
+
+    QStage_dep_pkl = {}
 
     for index, row in df.iterrows():
         # print(row["Name"], row["Age"])
@@ -87,11 +108,14 @@ if __name__ == "__main__":
 
         full_plan = viz.QueryPlanTopology(nodes, edges)
         QStage_to_nodes, QStage_dependencies = viz.get_sub_sqls_using_topdown_tree(full_plan)
-        print(f"QStage allocation to subqueries : {QStage_to_nodes}")
-        print(f"Stage dependencies : {QStage_dependencies}")
+        print(f"Query Stage allocation to subqueries : {QStage_to_nodes}")
+        print(f"Query Stage dependencies : {QStage_dependencies}")
+        print(f'{app_id} app')
+        if check_multiple_operators(QStage_to_nodes, nodes):
+            print(f'Note: Atleast one stage has multiple operators in app {app_id}')
         rev_dict_SStageIds, stages_arr = sparkvizStageIds_revDict(full_plan.node2sparkvizStageIds) # WholeStageCodegen (6)
-        print(f'SStage allocation in Spark Viz : {rev_dict_SStageIds}')
-        print(f'mapping QStage => SStage {map_qstage_sstage(QStage_to_nodes,rev_dict_SStageIds)}')
+        print(f'Spark Stage allocation in Spark Viz : {rev_dict_SStageIds}')
+        print(f'mapping Query Stage => Spark Stage {map_qstage_sstage(QStage_to_nodes,rev_dict_SStageIds)}')
         stage2plan = viz.get_subsql_plans(full_plan, QStage_to_nodes)
 
         ## Verifying for completed stages
@@ -109,13 +133,16 @@ if __name__ == "__main__":
         full_plan_dgl = viz.get_dgl_graph(edges)
         dgl_subplans = {}
         for stageId, subplan in stage2plan.items():
-            print(f'Saving subplan visualization for QStage {stageId}')
+            print(f'Saving visualization for Query Stage {stageId}')
             viz.topo_visualization(subplan, app_id, title=f"stage_{stageId}")
             dgl_subplan = viz.get_dgl_graph(subplan.edges)
             dgl_subplans[stageId] = dgl_subplan
 
-        # todo: [later], how to get the dependency among stages.
-        print(f'Saving stage dependency visualization')
-        viz.dependency_visualization(QStage_dependencies, app_id, title=f"stage_dependencies")
+        # getting the dependency among stages.
+        print(f'Saving query stage dependency visualization')
+        viz.dependency_visualization(QStage_dependencies, app_id, title=f"query_stage_dependencies-{app_id}")
+        QStage_dep_pkl[app_id] = QStage_dependencies
 
+    PickleUtils.save(QStage_dep_pkl,f"QStage_dependencies_dump",f"QStage_dependencies_tpch_apps.pkl")
+    print(f"Pickle file saved")
         #sys.exit(0)
