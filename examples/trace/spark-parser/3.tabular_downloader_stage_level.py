@@ -92,7 +92,7 @@ if __name__ == '__main__':
                     appid, s["stageId"],
                     TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3]), stage_lat, stage_dt,
                     s["numTasks"], s["inputBytes"], s["inputRecords"], s["shuffleReadBytes"], s["shuffleReadRecords"],
-                    None
+                    s["outputBytes"], s["outputRecords"], s["ShuffleWriteBytes"], s["shuffleWriteRecords"], None
                 ])
             if debug:
                 print(f"extract {appid} from urls: \n {cur_res}")
@@ -121,7 +121,8 @@ if __name__ == '__main__':
 
     print(f"generating {len(res)} stages from {len(urls)} urls costs {time.time() - begin}s")
     columns = ["id", "stage_id", "first_task_launched_time", "stage_latency", "stage_dt",
-               "task_num", "input_bytes", "input_records", "sr_bytes", "sr_records", "err"]
+               "task_num", "input_bytes", "input_records", "sr_bytes", "sr_records",
+               "output_bytes", "output_records", "sw_bytes", "sw_records", "err"]
     df_tmp = pd.DataFrame(res, columns=columns)
     ParquetUtils.parquet_write(
         df_tmp, dst_path, f"{int(begin)}_query_traces_{path_sign}.parquet")

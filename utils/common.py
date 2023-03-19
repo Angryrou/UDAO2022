@@ -23,6 +23,10 @@ class JsonUtils(object):
                 raise Exception(f"{f} cannot be parsed as a JSON file")
 
     @staticmethod
+    def load_json_from_str(s: str):
+        return json.loads(s)
+
+    @staticmethod
     def print_dict(d: dict):
         print(json.dumps(d, indent=2))
 
