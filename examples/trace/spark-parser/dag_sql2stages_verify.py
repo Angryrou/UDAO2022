@@ -1,6 +1,6 @@
 # Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
 #            Arnab SINHA <arnab dot sinha at polytechnique dot edu>
-# Description: Verifies the DAG of the sql query plan and subplans for each stage
+# Description: Constructs the DAG of the sql query plan and its stages
 #
 # Created at 23/01/23
 import collections
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
         full_plan = viz.QueryPlanTopology(nodes, edges)
         QStage_to_nodes, QStage_dependencies = viz.get_sub_sqls_using_topdown_tree(full_plan)
-        print(f"Query Stage allocation to subqueries : {QStage_to_nodes}")
+        print(f"Query Stage allocation to nodes : {QStage_to_nodes}")
         print(f"Query Stage dependencies : {QStage_dependencies}")
         print(f'{app_id} app')
         if check_multiple_operators(QStage_to_nodes, nodes):
@@ -116,9 +116,9 @@ if __name__ == "__main__":
         rev_dict_SStageIds, stages_arr = sparkvizStageIds_revDict(full_plan.node2sparkvizStageIds) # WholeStageCodegen (6)
         print(f'Spark Stage allocation in Spark Viz : {rev_dict_SStageIds}')
         print(f'mapping Query Stage => Spark Stage {map_qstage_sstage(QStage_to_nodes,rev_dict_SStageIds)}')
-        stage2plan = viz.get_subsql_plans(full_plan, QStage_to_nodes)
+        stage2plan = viz.get_stage_plans(full_plan, QStage_to_nodes)
 
-        ## Verifying for completed stages
+        ## Verifying if the known query stage ids from the spark api is a subset of the completed query stages
         if (set(stages_arr)).issubset(set(completed_stages[app_id])):
             print(f'Stages completed : {stages_arr}')
         else:

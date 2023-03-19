@@ -1,6 +1,6 @@
 # Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
 #            Arnab SINHA <arnab dot sinha at polytechnique dot edu>
-# Description: Creates the DAG of the sql query plan and subplans for each stage
+# Description: Constructs the DAG of the sql query plan and its stages
 #
 # Created at 11/9/22
 import collections
@@ -222,9 +222,9 @@ def get_sub_sqls_using_topdown_tree(full_plan: QueryPlanTopology):
     return stage, stage_dependency
 
 
-def get_subsql_plans(full_plan: QueryPlanTopology, stage: dict):
-    # Creating the subsql_plans{stageId: [SubQueryPlanTopology]}
-    subsql_plans = {}
+def get_stage_plans(full_plan: QueryPlanTopology, stage: dict):
+    # Creating the stage_plans{stageId: [SubQueryPlanTopology]}
+    stage_plans = {}
     for stg_id, n_ids in stage.items():
         # stg = stage1[0]
         # n_ids = stage_to_nodeids[stg]
@@ -237,11 +237,11 @@ def get_subsql_plans(full_plan: QueryPlanTopology, stage: dict):
             if edge['fromId'] in n_ids and edge['toId'] in n_ids:
                 edgs.append(edge)
         sub_plan_topo = QueryPlanTopology(ndes, edgs)
-        subsql_plans[stg_id] = sub_plan_topo
-    return subsql_plans
+        stage_plans[stg_id] = sub_plan_topo
+    return stage_plans
 
 
-def get_sub_sqls(full_plan: QueryPlanTopology):
+def get_stages(full_plan: QueryPlanTopology):
     nodes = full_plan.nodes
     edges = full_plan.edges
     node2stageIds = full_plan.node2sparkvizStageIds
@@ -442,9 +442,9 @@ if __name__ == "__main__":
 
         full_plan = QueryPlanTopology(nodes, edges)
         stage_to_nodes, stage_dependencies = get_sub_sqls_using_topdown_tree(full_plan)
-        print(f"Stage allocation to subqueries : {stage_to_nodes}")
+        print(f"Stage allocation to nodes : {stage_to_nodes}")
         print(f"Stage dependencies : {stage_dependencies}")
-        stage2plan = get_subsql_plans(full_plan, stage_to_nodes)
+        stage2plan = get_stage_plans(full_plan, stage_to_nodes)
 
         # stageids_to_stages, stage_to_nodeids, stage2plan = get_sub_sqls(full_plan)
         # print(f'Stageids to stages => {stageids_to_stages}')
