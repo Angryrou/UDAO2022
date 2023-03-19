@@ -1,6 +1,6 @@
 # Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
 #            Arnab SINHA <arnab dot sinha at polytechnique dot edu>
-# Description: Creates the DAG of the sql query plan and subplans for each stage
+# Description: Constructs the DAG of the sql query plan and its stages
 #
 # Created at 11/9/22
 import collections
@@ -12,6 +12,7 @@ import networkx as nx # brew install graphviz && pip install pydot==1.4.2
 import dgl, torch as th # pip install dgl==0.9.1
 
 global_stage_counter = 0
+global_inter_stage_exchange_nodes = dict()
 class Node():
     def __init__(self, node):
         self.nid = node["nodeId"]
@@ -170,6 +171,7 @@ def bfs_rec(full_plan: QueryPlanTopology, current_stage: int, stage: dict, stage
     nodes = full_plan.nodes
     edges = full_plan.edges
     global global_stage_counter
+    global global_inter_stage_exchange_nodes #to track and avoid exchange nodes with two children being assigned two stage ids
 
     if curr_node == None:
         return
@@ -182,7 +184,12 @@ def bfs_rec(full_plan: QueryPlanTopology, current_stage: int, stage: dict, stage
         for child_node in topdown_tree[curr_node]:
             if exchange_node_flag:
                 save_current_stage = current_stage
-                current_stage = global_stage_counter = global_stage_counter + 1
+                if curr_node in global_inter_stage_exchange_nodes.keys():
+                    current_stage = global_inter_stage_exchange_nodes[curr_node]
+                    print(f'(For debug) Found multichildren exchange node: {curr_node} Previous others : {global_inter_stage_exchange_nodes}')
+                else:
+                    current_stage = global_stage_counter = global_stage_counter + 1
+                    global_inter_stage_exchange_nodes[curr_node] = current_stage
                 stage.setdefault(current_stage, []).append(curr_node) # the operator demarcating stage change also added to the children nodes belonging in the next stage
                 stage_dependency.append((current_stage, save_current_stage))
             bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, child_node)
@@ -194,7 +201,7 @@ def get_sub_sqls_using_topdown_tree(full_plan: QueryPlanTopology):
     nodes = full_plan.nodes
     edges = full_plan.edges
     node2stageIds = full_plan.node2sparkvizStageIds
-    # todo: Arnab, return a dict {stageId: [QueryPlanTopology]}, each with a subSQL plan.
+    # constructing and fetching topdown tree, root and leaves using edges information of the query plan
     #leaves, rev_edges = get_leaves_rev_edges(edges)
     topdown_tree, root, leaves = get_topdowntree_root_leaves(edges)
 
@@ -203,14 +210,21 @@ def get_sub_sqls_using_topdown_tree(full_plan: QueryPlanTopology):
     global global_stage_counter
     global_stage_counter = 0
     current_stage = global_stage_counter
+
+    global global_inter_stage_exchange_nodes #to track and avoid exchange nodes with two children being assigned two stage ids
+    global_inter_stage_exchange_nodes = dict() #reset the value for global variable
+
     bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, root)
+
+    for key, values_list in stage.items():
+        stage[key] = sorted([*set(values_list)])
 
     return stage, stage_dependency
 
 
-def get_subsql_plans(full_plan: QueryPlanTopology, stage: dict):
-    # Creating the subsql_plans{stageId: [SubQueryPlanTopology]}
-    subsql_plans = {}
+def get_stage_plans(full_plan: QueryPlanTopology, stage: dict):
+    # Creating the stage_plans{stageId: [SubQueryPlanTopology]}
+    stage_plans = {}
     for stg_id, n_ids in stage.items():
         # stg = stage1[0]
         # n_ids = stage_to_nodeids[stg]
@@ -222,16 +236,16 @@ def get_subsql_plans(full_plan: QueryPlanTopology, stage: dict):
         for edge in full_plan.edges:
             if edge['fromId'] in n_ids and edge['toId'] in n_ids:
                 edgs.append(edge)
-        sub_plan_topo = QueryPlanTopology(ndes, edgs)
-        subsql_plans[stg_id] = sub_plan_topo
-    return subsql_plans
+        querystage_topo = QueryPlanTopology(ndes, edgs)
+        stage_plans[stg_id] = querystage_topo
+    return stage_plans
 
 
-def get_sub_sqls(full_plan: QueryPlanTopology):
+def get_stages(full_plan: QueryPlanTopology):
     nodes = full_plan.nodes
     edges = full_plan.edges
     node2stageIds = full_plan.node2sparkvizStageIds
-    # todo: Arnab, return a dict {stageId: [QueryPlanTopology]}, each with a subSQL plan.
+    # constructing and fetching topdown tree, root and leaves using edges information of the query plan
     #leaves, rev_edges = get_leaves_rev_edges(edges)
     tree, root, leaves = get_topdowntree_root_leaves(edges)
 
@@ -241,11 +255,11 @@ def get_sub_sqls(full_plan: QueryPlanTopology):
     for leaf in leaves:
         traverse_start_node = leaf
         traverse_end_node = get_node_toId(leaf,edges)
-        subplan_start_node = get_node(traverse_start_node, nodes)
-        subplan_start_node_stages = subplan_start_node.involved_stages_from_sparkviz
+        querystage_start_node = get_node(traverse_start_node, nodes)
+        querystage_start_node_stages = querystage_start_node.involved_stages_from_sparkviz
         while (get_node_name(traverse_start_node, nodes)):
-            if subplan_start_node_stages:
-                for stageId in subplan_start_node_stages:
+            if querystage_start_node_stages:
+                for stageId in querystage_start_node_stages:
                          if stageId not in stage_to_nodeids.keys():
                              stage_to_nodeids[stageId] = [traverse_start_node]
                          else:
@@ -254,15 +268,15 @@ def get_sub_sqls(full_plan: QueryPlanTopology):
             traverse_end_node = get_node_toId(traverse_start_node,edges)
             if ((traverse_start_node != None) and 'exchange' in (get_node_name(traverse_start_node, nodes)).lower()):
                 #Add 'exchange' curr_node to previous stage before traversing to next stage
-                if subplan_start_node_stages:
-                    for stageId in subplan_start_node_stages:
+                if querystage_start_node_stages:
+                    for stageId in querystage_start_node_stages:
                         if stageId not in stage_to_nodeids.keys():
                             stage_to_nodeids[stageId] = [traverse_start_node]
                         else:
                             stage_to_nodeids[stageId].append(traverse_start_node)
 
-                subplan_start_node = get_node(traverse_end_node, nodes)
-                subplan_start_node_stages = subplan_start_node.involved_stages_from_sparkviz
+                querystage_start_node = get_node(traverse_end_node, nodes)
+                querystage_start_node_stages = querystage_start_node.involved_stages_from_sparkviz
     stage_to_nodeids = dict_unique_values(stage_to_nodeids)
     # return stage_to_nodeids
 
@@ -280,8 +294,8 @@ def get_sub_sqls(full_plan: QueryPlanTopology):
         for edge in full_plan.edges:
             if edge['fromId'] in n_ids and edge['toId'] in n_ids:
                 edgs.append(edge)
-        sub_plan_topo = QueryPlanTopology(ndes, edgs)
-        subsql_plans[stg_id] = sub_plan_topo
+        querystage_topo = QueryPlanTopology(ndes, edgs)
+        subsql_plans[stg_id] = querystage_topo
 
     # # Creating the subsql_plans{stage: [SubQueryPlanTopology]}
     # for stg, n_ids in stage_to_nodeids.items():
@@ -292,8 +306,8 @@ def get_sub_sqls(full_plan: QueryPlanTopology):
     #     for edge in full_plan.edges:
     #         if edge['fromId'] in n_ids and edge['toId'] in n_ids:
     #             edgs.append(edge)
-    #     sub_plan_topo = QueryPlanTopology(ndes, edgs)
-    #     subsql_plans[stg] = sub_plan_topo
+    #     querystage_topo = QueryPlanTopology(ndes, edgs)
+    #     subsql_plans[stg] = querystage_topo
     return stageids_to_stages, stage_to_nodeids, subsql_plans
 
 
@@ -327,7 +341,7 @@ def format_edges(plan: QueryPlanTopology):
     return edges_tuples
 
 def topo_visualization(QueryPlanTopology, dir_name, title):
-    # todo: Arnab, draw the query plan in a pdf, each query operator shows its curr_node.nid and curr_node.name
+    # top-level function to draw the given query plan topology
     list_edge_tuples = format_edges(QueryPlanTopology)
     dependency_visualization(list_edge_tuples, dir_name, title)
 
@@ -389,26 +403,27 @@ if __name__ == "__main__":
     #url = "http://node13-opa:18088/api/v1/applications/application_1666973014171_0012/sql"
 
     urls = {}
-    # Test url
-    #urls['application_1666973014171_0015'] = "http://node13-opa:18088/api/v1/applications/application_1666973014171_0015/sql"
+    # Test url for an application id
+    urls['application_1666973014171_0015'] = "http://node13-opa:18088/api/v1/applications/application_1666973014171_0015/sql"
 
-    # Queries without AQE:
-    # application_1666973014171_0012 (Q1) - application_1666973014171_0075 (Q22), step by 3
-    for i in range(12,76,3):
-        qrun = str(i).zfill(4)
-        #print(qrun)
-        app_id = f'application_1666973014171_{qrun}'
-        urls[app_id] = f'http://node13-opa:18088/api/v1/applications/{app_id}/sql'
-
-    # Queries with AQE (skip query 9)
-    # application_1666973014171_0078 (Q1) - application_1666973014171_0141 (Q22), step by 3.
-    for i in range(78,142,3):
-        if i in [102,103,104]:#skipping query 9
-            continue
-        qrun = str(i).zfill(4)
-        #print(qrun)
-        app_id = f'application_1666973014171_{qrun}'
-        urls[app_id] = f'http://node13-opa:18088/api/v1/applications/{app_id}/sql'
+    # ##### Fetching bulk data using application ids from urls
+    # # Queries without AQE:
+    # # application_1666973014171_0012 (Q1) - application_1666973014171_0075 (Q22), step by 3
+    # for i in range(12,76,3):
+    #     qrun = str(i).zfill(4)
+    #     #print(qrun)
+    #     app_id = f'application_1666973014171_{qrun}'
+    #     urls[app_id] = f'http://node13-opa:18088/api/v1/applications/{app_id}/sql'
+    #
+    # # Queries with AQE (skip query 9)
+    # # application_1666973014171_0078 (Q1) - application_1666973014171_0141 (Q22), step by 3.
+    # for i in range(78,142,3):
+    #     if i in [102,103,104]:#skipping query 9
+    #         continue
+    #     qrun = str(i).zfill(4)
+    #     #print(qrun)
+    #     app_id = f'application_1666973014171_{qrun}'
+    #     urls[app_id] = f'http://node13-opa:18088/api/v1/applications/{app_id}/sql'
 
     for app_id, url in urls.items():
         print(f'Processing {app_id}')
@@ -427,9 +442,9 @@ if __name__ == "__main__":
 
         full_plan = QueryPlanTopology(nodes, edges)
         stage_to_nodes, stage_dependencies = get_sub_sqls_using_topdown_tree(full_plan)
-        print(f"Stage allocation to subqueries : {stage_to_nodes}")
+        print(f"Stage allocation to nodes : {stage_to_nodes}")
         print(f"Stage dependencies : {stage_dependencies}")
-        stage2plan = get_subsql_plans(full_plan, stage_to_nodes)
+        stage2plan = get_stage_plans(full_plan, stage_to_nodes)
 
         # stageids_to_stages, stage_to_nodeids, stage2plan = get_sub_sqls(full_plan)
         # print(f'Stageids to stages => {stageids_to_stages}')
@@ -438,13 +453,13 @@ if __name__ == "__main__":
         print(f'Saving visualization for full plan')
         topo_visualization(full_plan, app_id, title="full_plan")
         full_plan_dgl = get_dgl_graph(edges)
-        dgl_subplans = {}
-        for stageId, subplan in stage2plan.items():
-            print(f'Saving subplan visualization for stage {stageId}')
-            topo_visualization(subplan, app_id, title=f"stage_{stageId}")
-            dgl_subplan = get_dgl_graph(subplan.edges)
-            dgl_subplans[stageId] = dgl_subplan
+        dgl_stageplans = {}
+        for stageId, stageplan in stage2plan.items():
+            print(f'Saving visualization for query stage {stageId}')
+            topo_visualization(stageplan, app_id, title=f"stage_{stageId}")
+            dgl_stageplan = get_dgl_graph(stageplan.edges)
+            dgl_stageplans[stageId] = dgl_stageplan
 
-        # todo: [later], how to get the dependency among stages.
-        print(f'Saving stage dependency visualization')
-        dependency_visualization(stage_dependencies, app_id, title=f"stage_dependencies")
+        # getting the dependency among stages.
+        print(f'Saving query stage dependency visualization')
+        dependency_visualization(stage_dependencies, app_id, title=f"query_stage_dependencies")
