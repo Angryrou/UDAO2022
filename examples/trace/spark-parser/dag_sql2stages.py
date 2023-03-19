@@ -236,8 +236,8 @@ def get_stage_plans(full_plan: QueryPlanTopology, stage: dict):
         for edge in full_plan.edges:
             if edge['fromId'] in n_ids and edge['toId'] in n_ids:
                 edgs.append(edge)
-        sub_plan_topo = QueryPlanTopology(ndes, edgs)
-        stage_plans[stg_id] = sub_plan_topo
+        querystage_topo = QueryPlanTopology(ndes, edgs)
+        stage_plans[stg_id] = querystage_topo
     return stage_plans
 
 
@@ -255,11 +255,11 @@ def get_stages(full_plan: QueryPlanTopology):
     for leaf in leaves:
         traverse_start_node = leaf
         traverse_end_node = get_node_toId(leaf,edges)
-        subplan_start_node = get_node(traverse_start_node, nodes)
-        subplan_start_node_stages = subplan_start_node.involved_stages_from_sparkviz
+        querystage_start_node = get_node(traverse_start_node, nodes)
+        querystage_start_node_stages = querystage_start_node.involved_stages_from_sparkviz
         while (get_node_name(traverse_start_node, nodes)):
-            if subplan_start_node_stages:
-                for stageId in subplan_start_node_stages:
+            if querystage_start_node_stages:
+                for stageId in querystage_start_node_stages:
                          if stageId not in stage_to_nodeids.keys():
                              stage_to_nodeids[stageId] = [traverse_start_node]
                          else:
@@ -268,15 +268,15 @@ def get_stages(full_plan: QueryPlanTopology):
             traverse_end_node = get_node_toId(traverse_start_node,edges)
             if ((traverse_start_node != None) and 'exchange' in (get_node_name(traverse_start_node, nodes)).lower()):
                 #Add 'exchange' curr_node to previous stage before traversing to next stage
-                if subplan_start_node_stages:
-                    for stageId in subplan_start_node_stages:
+                if querystage_start_node_stages:
+                    for stageId in querystage_start_node_stages:
                         if stageId not in stage_to_nodeids.keys():
                             stage_to_nodeids[stageId] = [traverse_start_node]
                         else:
                             stage_to_nodeids[stageId].append(traverse_start_node)
 
-                subplan_start_node = get_node(traverse_end_node, nodes)
-                subplan_start_node_stages = subplan_start_node.involved_stages_from_sparkviz
+                querystage_start_node = get_node(traverse_end_node, nodes)
+                querystage_start_node_stages = querystage_start_node.involved_stages_from_sparkviz
     stage_to_nodeids = dict_unique_values(stage_to_nodeids)
     # return stage_to_nodeids
 
@@ -294,8 +294,8 @@ def get_stages(full_plan: QueryPlanTopology):
         for edge in full_plan.edges:
             if edge['fromId'] in n_ids and edge['toId'] in n_ids:
                 edgs.append(edge)
-        sub_plan_topo = QueryPlanTopology(ndes, edgs)
-        subsql_plans[stg_id] = sub_plan_topo
+        querystage_topo = QueryPlanTopology(ndes, edgs)
+        subsql_plans[stg_id] = querystage_topo
 
     # # Creating the subsql_plans{stage: [SubQueryPlanTopology]}
     # for stg, n_ids in stage_to_nodeids.items():
@@ -306,8 +306,8 @@ def get_stages(full_plan: QueryPlanTopology):
     #     for edge in full_plan.edges:
     #         if edge['fromId'] in n_ids and edge['toId'] in n_ids:
     #             edgs.append(edge)
-    #     sub_plan_topo = QueryPlanTopology(ndes, edgs)
-    #     subsql_plans[stg] = sub_plan_topo
+    #     querystage_topo = QueryPlanTopology(ndes, edgs)
+    #     subsql_plans[stg] = querystage_topo
     return stageids_to_stages, stage_to_nodeids, subsql_plans
 
 

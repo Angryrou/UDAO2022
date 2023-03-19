@@ -131,12 +131,12 @@ if __name__ == "__main__":
         print(f'Saving visualization for full plan')
         viz.topo_visualization(full_plan, app_id, title="full_plan")
         full_plan_dgl = viz.get_dgl_graph(edges)
-        dgl_subplans = {}
-        for stageId, subplan in stage2plan.items():
+        dgl_querystages = {}
+        for stageId, querystage in stage2plan.items():
             print(f'Saving visualization for Query Stage {stageId}')
-            viz.topo_visualization(subplan, app_id, title=f"stage_{stageId}")
-            dgl_subplan = viz.get_dgl_graph(subplan.edges)
-            dgl_subplans[stageId] = dgl_subplan
+            viz.topo_visualization(querystage, app_id, title=f"stage_{stageId}")
+            dgl_querystage = viz.get_dgl_graph(querystage.edges)
+            dgl_querystages[stageId] = dgl_querystage
 
         # getting the dependency among stages.
         print(f'Saving query stage dependency visualization')
