@@ -112,7 +112,7 @@ if __name__ == '__main__':
                 appid, None,
                 None, None, None,
                 None, None, None, None, None,
-                str(e)
+                None, None, None, None, str(e)
             ]
             with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
                 f.write(f"{url}/stages\n")
