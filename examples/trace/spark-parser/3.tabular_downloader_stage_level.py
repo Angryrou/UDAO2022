@@ -92,7 +92,7 @@ if __name__ == '__main__':
                     appid, s["stageId"],
                     TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3]), stage_lat, stage_dt,
                     s["numTasks"], s["inputBytes"], s["inputRecords"], s["shuffleReadBytes"], s["shuffleReadRecords"],
-                    s["outputBytes"], s["outputRecords"], s["ShuffleWriteBytes"], s["shuffleWriteRecords"], None
+                    s["outputBytes"], s["outputRecords"], s["shuffleWriteBytes"], s["shuffleWriteRecords"], None
                 ])
             if debug:
                 print(f"extract {appid} from urls: \n {cur_res}")
