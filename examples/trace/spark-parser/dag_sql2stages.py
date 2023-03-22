@@ -16,7 +16,7 @@ global_inter_stage_exchange_nodes = dict()
 class Node():
     def __init__(self, node):
         self.nid = node["nodeId"]
-        self.name = node["nodeName"],
+        self.name = node["nodeName"]
         metrics = node["metrics"]
         self.involved_stages_from_sparkviz = self._get_stageIds(metrics)
         self.metrics = metrics
@@ -26,6 +26,25 @@ class Node():
 
     def get_name(self):
         return self.name
+
+    def get_exchange_write(self, metrics):
+        stage_ids = set()
+        for metric in metrics:
+            res = re.search('\(stage (.*):', metric['value'])
+            if res is not None and ("written" in metric["name"] or "write" in metric["name"]):
+                stage_id = int(float(res.group(1)))
+                stage_ids.add(stage_id)
+        return stage_ids
+
+
+    def get_exchange_read(self, metrics):
+        stage_ids = set()
+        for metric in metrics:
+            res = re.search('\(stage (.*):', metric['value'])
+            if res is not None and ("read" in metric["name"] or "fetch wait" in metric["name"]):
+                stage_id = int(float(res.group(1)))
+                stage_ids.add(stage_id)
+        return stage_ids
 
     def _get_stageIds(self, metrics):
         stage_ids = []
@@ -56,6 +75,8 @@ class QueryPlanTopology():
         for node in self.nodes:
             if node.nid == nodeId:
                 return node
+        print("node not found")
+        return None
 
 def get_dgl_graph(edges : list[Edge]):
     u_list, v_list = [], []
@@ -70,7 +91,7 @@ def get_dgl_graph(edges : list[Edge]):
     return dgl_graph
 
 
-def get_topdowntree_root_leaves(edges: list[Edge]):
+def get_topdowntree_root_leaves(edges: list[Edge], verbose=False):
     tree = {}
     nodes_set = set()
     #print(edges)
@@ -96,6 +117,7 @@ def get_topdowntree_root_leaves(edges: list[Edge]):
     if len(root_node) > 1:
         print(f'Tree contains multiple root nodes: {root_node}')
     rootNode = root_node.pop()
+    # if verbose:
     print(f'Tree {tree}')
     print(f'Root node is {rootNode}')
     print(f'Child nodes are {child_nodes}')
@@ -167,7 +189,8 @@ def dict_unique_values(dup_dict: dict):
     return dup_dict
 
 
-def bfs_rec(full_plan: QueryPlanTopology, current_stage: int, stage: dict, stage_dependency: list, topdown_tree: dict, curr_node=None):
+def bfs_rec(full_plan: QueryPlanTopology, current_stage: int, stage: dict, stage_dependency: list,
+            topdown_tree: dict, curr_node=None, verbose=False):
     nodes = full_plan.nodes
     edges = full_plan.edges
     global global_stage_counter
@@ -186,24 +209,25 @@ def bfs_rec(full_plan: QueryPlanTopology, current_stage: int, stage: dict, stage
                 save_current_stage = current_stage
                 if curr_node in global_inter_stage_exchange_nodes.keys():
                     current_stage = global_inter_stage_exchange_nodes[curr_node]
-                    print(f'(For debug) Found multichildren exchange node: {curr_node} Previous others : {global_inter_stage_exchange_nodes}')
+                    if verbose:
+                        print(f'(For debug) Found multichildren exchange node: {curr_node} Previous others : {global_inter_stage_exchange_nodes}')
                 else:
                     current_stage = global_stage_counter = global_stage_counter + 1
                     global_inter_stage_exchange_nodes[curr_node] = current_stage
                 stage.setdefault(current_stage, []).append(curr_node) # the operator demarcating stage change also added to the children nodes belonging in the next stage
                 stage_dependency.append((current_stage, save_current_stage))
-            bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, child_node)
+            bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, child_node, verbose)
     else:#i.e. curr_node is the leaf curr_node
-        bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, None)
+        bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, None, verbose)
 
 
-def get_sub_sqls_using_topdown_tree(full_plan: QueryPlanTopology):
+def get_sub_sqls_using_topdown_tree(full_plan: QueryPlanTopology, verbose=False):
     nodes = full_plan.nodes
     edges = full_plan.edges
     node2stageIds = full_plan.node2sparkvizStageIds
     # constructing and fetching topdown tree, root and leaves using edges information of the query plan
     #leaves, rev_edges = get_leaves_rev_edges(edges)
-    topdown_tree, root, leaves = get_topdowntree_root_leaves(edges)
+    topdown_tree, root, leaves = get_topdowntree_root_leaves(edges, verbose)
 
     stage = {}
     stage_dependency = []
@@ -214,7 +238,7 @@ def get_sub_sqls_using_topdown_tree(full_plan: QueryPlanTopology):
     global global_inter_stage_exchange_nodes #to track and avoid exchange nodes with two children being assigned two stage ids
     global_inter_stage_exchange_nodes = dict() #reset the value for global variable
 
-    bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, root)
+    bfs_rec(full_plan, current_stage, stage, stage_dependency, topdown_tree, root, verbose)
 
     for key, values_list in stage.items():
         stage[key] = sorted([*set(values_list)])
@@ -241,13 +265,13 @@ def get_stage_plans(full_plan: QueryPlanTopology, stage: dict):
     return stage_plans
 
 
-def get_stages(full_plan: QueryPlanTopology):
+def get_stages(full_plan: QueryPlanTopology, verbose=False):
     nodes = full_plan.nodes
     edges = full_plan.edges
     node2stageIds = full_plan.node2sparkvizStageIds
     # constructing and fetching topdown tree, root and leaves using edges information of the query plan
     #leaves, rev_edges = get_leaves_rev_edges(edges)
-    tree, root, leaves = get_topdowntree_root_leaves(edges)
+    tree, root, leaves = get_topdowntree_root_leaves(edges, verbose)
 
     subsql_plans = {}
     stage_to_nodeids = {}
