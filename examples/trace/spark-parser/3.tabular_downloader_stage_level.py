@@ -108,12 +108,12 @@ if __name__ == '__main__':
                 break
         except Exception as e:
             print(f"{e} when url={url}")
-            res += [
+            res.append([
                 appid, None,
                 None, None, None,
                 None, None, None, None, None,
                 None, None, None, None, str(e)
-            ]
+            ])
             with open(f"{dst_path}/{int(begin)}_failed_urls.txt", "a+") as f:
                 f.write(f"{url}/stages\n")
             if debug:
