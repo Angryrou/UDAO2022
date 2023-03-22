@@ -69,8 +69,6 @@ if __name__ == "__main__":
     dst = f"{tabular_path}/query_traces"
     os.makedirs(dst, exist_ok=True)
 
-    tmp_cols = ["id", "name", "q_sign", "knob_sign", "planDescription", "nodes", "edges",
-                "start_timestamp", "latency", "err"]
     if tabular_tmp_name is None:
         df_tabular = ParquetUtils.parquet_read_multiple(tabular_path, matches)
     else:
