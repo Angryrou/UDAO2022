@@ -11,8 +11,6 @@ import socks #pip install PySocks
 import networkx as nx # brew install graphviz && pip install pydot==1.4.2
 import dgl, torch as th # pip install dgl==0.9.1
 
-global_stage_counter = 0
-global_inter_stage_exchange_nodes = dict()
 class Node():
     def __init__(self, node):
         self.nid = node["nodeId"]
