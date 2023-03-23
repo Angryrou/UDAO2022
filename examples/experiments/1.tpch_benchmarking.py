@@ -47,7 +47,7 @@ def get_mp(data_header, ckp_header, ckp_sign, op_feats_file, bm, model_name):
     df = pd.concat(dfs)
     ckp_path = os.path.join(ckp_header, ckp_sign)
     op_groups = ["ch1_type"]
-    mp = ModelProxy("GTN", ckp_path, minmax_dict["obj"], DEFAULT_DEVICE, op_groups, n_op_types)
+    mp = ModelProxy("GTN", ckp_path, minmax_dict["obj"], DEFAULT_DEVICE, op_groups, n_op_types, clf_feat=None)
     spark_knobs = SparkKnobs(meta_file="resources/knob-meta/spark.json")
     misc = df, dag_dict, mp, op_groups, col_dict, minmax_dict, spark_knobs, struct2template, op_feats_data, clf_feat
     return misc
