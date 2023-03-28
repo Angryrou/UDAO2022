@@ -719,7 +719,7 @@ def plot_error_rate(y, y_hat, ckp_path):
 
 
 def show_results(results, obj):
-    if obj in ("latency"):
+    if obj in ("latency", "stage_latency"):
         print(json.dumps(str(results), indent=2))
         print("\n".join([
             "[{}-{}] WMAPE {:.4f} | MAPE {:.4f}| ERR-50,90,95,99 {:.4f},{:.4f},{:.4f},{:.4f} | "
