@@ -479,7 +479,7 @@ class MyStageDSBase(Dataset):
             for qs_id in range(len(self.qs2o_dict[sid])):
                 g_stage = g.subgraph(self.qs2o_dict[sid][qs_id])
                 if self.model_name in ("GTN"):
-                    g_stage.ndata["lap_pe"] = get_laplacian_pe(dgl.to_bidirected(g_stages), g_stage.num_nodes() - 2)
+                    g_stage.ndata["lap_pe"] = get_laplacian_pe(dgl.to_bidirected(g_stage), g_stage.num_nodes() - 2)
                     resize_pe(g_stage, self.ped)
                 elif self.model_name in ("GCN", "GATv2", "GIN"):
                     g_stage = dgl.add_self_loop(g_stage)
