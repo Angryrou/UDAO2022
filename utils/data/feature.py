@@ -14,6 +14,14 @@ CH3_FEATS = ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]
 CH4_FEATS = ["k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "s1", "s2", "s3", "s4"]
 OBJS = ["latency"]
 
+CH1_FEATS_STAGE = ["sql_struct_id", "sql_struct_svid", "qid", "qs_id"]
+CH2_FEATS_STAGE = ["task_num",
+                   "input_mb", "sr_mb", "input_records", "sr_records",
+                   "input_mb_log", "sr_mb_log", "input_records_log", "sr_records_log"]
+CH3_FEATS_STAGE = CH3_FEATS
+CH4_FEATS_STAGE = CH4_FEATS
+OBJS_STAGE = ["stage_latency", "stage_dt", "output_mb_log", "sw_mb_log", "output_records_log", "sw_records_log"]
+
 L2P_MAP = {
     "tpch": {
         0: [0, 1, 1, 1, 1, 2, 2, 2],

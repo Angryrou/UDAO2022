@@ -4,6 +4,7 @@
 #
 # Created at 03/01/2023
 import hashlib
+import itertools
 import json
 import os
 import random
@@ -12,6 +13,7 @@ import time
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from scipy.stats import pearsonr
 from scipy import sparse as sp
 
@@ -31,7 +33,6 @@ from model.architecture.graph_isomorphism_net import GIN
 from model.architecture.graph_transformer_net import GraphTransformerNet
 from model.architecture.mlp_readout_layer import PureMLP
 from model.metrics import get_loss
-from trace.collect.sampler import LHSSampler
 from utils.common import PickleUtils, plot
 from utils.data.configurations import SparkKnobs, KnobUtils
 from utils.data.feature import L2P_MAP
@@ -82,6 +83,60 @@ def add_pe(model_name, dag_dict):
             break
         else:
             ValueError(model_name)
+
+
+def expose_data_stage(header, tabular_file, struct_file, data_params, benchmark, debug):
+    obj = data_params["obj"]
+    tabular_data = PickleUtils.load(header, tabular_file)
+    col_dict, minmax_dict = tabular_data["col_dict"], tabular_data["minmax_dict"]
+    assert all(o in col_dict["obj"] for o in OBJ_MAP[obj])
+    col_dict["obj"] = OBJ_MAP[obj]
+    qs2o_dict, qs_dependencies_dict = tabular_data["qs2o_dict"], tabular_data["qs_dependencies_dict"]
+
+    dfs_stage = tabular_data["dfs"]
+    ch1_dict = {split: df[col_dict["ch1"][:3]].drop_duplicates().reset_index(drop=True)
+                for split, df in zip(["tr", "val", "te"], dfs_stage)}
+    df_stage = pd.concat(dfs_stage) \
+        .sort_values(["sql_struct_id", "sql_struct_svid", "qs_id"]) \
+        .set_index("sql_struct_id")
+    sids = df_stage.index.unique().to_list()
+    stage_feat = {}
+    for sid in sids:
+        df_stage_ = df_stage.loc[sid].copy()
+        q_num = len(df_stage_.q_sign.unique())
+        qs_num = len(df_stage_.qs_id.unique())
+        # add placeholder for failed svid
+        svids = df_stage_.sql_struct_svid.astype(int).unique()
+        missing_svids = [svid_ for svid_ in range(max(svids)) if svid_ not in svids]
+        for missing_svid in missing_svids:
+            add_df_dict = {c: [None] * qs_num for c in df_stage_.columns}
+            add_df_dict["sql_struct_svid"] = [missing_svid] * qs_num
+            add_df_dict["qs_id"] = list(range(qs_num))
+            df_stage_ = pd.concat([df_stage_, pd.DataFrame(add_df_dict, index=[sid] * qs_num)])
+            q_num += 1
+        df_stage_ = df_stage_.sort_values(["sql_struct_svid", "qs_id"])
+        stage_feat[sid] = {ch_: df_stage_[col_dict[ch_]].values.reshape(q_num, qs_num, -1)
+                           for ch_ in ["ch2", "ch3", "ch4", "obj"]}
+    ds_dict = DatasetDict({k: Dataset.from_pandas(v.sample(frac=0.01) if debug else v) for k, v in ch1_dict.items()})
+
+    struct_data = PickleUtils.load(header, struct_file)
+    struct2template = {v["sql_struct_id"]: v["template"] for v in struct_data["struct_dict"].values()}
+    dag_dict = struct_data["dgl_dict"]
+    op_feats_file = {}
+    if data_params["ch1_cbo"] == "on":
+        op_feats_file["cbo"] = "cbo_cache.pkl"
+    elif data_params["ch1_cbo"] == "on2":
+        op_feats_file["cbo"] = "cbo_cache_recollect.pkl"
+    if data_params["ch1_enc"] != "off":
+        ch1_enc = data_params["ch1_enc"]
+        op_feats_file["enc"] = f"enc_cache_{ch1_enc}.pkl"
+    op_feats_data = {k: PickleUtils.load(header, v) for k, v in op_feats_file.items()}
+    if data_params["ch1_cbo"] in ("on", "on2"):
+        op_feats_data["cbo"]["l2p"] = L2P_MAP[benchmark.lower()]
+
+    dag_misc = [dag_dict, qs2o_dict, op_feats_data, struct2template, qs_dependencies_dict]
+    n_op_types = len(struct_data["global_ops"])
+    return ds_dict, dag_misc, stage_feat, col_dict, minmax_dict, n_op_types
 
 
 def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=False,
@@ -271,6 +326,20 @@ def collate_clf(samples):
     return batched_stage, insts, ys
 
 
+def collate_stage(samples):
+    stages, insts, ys = map(list, zip(*samples))
+    stages = list(itertools.chain.from_iterable(stages))
+    insts = np.vstack(insts).astype(float)
+    ys = np.vstack(ys).astype(float)
+    if np.isnan(ys).any():
+        raise Exception(f"errors in manipulate data")
+    insts = th.FloatTensor(insts)
+    ys = th.FloatTensor(ys)
+    assert len(stages) == len(insts) and len(insts) == len(ys)
+    batched_stage = dgl.batch(stages) if stages[0] is not None else None
+    return batched_stage, insts, ys
+
+
 def norm_in_feat_inst(x, minmax):
     return (x - minmax["min"]) / (minmax["max"] - minmax["min"])
 
@@ -368,6 +437,66 @@ class MyDSBase(Dataset):
         assert "obj" in self.picked_groups
         y = [x[c] for c in self.col_dict["obj"]]
         return g, inst_feat, y
+
+
+class MyStageDSBase(Dataset):
+    def __init__(self, dataset, dag_misc, stage_feat, col_dict, picked_groups, op_groups, model_name, ped=1):
+        super(MyStageDSBase, self).__init__(
+            arrow_table=dataset._data,
+            info=dataset._info,
+            split=dataset._split,
+            fingerprint=dataset._fingerprint,
+            indices_table=dataset._indices
+        )
+        self._format_type = dataset._format_type
+        self._format_kwargs = dataset._format_kwargs
+        self._format_columns = dataset._format_columns
+        self._output_all_columns = dataset._output_all_columns
+        dag_dict, qs2o_dict, op_feats, struct2template, _ = dag_misc
+
+        self.dataset = dataset
+        self.dag_dict = dag_dict
+        self.qs2o_dict = qs2o_dict
+        self.op_feats = op_feats
+        self.struct2template = struct2template
+
+        self.stage_feat = stage_feat
+        self.col_dict = col_dict
+        self.picked_groups = picked_groups
+        self.op_groups = op_groups
+        self.model_name = model_name
+        self.ped = ped
+
+    def __getitem__(self, item):
+        x = super(MyStageDSBase, self).__getitem__(item)
+        sid = x[self.col_dict["ch1"][0]].item()
+        svid = int(x[self.col_dict["ch1"][1]].item())
+        qid = x[self.col_dict["ch1"][2]].item()
+
+        if "ch1" in self.picked_groups:
+            g = form_graph(self.dag_dict, sid, svid, qid, self.ped, self.op_groups, self.op_feats, self.struct2template)
+            g_stages = []
+            for qs_id in range(len(self.qs2o_dict[sid])):
+                g_stage = g.subgraph(self.qs2o_dict[sid][qs_id])
+                if self.model_name in ("GTN"):
+                    g_stage.ndata["lap_pe"] = get_laplacian_pe(dgl.to_bidirected(g_stages), g_stage.num_nodes() - 2)
+                    resize_pe(g_stage, self.ped)
+                elif self.model_name in ("GCN", "GATv2", "GIN"):
+                    g_stage = dgl.add_self_loop(g_stage)
+                else:
+                    raise ValueError(self.model_name)
+                g_stages.append(g_stage)
+        else:
+            g_stages = [None]
+
+        inst_feat = []
+        for ch in self.picked_groups:
+            if ch in ("ch1", "obj"):
+                continue
+            inst_feat.append(self.stage_feat[sid][ch][svid])
+        inst_feat = np.hstack(inst_feat)
+        y = self.stage_feat[sid]["obj"][svid]
+        return g_stages, inst_feat, y
 
 
 class TrainStatsTrace():
@@ -525,6 +654,7 @@ def evaluate_model_clf(model, loader, device, in_feat_minmax, obj, if_y=False):
             return loss, rate, y, y_hat, y_hat_flat
         return loss, rate
 
+
 def expose_clf_feats(model, loader, device, in_feat_minmax, obj):
     assert obj in OBJ_MAP
     model.eval()
@@ -581,8 +711,7 @@ def show_results(results, obj):
         ValueError(obj)
 
 
-def augment_net_params(data_params, net_params, data_meta):
-    _, op_feats_data, col_dict, _, dag_dict, n_op_types, _ = data_meta[:7]
+def augment_net_params(data_params, net_params, col_dict, n_op_types):
     op_groups, picked_groups, picked_cols = analyze_cols(data_params, col_dict)
     net_params["in_feat_size_inst"] = sum([len(col_dict[ch]) for ch in picked_groups if ch in ["ch2", "ch3", "ch4"]])
     net_params["in_feat_size_op"] = sum([net_params[f"{ch1_}_dim"] for ch1_ in op_groups])
@@ -691,6 +820,36 @@ def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_
     return dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader
 
 
+def setup_data_stage(ds_dict, dag_misc, stage_feat, col_dict, picked_groups, op_groups, learning_params, net_params,
+                     minmax_dict, model_name, train_shuffle=True):
+    device = learning_params["device"]
+    print("start preparing data...")
+    ds_dict.set_format(type="torch")  # ['sql_struct_id', 'sql_struct_svid', 'qid']
+    dataset = {split: MyStageDSBase(ds_dict[split], dag_misc, stage_feat, col_dict, picked_groups, op_groups,
+                                    model_name, net_params["ped"])
+               for split in ["tr", "val", "te"]}
+
+    picked_groups_in_feat = [ch for ch in picked_groups if ch not in ("ch1", "obj")]
+    if len(picked_groups_in_feat) == 0:
+        in_feat_minmax = {}
+    else:
+        in_feat_minmax = {
+            "min": th.cat([get_tensor(minmax_dict[ch]["min"].values, device=device) for ch in picked_groups_in_feat]),
+            "max": th.cat([get_tensor(minmax_dict[ch]["max"].values, device=device) for ch in picked_groups_in_feat])
+        }
+    obj_minmax = {"min": get_tensor(minmax_dict["obj"]["min"].values, device=device),
+                  "max": get_tensor(minmax_dict["obj"]["max"].values, device=device)}
+
+    tr_loader = DataLoader(dataset["tr"], batch_size=learning_params['batch_size'], shuffle=train_shuffle,
+                           collate_fn=collate_stage, num_workers=learning_params['num_workers'])
+    val_loader = DataLoader(dataset["val"], batch_size=learning_params['batch_size'], shuffle=False,
+                            collate_fn=collate_stage, num_workers=learning_params['num_workers'])
+    te_loader = DataLoader(dataset["te"], batch_size=learning_params['batch_size'], shuffle=False,
+                           collate_fn=collate_stage, num_workers=learning_params['num_workers'])
+
+    return dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader
+
+
 def setup_train(weights_pth_sign, model, learning_params, nbatches, ckp_header, hp_prefix_sign, hp_params):
     tst = TrainStatsTrace(weights_pth_sign)
     optimizer = optim.AdamW(model.parameters(), lr=learning_params['init_lr'],
@@ -719,7 +878,8 @@ def setup_train(weights_pth_sign, model, learning_params, nbatches, ckp_header, 
 def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, finetune_header=None):
     ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, clf_feat = data_meta
     device, loss_type = learning_params["device"], learning_params["loss_type"]
-    net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
+    net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, col_dict,
+                                                                           n_op_types)
     if clf_feat is not None:
         assert "tr" in clf_feat
         clf_feat_dim = clf_feat["tr"].shape[1]
@@ -844,10 +1004,136 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
     return model, results, hp_params, hp_prefix_sign
 
 
+def pipeline_stage(data_meta, data_params, learning_params, net_params, ckp_header):
+    ds_dict, dag_misc, stage_feat, col_dict, minmax_dict, n_op_types = data_meta
+    dag_dict = dag_misc[0]
+    device, loss_type = learning_params["device"], learning_params["loss_type"]
+    net_params, op_groups, picked_groups, _ = augment_net_params(data_params, net_params, col_dict, n_op_types)
+
+    # model setup
+    exist, ret = setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag_dict, None)
+    if exist:
+        return ret
+    model, hp_params, hp_prefix_sign, ckp_path, model_name, obj, weights_pth_sign, results_pth_sign = ret
+
+    # data setup
+    dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader = setup_data_stage(
+        ds_dict, dag_misc, stage_feat, col_dict, picked_groups, op_groups, learning_params,
+        net_params, minmax_dict, model_name)
+
+    view_model_param(model_name, model)
+    view_data(dataset)
+
+    # training setup
+    nbatches = len(tr_loader)
+    ts, tst, optimizer, lr_scheduler, warmup_scheduler, writer, loss_ws = \
+        setup_train(weights_pth_sign, model, learning_params, nbatches, ckp_header, hp_prefix_sign, hp_params)
+
+    t0 = time.time()
+    try:
+        model.train()
+        if_break = False
+        ckp_start = time.time()
+        for epoch in range(learning_params["epochs"]):
+            epoch_start_time = time.time()
+            for batch_idx, x in enumerate(tr_loader):
+                optimizer.zero_grad()
+                batch_y, batch_y_hat = model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train")
+                loss, loss_dict = loss_compute(batch_y, batch_y_hat, loss_type, obj, loss_ws)
+                loss.backward()
+                th.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                optimizer.step()
+
+                with warmup_scheduler.dampening():
+                    lr_scheduler.step()
+
+                if th.isnan(loss):
+                    print("get a nan loss in train")
+                    if_break = True
+                elif th.isinf(loss):
+                    print("get a inf loss in train")
+                    if_break = True
+
+                if batch_idx == (nbatches - 1):
+                    with th.no_grad():
+                        wmape_tr_dict = {
+                            m: (th.abs(batch_y[:, i] - batch_y_hat[:, i]).sum() / batch_y[:, i].sum()).detach().item()
+                            for i, m in enumerate(OBJ_MAP[obj])
+                        }
+                        batch_time_tr = (time.time() - ckp_start) / nbatches
+
+                    t1 = time.time()
+                    loss_val, m_dict_val = evaluate_model(model, val_loader, device, in_feat_minmax, obj_minmax,
+                                                          loss_type, obj, loss_ws, if_y=False)
+                    eval_time = time.time() - t1
+
+                    tst.update(model, epoch, batch_idx, loss_val)
+                    cur_lr = optimizer.param_groups[0]["lr"]
+                    writer.add_scalar("train/_loss", loss.detach().item(), epoch * nbatches + batch_idx)
+                    writer.add_scalar("val/_loss", loss_val, epoch * nbatches + batch_idx)
+                    for m in OBJ_MAP[obj]:
+                        writer.add_scalar(f"train/_wmape_{m}", wmape_tr_dict[m], epoch * nbatches + batch_idx)
+                        writer.add_scalar(f"val/_wmape_{m}", m_dict_val[m]["wmape"], epoch * nbatches + batch_idx)
+                    writer.add_scalar("learning_rate", cur_lr, epoch * nbatches + batch_idx)
+                    writer.add_scalar("batch_time", batch_time_tr, epoch * nbatches + batch_idx)
+
+                    print("Epoch {:03d} | Batch {:06d} | LR: {:.8f} | TR Loss {:.6f} | VAL Loss {:.6f} | "
+                          "s/ba {:.3f} | s/eval {:.3f} ".format(
+                        epoch, batch_idx, cur_lr, loss.detach().item(), loss_val, batch_time_tr, eval_time))
+                    print(" \n ".join([
+                        "[{}] TR WMAPE {:.6f} | VAL WAMPE {:.6f} | VAL QErrMean {:.6f} | CORR {:.6f}".format(
+                            m, wmape_tr_dict[m], m_dict_val[m]["wmape"], m_dict_val[m]["q_err_mean"],
+                            m_dict_val[m]["corr"]
+                        ) for m in OBJ_MAP[obj]
+                    ]))
+
+                    epoch_time = time.time() - epoch_start_time
+                    print(f"Epoch {epoch} cost {epoch_time} s.")
+                    print("-" * 89)
+                    ckp_start = time.time()
+                    model.train()
+
+                if if_break:
+                    break
+
+            if if_break:
+                break
+
+    except KeyboardInterrupt:
+        print('-' * 89)
+        print('Exiting from training early because of KeyboardInterrupt')
+
+    total_time = time.time() - t0
+    model.load_state_dict(tst.pop_model_dict(device))
+    loss_val, m_dict_val = evaluate_model(model, val_loader, device, in_feat_minmax, obj_minmax,
+                                          loss_type, obj, loss_ws)
+    loss_te, m_dict_te, y_te, y_hat_te = evaluate_model(
+        model, te_loader, device, in_feat_minmax, obj_minmax, loss_type, obj, loss_ws, if_y=True)
+
+    results = {
+        "hp_params": hp_params,
+        "Epoch": tst.best_epoch,
+        "Batch": tst.best_batch,
+        "Total_time": total_time,
+        "timestamp": ts,
+        "loss_val": loss_val,
+        "loss_te": loss_te,
+        "metric_val": m_dict_val,
+        "metric_te": m_dict_te,
+        "y_te": y_te,
+        "y_te_hat": y_hat_te
+    }
+    th.save(results, results_pth_sign)
+    plot_error_rate(y_te, y_hat_te, ckp_path)
+    show_results(results, obj)
+    return model, results, hp_params, hp_prefix_sign
+
+
 def pipeline_classifier(data_meta, data_params, learning_params, net_params, ckp_header):
     ds_dict, op_feats_data, col_dict, minmax_dict, dag_dict, n_op_types, struct2template, ncats = data_meta
     device, loss_type = learning_params["device"], learning_params["loss_type"]
-    net_params, op_groups, picked_groups, picked_cols = augment_net_params(data_params, net_params, data_meta)
+    net_params, op_groups, picked_groups, picked_cols = augment_net_params(
+        data_params, net_params, col_dict, n_op_types)
     net_params["out_feat_size"] = ncats
 
     # model setup

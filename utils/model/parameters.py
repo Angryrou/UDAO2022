@@ -11,9 +11,9 @@ OBJ_MAP = {
     "latbuck20": ["latbuck20"],
     "tid": ["tid"],
     "latency": ["latency"],
-    "stage_lat": ["stage_lat"],
+    "stage_latency": ["stage_latency"],
     "stage_dt": ["stage_dt"],
-    "stage_both": ["stage_lat", "stage_dt"]
+    "stage_both": ["stage_latency", "stage_dt"]
 }
 
 ALL_OP_FEATS = ["ch1_type", "ch1_cbo", "ch1_enc"]
@@ -49,7 +49,7 @@ def set_data_params(args):
     if args.granularity == "Q":
         assert args.obj in ("latency", "latbuck20", "tid")
     elif args.granularity == "QS":
-        assert args.obj in ("stage_lat", "stage_dt", "stage_both")
+        assert args.obj in ("stage_latency", "stage_dt", "stage_both")
     assert args.model_name in ("GTN", "RAAL", "QF", "TL", "AVGMLP", "GCN", "GATv2", "GIN")
     assert args.debug in (0, 1)
     if args.clf_feat is not None:
