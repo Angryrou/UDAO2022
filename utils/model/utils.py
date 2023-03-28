@@ -631,7 +631,7 @@ def get_eval_metrics(y_list, y_hat_list, loss_type, obj, loss_ws, if_y):
         err_50, err_90, err_95, err_99 = np.percentile(y_err_rate, [50, 90, 95, 99])
         glb_err = np.abs(y_i.sum() - y_hat_i.sum()) / y_hat_i.sum()
         corr, _ = pearsonr(y_i, y_hat_i)
-        q_errs = np.maximum(y_i / y_hat_i, y_hat_i / y_i)
+        q_errs = np.maximum((y_i + 1) / (y_hat_i + 1), (y_hat_i + 1) / (y_i + 1))
         q_err_mean = np.mean(q_errs)
         q_err_50, q_err_90, q_err_95, q_err_99 = np.percentile(q_errs, [50, 90, 95, 99])
         metrics_dict[m] = {
