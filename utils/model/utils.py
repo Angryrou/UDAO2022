@@ -865,8 +865,8 @@ def setup_data_stage(ds_dict, dag_misc, stage_feat, col_dict, picked_groups, op_
             "min": th.cat([get_tensor(minmax_dict[ch]["min"].values, device=device) for ch in picked_groups_in_feat]),
             "max": th.cat([get_tensor(minmax_dict[ch]["max"].values, device=device) for ch in picked_groups_in_feat])
         }
-    obj_minmax = {"min": get_tensor(minmax_dict["obj"]["min"].values, device=device),
-                  "max": get_tensor(minmax_dict["obj"]["max"].values, device=device)}
+    obj_minmax = {"min": get_tensor(minmax_dict["obj"]["min"].loc[col_dict["obj"]].values, device=device),
+                  "max": get_tensor(minmax_dict["obj"]["max"].loc[col_dict["obj"]].values, device=device)}
 
     tr_loader = DataLoader(dataset["tr"], batch_size=learning_params['batch_size'], shuffle=train_shuffle,
                            collate_fn=collate_stage, num_workers=learning_params['num_workers'])
