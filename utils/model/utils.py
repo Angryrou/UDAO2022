@@ -85,7 +85,7 @@ def add_pe(model_name, dag_dict):
             ValueError(model_name)
 
 
-def expose_data_stage(header, tabular_file, struct_file, data_params, benchmark, debug):
+def expose_data_stage(header, tabular_file, struct_file, data_params, benchmark, model_name, debug):
     obj = data_params["obj"]
     tabular_data = PickleUtils.load(header, tabular_file)
     col_dict, minmax_dict = tabular_data["col_dict"], tabular_data["minmax_dict"]
@@ -133,8 +133,20 @@ def expose_data_stage(header, tabular_file, struct_file, data_params, benchmark,
     op_feats_data = {k: PickleUtils.load(header, v) for k, v in op_feats_file.items()}
     if data_params["ch1_cbo"] in ("on", "on2"):
         op_feats_data["cbo"]["l2p"] = L2P_MAP[benchmark.lower()]
+    stage_dag_dict = {}
+    for sid, g in dag_dict.items():
+        stage_dag_dict[sid] = {}
+        for qs_id, op_ids in qs2o_dict[sid].items():
+            g_stage = g.subgraph(op_ids)
+            if model_name in ("GTN", "AVGMLP"):
+                g_stage.ndata["lap_pe"] = get_laplacian_pe(dgl.to_bidirected(g_stage), g_stage.num_nodes() - 2)
+            elif model_name in ("GCN", "GATv2", "GIN"):
+                g_stage = dgl.add_self_loop(g_stage)
+            else:
+                raise ValueError(model_name)
+            stage_dag_dict[sid][qs_id] = g_stage
 
-    dag_misc = [dag_dict, qs2o_dict, op_feats_data, struct2template, qs_dependencies_dict]
+    dag_misc = [stage_dag_dict, qs2o_dict, op_feats_data, struct2template, qs_dependencies_dict]
     n_op_types = len(struct_data["global_ops"])
     return ds_dict, dag_misc, stage_feat, col_dict, minmax_dict, n_op_types
 
@@ -368,6 +380,37 @@ def form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2templa
     return g
 
 
+def form_graph_stages(dag_misc, sid, svid, qid, op_groups, ped):
+    stage_dag_dict, qs2o_dict, op_feats, struct2template, _ = dag_misc
+    num_qs = len(stage_dag_dict[sid])
+    if "ch1_cbo" in op_groups:
+        # todo: add cbo feats from a data source, and normalize it
+        l2p = op_feats["cbo"]["l2p"][sid]
+        # qid index from 1
+        lp_feat = op_feats["cbo"]["ofeat_dict"][struct2template[sid]][qid - 1]
+        pp_feat = lp_feat[l2p]
+        minmax = op_feats["cbo"]["minmax"]
+        pp_feat_norm = norm_in_feat_inst(pp_feat, minmax)
+        cbo_feat = pp_feat_norm
+    else:
+        cbo_feat = None
+    if "ch1_enc" in op_groups:
+        enc_feat = op_feats["enc"]["op_encs"][op_feats["enc"]["oid_dict"][sid][int(svid)]]
+    else:
+        enc_feat = None
+    g_stages = []
+    for qs_id in range(num_qs):
+        g_stage = stage_dag_dict[sid][qs_id].clone()
+        resize_pe(g_stage, ped)
+        g_stage.ndata["sid"] = get_tensor([sid] * g_stage.num_nodes(), dtype=th.int)
+        if cbo_feat is not None:
+            g_stage.ndata["cbo"] = get_tensor(cbo_feat[qs2o_dict[sid][qs_id]])
+        if enc_feat is not None:
+            g_stage.ndata["enc"] = get_tensor(enc_feat[qs2o_dict[sid][qs_id]])
+        g_stages.append(g_stage)
+    return g_stages
+
+
 def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, op_feats, struct2template,
                          model_proxy, col_dict, minmax_dict):
     record = df[df["q_sign"] == q_sign]
@@ -452,14 +495,10 @@ class MyStageDSBase(Dataset):
         self._format_kwargs = dataset._format_kwargs
         self._format_columns = dataset._format_columns
         self._output_all_columns = dataset._output_all_columns
-        dag_dict, qs2o_dict, op_feats, struct2template, _ = dag_misc
+        # stage_dag_dict, qs2o_dict, op_feats, struct2template, _ = dag_misc
 
+        self.dag_misc = dag_misc
         self.dataset = dataset
-        self.dag_dict = dag_dict
-        self.qs2o_dict = qs2o_dict
-        self.op_feats = op_feats
-        self.struct2template = struct2template
-
         self.stage_feat = stage_feat
         self.col_dict = col_dict
         self.picked_groups = picked_groups
@@ -472,22 +511,8 @@ class MyStageDSBase(Dataset):
         sid = x[self.col_dict["ch1"][0]].item()
         svid = int(x[self.col_dict["ch1"][1]].item())
         qid = x[self.col_dict["ch1"][2]].item()
-
         if "ch1" in self.picked_groups:
-            g = form_graph(self.dag_dict, sid, svid, qid, self.ped, self.op_groups, self.op_feats, self.struct2template)
-            g_stages = []
-            for qs_id in range(len(self.qs2o_dict[sid])):
-                g_stage = g.subgraph(self.qs2o_dict[sid][qs_id])
-                if self.model_name in ("GTN"):
-                    g_stage.ndata["lap_pe"] = get_laplacian_pe(dgl.to_bidirected(g_stage), g_stage.num_nodes() - 2)
-                    resize_pe(g_stage, self.ped)
-                elif self.model_name in ("GCN", "GATv2", "GIN"):
-                    g_stage = dgl.add_self_loop(g_stage)
-                elif self.model_name in ("AVGMLP"):
-                    ...
-                else:
-                    raise ValueError(self.model_name)
-                g_stages.append(g_stage)
+            g_stages = form_graph_stages(self.dag_misc, sid, svid, qid, self.op_groups, self.ped)
         else:
             g_stages = [None]
 
@@ -1008,12 +1033,12 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
 
 def pipeline_stage(data_meta, data_params, learning_params, net_params, ckp_header):
     ds_dict, dag_misc, stage_feat, col_dict, minmax_dict, n_op_types = data_meta
-    dag_dict = dag_misc[0]
+    stage_dag_dict = dag_misc[0]
     device, loss_type = learning_params["device"], learning_params["loss_type"]
     net_params, op_groups, picked_groups, _ = augment_net_params(data_params, net_params, col_dict, n_op_types)
 
     # model setup
-    exist, ret = setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag_dict, None)
+    exist, ret = setup_model_and_hp(data_params, learning_params, net_params, ckp_header, stage_dag_dict, None)
     if exist:
         return ret
     model, hp_params, hp_prefix_sign, ckp_path, model_name, obj, weights_pth_sign, results_pth_sign = ret

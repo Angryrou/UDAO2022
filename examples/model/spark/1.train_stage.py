@@ -32,6 +32,7 @@ if __name__ == "__main__":
         struct_file="struct_cache.pkl",
         data_params=data_params,
         benchmark=args.benchmark.lower(),
+        model_name=model_name,
         debug=debug
     )
 
