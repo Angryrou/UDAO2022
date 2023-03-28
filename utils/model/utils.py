@@ -483,6 +483,8 @@ class MyStageDSBase(Dataset):
                     resize_pe(g_stage, self.ped)
                 elif self.model_name in ("GCN", "GATv2", "GIN"):
                     g_stage = dgl.add_self_loop(g_stage)
+                elif self.model_name in ("AVGMLP"):
+                    ...
                 else:
                     raise ValueError(self.model_name)
                 g_stages.append(g_stage)
