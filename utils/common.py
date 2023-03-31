@@ -152,6 +152,10 @@ class TimeUtils(object):
         t = ciso8601.parse_datetime(f"{s}+0{tz_ahead}00").utctimetuple()
         return int(time.mktime(t))
 
+    @staticmethod
+    def get_utc_timestamp_with_ms(s: str, tz_ahead: int = 0) -> float:
+        t = ciso8601.parse_datetime(f"{s}+0{tz_ahead}00").utctimetuple()
+        return float(time.mktime(t))
 
 class ParquetUtils(object):
 

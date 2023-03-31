@@ -83,8 +83,8 @@ if __name__ == '__main__':
             for s in stages:
                 if s["status"] != "COMPLETE":
                     continue
-                stage_lat = TimeUtils.get_utc_timestamp(s["completionTime"][:-3]) - \
-                            TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3])
+                stage_lat = TimeUtils.get_utc_timestamp_with_ms(s["completionTime"][:-3]) - \
+                            TimeUtils.get_utc_timestamp_with_ms(s["firstTaskLaunchedTime"][:-3])
 
                 stage = JsonUtils.load_json_from_url(url + "/stages/" + str(s["stageId"]) + "/" + str(s["attemptId"]))
                 stage_dt = sum([v["taskTime"] for k, v in stage["executorSummary"].items()])
