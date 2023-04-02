@@ -71,6 +71,7 @@ def get_csvs(templates, header, cache_header, samplings=["lhs", "bo"]):
         print(f"generated cached {fname} at {cache_header}")
     return df
 
+
 def get_csvs_stage(header, cache_header, samplings=["lhs", "bo"]):
     fname = f"csvs_stage.parquet"
     try:
@@ -88,6 +89,7 @@ def get_csvs_stage(header, cache_header, samplings=["lhs", "bo"]):
         ParquetUtils.parquet_write(df, cache_header, fname)
         print(f"generated cached {fname} at {cache_header}")
     return df
+
 
 def get_csvs_tr_val_te(templates, header, cache_header, seed, samplings=["lhs", "bo"]):
     df = get_csvs(templates, header, cache_header, samplings)
@@ -145,10 +147,14 @@ def nodes_old2new(from_ids, to_ids, node_id2name, reverse=False):
     return nids_old, nids_new, nids_new2old, nids_old2new, from_ids_new, to_ids_new, node_id2name_new
 
 
-def plot_nx_graph(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str, jupyter: bool = False):
+def plot_nx_graph(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str, prefix: bool = True,
+                  jupyter: bool = False):
     p = nx.drawing.nx_pydot.to_pydot(G)
     for i, node in enumerate(p.get_nodes()):
-        node.set_label(f"{i}-{node_id2name[i]}")
+        if prefix:
+            node.set_label(f"{i}-{node_id2name[i]}")
+        else:
+            node.set_label(node_id2name[i])
     dir_to_save = 'application_graphs/' + dir_name
     os.makedirs(dir_to_save, exist_ok=True)
     p.write_png(dir_to_save + '/' + title + '.png')
@@ -167,9 +173,10 @@ def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str
     plot_nx_graph(G, node_id2name_new, dir_name, title)
 
 
-def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: str, jupyter=False):
+def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: str, prefix: bool = True,
+                   jupyter: bool = False):
     G = dgl.to_networkx(g)
-    plot_nx_graph(G, node_id2name, dir_name, title, jupyter)
+    plot_nx_graph(G, node_id2name, dir_name, title, prefix, jupyter)
 
 
 def list_strip(inputs):
@@ -524,4 +531,3 @@ def brief_clean(s):
 
 def df_convert_query2op(df):
     return df.planDescription.apply(lambda x: SqlStructBefore(x).get_op_feats()).explode()
-
