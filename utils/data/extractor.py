@@ -148,13 +148,17 @@ def nodes_old2new(from_ids, to_ids, node_id2name, reverse=False):
 
 
 def plot_nx_graph(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str, prefix: bool = True,
-                  jupyter: bool = False):
+                  color: str = None, jupyter: bool = False):
     p = nx.drawing.nx_pydot.to_pydot(G)
     for i, node in enumerate(p.get_nodes()):
         if prefix:
             node.set_label(f"{i}-{node_id2name[i]}")
         else:
             node.set_label(node_id2name[i])
+        if color is not None:
+            node.set("style", "filled")
+            node.set("color", color)
+            node.set("fillcolor", color)
     dir_to_save = 'application_graphs/' + dir_name
     os.makedirs(dir_to_save, exist_ok=True)
     p.write_png(dir_to_save + '/' + title + '.png')
@@ -174,9 +178,9 @@ def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str
 
 
 def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: str, prefix: bool = True,
-                   jupyter: bool = False):
+                   color: str = None, jupyter: bool = False):
     G = dgl.to_networkx(g)
-    plot_nx_graph(G, node_id2name, dir_name, title, prefix, jupyter)
+    plot_nx_graph(G, node_id2name, dir_name, title, prefix, color, jupyter)
 
 
 def list_strip(inputs):
