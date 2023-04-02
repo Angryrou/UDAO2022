@@ -16,6 +16,10 @@ from networkx.algorithms import isomorphism
 from utils.common import JsonUtils, ParquetUtils, PickleUtils
 
 from IPython.display import Image, display
+import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib
+
 from gensim.models.word2vec import Word2Vec
 from gensim.models.doc2vec import Doc2Vec
 
@@ -179,9 +183,51 @@ def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str
 
 
 def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: str, prefix: bool = True,
-                   color: str = None, fillcolor:str = None, jupyter: bool = False):
+                   color: str = None, fillcolor: str = None, jupyter: bool = False):
     G = dgl.to_networkx(g)
     plot_nx_graph(G, node_id2name, dir_name, title, prefix, color, fillcolor, jupyter)
+
+
+def plot_timeline(sid, q_sign, s_ids, s_starts, s_ends, q_end, save_to=None):
+    fig, ax = plt.subplots(figsize=(7, 3))
+    colors = sns.color_palette("mako", len(s_ids))
+    # sns.set_theme(style="ticks")
+    ax.xaxis.grid(True)
+    ax.set(xlabel=f"Relative Timestamps {sid}({q_sign})")
+    ax.set(ylabel="")
+    ax.set_yticks([])
+    for i, (stage_id, sstart, send) in enumerate(zip(s_ids, s_starts, s_ends)):
+        plt.plot([sstart, send], [i + 1, i + 1], color=colors[i], marker="|", linestyle="-", label=f"stage_{stage_id}")
+    plt.plot([0, q_end], [0, 0], "r|-", label=f"query [{q_sign}]")
+    ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left', ncol=3, mode="expand", borderaxespad=0.)
+    plt.tight_layout()
+    if save_to is not None:
+        os.makedirs(save_to, exist_ok=True)
+        figpath = f"{save_to}/timeline_{sid}({q_sign}).pdf"
+        fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
+    plt.show()
+
+
+def show_q(df_q, df_s, sid, q_sign, save_to=None):
+    target_q = df_q[df_q.q_sign == q_sign]
+    assert len(target_q) == 1
+    target_s = df_s[df_s.id == target_q.index[0]].sort_values(["first_task_launched_time", "stage_id"])
+    assert len(target_s) >= 1
+
+    q_start, q_lat = target_q.start_timestamp[0], target_q.latency[0]
+    q_end = q_start + q_lat
+    s_ids = target_s.stage_id.to_numpy()
+    s_starts = target_s.first_task_launched_time.to_numpy()
+    s_lats = target_s.stage_latency.to_numpy()
+    s_ends = s_starts + s_lats
+
+    offset = q_start
+    q_end = q_lat
+    print(f"query: 0 - {q_lat:.3f}s")
+    s_starts = s_starts - offset
+    s_ends = s_ends - offset
+    print(f"stage: {s_starts.min():.3f} - {s_ends.max():.3f}s")
+    plot_timeline(sid, q_sign, s_ids, s_starts, s_ends, q_end, save_to)
 
 
 def list_strip(inputs):

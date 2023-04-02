@@ -144,3 +144,4 @@ examples/model/spark/out
 *.png
 *.pkl
 examples/experiments/1.heuristic.vs.q_level_tuning
+application_graphs

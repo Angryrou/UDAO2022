@@ -87,7 +87,7 @@ if __name__ == '__main__':
             res[i] = [
                 appid, data["name"], q_sign, knob_sign,
                 json.dumps(query["planDescription"]), json.dumps(query["nodes"]), json.dumps(query["edges"]),
-                TimeUtils.get_utc_timestamp(query["submissionTime"][:-3]), query["duration"] / 1000, None
+                TimeUtils.get_utc_timestamp_with_ms(query["submissionTime"][:-3]), query["duration"] / 1000, None
             ]
         except KeyboardInterrupt:
             if args.target_url_path is not None:

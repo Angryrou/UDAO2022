@@ -90,7 +90,7 @@ if __name__ == '__main__':
                 stage_dt = sum([v["taskTime"] for k, v in stage["executorSummary"].items()])
                 cur_res.append([
                     appid, s["stageId"],
-                    TimeUtils.get_utc_timestamp(s["firstTaskLaunchedTime"][:-3]), stage_lat, stage_dt,
+                    TimeUtils.get_utc_timestamp_with_ms(s["firstTaskLaunchedTime"][:-3]), stage_lat, stage_dt,
                     s["numTasks"], s["inputBytes"], s["inputRecords"], s["shuffleReadBytes"], s["shuffleReadRecords"],
                     s["outputBytes"], s["outputRecords"], s["shuffleWriteBytes"], s["shuffleWriteRecords"], None
                 ])
