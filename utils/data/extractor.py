@@ -15,6 +15,7 @@ from networkx.algorithms import isomorphism
 
 from utils.common import JsonUtils, ParquetUtils, PickleUtils
 
+from IPython.display import Image
 from gensim.models.word2vec import Word2Vec
 from gensim.models.doc2vec import Doc2Vec
 
@@ -144,13 +145,15 @@ def nodes_old2new(from_ids, to_ids, node_id2name, reverse=False):
     return nids_old, nids_new, nids_new2old, nids_old2new, from_ids_new, to_ids_new, node_id2name_new
 
 
-def plot_nx_graph(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str):
+def plot_nx_graph(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str, jupyter: bool = False):
     p = nx.drawing.nx_pydot.to_pydot(G)
     for i, node in enumerate(p.get_nodes()):
         node.set_label(f"{i}-{node_id2name[i]}")
     dir_to_save = 'application_graphs/' + dir_name
     os.makedirs(dir_to_save, exist_ok=True)
     p.write_png(dir_to_save + '/' + title + '.png')
+    if jupyter:
+        Image(dir_to_save + '/' + title + '.png')
 
 
 def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str, nodes_desc: dict):
@@ -164,9 +167,9 @@ def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str
     plot_nx_graph(G, node_id2name_new, dir_name, title)
 
 
-def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: str):
+def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: str, jupyter=False):
     G = dgl.to_networkx(g)
-    plot_nx_graph(G, node_id2name, dir_name, title)
+    plot_nx_graph(G, node_id2name, dir_name, title, jupyter)
 
 
 def list_strip(inputs):
