@@ -112,8 +112,8 @@ if __name__ == '__main__':
         df_w["net_xfers/s"] = df[f"{NET}-read/s"] + df[f"{NET}-write/s"]
 
         dts = df_w["timestamp"].values[1:] - df_w["timestamp"].values[:-1]
-        df_w.loc[np.where(dts < 0)[0][0] + 1:, "timestamp"] += 3600 # summer to winter
-        dts = df_w["timestamp"].values[1:] - df_w["timestamp"].values[:-1]
+        # df_w.loc[np.where(dts < 0)[0][0] + 1:, "timestamp"] += 3600 # summer to winter
+        # dts = df_w["timestamp"].values[1:] - df_w["timestamp"].values[:-1]
         print(f"{w}, max_dt={np.max(dts)}, min_dt={np.min(dts)}")
         df_dict[w] = df_w
 
