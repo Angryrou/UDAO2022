@@ -78,7 +78,7 @@ if __name__ == '__main__':
         metric = "cpu_utils"
         df = get_df(src_path, w, target="CPU_ALL.csv")
         df_w[metric] = (100 - df["Idle%"] - df["Steal%"]) / 100
-        df_w["timestamp"] = df[df.columns[0]].apply(lambda x: TimeUtils.get_utc_timestamp(x, tz_ahead))
+        df_w["timestamp"] = df[df.columns[0]].apply(lambda x: TimeUtils.get_utc_timestamp_with_ms(x, tz_ahead))
 
         # mem
         # mem utils = current total memory usage / Total Memory

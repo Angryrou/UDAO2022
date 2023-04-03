@@ -35,7 +35,7 @@ def match_inds(x, y):
     :return: a list of the index of the most recent machine trace to each query
     """
     m, n = len(x), len(y)
-    assert x[-1] < y[-1] + 5
+    assert x[-1] < y[-1] + 5, f"{x[-1]} < {y[-1]}"
     # O(logn + m)
     ret = np.zeros(m).astype(int)
     j = max(np.where(x[0] > y)[0])
