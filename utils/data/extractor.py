@@ -188,7 +188,7 @@ def plot_dgl_graph(g: dgl.DGLGraph, node_id2name: dict, dir_name: str, title: st
     plot_nx_graph(G, node_id2name, dir_name, title, prefix, color, fillcolor, jupyter)
 
 
-def plot_timeline(sid, q_sign, s_ids, s_starts, s_ends, q_end, save_to=None):
+def plot_timeline(sid, q_sign, analyze_dt, s_ids, s_starts, s_ends, q_end, save_to=None):
     fig, ax = plt.subplots(figsize=(7, 3))
     colors = sns.color_palette("mako", len(s_ids))
     # sns.set_theme(style="ticks")
@@ -197,8 +197,10 @@ def plot_timeline(sid, q_sign, s_ids, s_starts, s_ends, q_end, save_to=None):
     ax.set(ylabel="")
     ax.set_yticks([])
     for i, (stage_id, sstart, send) in enumerate(zip(s_ids, s_starts, s_ends)):
-        plt.plot([sstart, send], [i + 1, i + 1], color=colors[i], marker="|", linestyle="-", label=f"stage_{stage_id}")
-    plt.plot([0, q_end], [0, 0], "r|-", label=f"query [{q_sign}]")
+        plt.plot([sstart, send], [i + 2, i + 2], color=colors[i], marker="|", linestyle="-",
+                 label=f"stage_{stage_id}[{send-sstart:.1f}s]")
+    plt.plot([0, analyze_dt], [1, 1], "b|-", label=f"analyze [{analyze_dt:.1f}s]")
+    plt.plot([0, q_end], [0, 0], "r|-", label=f"query [{q_sign}, {q_end:.1f}s]]")
     ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left', ncol=3, mode="expand", borderaxespad=0.)
     plt.tight_layout()
     if save_to is not None:
@@ -227,7 +229,10 @@ def show_q(df_q, df_s, sid, q_sign, save_to=None):
     s_starts = s_starts - offset
     s_ends = s_ends - offset
     print(f"stage: {s_starts.min():.3f} - {s_ends.max():.3f}s")
-    plot_timeline(sid, q_sign, s_ids, s_starts, s_ends, q_end, save_to)
+
+    analyze_dt = s_starts[np.where(s_starts > 0)[0]].min()
+    print(f"analyze time: {analyze_dt}")
+    plot_timeline(sid, q_sign, analyze_dt, s_ids, s_starts, s_ends, q_end, save_to)
 
 
 def list_strip(inputs):
