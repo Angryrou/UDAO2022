@@ -54,6 +54,10 @@ class JsonUtils(object):
         with open(des_file, "w") as f:
             f.write(json_data)
 
+    @staticmethod
+    def dump2str(d, indent: int = None):
+        return json.dumps(d, indent=indent)
+
 class PickleUtils(object):
 
     @staticmethod

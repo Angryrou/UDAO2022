@@ -18,6 +18,7 @@ class Node():
         metrics = node["metrics"]
         self.involved_stages_from_sparkviz = self._get_stageIds(metrics)
         self.metrics = metrics
+        self.wscg = node["wholeStageCodegenId"] if "wholeStageCodegenId" in node else -1
 
     def get_nid(self):
         return self.nid
@@ -115,10 +116,10 @@ def get_topdowntree_root_leaves(edges: list[Edge], verbose=False):
     if len(root_node) > 1:
         print(f'Tree contains multiple root nodes: {root_node}')
     rootNode = root_node.pop()
-    # if verbose:
-    print(f'Tree {tree}')
-    print(f'Root node is {rootNode}')
-    print(f'Child nodes are {child_nodes}')
+    if verbose:
+        print(f'Tree {tree}')
+        print(f'Root node is {rootNode}')
+        print(f'Child nodes are {child_nodes}')
     return tree, rootNode, list(child_nodes)
 
 
