@@ -78,7 +78,7 @@ if __name__ == "__main__":
         print(f"generated cached structure at {cache_header}/{struct_cache_name}")
 
     # generate data for query-level modeling
-    query_cache_name = "query_level_cache_data.pkl"
+    query_cache_name = "query_level_cache_data.bak.pkl"
     try:
         query_cache = PickleUtils.load(cache_header, query_cache_name)
     except:
@@ -108,7 +108,7 @@ if __name__ == "__main__":
         }
         PickleUtils.save(query_cache, cache_header, query_cache_name)
 
-    stage_cache_name = "stage_level_cache_data.pkl"
+    stage_cache_name = "stage_level_cache_data.bak.pkl"
     try:
         stage_cache = PickleUtils.load(cache_header, stage_cache_name)
     except:
