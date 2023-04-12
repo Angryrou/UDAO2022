@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from utils.common import BenchmarkUtils, PickleUtils, JsonUtils, ParquetUtils
 from utils.data.dag_sql2stages import get_sub_sqls_using_topdown_tree, get_stage_plans, Node, Edge, QueryPlanTopology
-from utils.data.extractor import get_csvs, SqlStruct, get_tr_val_te_masks, get_csvs_stage
+from utils.data.extractor import get_csvs, SqlStruct, get_tr_val_te_masks, get_csvs_stage, Broadcast
 from utils.data.feature import CH1_FEATS, CH2_FEATS, CH3_FEATS, CH4_FEATS, OBJS, CH1_FEATS_STAGE, CH2_FEATS_STAGE, \
     CH3_FEATS_STAGE, CH4_FEATS_STAGE, OBJS_STAGE
 
@@ -125,16 +125,18 @@ def generate_mapping_patch(df_mappings, df_stage, master_node, src_path_header_s
             elif "Scan parquet tpch_100" in web_str:
                 tablescan_list = pattern2.findall(web_str)
                 tablescan = tablescan_list[0]
-                if_found = False
+                if_found = 0
+                target_qs_id = -1
                 for qs_id, node_ids in queryStage_to_nodes.items():
                     for nid in node_ids:
                         if nodes_map[str(nid)] == tablescan:
-                            pdict[s] = int(qs_id)
-                            if_found = True
-                            break
-                    if if_found:
-                        break
-                assert if_found is True
+                            target_qs_id = int(qs_id)
+                            if_found += 1
+                assert if_found > 0
+                if if_found == 1:
+                    pdict[s] = target_qs_id
+                else:
+                    print(f"multiple {tablescan} in QueryStages, manual checking needed...")
             else:
                 raise Exception(f"getting missing stage {s} in {id}")
 
@@ -212,7 +214,9 @@ def generate_qs2stage_mapping(df, df_stage, verbose, num_plans, cache_header, df
     mapping_signs, queryStage_to_nodes_list, qs_dependencies_list, nodes_map_list = \
         [None] * len(df), [None] * len(df), [None] * len(df), [None] * len(df)
     no_overlap_ids = set()
+    qs2broadcast_dict = {}
     for i, v in enumerate(df.to_dict(orient="index").values()):
+        q_sign = v["q_sign"]
         nodes = [Node(n) for n in JsonUtils.load_json_from_str(v["nodes"])]
         edges = JsonUtils.load_json_from_str(v["edges"])
         full_plan = QueryPlanTopology(nodes, edges)
@@ -244,6 +248,16 @@ def generate_qs2stage_mapping(df, df_stage, verbose, num_plans, cache_header, df
                         else:
                             sset |= n.get_exchange_write(n.metrics)
                 elif "broadcastexchange" == n.name.lower():
+                    if len(edges_map[n.nid]) == 1:
+                        child = list(edges_map[n.nid])[0]
+                        if child not in queryStage_to_nodes[qs_id]: # qs involves a broadcast stage
+                            assert (q_sign, qs_id) not in qs2broadcast_dict
+                            qs2broadcast_dict[(q_sign, qs_id)] = Broadcast(n.metrics).tolist()
+                    else:
+                        children = list(edges_map[n.nid])
+                        if not any(child in queryStage_to_nodes[qs_id] for child in children):
+                            assert (q_sign, qs_id) not in qs2broadcast_dict
+                            qs2broadcast_dict[(q_sign, qs_id)] = Broadcast(n.metrics).tolist()
                     if verbose:
                         print("not implemented due multiple children in BroadcastExchange")
                 elif "subquery" == n.name.lower():
@@ -299,28 +313,34 @@ def generate_qs2stage_mapping(df, df_stage, verbose, num_plans, cache_header, df
     df_mappings["mapping_sign_id"] = list(range(len(df_mappings)))
     mapping_sign2id = {sign: id for id, sign in enumerate(df_mappings["mapping_sign"])}
     df["mapping_sign_id"] = df.mapping_sign.apply(lambda x: mapping_sign2id[x])
-    n1, n2 = df_qs2stage_mapping_name.split(".")
-    df_qs2stage_mapping_name_full = f"{n1}_full.{n2}"
+    df_qs2stage_mapping_name_full = f"{df_qs2stage_mapping_name}_full.parquet"
     ParquetUtils.parquet_write(df, cache_header, df_qs2stage_mapping_name_full)
-    ParquetUtils.parquet_write(df_mappings, cache_header, df_qs2stage_mapping_name)
-    print(f"generated {df_qs2stage_mapping_name}")
-    return df_mappings, df
+    PickleUtils.save({
+        "df_mappings": df_mappings,
+        "qs2broadcast_dict": qs2broadcast_dict
+    }, cache_header, f"{df_qs2stage_mapping_name}.pkl")
+    print(f"generated {df_qs2stage_mapping_name}.pkl and {df_qs2stage_mapping_name}_full.parquet")
+    return df_mappings, df, qs2broadcast_dict
 
 def generate_stage_cache(df, df_stage, master_node, verbose, num_plans, src_path_header_stage, query_cache,
                          struct_dgl_dict, cache_header, stage_cache_name):
     # 3.1 generate QueryStage to Stage mappings
-    df_qs2stage_mapping_name = "df_qs2stage_mapping.parquet"
+    df_qs2stage_mapping_name = "df_qs2stage_mapping"
     try:
-        n1, n2 = df_qs2stage_mapping_name.split(".")
-        df_mappings = ParquetUtils.parquet_read(cache_header, df_qs2stage_mapping_name)
-        df_qs2stage_mapping_name_full = f"{n1}_full.{n2}"
-        df_processed = ParquetUtils.parquet_read(cache_header, df_qs2stage_mapping_name_full)
+        df_mappings_cache = PickleUtils.load(cache_header, f"{df_qs2stage_mapping_name}.pkl")
+        df_mappings, qs2broadcast_dict = df_mappings_cache["df_mappings"], df_mappings_cache["qs2broadcast_dict"]
+        df_processed = ParquetUtils.parquet_read(cache_header, f"{df_qs2stage_mapping_name}_full.parquet")
         print(f"found the df_qs2stage_mapping at {cache_header}/{df_qs2stage_mapping_name}")
     except:
         print(f"cannot find {df_qs2stage_mapping_name}, generating...")
-        df_mappings, df_processed = generate_qs2stage_mapping(
+        df_mappings, df_processed, qs2broadcast_dict = generate_qs2stage_mapping(
             df, df_stage, verbose, num_plans, cache_header, df_qs2stage_mapping_name)
-        print(f"generated df_qs2stage_mapping at {cache_header}/{df_qs2stage_mapping_name}")
+        print(f"generated df_qs2stage_mapping at {cache_header}/{df_qs2stage_mapping_name}*")
+    df_broadcast = pd.DataFrame.from_dict(qs2broadcast_dict, orient="index")
+    df_broadcast.columns = ["br_broadcast", "br_build", "br_collect", "br_rows", "br_mb"]
+    df_broadcast.index = pd.MultiIndex.from_tuples(df_broadcast.index.tolist())
+    df_broadcast.index.names = ["q_sign", "qs_id"]
+    df_broadcast = df_broadcast.reset_index()
 
     # 3.2 patching the QueryStage to Stage mappings
     patch_name = "mapping_patch.json"
@@ -373,15 +393,18 @@ def generate_stage_cache(df, df_stage, master_node, verbose, num_plans, src_path
         df["mapping_sign_id"] = df.id.apply(lambda x: id2mapping_id[x])
         df["qs_id"] = df.mapping_sign_id.apply(lambda mapping_id: sorted(list(qs2stage_dict[mapping_id].keys())))
         df_stage1 = df.explode("qs_id").reset_index(drop=True)  # set the rows
+        df_stage1 = df_stage1.merge(df_broadcast, on=["q_sign", "qs_id"], how="left").fillna(0)
         df_stage2 = df_stage.set_index("id").loc[appid_index].reset_index()
         df_stage2["mapping_sign_id"] = df_stage2.id.apply(lambda x: id2mapping_id[x])
         df_stage2["qs_id"] = [stage2qs_dict[v["mapping_sign_id"]][v["stage_id"]]
                               if v["stage_id"] in stage2qs_dict[v["mapping_sign_id"]] else -1
                               for k, v in df_stage2.iterrows()]
         df_stage2 = df_stage2[df_stage2["qs_id"] >= 0]
+        df_stage2["finish_time"] = df_stage2["first_task_launched_time"] + df_stage2["stage_latency"]
         df_stage2 = df_stage2.groupby(["id", "qs_id"]).agg(
             starting_time=("first_task_launched_time", "min"),
-            stage_latency=("stage_latency", "sum"),
+            finish_time=("finish_time", "max"),
+            stage_latency_wo_broadcast=("stage_latency", "sum"),
             stage_dt=("stage_dt", "sum"),
             task_num=("task_num", "max"),
             input_bytes=("input_bytes", "max"),
@@ -411,8 +434,10 @@ def generate_stage_cache(df, df_stage, master_node, verbose, num_plans, src_path
             df_stage_[["input_bytes", "sr_bytes", "output_bytes", "sw_bytes"]] / 1024 / 1024
         df_stage_[["input_mb_log", "sr_mb_log", "input_records_log", "sr_records_log"]] = \
             np.log(df_stage_[["input_mb", "sr_mb", "input_records", "sr_records"]] + 1)
-        df_stage_[["output_mb_log", "sw_mb_log", "output_records_log", "sw_records_log"]] = \
-            np.log(df_stage_[["output_mb", "sw_mb", "output_records", "sw_records"]] + 1)
+        df_stage_[["output_mb_log", "sw_mb_log", "br_mb_log", "output_records_log", "sw_records_log", "br_rows_log"]] = \
+            np.log(df_stage_[["output_mb", "sw_mb", "br_mb", "output_records", "sw_records", "br_rows"]] + 1)
+        df_stage_["stage_latency"] = df_stage_["stage_latency_wo_broadcast"] + \
+                                     df_stage_["br_broadcast"] + df_stage_["br_build"]
         df_stage_ = df_stage_[selected_cols]
         dfs_stage.append(df_stage_)
         print(f"finish generating for df_stage {split}")

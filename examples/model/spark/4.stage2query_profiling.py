@@ -127,6 +127,13 @@ for sid, ids in id_dict.items():
     mape_dict[sid] = mape
     print(f"{sid}({struct2template[sid]})\t{wmape:.3f}\t{mape:.3f}")
 
+qs2stage_dict = stage_data["qs2stage_dict"]
+stage_df["br_time"] = stage_df["stage_latency"] - stage_df["stage_latency_wo_broadcast"]
+stage_br = stage_df[stage_df["br_time"] > 0].copy()
+stage_br["stage_id"] = stage_br.apply(lambda x: max(qs2stage_dict[x["mapping_sign_id"]][x["qs_id"]]), axis=1)
+stage_df_raw = stage_df_raw.merge(stage_br[["id", "stage_id", "br_time"]], on=["id", "stage_id"], how="left").fillna(0)
+stage_df_raw["stage_latency"] = stage_df_raw["stage_latency"] + stage_df_raw["br_time"]
+
 for sid in range(42):
     if sid not in qs_dag_dict:
         continue
@@ -151,3 +158,24 @@ for sid in range(42):
     show_q(query_df, stage_df_raw, sid, q_sign, save_to="application_graphs/stage_topology/tpch_100/timelines")
     # show_q(query_df, stage_df_raw, sid, q_sign, save_to=None)
 
+
+# sid = 4
+# for q_sign in ["q3-685", "q3-25", "q3-1", "q3-5", "q3-15"]:
+#     q = query_df[query_df["q_sign"] == q_sign].iloc[0]
+#     appid = q.name
+#     slats = stage_df[stage_df["q_sign"] == q_sign].sort_values("qs_id").stage_latency.values
+#     mapping_id = query_df.loc[appid, "mapping_sign_id"]
+#     labels = {i: f"{qs2stage_dict[mapping_id][i]}\\n{slats[i]:.1f}s"
+#               for i in range(qs_dag_dict[sid].num_nodes())}
+#
+#     plot_dgl_graph(
+#         g=qs_dag_dict[sid],
+#         node_id2name=labels,
+#         dir_name="stage_topology/tpch_100/debug",
+#         title=f"{sid}({q_sign})",
+#         prefix=False,
+#         color="lightgreen",
+#         fillcolor="lightgreen",
+#         jupyter=True
+#     )
+#     show_q(query_df, stage_df_raw, sid, q_sign, save_to="application_graphs/stage_topology/tpch_100/debug/timelines")

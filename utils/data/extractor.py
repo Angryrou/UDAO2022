@@ -123,18 +123,7 @@ def extract_query_input_size(j_nodes):
         if nname.split()[0] == "Scan":
             for m in nmetric:
                 if m["name"] == "size of files read":
-                    size, unit = m["value"].replace(",", "").split()
-                    size = float(size)
-                    if unit == "B":
-                        input_mb += size / 1024 / 1024
-                    elif unit == "KiB":
-                        input_mb += size / 1024
-                    elif unit == "MiB":
-                        input_mb += size
-                    elif unit == "GiB":
-                        input_mb += size * 1024
-                    else:
-                        raise ValueError(f"unseen {unit} in {nmetric}")
+                    input_mb = format_size(m["value"]) / 1024 / 1024
                 if m["name"] == "number of output rows":  # for scan, n_input_records = n_output_records
                     input_records += float(m["value"].replace(",", ""))
     return input_mb, input_records
@@ -527,20 +516,33 @@ def extract_ofeats(lp, all=False):
 
 
 def format_size(x):
-    n, unit = x.split()
+    n, unit = x.replace(",", "").split()
+    n = float(n)
     if unit == "B":
-        return float(n)
+        return n
     elif unit == "KiB":
-        return float(n) * 1024
+        return n * 1024
     elif unit == "MiB":
-        return float(n) * 1024 * 1024
+        return n * 1024 * 1024
     elif unit == "GiB":
-        return float(n) * 1024 * 1024 * 1024
+        return n * 1024 * 1024 * 1024
     elif unit == "TiB":
-        return float(n) * 1024 * 1024 * 1024 * 1024
+        return n * 1024 * 1024 * 1024 * 1024
     else:
-        raise ValueError(x)
+        raise Exception(f"unseen {unit} in {x}")
 
+
+def format_time(x):
+    n, unit = x.replace(",", "").split()
+    n = float(n)
+    if unit == "ms":
+        return n / 1000
+    elif unit == "s":
+        return n
+    elif unit == "m":
+        return n * 60
+    else:
+        raise Exception(f"unseen {unit} in {x}")
 
 class LogicalStruct():
 
@@ -587,3 +589,31 @@ def brief_clean(s):
 
 def df_convert_query2op(df):
     return df.planDescription.apply(lambda x: SqlStructBefore(x).get_op_feats()).explode()
+
+class Broadcast():
+    def __init__(self, m):
+        self.broadcast_s = None
+        self.build_s = None
+        self.collect_s = None
+        self.rows = None
+        self.size_mb = None
+
+        ks, vs = JsonUtils.extract_json_list(m, ["name", "value"])
+        for k, v in zip(ks, vs):
+            if k == "time to broadcast":
+                self.broadcast_s = format_time(v)
+            elif k == "time to build":
+                self.build_s = format_time(v)
+            elif k == "time to collect":
+                self.collect_s = format_time(v)
+            elif k == "number of output rows":
+                self.rows = float(v.replace(",", ""))
+            elif k == "data size":
+                self.size_mb = format_size(v) / 1024 / 1024
+            else:
+                raise Exception(f"unexpected {k} in {m}")
+        for v in [self.broadcast_s, self.build_s, self.collect_s, self.rows, self.size_mb]:
+            assert v is not None
+
+    def tolist(self):
+        return [self.broadcast_s, self.build_s, self.collect_s, self.rows, self.size_mb]
