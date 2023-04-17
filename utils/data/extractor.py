@@ -162,8 +162,8 @@ def plot_nx_graph(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title:
     elif out_format == "pdf":
         p.write_pdf(dir_to_save + '/' + title + '.pdf')
         if jupyter:
-            display(Image(dir_to_save + '/' + title + '.pdf'))
-
+            p.write_png(dir_to_save + '/' + title + '.png')
+            display(Image(dir_to_save + '/' + title + '.png'))
 
 
 def plot_nx_graph_augment(G: networkx.DiGraph, node_id2name: dict, dir_name: str, title: str, nodes_desc: dict):
