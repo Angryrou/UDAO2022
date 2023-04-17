@@ -188,7 +188,7 @@ def plot_timeline(sid, q_sign, analyze_dt, s_ids, s_starts, s_ends, q_end, save_
     colors = sns.color_palette("mako", len(s_ids))
     # sns.set_theme(style="ticks")
     ax.xaxis.grid(True)
-    ax.set(xlabel=f"Relative Timestamps {sid}({q_sign})")
+    ax.set(xlabel=f"Relative Timestamps of {sid}({q_sign})")
     ax.set(ylabel="")
     ax.set_yticks([])
     for i, (stage_id, sstart, send) in enumerate(zip(s_ids, s_starts, s_ends)):
