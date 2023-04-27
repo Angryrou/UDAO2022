@@ -103,7 +103,7 @@ class SparkCollect(Collection):
         pass
 
     def make_script(self, tid: str, qid: str, knob_sign: str, conf_dict: dict,
-                    spath="/opt/hex_users/$USER/chenghao/spark-sql-perf",
+                    spath="/opt/hex_users/$USER/chenghao/spark-stage-tuning",
                     jpath="/opt/hex_users/$USER/spark-3.2.1-hadoop3.3.0/jdk1.8",
                     if_aqe=False, oplan_header="oplan_header") -> str:
         conf_str = "\n".join(f"--conf {k}={v} \\" for k, v in conf_dict.items())
