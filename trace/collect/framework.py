@@ -142,7 +142,7 @@ name={name}
 --conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:log4j.properties" \\
 --files "$lpath" \\
 --jars ~/spark/examples/jars/scopt_2.12-3.7.1.jar \\
-$spath/target/scala-2.12/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar \\
+$spath/target/scala-2.12/spark-stage-tuning_2.12-1.0-SNAPSHOT.jar \\
 -b {bm} -t {tid} -q {qid} -s {sf} -l {self.query_header}
  
         """
