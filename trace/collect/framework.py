@@ -117,7 +117,7 @@ class SparkCollect(Collection):
 
 spath={spath}
 jpath={jpath}
-lpath={spath}/src/main/resources/log4j.properties
+lpath={spath}/src/main/resources/log4j2.properties
 name={name}
 
 ~/spark/bin/spark-submit \\
@@ -153,7 +153,7 @@ $spath/target/scala-2.12/spark-stage-tuning_2.12-1.0-SNAPSHOT.jar \\
 
 spath={spath}
 jpath={jpath}
-lpath={spath}/src/main/resources/log4j.properties
+lpath={spath}/src/main/resources/log4j2.properties
 sparkpath=/opt/hex_users/$USER/spark
 respath={spath}/src/main/resources/tpcxbb/res
 name={name}
