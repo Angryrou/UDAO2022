@@ -121,7 +121,7 @@ lpath={spath}/src/main/resources/log4j2.properties
 name={name}
 
 ~/spark/bin/spark-submit \\
---class com.databricks.spark.sql.perf.MyRunTemplateQuery \\
+--class edu.polytechnique.cedar.spark.sql.RunTemplateQuery \\
 --name {name} \\
 --master yarn \\
 --deploy-mode client \\
