@@ -38,6 +38,7 @@ class ArgsRecoQ(ArgsBase):
         self.parser.add_argument("--seed", type=int, default=42)
         self.parser.add_argument("--query-header", type=str, default="resources/tpch-kit/spark-sqls")
         self.parser.add_argument("--gpu", type=str, default="-1")
+        self.parser.add_argument("--clf-feat", type=str, default=None)
 
 
 class ArgsRecoQRun(ArgsRecoQ):

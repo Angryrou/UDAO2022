@@ -411,15 +411,20 @@ def form_graph_stages(dag_misc, sid, svid, qid, op_groups, ped):
     return g_stages
 
 
+def prepare_emb(df, q_sign, dag_dict, ped, op_groups, op_feats, struct2template, model_proxy):
+    record = df[df["q_sign"] == q_sign]
+    sid, svid, qid = record.sql_struct_id.iloc[0], record.sql_struct_svid.iloc[0], record.qid.iloc[0]
+    g = form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2template)
+    emb = model_proxy.get_stage_emb(g, fmt="numpy")
+    return emb, record
+
+
 def prepare_data_for_opt(df, q_sign, dag_dict, ped, op_groups, op_feats, struct2template,
                          model_proxy, col_dict, minmax_dict):
-    record = df[df["q_sign"] == q_sign]
-    sid, svid, qid = record.sql_struct_id[0], record.sql_struct_svid[0], record.qid[0]
-    g = form_graph(dag_dict, sid, svid, qid, ped, op_groups, op_feats, struct2template)
-    stage_emb = model_proxy.get_stage_emb(g, fmt="numpy")
+    emb, record = prepare_emb(df, q_sign, dag_dict, ped, op_groups, op_feats, struct2template, model_proxy)
     ch2_norm = norm_in_feat_inst(record[col_dict["ch2"]], minmax_dict["ch2"]).values
     ch3_norm = np.zeros((1, len(col_dict["ch3"])))  # as like in the idle env
-    return stage_emb, ch2_norm, ch3_norm
+    return emb, ch2_norm, ch3_norm
 
 
 def get_sample_spark_knobs(knobs, n_samples, bm, q_sign, seed):
