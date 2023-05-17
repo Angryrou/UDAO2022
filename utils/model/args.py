@@ -35,6 +35,7 @@ class ArgsRecoQ(ArgsBase):
         self.parser.add_argument("--ckp-sign", type=str, default="b7698e80492e5d72")
         self.parser.add_argument("--n-samples", type=int, default=5000)
         self.parser.add_argument("--n-weights", type=int, default=1000)
+        self.parser.add_argument("--n-model-samples", type=int, default=100)
         self.parser.add_argument("--seed", type=int, default=42)
         self.parser.add_argument("--query-header", type=str, default="resources/tpch-kit/spark-sqls")
         self.parser.add_argument("--gpu", type=str, default="-1")

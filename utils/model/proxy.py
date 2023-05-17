@@ -3,6 +3,8 @@
 # Description: Add a proxy model for easy use of optimization
 #
 # Created at 08/01/2023
+import random
+
 import numpy as np
 
 from model.architecture.graph_transformer_net import GraphTransformerNet
@@ -31,7 +33,8 @@ class ModelProxy():
         if "name" not in hp_params:
             hp_params["name"] = model_name
         model = GraphTransformerNet(hp_params).to(device=device)
-        model.load_state_dict(th.load(weights_pth_sign, map_location=device)["model"])
+        self.model_states = th.load(weights_pth_sign, map_location=device)["model"]
+        model.load_state_dict(self.model_states)
         print(f"model loaded.")
         self.results = results
         self.hp_params = hp_params
@@ -68,6 +71,24 @@ class ModelProxy():
         stage_emb = np.repeat(ch1, n_rows, axis=0)
         inst_feat = np.hstack([np.repeat(ch2, n_rows, axis=0), np.repeat(ch3, n_rows, axis=0), ch4])
         return stage_emb, inst_feat
+
+    def reset_seed(self, seed):
+        np.random.seed(seed)
+        random.seed(seed)
+        th.manual_seed(seed)
+
+    def manual_dropout(self, seed):
+        self.model.load_state_dict(self.model_states)
+        self.reset_seed(seed)
+        dropout = self.model.MLP_layer.dropout
+        n_mlps = len(self.model.MLP_layer.FC_layers)
+        for i in range(n_mlps - 1):
+            dropout_matrix = th.ones_like(self.model.MLP_layer.FC_layers[i].weight) * (1 - dropout)
+            mask = th.distributions.Bernoulli(dropout_matrix).sample()
+            with th.no_grad():
+                self.model.MLP_layer.FC_layers[i].weight *= mask
+            # print(i, self.model.MLP_layer.FC_layers[i].weight.sum())
+
 
     def get_lat(self, ch1, ch2, ch3, ch4, out_fmt="numpy", dropout=False, n_samples=100):
         stage_emb, inst_feat = self.mesh_knobs(ch1, ch2, ch3, ch4)
