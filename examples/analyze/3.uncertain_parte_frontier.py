@@ -19,11 +19,15 @@ from utils.data.feature import L2P_MAP
 from utils.model.args import ArgsRecoQ
 from utils.model.parameters import get_gpus, set_data_params
 from utils.model.proxy import ModelProxy
-from utils.model.utils import analyze_cols, expose_data, prepare_emb, norm_in_feat_inst, get_sample_spark_knobs, \
-    prepare_data_for_opt
+from utils.model.utils import analyze_cols, expose_data, get_sample_spark_knobs, prepare_data_for_opt
 from utils.optimization.moo_utils import is_pareto_efficient
 
-args = ArgsRecoQ().parse()
+class Args(ArgsRecoQ):
+    def __init__(self):
+        super(Args, self).__init__()
+        self.parser.add_argument("--topK", type=float, default=1)
+
+args = Args().parse()
 print(args)
 bm, sf, pj = "tpch", 100, "tpch_100"
 debug = False if args.debug == 0 else True
@@ -37,6 +41,7 @@ obj = args.obj
 ckp_sign = args.ckp_sign
 n_samples = args.n_samples
 gpus, device = get_gpus(args.gpu)
+topK = args.topK if args.topK < 1 else int(np.ceil(args.topK))
 q_signs = BenchmarkUtils.get_sampled_q_signs(bm) if args.q_signs is None else \
     [BenchmarkUtils.extract_sampled_q_sign(bm, sign) for sign in args.q_signs.split(",")]
 
@@ -79,11 +84,11 @@ knobs = spark_knobs.knobs
 def norm_in_feat_inst_local(x, minmax):
     return (x - minmax["min"].values.reshape(1, -1)) / (minmax["max"] - minmax["min"]).values.reshape(1, -1)
 
-def plot_uncertain_po(objs, fig_header, nbucks = 30, cmap=plt.cm.Reds, note="uncertain_po", if_show=True):
+def plot_uncertain_po(objs, fig_header, nbucks = 30, cmap=plt.cm.Reds, note="uncertain_po", if_show=True, topK=0.1):
     heatmap, xedges, yedges = np.histogram2d(objs[:, 0], objs[:, 1], bins=(nbucks, nbucks))
     heatmap = heatmap / n_model_param_samples
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
-    plt.imshow(heatmap.T, origin='lower', cmap=plt.cm.Reds)
+    plt.imshow(heatmap.T, origin='lower', cmap=cmap)
     cbar = plt.colorbar()
     cbar.ax.yaxis.set_major_formatter(mtick.PercentFormatter(1, decimals=0))
     ax.set_xlim([-0.5, nbucks])
@@ -101,6 +106,12 @@ def plot_uncertain_po(objs, fig_header, nbucks = 30, cmap=plt.cm.Reds, note="unc
     heatmap_flatten = np.array([[i, j, -rc] for i, r in enumerate(heatmap.T) for j, rc in enumerate(r) if rc > 0])
     heatmap_mask = is_pareto_efficient(heatmap_flatten)
     objs_pareto = heatmap_flatten[heatmap_mask]
+    if topK < 1:
+        n_top = np.ceil(len(objs_pareto) * topK).astype(int)
+        objs_pareto = objs_pareto[objs_pareto[:, 2].argsort()[:n_top]]
+    elif topK > 1:
+        assert topK == int(topK)
+        objs_pareto = objs_pareto[objs_pareto[:, 2].argsort()[:topK]]
     highlighted_cells = objs_pareto[:, :2]
     # Highlight the cells by coloring their edges
     for cell in highlighted_cells:
@@ -111,6 +122,10 @@ def plot_uncertain_po(objs, fig_header, nbucks = 30, cmap=plt.cm.Reds, note="unc
     ax.set_xlabel("latency (s)")
     ax.set_ylabel("cost($)")
     plt.tight_layout()
+    if topK < 1:
+        fig_header += f"_{topK:.1f}"
+    elif topK > 1:
+        fig_header += f"_{topK}"
     os.makedirs(fig_header, exist_ok=True)
     figpath = f"{fig_header}/{q_sign}_{note}.pdf"
     fig.savefig(figpath, bbox_inches="tight", pad_inches=0.01)
@@ -194,7 +209,8 @@ for q_sign in q_signs:
         nbucks=30,
         cmap=plt.cm.Reds,
         note="uncertain_po",
-        if_show=True
+        if_show=True,
+        topK=topK
     )
 
 print(f"mu(std)\t"
