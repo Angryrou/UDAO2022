@@ -25,7 +25,7 @@ from utils.optimization.moo_utils import is_pareto_efficient
 class Args(ArgsRecoQ):
     def __init__(self):
         super(Args, self).__init__()
-        self.parser.add_argument("--topK", type=float, default=1)
+        self.parser.add_argument("--topK", type=float, default=0.2)
 
 args = Args().parse()
 print(args)
@@ -41,7 +41,8 @@ obj = args.obj
 ckp_sign = args.ckp_sign
 n_samples = args.n_samples
 gpus, device = get_gpus(args.gpu)
-topK = args.topK if args.topK < 1 else int(np.ceil(args.topK))
+
+topK = args.topK if (args.topK is None or args.topK < 1) else int(np.ceil(args.topK))
 q_signs = BenchmarkUtils.get_sampled_q_signs(bm) if args.q_signs is None else \
     [BenchmarkUtils.extract_sampled_q_sign(bm, sign) for sign in args.q_signs.split(",")]
 
@@ -84,8 +85,9 @@ knobs = spark_knobs.knobs
 def norm_in_feat_inst_local(x, minmax):
     return (x - minmax["min"].values.reshape(1, -1)) / (minmax["max"] - minmax["min"]).values.reshape(1, -1)
 
-def plot_uncertain_po(po_objs, fig_header, nbucks = 30, cmap=plt.cm.Reds, note="uncertain_po", if_show=True, topK=0.1):
-    heatmap, xedges, yedges = np.histogram2d(po_objs[:, 0], po_objs[:, 1], bins=(nbucks, nbucks))
+def plot_uncertain_po_cmp(objs, objs_mu, fig_header, nbucks = 30, cmap=plt.cm.Reds,
+                          note="uncertain_po", if_show=True, topK=0.1):
+    heatmap, xedges, yedges = np.histogram2d(objs[:, 0], objs[:, 1], bins=(nbucks, nbucks))
     heatmap = heatmap / n_model_param_samples
     fig, ax = plt.subplots(figsize=(4.5, 3.5))
     plt.imshow(heatmap.T, origin='lower', cmap=cmap)
@@ -106,7 +108,10 @@ def plot_uncertain_po(po_objs, fig_header, nbucks = 30, cmap=plt.cm.Reds, note="
     heatmap_flatten = np.array([[i, j, -rc] for i, r in enumerate(heatmap.T) for j, rc in enumerate(r) if rc > 0])
     heatmap_mask = is_pareto_efficient(heatmap_flatten)
     objs_pareto = heatmap_flatten[heatmap_mask]
-    if topK < 1:
+    if topK is None:
+        n_top = len(objs_mu)
+        objs_pareto = objs_pareto[objs_pareto[:, 2].argsort()[:n_top]]
+    elif topK < 1:
         n_top = np.ceil(len(objs_pareto) * topK).astype(int)
         objs_pareto = objs_pareto[objs_pareto[:, 2].argsort()[:n_top]]
     elif topK > 1:
@@ -118,11 +123,24 @@ def plot_uncertain_po(po_objs, fig_header, nbucks = 30, cmap=plt.cm.Reds, note="
         rect = patches.Rectangle((cell[1] - 0.5, cell[0] - 0.5), 1, 1, linewidth=1, edgecolor='blue', facecolor='none')
         plt.gca().add_patch(rect)
 
+
+    edges_min = np.array([xedges[0], yedges[0]])
+    edges_max = np.array([xedges[-1], yedges[-1]])
+    objs_mu_norm = (objs_mu - edges_min) / (edges_max - edges_min) * nbucks
+    line, = plt.plot(objs_mu_norm[:, 0], objs_mu_norm[:, 1], "gx--", label="PO")
+
+    # Create custom legend handles
+    highlight_patch = patches.Rectangle((0, 0), 1, 1, linewidth=1, edgecolor='blue', facecolor='none',
+                                         label='Uncertain PO')
+    plt.legend(handles=[line, highlight_patch])
+
     ax.set_title("Uncertain Pareto Points")
     ax.set_xlabel("latency (s)")
     ax.set_ylabel("cost($)")
     plt.tight_layout()
-    if topK < 1:
+    if topK is None:
+        fig_header += f"_adapt"
+    elif topK < 1:
         fig_header += f"_{topK:.1f}"
     elif topK > 1:
         fig_header += f"_{topK}"
@@ -134,8 +152,6 @@ def plot_uncertain_po(po_objs, fig_header, nbucks = 30, cmap=plt.cm.Reds, note="
     plt.close()
 
 print("qsign\tsample_5k\tprep_mci\tmodel\tpo_filter")
-dt1_s, dt2_s, dt3_s, dt4_s = [], [], [], []
-
 n_model_param_samples = args.n_model_samples
 for q_sign in q_signs:
     dts = {}
@@ -143,82 +159,29 @@ for q_sign in q_signs:
     cache_prefix = f"rs({n_samples})"
     cache_conf_name = f"{cache_prefix}_[{n_model_param_samples}model_params]"
     try:
-        cache = PickleUtils.load(out_header + "!", cache_conf_name)
+        cache = PickleUtils.load(out_header, cache_conf_name)
         # print(f"found {cache_conf_name}")
         po_objs_dict = cache["po_obj_dict"]
         objs_dict = cache["obj_dict"]
-        dts = cache["dts"]
     except:
+        raise Exception("please run 3.uncertain_parte_frontier.py first")
 
-        t1 = time.time()
-        knob_df, ch4_norm = get_sample_spark_knobs(knobs, n_samples, bm, q_sign, seed=BenchmarkUtils.get_tid(q_sign))
-        conf_df = spark_knobs.df_knob2conf(knob_df)
-        dts["sample_conf"] = time.time() - t1
-
-        t1 = time.time()
-        emb, ch2_norm, ch3_norm = prepare_data_for_opt(
-            df, q_sign, dag_dict, mp.hp_params["ped"], op_groups, op_feats, struct2template, mp, col_dict, minmax_dict)
-        dts["prep_mci"] = time.time() - t1
-
-        po_objs_dict = {}
-        obj_dict = {}
-
-        # for model_seed in range(n_model_param_samples):
-
-        dts["model_objs"] = {}
-        dts["po_filter"] = {}
-        for model_seed in range(n_model_param_samples):
-            t1 = time.time()
-            mp.manual_dropout(model_seed)
-            lats = mp.get_lat(ch1=emb, ch2=ch2_norm, ch3=ch3_norm, ch4=ch4_norm, out_fmt="numpy", dropout=False)
-            costs = get_cloud_cost(
-                lat=lats,
-                mem=conf_df["spark.executor.memory"].str[:-1].astype(int).values.reshape(-1, 1),
-                cores=conf_df["spark.executor.cores"].astype(int).values.reshape(-1, 1),
-                nexec=conf_df["spark.executor.instances"].astype(int).values.reshape(-1, 1)
-            )
-            objs = np.hstack([lats, costs])
-            dts["model_objs"][model_seed] = time.time() - t1
-
-            t1 = time.time()
-            mask = is_pareto_efficient(objs)
-            inds_pareto = np.arange(len(objs))[mask]
-            sorted_inds = np.argsort(objs[inds_pareto, 0])
-            inds_pareto = np.array(inds_pareto)[sorted_inds]
-            objs_pareto = objs[inds_pareto]
-            dts["po_filter"][model_seed] = time.time() - t1
-            po_objs_dict[model_seed] = objs_pareto
-            obj_dict[model_seed] = objs
-
-        cache = {
-            "po_obj_dict": po_objs_dict,
-            "obj_dict": obj_dict,
-            "dts": dts,
-            "NOTE_": "using accurate model over 8 different (ch2, ch3) variance"
-        }
-        PickleUtils.save(cache, out_header, cache_conf_name, overwrite=True)
-
-    dt1, dt2, dt3, dt4 = dts['sample_conf'], dts['prep_mci'], \
-        np.mean(list(dts['model_objs'].values())), np.mean(list(dts['po_filter'].values()))
-    print(f"{q_sign}\t{dt1:.4f}\t{dt2:.4f}\t{dt3:.4f}\t{dt4:.4f}")
-    dt1_s.append(dt1)
-    dt2_s.append(dt2)
-    dt3_s.append(dt3)
-    dt4_s.append(dt4)
+    objs_mu = np.array([l for l in objs_dict.values()]).mean(0)
+    # objs_std = np.array([l for l in objs_dict.values()]).mean(1)
+    mask = is_pareto_efficient(objs_mu)
+    inds_pareto = np.arange(len(objs_mu))[mask]
+    sorted_inds = np.argsort(objs_mu[inds_pareto, 0])
+    inds_pareto = np.array(inds_pareto)[sorted_inds]
+    po_objs_mu = objs_mu[inds_pareto]
 
     po_objs = np.concatenate(list(po_objs_dict.values()))
-    plot_uncertain_po(
+    plot_uncertain_po_cmp(
         po_objs,
-        fig_header=f"{ckp_path}/uncertain_po/figs",
+        po_objs_mu,
+        fig_header=f"{ckp_path}/uncertain_po_cmp/figs",
         nbucks=30,
         cmap=plt.cm.Reds,
         note="uncertain_po",
         if_show=True,
         topK=topK
     )
-
-print(f"mu(std)\t"
-      f"{np.mean(dt1_s):.4f}({np.std(dt1_s):.4f})\t"
-      f"{np.mean(dt2_s):.4f}({np.std(dt2_s):.4f})\t"
-      f"{np.mean(dt3_s):.4f}({np.std(dt3_s):.4f})\t"
-      f"{np.mean(dt4_s):.4f}({np.std(dt4_s):.4f})")
