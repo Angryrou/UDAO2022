@@ -23,7 +23,7 @@ class Args():
 args = Args().parse()
 
 BM = "TPCH"
-PG = "examples/trace/spark-3.5/playground/per_workload"
+PG = "examples/trace/spark-3.5/playground/tpch/per_workload"
 REPS = 3
 TEMPLATES = BenchmarkUtils.get(BM)
 N_TEMPLATES = len(TEMPLATES)
@@ -158,7 +158,21 @@ def submit(q_sign, knob_sign, trial, current_cores, cores):
         current_cores.value -= cores
         print(f"Thread {q_sign}: finish running, takes {time.time() - start}s, current_cores={current_cores.value}")
 
+
 def run_workload(knob_sign, trial):
+    script_path = f"{PG}/{knob_sign}"
+
+    finished = True
+    for t in TEMPLATES:
+        q_sign = f"q{t}-1"
+        json_file = f"TPCH100_PER_BM_{knob_sign}_{q_sign}.json"
+        if not os.path.exists(f"{script_path}/{json_file}.{trial + 1}"):
+            finished = False
+            break
+    if finished:
+        print(f"{script_path} existed.")
+        return
+
     cores = 25  # (4 + 1) * 5
     cluster_cores = 150
     submit_index = 0
@@ -198,7 +212,10 @@ m = Manager()
 lock = m.RLock()
 for s1, s2, s3, s4 in itertools.product(s1_list, s2_list, s3_list, s4_list):
     knob_sign = make_scripts(s1, s2, s3, s4, spath, jpath, spark_home, oplan_header)
-    for trial in range(REPS):
+
+for trial in range(REPS):
+    for s1, s2, s3, s4 in itertools.product(s1_list, s2_list, s3_list, s4_list):
+        knob_sign = f"{s1}_{s2}_{s3}_{s4}"
         print(f"--- start {knob_sign}, trial {trial + 1}")
         start_time = time.time()
         run_workload(knob_sign, trial)
