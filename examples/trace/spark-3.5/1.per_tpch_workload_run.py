@@ -4,21 +4,34 @@
 #
 # Created at 28/05/2023
 import itertools, os
-import time
+import time, argparse
 
 from utils.common import BenchmarkUtils
+
+
+class Args():
+    def __init__(self):
+        self.parser = argparse.ArgumentParser()
+        self.parser.add_argument("--local", type=int, default=0)
+
+    def parse(self):
+        return self.parser.parse_args()
+
+
+args = Args().parse()
 
 BM = "TPCH"
 PG = "examples/trace/spark-3.5/playground/per_workload"
 REPS = 3
 TEMPLATES = BenchmarkUtils.get(BM)
-LOCAL=True
+LOCAL = False if args.local == 0 else True
 
 s1_list = ["32MB", "64MB", "128MB"]
 s2_list = ["0.1", "0.2", "0.5"]
 s3_list = ["0", "33554432", "67108864", "134217728"]  # ["0", "32MB", "64MB", "128MB"]
 s4_list = ["10MB", "20MB", "50MB", "100MB", "200MB"]
 project_path = "/opt/hex_users/hex1/chenghao/spark-stage-tuning"
+
 
 def make_scripts(s1, s2, s3, s4,
                  spath="/opt/hex_users/$USER/chenghao/spark-stage-tuning",
@@ -124,6 +137,7 @@ $spath/target/scala-2.12/spark-stage-tuning_2.12-1.0-SNAPSHOT.jar \\
         with open(f"{out_header}/{file_name}", "w") as f:
             f.write(spark_script)
         print(f"script prepared for running {knob_sign}_{q_sign}")
+
 
 if LOCAL:
     spath = "/Users/chenghao/ResearchHub/repos/spark-stage-tuning"
