@@ -4,9 +4,11 @@
 #
 # Created at 28/05/2023
 import itertools, os
-import time, argparse
+import time, argparse, shutil
 
+from trace.collect.framework import error_handler
 from utils.common import BenchmarkUtils
+from multiprocessing import Pool, Manager
 
 
 class Args():
@@ -24,6 +26,7 @@ BM = "TPCH"
 PG = "examples/trace/spark-3.5/playground/per_workload"
 REPS = 3
 TEMPLATES = BenchmarkUtils.get(BM)
+N_TEMPLATES = len(TEMPLATES)
 LOCAL = False if args.local == 0 else True
 
 s1_list = ["32MB", "64MB", "128MB"]
@@ -31,6 +34,7 @@ s2_list = ["0.1", "0.2", "0.5"]
 s3_list = ["0", "33554432", "67108864", "134217728"]  # ["0", "32MB", "64MB", "128MB"]
 s4_list = ["10MB", "20MB", "50MB", "100MB", "200MB"]
 project_path = "/opt/hex_users/hex1/chenghao/spark-stage-tuning"
+n_processes = 8
 
 
 def make_scripts(s1, s2, s3, s4,
@@ -137,6 +141,46 @@ $spath/target/scala-2.12/spark-stage-tuning_2.12-1.0-SNAPSHOT.jar \\
         with open(f"{out_header}/{file_name}", "w") as f:
             f.write(spark_script)
         print(f"script prepared for running {knob_sign}_{q_sign}")
+    return knob_sign
+
+
+def submit(q_sign, knob_sign, trial, current_cores, cores):
+    script_path = f"{PG}/{knob_sign}"
+    log_file = f"{PG}/{knob_sign}/{knob_sign}_{q_sign}.log.{trial + 1}"
+    print(f"Thread {q_sign}: start running")
+    start = time.time()
+    os.system(f"bash {script_path}/{knob_sign}_{q_sign}.sh > {log_file} 2>&1")
+
+    json_file = f"TPCH100_PER_BM_{knob_sign}_{q_sign}.json"
+    assert (os.path.exists(json_file))
+    shutil.move(json_file, f"{script_path}/{json_file}.{trial + 1}")
+    with lock:
+        current_cores.value -= cores
+        print(f"Thread {q_sign}: finish running, takes {time.time() - start}s, current_cores={current_cores.value}")
+
+def run_workload(knob_sign, trial):
+    cores = 25  # (4 + 1) * 5
+    cluster_cores = 150
+    submit_index = 0
+    current_cores = m.Value("i", 0)
+    pool = Pool(processes=n_processes)
+    while submit_index < N_TEMPLATES:
+        with lock:
+            if cores + current_cores.value <= cluster_cores:
+                q_sign = f"{submit_index + 1}-1"
+                current_cores.value += cores
+                if_submit = True
+                print(f"Main Process: submit {q_sign}, current_cores = {current_cores.value}")
+            else:
+                if_submit = False
+        if if_submit:
+            pool.apply_async(func=submit,
+                             args=(q_sign, knob_sign, trial, current_cores, cores),
+                             error_callback=error_handler)
+            submit_index += 1
+        time.sleep(1)
+    pool.close()
+    pool.join()
 
 
 if LOCAL:
@@ -150,6 +194,12 @@ else:
     spark_home = "/opt/hex_users/$USER/spark"
     oplan_header = "/opt/hex_users/$USER/chenghao/UDAO2022/resources/tpch-kit/spark-sqls"
 
+m = Manager()
+lock = m.RLock()
 for s1, s2, s3, s4 in itertools.product(s1_list, s2_list, s3_list, s4_list):
-    make_scripts(s1, s2, s3, s4, spath, jpath, spark_home, oplan_header)
-    break
+    knob_sign = make_scripts(s1, s2, s3, s4, spath, jpath, spark_home, oplan_header)
+    for trial in range(REPS):
+        print(f"--- start {knob_sign}, trial {trial + 1}")
+        start_time = time.time()
+        run_workload(knob_sign, trial)
+        print(f"--- finish {knob_sign}, trial {trial + 1}, cost {time.time() - start_time}")
