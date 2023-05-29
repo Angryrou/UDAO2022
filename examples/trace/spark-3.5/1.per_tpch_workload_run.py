@@ -167,7 +167,7 @@ def run_workload(knob_sign, trial):
     while submit_index < N_TEMPLATES:
         with lock:
             if cores + current_cores.value <= cluster_cores:
-                q_sign = f"{submit_index + 1}-1"
+                q_sign = f"q{submit_index + 1}-1"
                 current_cores.value += cores
                 if_submit = True
                 print(f"Main Process: submit {q_sign}, current_cores = {current_cores.value}")
