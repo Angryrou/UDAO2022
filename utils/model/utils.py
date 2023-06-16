@@ -1067,7 +1067,7 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
             ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups, dag_dict,
             struct2template, learning_params, net_params, minmax_dict, coll=collate, clf_feat=clf_feat)
 
-    view_model_param(model_name, model)
+    # view_model_param(model_name, model)
     view_data(dataset)
 
     # training setup
