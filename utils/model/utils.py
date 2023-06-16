@@ -1050,6 +1050,8 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
         # todo: just a temporary impl for Qi
         net_params["in_feat_size_inst"] -= 4
         net_params["theta_s_dim"] = 4
+        if ("ch1_cbo" not in op_groups) and ("ch1_enc" not in op_groups):
+            net_params["out_dim"] = net_params["ch1_type_dim"]
 
     # model setup
     exist, ret = setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag_dict, finetune_header)
