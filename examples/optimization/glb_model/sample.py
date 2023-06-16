@@ -62,10 +62,10 @@ class ModelProxy:
 def data_preparation():
     # do not change the function
     q_signs = BenchmarkUtils.get_sampled_q_signs("tpch")
-    ckp_header = "examples/model/spark/ckp/tpch_100/AVGMLP_GLB/latency/on_off_off_on_on_on"
+    ckp_header = "examples/optimization/glb_model/ckp/tpch_100/AVGMLP_GLB/latency/on_off_off_on_on_on"
     ckp_sign = "a0614433e796e0c3"
     model_name = "AVGMLP_GLB"
-    data_header = "examples/data/spark/cache/tpch_100"
+    data_header = "examples/optimization/glb_model/cache/tpch_100"
     tabular_file = "query_level_cache_data.pkl"
     struct_file = "struct_cache.pkl"
     tabular_data, struct_data = PickleUtils.load(data_header, tabular_file), PickleUtils.load(data_header, struct_file)
