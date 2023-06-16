@@ -27,6 +27,7 @@ import pytorch_warmup as warmup
 import dgl
 
 from model.architecture.avg_mlp import AVGMLP
+from model.architecture.avg_mlp_glb import AVGMLP_GLB
 from model.architecture.graph_attention_net import GATv2
 from model.architecture.graph_conv_net import GCN
 from model.architecture.graph_isomorphism_net import GIN
@@ -197,6 +198,9 @@ def expose_data(header, tabular_file, struct_file, op_feats_file, debug, ori=Fal
     elif model_name in ("GCN", "GATv2", "GIN"):
         dag_dict = struct_data["dgl_dict"]
         dag_dict = {k: dgl.add_self_loop(dag) for k, dag in dag_dict.items()}
+    elif model_name in ("AVGMLP_GLB"):
+        cache = PickleUtils.load(header, "struct_cache_extended.pkl")
+        dag_dict = {"g_stage": cache["query_stages_dgl_dict"], "g_op": cache["stages_op_dgl_dict"]}
     else:
         raise ValueError(model_name)
     n_op_types = len(struct_data["global_ops"])
@@ -257,6 +261,13 @@ def get_hp(data_params, learning_params, net_params, case=""):
     elif case == "AVGMLP":
         net_params_list = ["in_feat_size_op", "in_feat_size_inst", "out_feat_size", "L_mlp", "out_dim",
                            "mlp_dim", "dropout2"]
+        if "out_norm" in net_params and net_params["out_norm"] is not None:
+            net_params_list.append("out_norm")
+        if "agg_dim" in net_params and net_params["agg_dim"] is not None:
+            net_params_list.append("agg_dim")
+    elif case == "AVGMLP_GLB":
+        net_params_list = ["in_feat_size_op", "theta_s_dim", "hidden_dim",
+                           "in_feat_size_inst", "out_feat_size", "L_mlp", "out_dim", "mlp_dim", "dropout2"]
         if "out_norm" in net_params and net_params["out_norm"] is not None:
             net_params_list.append("out_norm")
         if "agg_dim" in net_params and net_params["agg_dim"] is not None:
@@ -327,6 +338,16 @@ def collate(samples):
     batched_stage = dgl.batch(stages) if stages[0] is not None else None
     return batched_stage, insts, ys
 
+def collate_glb_model(samples):
+    g_stages, g_ops, theta_ss, insts, ys = map(list, zip(*samples))
+    theta_ss = th.concat([th.FloatTensor(x) for x in theta_ss], dim=0)
+    insts = th.FloatTensor(insts)
+    ys = th.FloatTensor(ys)
+    if ys.dim() == 1:
+        ys = ys.unsqueeze(1)
+    batched_g_stage = dgl.batch(g_stages)
+    batched_g_ops = dgl.batch(list(itertools.chain(*g_ops)))
+    return batched_g_stage, batched_g_ops, theta_ss, insts, ys
 
 def collate_clf(samples):
     stages, insts, ys = map(list, zip(*samples))
@@ -486,6 +507,61 @@ class MyDSBase(Dataset):
         y = [x[c] for c in self.col_dict["obj"]]
         return g, inst_feat, y
 
+class MyDSGLB(Dataset):
+    def __init__(self, dataset, op_feats, col_dict, picked_groups, op_groups, dag_dict, struct2template,
+                 ped=1, clf_feat=None):
+        super(MyDSGLB, self).__init__(
+            arrow_table=dataset._data,
+            info=dataset._info,
+            split=dataset._split,
+            fingerprint=dataset._fingerprint,
+            indices_table=dataset._indices
+        )
+        self._format_type = dataset._format_type
+        self._format_kwargs = dataset._format_kwargs
+        self._format_columns = dataset._format_columns
+        self._output_all_columns = dataset._output_all_columns
+        self.dataset = dataset
+        self.op_feats = op_feats
+        self.col_dict = col_dict
+        self.picked_groups = picked_groups
+        self.op_groups = op_groups
+        self.dag_dict = dag_dict
+        self.struct2template = struct2template
+        self.ped = ped
+        self.clf_feat = None if clf_feat is None else clf_feat.tolist()
+
+    def __getitem__(self, item):
+        x = super(MyDSGLB, self).__getitem__(item)
+        if "ch1" in self.picked_groups:
+            sid = x[self.col_dict["ch1"][0]].item()
+            svid = x[self.col_dict["ch1"][1]].item()
+            qid = x[self.col_dict["ch1"][2]].item()
+            # g = form_graph(self.dag_dict, sid, svid, qid, self.ped, self.op_groups, self.op_feats, self.struct2template)
+            g_stage = self.dag_dict["g_stage"][sid].clone()
+            g_op = [g_.clone() for g_ in self.dag_dict["g_op"][sid]]
+        else:
+            raise Exception("ch1 should be included")
+            # g_stage = None
+            # g_op = None
+        inst_feat = []
+        theta_s = []
+        for ch in self.picked_groups:
+            if ch in ("ch1", "obj"):
+                continue
+            elif ch == "ch4": # configuration
+                inst_feat += [x[c] for c in self.col_dict[ch] if c[0] != "s"]
+                theta_s += [x[c] for c in self.col_dict[ch] if c[0] == "s"]
+            else:
+                inst_feat += [x[c] for c in self.col_dict[ch]]
+        if self.clf_feat is not None:
+            inst_feat += self.clf_feat[item]
+
+        assert "obj" in self.picked_groups
+        y = [x[c] for c in self.col_dict["obj"]]
+        theta_s = [theta_s] * g_stage.num_nodes()
+        return g_stage, g_op, theta_s, inst_feat, y
+
 
 class MyStageDSBase(Dataset):
     def __init__(self, dataset, dag_misc, stage_feat, col_dict, picked_groups, op_groups, model_name, ped=1):
@@ -570,30 +646,43 @@ def loss_compute(y, y_hat, loss_type, obj, loss_ws):
 
 
 def model_out(model, x, in_feat_minmax, obj_minmax, device, mode="train"):
-    stage_graph, inst_feat, y = x
-    if stage_graph is None:
+    if model.name == "AVGMLP_GLB":
+        g_stage, g_op, theta_s, inst_feat, y = x
+        assert g_stage is not None
+        batch_theta_s = theta_s.to(device)
         batch_insts = inst_feat.to(device)
+        batch_g_stage, batch_g_op = g_stage.to(device), g_op.to(device)
         batch_y = y.to(device)
+        theta_s_minmax = {k: v[-4:] for k, v in in_feat_minmax.items()}
+        in_feat_minmax = {k: v[:-4] for k, v in in_feat_minmax.items()}
         batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
-        batch_y_hat = model.forward(batch_insts)
+        batch_theta_s = norm_in_feat_inst(batch_theta_s, theta_s_minmax)
+        batch_y_hat = model.forward(batch_g_stage, batch_g_op, batch_theta_s, batch_insts)
     else:
-        batch_stages = stage_graph.to(device)
-        batch_insts = inst_feat.to(device)
-        batch_y = y.to(device)
-        if len(in_feat_minmax) > 0:
+        stage_graph, inst_feat, y = x
+        if stage_graph is None:
+            batch_insts = inst_feat.to(device)
+            batch_y = y.to(device)
             batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
-        if model.name in ("GTN", "RAAL", "QF"):
-            batch_lap_pos_enc = batch_stages.ndata['lap_pe'].to(device)
-            if mode == "train":
-                batch_lap_pos_enc = get_random_flips(batch_lap_pos_enc, device)
-            batch_y_hat = model.forward(batch_stages, batch_lap_pos_enc, batch_insts)
-        elif model.name in ("AVGMLP", "GCN", "GATv2", "GIN"):
-            batch_y_hat = model.forward(batch_stages, batch_insts)
-        elif model.name == "TL":
-            raise NotImplementedError
-            batch_y_hat = model.forward(batch_stages, device, batch_insts)
+            batch_y_hat = model.forward(batch_insts)
         else:
-            raise Exception(f"unsupported model_name {model.name}")
+            batch_stages = stage_graph.to(device)
+            batch_insts = inst_feat.to(device)
+            batch_y = y.to(device)
+            if len(in_feat_minmax) > 0:
+                batch_insts = norm_in_feat_inst(batch_insts, in_feat_minmax)
+            if model.name in ("GTN", "RAAL", "QF"):
+                batch_lap_pos_enc = batch_stages.ndata['lap_pe'].to(device)
+                if mode == "train":
+                    batch_lap_pos_enc = get_random_flips(batch_lap_pos_enc, device)
+                batch_y_hat = model.forward(batch_stages, batch_lap_pos_enc, batch_insts)
+            elif model.name in ("AVGMLP", "GCN", "GATv2", "GIN"):
+                batch_y_hat = model.forward(batch_stages, batch_insts)
+            elif model.name == "TL":
+                raise NotImplementedError
+                batch_y_hat = model.forward(batch_stages, device, batch_insts)
+            else:
+                raise Exception(f"unsupported model_name {model.name}")
     batch_y_hat = denorm_obj(batch_y_hat, obj_minmax)
     return batch_y, batch_y_hat
 
@@ -780,6 +869,9 @@ def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag
     elif model_name == "AVGMLP":
         model = AVGMLP(net_params).to(device=device)
         hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "AVGMLP")
+    elif model_name == "AVGMLP_GLB":
+        model = AVGMLP_GLB(net_params).to(device=device)
+        hp_params, hp_prefix_sign = get_hp(data_params, learning_params, net_params, "AVGMLP_GLB")
     elif model_name == "GCN":
         net_params["name"] = model_name
         model = GCN(net_params).to(device=device)
@@ -816,6 +908,42 @@ def setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag
 
     print(f"cannot found trained results, start training...")
     return False, (model, hp_params, hp_prefix_sign, ckp_path, model_name, obj, weights_pth_sign, results_pth_sign)
+
+
+def setup_data_glb_model(
+        ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups, dag_dict, struct2template,
+        learning_params, net_params, minmax_dict, coll, train_shuffle=True, clf_feat=None):
+    device = learning_params["device"]
+    print("start preparing data...")
+    ds_dict.set_format(type="torch", columns=picked_cols)
+    dataset = {split: MyDSGLB(ds_dict[split], op_feats_data, col_dict, picked_groups, op_groups,
+                               dag_dict, struct2template, net_params["ped"],
+                               clf_feat=clf_feat[split] if clf_feat is not None else None)
+               for split in ["tr", "val", "te"]}
+    picked_groups_in_feat = [ch for ch in picked_groups if ch not in ("ch1", "obj")]
+    if len(picked_groups_in_feat) == 0:
+        in_feat_minmax = {}
+    else:
+        in_feat_minmax = {
+            "min": th.cat([get_tensor(minmax_dict[ch]["min"].values, device=device) for ch in picked_groups_in_feat]),
+            "max": th.cat([get_tensor(minmax_dict[ch]["max"].values, device=device) for ch in picked_groups_in_feat])
+        }
+    if clf_feat is not None:
+        clf_feat_minmax = {"min": clf_feat["tr"].min(0), "max": clf_feat["tr"].max(0)}
+        for mm in ["min", "max"]:
+            in_feat_minmax[mm] = th.cat([in_feat_minmax[mm], get_tensor(clf_feat_minmax[mm], device=device)])
+
+    obj_minmax = {"min": get_tensor(minmax_dict["obj"]["min"].values, device=device),
+                  "max": get_tensor(minmax_dict["obj"]["max"].values, device=device)}
+
+    tr_loader = DataLoader(dataset["tr"], batch_size=learning_params['batch_size'], shuffle=train_shuffle,
+                           collate_fn=coll, num_workers=learning_params['num_workers'])
+    val_loader = DataLoader(dataset["val"], batch_size=learning_params['batch_size'], shuffle=False,
+                            collate_fn=coll, num_workers=learning_params['num_workers'])
+    te_loader = DataLoader(dataset["te"], batch_size=learning_params['batch_size'], shuffle=False,
+                           collate_fn=coll, num_workers=learning_params['num_workers'])
+
+    return dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader
 
 
 def setup_data(ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups, dag_dict, struct2template,
@@ -918,6 +1046,11 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
         clf_feat_dim = clf_feat["tr"].shape[1]
         net_params["in_feat_size_inst"] += clf_feat_dim
 
+    if data_params["model_name"] == "AVGMLP_GLB":
+        # todo: just a temporary impl for Qi
+        net_params["in_feat_size_inst"] -= 4
+        net_params["theta_s_dim"] = 4
+
     # model setup
     exist, ret = setup_model_and_hp(data_params, learning_params, net_params, ckp_header, dag_dict, finetune_header)
     if exist:
@@ -925,9 +1058,14 @@ def pipeline(data_meta, data_params, learning_params, net_params, ckp_header, fi
     model, hp_params, hp_prefix_sign, ckp_path, model_name, obj, weights_pth_sign, results_pth_sign = ret
 
     # data setup
-    dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader = setup_data(
-        ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups,
-        dag_dict, struct2template, learning_params, net_params, minmax_dict, coll=collate, clf_feat=clf_feat)
+    if data_params["model_name"] == "AVGMLP_GLB":
+        dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader = setup_data_glb_model(
+            ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups, dag_dict,
+            struct2template, learning_params, net_params, minmax_dict, coll=collate_glb_model, clf_feat=clf_feat)
+    else:
+        dataset, in_feat_minmax, obj_minmax, tr_loader, val_loader, te_loader = setup_data(
+            ds_dict, picked_cols, op_feats_data, col_dict, picked_groups, op_groups, dag_dict,
+            struct2template, learning_params, net_params, minmax_dict, coll=collate, clf_feat=clf_feat)
 
     view_model_param(model_name, model)
     view_data(dataset)
