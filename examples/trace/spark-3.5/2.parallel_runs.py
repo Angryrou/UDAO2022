@@ -170,7 +170,7 @@ if __name__ == '__main__':
     args = Args().parse()
 
     BM = "TPCH"
-    PG = "examples/trace/spark-3.5/playground/parallel_run"
+    PG = "examples/trace/spark-3.5/playground/tpch/parallel_run"
     TEMPLATES = BenchmarkUtils.get(BM)
     N_TEMPLATES = len(TEMPLATES)
     LOCAL = False if args.local == 0 else True
