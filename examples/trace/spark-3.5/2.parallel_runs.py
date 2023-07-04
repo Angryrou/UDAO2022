@@ -129,8 +129,8 @@ $spath/target/scala-2.12/spark-stage-tuning_2.12-1.0-SNAPSHOT.jar \\
 
 def submit(q_sign, knob_sign, num_parallel, trial):
     script_path = f"{PG}/{knob_sign}/{q_sign}"
-    file_name = f"{knob_sign}_{q_sign}_{num_parallel}_{trial}.sh"
-    log_file = f"{script_path}/{knob_sign}_{q_sign}_{num_parallel}_{trial}.log"
+    file_name = f"{knob_sign}_{q_sign}_{num_parallel}_{trial}"
+    log_file = f"{script_path}/{file_name}.log"
     print(f"Thread {trial}: start running {q_sign}")
     os.system(f"bash {script_path}/{file_name}.sh > {log_file} 2>&1")
     name = f"TPCH100_PER_BM_{q_sign}_{num_parallel}_{trial}"
