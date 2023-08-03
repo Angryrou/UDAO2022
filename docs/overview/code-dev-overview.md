@@ -1,3 +1,7 @@
+* [The end-to-end usage of UDAO](#the-end-to-end-usage-of-udao)
+    * [Diagram](#diagram)
+    * [Input/Output Details](#input-output-details)
+    * [Desire Example](#desire-example)
 * [Current code base](#current-code-base)
     * [Dataset](#dataset)
     * [Model](#model)
@@ -6,47 +10,125 @@
     * [Data Processing Module](#data-processing-module)
     * [Modeling Module](#modeling-module)
     * [Optimization Module](#optimization-module)
-* [The end-to-end usage of `udao`](#the-end-to-end-usage-of-udao)
-    * [Input/Output Diagram](#input-output-diagram)
-    * [Desire Example](#desire-example)
+
+## The end-to-end usage of UDAO
+
+### Diagram
+The diagram of our UDAO system is as follows. We aim to use our developed Python library `udao` to solve the Multi-objective Optimization (MOO) problem given the user-defined optimization problem and datasets.
+
+<img src="figs/udao-io2.png" width="70%">
+
+### Input/Output Details
+
+We introduce the Input/Output details of UDAO in the setup procedure and tuning procedure.
+
+#### Setup Procedure (offline path)
+
+**Inputs:** 
+
+1. the *objectives*, including the target objectives to be optimized with their optimization directions.
+2. the *variables*, including the decision (tunable) parameters, denoted as a *confguration*, and the non-decision (fixed) parameters, denoted as a *preset*.
+3. the *datasets* for training, including
+   - the location of each dataset.
+   - the schema (data types of each feature) of each dataset.
+   - the structure of the datasets. E.g., how to join different datasets to a joint dataset for training.
+4. optional details of UDAO, including
+   - the model architecture, such as `MLP`, `TreeLSTM`, `GTN`, etc.
+   - the MOO algorithm, such as `Weighted Sum (ws)`, `Progressive Frontier (pf)`, `Evolutionary Algorithm (evo)`, etc.
+   - the MOO solver, such as `Multi-objective Gradient Descent (mogd)`, `Random Sampling (rs)`, `Latin Hypercube Sampling (lhs)`, etc.
+   - the optimization preference on the returned configuration. The user-defined weights or our internal weights
+
+**Output:** the predictive models $f$ that estimate every objective value $\widehat{\vec{y}}_i$ given the tunable parameters $\vec{x}$ and the non-tunable embeddings $\vec{e}$. 
+
+$$\widehat{\vec{y}} = f(\vec{x}, \vec{e})$$
+
+#### Tuning Procedure (online path)
+
+**Input:** the *arriving task* that can be summarized as the non-tunable embedding $\vec{e_t}$.
+
+**Ouputs:** the recommended configuration $\vec{x}^*_{reco}$ that can achieve Pareto-optimal with the optimization preferences on different objectives.
+     
+
+### A Desired Example
+An desired way to use UDAO in a`udao` package
+
+```python
+# !pip install udao
+from udao import dataset, model, moo
+import pickle
+
+
+# -------- Setup Procedure --------
+
+# [INPUT]
+# 1. define objectives 
+o1 = moo.Objective(name="latency", direction="-1")
+o2 = moo.Objective(name="cost", direction="-1")
+# 2. define variables
+x1 = moo.Variable(name="cores_per_exec", tunable=True)
+x2 = moo.Variable(name="mem_per_exec", tunable=True)
+x3 = moo.Variable(name="exec_num", tunable=True)
+p1 = moo.Variable(name="job_id", tunable=False)
+# 3. define datasets
+ds1 = dataset.UdaoDataset(path="./system_states.csv", schema={"id": "INTEGER", "s1": "FLOAT", ...}) 
+ds2 = dataset.UdaoDataset(path="./variables.csv", schema={"id": "INTEGER", "x1": "FLOAT", ...})
+ds3 = dataset.UdaoDataset(path="./query_plan.csv", schema={"id": "INTEGER", "topology_id": "INTEGER", ...})
+with open("./operator_feats.pkl", "rb") as f:
+   operator_feats = pickle.load(f)
+data = dataset.join([ds1, ds2, ds3], on_common_feat="id")
+class MyConstructor(dataset.Constructor): # construct dataset for training with customized constructor
+    def __init__(self, operator_feats):
+        ...
+data_tr, data_val, data_te = dataset.pipeline(
+   data=data, 
+   additional_data_constructors=[MyConstructor(operator_feats)],
+   tr_val_te_split=[0.8, 0.1, 0.1], 
+   sel_cols=["id", "topology_id", ..., "s1", ..., "x1", ...], 
+   objs=["latency", "cost"],
+   normaliztion="standard"
+)
+
+# 4. optimal details
+mw = model.ModelWraper(type="MLP", ...)         # (a) model architecture
+moo_algo = moo.algo.PF(enable_parallel=true)                 # (b) moo algorithms and solvers 
+moo_solver = moo.solver.MOGD(alpha=0.01)                            # (c) moo solver 
+moo_preference = moo.Prefenrence(func=moo.wun)  # (d) optimization preference
+
+# [OUTPUT]
+# trains the models internally in `mw`
+mw.fit(train_set=data_tr, val_set=data.val, loss=model.metric.WMAPE, ...)
+
+
+# -------- Tuning Procedure --------
+
+# [INPUT]
+# features for the arriving task
+query_plan = "{...}"
+t = [query_plan, p1, p2, s1, s2, ...] # t is the representation of the arriving task for optimization 
+e = mw.get_embedding(t)
+
+# [OUTPUT]
+x_reco = moo.solve(
+   obj_funcs=mw.get_predictive_functions([o1, o2]),
+   configuration=[x1, x2, x3],
+   non_tunable_emb=e,
+   moo_algo=moo_algo,
+   moo_solver=moo_solver,
+   moo_preference=moo_preference,
+   constraints=[]
+)
+```
 
 ## Current code base
 
 ### Dataset
 
-1. [A TPCH trace](https://github.com/Angryrou/UDAO-release/wiki/Trace-Release) with 100K data points (released). The query plan information is maintained in a graph data structure, while other features and objectives are stored in a tabular DataFrame.
-    ```python
-    # check examples/traces/spark-tpch-100-traces/main.py
-    data_header = "examples/traces/spark-tpch-100-traces/data"
-    graph_data = PickleUtils.load(data_header, "graph_data.pkl")
-    tabular_data = PickleUtils.load(data_header, "tabular_data.pkl")
-    
-    # sample output
-    print(graph_data.keys())
-    # dict_keys(['all_ops', 'dgl_dict'])
-    
-    print(tabular_data.keys())
-    # dict_keys(['ALL_COLS', 'COL_MAP', 'df'])
-    
-    print(tabular_data["COL_MAP"])
-    #  {'META_COLS': ['id', 'q_sign', 'template', 'start_timestamp', 'latency'],
-    #  'CH1_FEATS': ['dgl_id'],
-    #  'CH2_FEATS': ['input_mb', 'input_records', 'input_mb_log', 'input_records_log'],
-    #  'CH3_FEATS': ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8'],
-    #  'CH4_FEATS': ['k1', 'k2', 'k3', 'k4', 'k5', 'k6', 'k7', 'k8', 's1', 's2', 's3', 's4'],
-    #  'OBJS': ['latency']}
-    ```
-    - A graph structure has two types of features for a query plan: graph topology and operator features.
-    - When the operator feature is just the operator type, many data points have the same graph features. Therefore, we saved all distinct graph topologies in a DGLGraph list and indexed them with `dgl_id` in the tabular data. 
-    
-2. A dataset with more sophisticated operator features:
-   - When the operator features go beyond the operator type, data points become more diverse in the feature space. However, saving all the distinct graph structures is not memory-friendly. Therefore, we separate the storage of the graph topologies and operator features into three steps:
-      1. We first maintain all the distinct graph structures in a DGLGraph list. 
-      2. For each graph structure (g), we store all the operator features of g in a 3D array `node_feat_group` with the dimensions as follows: `[# of data points with the structure g, g.number_of_nodes, dimension of the operator features]`.
-      3. We then define the `'CH1_FEATS': ['dgl_id', 'vid']`, where `dgl_id` represents the index of the graph topology and `vid` represents the index of the data point in the `node_feat_group`.
+1. A TPCH trace with 100K data points, including 
+   - A tabular dataset with schema (fact table)
+   - A customized graph-involved dataset, in the key-value pair form of `{tid: [dgl.DGLGraph, operator_feat_matrix]}` (dimension table)
+   - A customized data loading method that joins the tabular dataset and the graph-involved dataset on-the-fly to support mini-batch training.    
 
-3. [Separate code files](https://github.com/Angryrou/UDAO2022/blob/trace-parsing-and-modeling-spark/examples/trace/spark-parser) to construct graph data and tabular data from the raw traces. However, this part can be dropped in our Python library since different datasets may require different construction methods. Instead, we plan to use the same dataset structure to unify the training and optimization processes.
-
+2. [Separate code files](https://github.com/Angryrou/UDAO2022/blob/trace-parsing-and-modeling-spark/examples/trace/spark-parser) to construct graph data and tabular data from the raw traces. However, this part can be dropped in our Python library since different datasets may require different construction methods. Instead, we plan to use the same dataset structure to unify the training and optimization processes.
 
 ### Model
 
@@ -85,7 +167,7 @@
 
 ## Coding work to be done
 
-We aim to integrate our code into a Python library called "udao," making it accessible for users to install and utilize through a simple `pip install udao` command. The `udao` library is designed to offer three core modules:
+We aim to integrate our code into a Python library called `udao`, making it accessible for users to install and utilize through a simple `pip install udao` command. The `udao` library is designed to offer three core modules:
 
 1. Data Processing Module (`from udao import dataset`)
 
@@ -97,121 +179,195 @@ We summarize the coding work into three categories.
 
 ### Data Processing Module
 
-1. Design and implement a `Dataset` class to support multi-channel feature inputs with two types of data structures and necessary meta information. The `Dataset` class maintains
-    - *graph data*, maintained in `dgl.DGLGraph`
-        + The query plan in a Graph topology, e,g.,`g = dgl.graph((src_ids, dst_ids))`
-        + The operator features in `g.ndata["feat"]`
-    - *tabular data*, maintained in `pandas.DataFrame`
-        + The graph id (e.g., with column ["gid", "fid"])
-        + The input meta information (e.g., with columns `["input_records", "input_bytes"]`)
-        + The machine system states (e.g., with columns `["m1", "m2"]`)
-        + The configuration (e.g., with columns `["k1", "k2"]`)
-    - the meta information 
-        + `num_of_data`: the total number of data points.
-        + `all_tfeat_cols`: the column names of all tabular features.
-        + `all_ofeat_cols`: the column names of the operator features.
-        + `tfeat_dict`: a dict of the column names of different tabular feature types. E.g., `{"I": ["col1", "col2"], "M": ["m1", "m2"], "C": ["k1", "k2"]]}`
-        + `ofeat_dict`: a dict of feature indices of the operator features in the graph. E.g., `{"type": [0], "cbo": [1, 2], "predicates": [3, 4, 5]}`
-    - other APIs
-        + An API to declare the features to be used for training. E.g., `dataset.Dataset.declare(ofeats=["col1", "col2", "k1", "k2"], tfeats=["type", "cbo"])`
-        + An internal API to fetch the corresponding graph data given a data point in the tabular row. 
+1. The classes and functions (refactor into seperate files if needed)
+   ```python
+   # dataset.py
+   from abc import ABCMeta
+   from sklearn.preprocessing import StandardScaler
+   from datasets import Dataset
+   
+   class UdaoDataset():
+      def __init__(self, path: str, schema: dict):
+         ...
+   
+   class Constructor(object, metaclass=ABCMeta):
+      """Construct a joint dataset from several datasets"""
+      ...
+   
+   def join(datasets: list[UdaoDataset], on_common_feat: str) -> UdaoDataset:
+      """join a list of datasets on a common feature (attribute)"""
+      ...
+   
+   def pipeline(data: UdaoDataset, additional_data_constructors: list[Constructor], tr_val_te_split: list[float], 
+                sel_cols: list[str], objs: list[str], normalization: str) -> [Dataset, Dataset, Dataset]:
+       """a pipeline to do train/val/test split, drop unnecessary columns, handle categorical features, 
+       and data normalization"""
+       ...
+   ```
 
-2. Implement 2-3 built-in datasets by integrating our existing datasets. 
+2. Integrate our existing TPCH dataset in the designed module
 
-5. Provide a toy example of adding a customized Dataset.
-
-6. Implement an API to auto-load a built-in or customized dataset, e.g., `d = dataset.load("TPCH")`
-
-7. Implement an API for the data preprocessing pipeline, including
-    - train/val/test split
-    - drop unnecessary columns
-    - convert categorical features to the dummy vector or integer
-    - feature augment (if needed)
-    - feature normalization
+3. Construct a synthetic toy example of adding a customized Dataset.
 
 ### Modeling Module
 
-1. Design an abstract class `ModelWrapper` to provide the necessary APIs to seamlessly integrate a model with MOO.
-    - An abstract method `def initialize(self, *args)` to initialize the model
-    - An abstract method `def load(self, *args)` to set the model weights by either loading from the given knowledge or fitting from scratch.
-        - (Optional) An abstract method `def fit(self, dataset, loss, hps, *args)` to train the model with the provided dataset, loss function, and the hyperparameters for training.
-    - An abstract method `def predict(self, obj, config, *args)` to obtain the value of the target objective given a configuration
-    - Other abstract methods if needed.    
+1. The classes and functions (refactor into seperate files if needed)
+   
+   ```python
+   # model.py
+   from abc import ABCMeta
+   import torch as th
+   import torch.nn as nn
+   from datasets import Dataset
+   
+   
+   class ModelWraper():
+      def __init__(self, type: str, net_params: dict):
+         self.model = get_model_by_type(type, net_params)
+   
+      def fit(self, train_set: Dataset, val_set: Dataset, loss: WMAPE, *args):
+         ...
+   
+      def get_predictive_function(self, obj: str) -> UdaoModel:
+         ...
+   
+      def get_predictive_functions(self, objs: list[str]) -> list[UdaoModel]:
+         """return a list of `nn.Module` instances"""
+         ...
+   
+      def get_embedding(self, t: object) -> th.Tensor:
+         """
+         t represents the input of the arriving task. Notice that 
+         - In the black box approach, we can assume that UDAO works only for queries that have occurred before, for which we 
+           can use the query id in `t` to extract its encoding or previous trace to generate the encoding.
+         - in the white box approach, `t` includes the query plan.      
+         """
+         ...
+   
+   
+   def get_model_by_type(type: str, net_params: dict) -> UdaoModel:
+      ...
+   
+   
+   # model.metric.*
+   class ModelMetric(object, metaclass=ABCMeta):
+      ...
+   
+   
+   class WMAPE(ModelMetric):
+      ...
+   
+   
+   # model.architecture.*
+   class UdaoEmbedder(nn.Module, metaclass=ABCMeta):
+      ...
+   
+   
+   class UdaoRegressor(nn.Module, metaclass=ABCMeta):
+      ...
+   
+   class UdaoModel(nn.Module, metaclass=ABCMeta):
+      def __init__(self, embedder: UdaoEmbedder, regr: UdaoRegressor):
+         super().__init__()
+         ...
+   
+   class GTN(UdaoEmbedder):
+      ...
+   
+   class AutoEncoder(UdaoEmbedder):
+      ...
+   
+   class Averager(UdaoEmbedder):
+      ...
+   
+   class MLP(UdaoRegressor):
+      ...
+   
+   class AveragerMLP(UdaoModel):
+      ...
+   
+   class GTN_MLP(UdaoModel):
+      ...
+   
+   class AutoEncoderMLP(UdaoModel):
+      ...
+   
+   ```
 
-2. Implement built-in models, including
-    - AVG-MLP (averaging the operator features to embed the query plan)
-    - GTN-MLP (use GTN to embed the query plan)
+2. Integrate our built-in models (embedders and regressors) as listed in the above srcipt for 
+   - the black-box modeling approach
+   - the white-box modeling approach
     
-3. Implement built-in model wrappers by integrating our built-in models.
-
-5. An API to fetch a built-in `ModelWrapper`, e.g., `m = model.fetch("udao-GTN")`
-
+3. Construct a synthetic toy example of adding a customized Models.
 
 ### Optimization Module
 
-1. Refactoring the current code base to have
-    - a class named `Variables` to wrap each variable in the optimization problem.
-    - a class named `Configuration` to define the set of all tunable variables.
-    - a class named `Objective` to define an objective and specifies the optimization direction.
-    - a class named `Constraint` to define specific constraints in the optimization problem.
-    - a class named `Solution` to include a configuration and the corresponding objective values (a set of objective values).
-    - a class named `ParetoOptimalSet` that encompasses several Pareto-optimal solutions. 
-
-2. Implement a pipeline to support end-to-end optimization with the following procedures.
-    - Define variables (supporting integer, float, a float vector, etc.)
-    - Define objectives (including the predictive function for the objective and the optimization direction)
-    - Define constraints
-    - Run the optimization
-    - Recommend Pareto-optimal solutions
-    - Select one solution with the weighted Utopia-nearest method or the user-defined preferences.
-
-3. Refactor other utils functionality for the module
-    - the MOO recommendation methods: including weighted Utopia-nearest method or user-defined preferences.
-    - Visualization of the Pareto-optimal solutions (2D and 3D)
+1. The classes and functions (refactor into seperate files if needed)
+   ```python
+   # moo.py
+   from abc import ABCMeta
+   import torch as th
+   import numpy as np
+   from typing import Sequence, Iterable
    
-## The end-to-end usage of `udao`
+   class Objective():
+      ...
+   
+   class Variable():
+      ...
+   
+   class Constraint():
+      ...
+   
+   class Preference():
+       ...   
+   
+   def solve(
+       obj_funcs: list[func],
+       configuration: list[Variable],
+       non_tunable_emb: th.Tensor,
+       moo_algo: MOOAlgo,
+       moo_solver: MOOSolver,
+       moo_preference: Preference,
+       constraints: list[Constraint]
+   ) -> list[Variable]
+      
+   # moo.algo.*
+   class MOOAlgo(object, metaclass=ABCMeta):
+      ...
+   
+   class PF(MOOAlgo):
+      ...
+   
+   class WS(MOOAlgo):
+      ...
+   
+   class EVO(MOOAlgo):
+      ...
+   
+   # moo.solver.*
+   class MOOSolver(object, metaclass=ABCMeta):
+      ...
+   
+   class MOGD(MOOSolver):
+      ...
+   
+   class LHS(MOOSolver):
+      ...
+   
+   class RS(MOOSolver):
+       ...
+   
+   # moo.utils
+   def filter_pareto_optimal(objs: Iterable[Sequence[int]]) -> Iterable[Sequence[int]]:
+       ...
+   
+   def plot(objs: np.ndarray, fig_type: str):
+       ...
+   
+   def wun(objs: Iterable[Sequence[int]], preferences: Preference) -> [int, Sequence[int]]:
+       """apply weighted utopia nearest method to get the objectives recommendation with its index in `objs`"""
+       ...
+   ```
 
-### Input/Output Diagram
-The I/O of `udao` is as follows and we shall be able to use the `moo` module to solve the MOO problem given the dataset and user-defined optimization problem.
-
-<img src="https://github.com/Angryrou/UDAO2022/assets/8079921/ed24c8c9-ca68-46b5-b2b2-b37c424a0080" width="70%">
-
-### A Desired Example
-An desired way to use `moo` package
-
-```python
-from udao import dataset, model, moo
-
-# 1. Dataset definition. 
-d = dataset.load("TPCH") # or declare a customized dataset 
-
-# 2. Problem definition.
-# (1) define the variables inside `Configuration` based on spark_knob.json
-x = moo.Configuration(meta="spark_knob.json", source=d)  
-# (2) define the objectives 
-o1 = moo.Objective(name="latency", direction="-1")
-o2 = moo.Objective(name="cost", direction="-1")
-# (3) define the constraints if any
-c = moo.Constraint(func=[]) # in our case, there is not external constraints
-
-# 3. Solving details
-# (1) the model choice: 
-mw = model.fetch("udao-GTN") # fetch a built-in ModelWrapper (mw) 
-o1.set_predictive_function(func=mw.predict, obj_name="latency")
-o2.set_predictive_function(func=mw.predict, obj_name="cost")
-# (2) the algorithm and solver for MOO
-moo_algo = "pf-ap"
-moo_solver = "mogd"
-# (3) the return preferences
-return_type = "PO-set"
-
-# Calling the model to solve an MOO problem
-po_solutions = moo.solve(
-    objs=[o1, o2], 
-    configuration=x, 
-    constraints=c, 
-    algo=moo_algo,
-    solver=moo_solver,
-    return_type=return_type)
-
-```
+2. Integrate our existing MOO toy examples (including the model from TPCH) in the designed module 
