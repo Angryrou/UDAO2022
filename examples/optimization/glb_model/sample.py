@@ -5,6 +5,7 @@
 # Created at 16/06/2023
 import itertools
 import os
+import random
 
 import dgl
 import numpy as np
@@ -58,6 +59,12 @@ class ModelProxy:
             lat_hat = self.model.forward(g_stage, g_op, normalized_theta_s, normalized_inst_feat)
         lat_hat = denorm_obj(lat_hat, self.obj_minmax)
         return lat_hat
+
+def reset_seed(seed):
+    np.random.seed(seed)
+    random.seed(seed)
+    th.manual_seed(seed)
+
 
 def data_preparation():
     # do not change the function
@@ -134,8 +141,9 @@ def reco_configurations(mp, q_sign, spark_knobs, misc, n_samples, n_probes):
 q_signs, mp, spark_knobs, misc = data_preparation()
 df, dag_dict, op_groups, op_feats, struct2template, col_dict, minmax_dict = misc
 
-for q_sign in q_signs:
+for i, q_sign in enumerate(q_signs):
     print(f"start solving {q_sign}")
+    reset_seed(i)
     N = 1 # number of configurations for prediction
     record = df[df["q_sign"] == q_sign]
     sid = record.sql_struct_id.iloc[0]
