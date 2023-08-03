@@ -61,14 +61,17 @@ import pickle
 # -------- Setup Procedure --------
 
 # [INPUT]
+
 # 1. define objectives 
 o1 = moo.Objective(name="latency", direction="-1")
 o2 = moo.Objective(name="cost", direction="-1")
+
 # 2. define variables
 x1 = moo.Variable(name="cores_per_exec", tunable=True)
 x2 = moo.Variable(name="mem_per_exec", tunable=True)
 x3 = moo.Variable(name="exec_num", tunable=True)
 p1 = moo.Variable(name="job_id", tunable=False)
+
 # 3. define datasets
 ds1 = dataset.UdaoDataset(path="./system_states.csv", schema={"id": "INTEGER", "s1": "FLOAT", ...}) 
 ds2 = dataset.UdaoDataset(path="./variables.csv", schema={"id": "INTEGER", "x1": "FLOAT", ...})
@@ -95,6 +98,7 @@ moo_solver = moo.solver.MOGD(alpha=0.01)                            # (c) moo so
 moo_preference = moo.Prefenrence(func=moo.wun)  # (d) optimization preference
 
 # [OUTPUT]
+
 # trains the models internally in `mw`
 mw.fit(train_set=data_tr, val_set=data.val, loss=model.metric.WMAPE, ...)
 
@@ -102,12 +106,15 @@ mw.fit(train_set=data_tr, val_set=data.val, loss=model.metric.WMAPE, ...)
 # -------- Tuning Procedure --------
 
 # [INPUT]
+
 # features for the arriving task
 query_plan = "{...}"
 t = [query_plan, p1, p2, s1, s2, ...] # t is the representation of the arriving task for optimization 
 e = mw.get_embedding(t)
 
 # [OUTPUT]
+
+# the recommended configuration
 x_reco = moo.solve(
    obj_funcs=mw.get_predictive_functions([o1, o2]),
    configuration=[x1, x2, x3],
