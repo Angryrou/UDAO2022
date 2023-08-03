@@ -205,7 +205,7 @@ We summarize the coding work into three categories.
        ...
    ```
 
-2. Integrate our existing TPCH dataset in the designed module
+2. Integrate our existing TPCH dataset in the designed module with customized Constructors.
 
 3. Construct a synthetic toy example of adding a customized Dataset.
 
