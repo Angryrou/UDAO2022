@@ -290,7 +290,7 @@ We summarize the coding work into three categories.
    
    ```
 
-2. Integrate our built-in models (embedders and regressors) as listed in the above srcipt for 
+2. Integrate our built-in models (embedders and regressors) as listed in the above script for 
    - the black-box modeling approach
    - the white-box modeling approach
     
@@ -370,4 +370,4 @@ We summarize the coding work into three categories.
        ...
    ```
 
-2. Integrate our existing MOO toy examples (including the model from TPCH) in the designed module 
+2. Integrate our existing MOO toy examples (including the optimization problem from TPCH dataset and model) 
