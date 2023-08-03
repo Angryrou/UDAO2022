@@ -1,7 +1,7 @@
 * [The end-to-end usage of UDAO](#the-end-to-end-usage-of-udao)
     * [Diagram](#diagram)
-    * [Input/Output Details](#input-output-details)
-    * [Desire Example](#desire-example)
+    * [Input/Output Details](#inputoutput-details)
+    * [A Desired Example](#a-desired-example)
 * [Current code base](#current-code-base)
     * [Dataset](#dataset)
     * [Model](#model)
@@ -220,7 +220,6 @@ We summarize the coding work into three categories.
    import torch.nn as nn
    from datasets import Dataset
    
-   
    class ModelWraper():
       def __init__(self, type: str, net_params: dict):
          self.model = get_model_by_type(type, net_params)
@@ -243,17 +242,15 @@ We summarize the coding work into three categories.
          - in the white box approach, `t` includes the query plan.      
          """
          ...
-   
-   
+
    def get_model_by_type(type: str, net_params: dict) -> UdaoModel:
       ...
-   
+
    
    # model.metric.*
    class ModelMetric(object, metaclass=ABCMeta):
       ...
-   
-   
+
    class WMAPE(ModelMetric):
       ...
    
@@ -261,8 +258,7 @@ We summarize the coding work into three categories.
    # model.architecture.*
    class UdaoEmbedder(nn.Module, metaclass=ABCMeta):
       ...
-   
-   
+
    class UdaoRegressor(nn.Module, metaclass=ABCMeta):
       ...
    
@@ -330,8 +326,10 @@ We summarize the coding work into three categories.
        moo_solver: MOOSolver,
        moo_preference: Preference,
        constraints: list[Constraint]
-   ) -> list[Variable]
+   ) -> list[Variable]:
+        ...
       
+   
    # moo.algo.*
    class MOOAlgo(object, metaclass=ABCMeta):
       ...
@@ -344,6 +342,7 @@ We summarize the coding work into three categories.
    
    class EVO(MOOAlgo):
       ...
+   
    
    # moo.solver.*
    class MOOSolver(object, metaclass=ABCMeta):
@@ -358,7 +357,8 @@ We summarize the coding work into three categories.
    class RS(MOOSolver):
        ...
    
-   # moo.utils
+   
+   # moo.utils.*
    def filter_pareto_optimal(objs: Iterable[Sequence[int]]) -> Iterable[Sequence[int]]:
        ...
    
