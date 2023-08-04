@@ -216,9 +216,11 @@ We summarize the coding work into three categories.
       ...
    
    def pipeline(data: UdaoDataset, tr_val_te_split: list[float], sel_cols: list[str], 
-                objs: list[str], normalization: str) -> [DataLoader]:
-       """a pipeline to do train/val/test split, drop unnecessary columns, handle categorical features, 
-       and data normalization"""
+                objs: list[str], normalization: str) -> [dict(str, DataLoader), dict]:
+       """
+       a pipeline to do train/val/test split, drop unnecessary columns, handle categorical features, 
+       and data normalization. Return a dict of DataLoaders for tr/val/te sets and the normalization meta info.
+       """
        ...
    ```
 
