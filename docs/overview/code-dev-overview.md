@@ -55,6 +55,7 @@ An desired way to use UDAO in a`udao` package
 ```python
 # !pip install udao
 from udao import dataset, model, moo
+from datasets import Dataset
 import pickle
 
 
@@ -76,15 +77,17 @@ p1 = moo.Variable(name="job_id", tunable=False)
 ds1 = dataset.UdaoDataset(path="./system_states.csv", schema={"id": "INTEGER", "s1": "FLOAT", ...}) 
 ds2 = dataset.UdaoDataset(path="./variables.csv", schema={"id": "INTEGER", "x1": "FLOAT", ...})
 ds3 = dataset.UdaoDataset(path="./query_plan.csv", schema={"id": "INTEGER", "topology_id": "INTEGER", ...})
-with open("./operator_feats.pkl", "rb") as f:
-   operator_feats = pickle.load(f)
-data = dataset.join([ds1, ds2, ds3], on_common_feat="id")
-class MyConstructor(dataset.Constructor): # construct dataset for training with customized constructor
-    def __init__(self, operator_feats):
+ds = dataset.join([ds1, ds2, ds3], on_common_feat="id")
+class MyDataset(dataset.UdaoDataset): # construct dataset for training with customized constructor
+   def __init__(self, ds=ds, additional_feat_path="./operator_feats.pkl"):
         ...
-data_tr, data_val, data_te = dataset.pipeline(
-   data=data, 
-   additional_data_constructors=[MyConstructor(operator_feats)],
+   @staticmethod
+   def collate(samples):
+       """customize the data construction"""
+        ...
+# get the DataLoaders and normalization meta info  
+dataloaders, normalization_meta = dataset.pipeline(
+   ds=MyDataset(ds), 
    tr_val_te_split=[0.8, 0.1, 0.1], 
    sel_cols=["id", "topology_id", ..., "s1", ..., "x1", ...], 
    objs=["latency", "cost"],
@@ -92,15 +95,22 @@ data_tr, data_val, data_te = dataset.pipeline(
 )
 
 # 4. optimal details
-mw = model.ModelWraper(type="MLP", ...)         # (a) model architecture
-moo_algo = moo.algo.PF(enable_parallel=true)                 # (b) moo algorithms and solvers 
-moo_solver = moo.solver.MOGD(alpha=0.01)                            # (c) moo solver 
-moo_preference = moo.Prefenrence(func=moo.wun)  # (d) optimization preference
-
+net_params = {...}                                          # hyperparameters for model structure
+mw = model.ModelWraper(type="MLP", net_params, ...)         # (a) model architecture
+moo_algo = moo.algo.PF(enable_parallel=true)                # (b) moo algorithms and solvers 
+moo_solver = moo.solver.MOGD(alpha=0.01)                    # (c) moo solver 
+moo_preference = moo.Prefenrence(func=moo.wun)              # (d) optimization preference
 # [OUTPUT]
 
 # trains the models internally in `mw`
-mw.fit(train_set=data_tr, val_set=data.val, loss=model.metric.WMAPE, ...)
+learning_params = {...}                                     # hyperparameters for learning
+mw.fit(
+    train_set=dataloaders["tr"], 
+    val_set=dataloaders["val"], 
+    loss=model.metric.WMAPE,
+    learning_params=learning_params,
+    ...
+)
 
 
 # -------- Tuning Procedure --------
@@ -193,20 +203,20 @@ We summarize the coding work into three categories.
    from sklearn.preprocessing import StandardScaler
    from datasets import Dataset
    
-   class UdaoDataset():
+   class UdaoDataset(object, metaclass=ABCMeta):
+      """ tabular dataset"""
       def __init__(self, path: str, schema: dict):
          ...
-   
-   class Constructor(object, metaclass=ABCMeta):
-      """Construct a joint dataset from several datasets"""
-      ...
-   
+      @staticmethod
+      def collate(samples):
+         ...
+
    def join(datasets: list[UdaoDataset], on_common_feat: str) -> UdaoDataset:
       """join a list of datasets on a common feature (attribute)"""
       ...
    
-   def pipeline(data: UdaoDataset, additional_data_constructors: list[Constructor], tr_val_te_split: list[float], 
-                sel_cols: list[str], objs: list[str], normalization: str) -> [Dataset, Dataset, Dataset]:
+   def pipeline(data: UdaoDataset, tr_val_te_split: list[float], sel_cols: list[str], 
+                objs: list[str], normalization: str) -> [DataLoader]:
        """a pipeline to do train/val/test split, drop unnecessary columns, handle categorical features, 
        and data normalization"""
        ...
@@ -226,12 +236,12 @@ We summarize the coding work into three categories.
    import torch as th
    import torch.nn as nn
    from datasets import Dataset
-   
+
    class ModelWraper():
-      def __init__(self, type: str, net_params: dict):
+      def __init__(self, type: str, net_params: dict, *args):
          self.model = get_model_by_type(type, net_params)
    
-      def fit(self, train_set: Dataset, val_set: Dataset, loss: WMAPE, *args):
+      def fit(self, train_set: Dataset, val_set: Dataset, loss: WMAPE, learning_params: dict, *args):
          ...
    
       def get_predictive_function(self, obj: str) -> UdaoModel:
