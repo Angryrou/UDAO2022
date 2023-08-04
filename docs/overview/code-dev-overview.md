@@ -27,7 +27,7 @@ We introduce the Input/Output details of UDAO in the setup procedure and tuning 
 **Inputs:** 
 
 1. the *objectives*, including the target objectives to be optimized with their optimization directions.
-2. the *variables*, including the decision (tunable) parameters, denoted as a *confguration*, and the non-decision (fixed) parameters, denoted as a *preset*.
+2. the *variables*, including the decision (tunable) parameters, denoted as a *configuration*, and the non-decision (fixed) parameters, denoted as a *preset*.
 3. the *datasets* for training, including
    - the location of each dataset.
    - the schema (data types of each feature) of each dataset.
@@ -77,7 +77,7 @@ p3 = moo.Variable(name="preset_2", tunable=False)
 # 3. define datasets
 ds1 = dataset.UdaoDataset(path="./system_states.csv", schema={"id": "INTEGER", "s1": "FLOAT", ...})
 ds2 = dataset.UdaoDataset(path="./variables.csv", schema={"id": "INTEGER", "x1": "FLOAT", ...})
-ds3 = dataset.UdaoDataset(path="./query_plan.csv", schema={"id": "INTEGER", "topology_id": "INTEGER", ...})
+ds3 = dataset.UdaoDataset(path="./query_plan_index.csv", schema={"id": "INTEGER", "topology_id": "INTEGER", ...})
 ds = dataset.join([ds1, ds2, ds3], on_common_feat="id")
 
 
@@ -91,7 +91,8 @@ class MyDataset(dataset.UdaoDataset):  # construct dataset for training with cus
         ...
 
 
-# get the DataLoaders and normalization meta info  
+# A pipeline split dataset to train/val/test split, drop unnecessary columns, handle categorical features,
+# data normalization. Return a dict of DataLoaders for tr/val/te sets and the normalization meta info.
 dataloaders, normalization_meta = dataset.pipeline(
     ds=MyDataset(ds),
     tr_val_te_split=[0.8, 0.1, 0.1],
@@ -237,13 +238,13 @@ We summarize the coding work into three categories.
         ...
     ```
 
-2. Integrate our existing TPCH dataset in the designed module with customized Constructors.
+2. Integrate a TPCH dataset (for white-box modeling) and a TPCxBB dataset (for black-box modeling) in the designed module as built-in choices.
 
 3. Construct a synthetic toy example of adding a customized Dataset.
 
 ### Modeling Module
 
-1. The classes and functions (refactor into seperate files if needed)
+1. The classes and functions (refactor into separate files if needed)
     
     ```python
     # model.py
