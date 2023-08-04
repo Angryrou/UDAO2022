@@ -58,7 +58,6 @@ from udao import dataset, model, moo
 from datasets import Dataset
 import pickle
 
-
 # -------- Setup Procedure --------
 
 # [INPUT]
@@ -72,41 +71,49 @@ x1 = moo.Variable(name="cores_per_exec", tunable=True)
 x2 = moo.Variable(name="mem_per_exec", tunable=True)
 x3 = moo.Variable(name="exec_num", tunable=True)
 p1 = moo.Variable(name="job_id", tunable=False)
+p2 = moo.Variable(name="preset_1", tunable=False)
+p3 = moo.Variable(name="preset_2", tunable=False)
 
 # 3. define datasets
-ds1 = dataset.UdaoDataset(path="./system_states.csv", schema={"id": "INTEGER", "s1": "FLOAT", ...}) 
+ds1 = dataset.UdaoDataset(path="./system_states.csv", schema={"id": "INTEGER", "s1": "FLOAT", ...})
 ds2 = dataset.UdaoDataset(path="./variables.csv", schema={"id": "INTEGER", "x1": "FLOAT", ...})
 ds3 = dataset.UdaoDataset(path="./query_plan.csv", schema={"id": "INTEGER", "topology_id": "INTEGER", ...})
 ds = dataset.join([ds1, ds2, ds3], on_common_feat="id")
-class MyDataset(dataset.UdaoDataset): # construct dataset for training with customized constructor
-   def __init__(self, ds=ds, additional_feat_path="./operator_feats.pkl"):
+
+
+class MyDataset(dataset.UdaoDataset):  # construct dataset for training with customized constructor
+    def __init__(self, ds=ds, additional_feat_path="./operator_feats.pkl"):
         ...
-   @staticmethod
-   def collate(samples):
-       """customize the data construction"""
+
+    @staticmethod
+    def collate(samples):
+        """customize the data construction"""
         ...
+
+
 # get the DataLoaders and normalization meta info  
 dataloaders, normalization_meta = dataset.pipeline(
-   ds=MyDataset(ds), 
-   tr_val_te_split=[0.8, 0.1, 0.1], 
-   sel_cols=["id", "topology_id", ..., "s1", ..., "x1", ...], 
-   objs=["latency", "cost"],
-   normaliztion="standard"
+    ds=MyDataset(ds),
+    tr_val_te_split=[0.8, 0.1, 0.1],
+    sel_cols=["id", "topology_id", ..., "s1", ..., "x1", ...],
+    objs=["latency", "cost"],
+    normaliztion="standard"
 )
 
 # 4. optimal details
-net_params = {...}                                          # hyperparameters for model structure
-mw = model.ModelWraper(type="MLP", net_params, ...)         # (a) model architecture
-moo_algo = moo.algo.PF(enable_parallel=true)                # (b) moo algorithms and solvers 
-moo_solver = moo.solver.MOGD(alpha=0.01)                    # (c) moo solver 
-moo_preference = moo.Prefenrence(func=moo.wun)              # (d) optimization preference
+net_params = {...}  # hyperparameters for model structure
+mw = model.ModelWraper(type="MLP", net_params, ...)  # (a) model architecture
+moo_algo = moo.algo.PF(enable_parallel=True)  # (b) moo algorithms and solvers 
+moo_solver = moo.solver.MOGD(alpha=0.01)  # (c) moo solver 
+moo_preference = moo.Prefenrence(func=moo.wun)  # (d) optimization preference
+
 # [OUTPUT]
 
 # trains the models internally in `mw`
-learning_params = {...}                                     # hyperparameters for learning
+learning_params = {...}  # hyperparameters for learning
 mw.fit(
-    train_set=dataloaders["tr"], 
-    val_set=dataloaders["val"], 
+    train_set=dataloaders["tr"],
+    val_set=dataloaders["val"],
     loss=model.metric.WMAPE,
     learning_params=learning_params,
     ...
@@ -119,21 +126,22 @@ mw.fit(
 
 # features for the arriving task
 query_plan = "{...}"
-t = [query_plan, p1, p2, s1, s2, ...] # t is the representation of the arriving task for optimization 
+t = [query_plan, p1, p2, ...]  # t is the representation of the arriving task for optimization 
 e = mw.get_embedding(t)
 
 # [OUTPUT]
 
 # the recommended configuration
 x_reco = moo.solve(
-   obj_funcs=mw.get_predictive_functions([o1, o2]),
-   configuration=[x1, x2, x3],
-   non_tunable_emb=e,
-   moo_algo=moo_algo,
-   moo_solver=moo_solver,
-   moo_preference=moo_preference,
-   constraints=[]
+    obj_funcs=mw.get_predictive_functions([o1, o2]),
+    configuration=[x1, x2, x3],
+    non_tunable_emb=e,
+    moo_algo=moo_algo,
+    moo_solver=moo_solver,
+    moo_preference=moo_preference,
+    constraints=[]
 )
+
 ```
 
 ## Current code base
@@ -197,32 +205,37 @@ We summarize the coding work into three categories.
 ### Data Processing Module
 
 1. The classes and functions (refactor into seperate files if needed)
-   ```python
-   # dataset.py
-   from abc import ABCMeta
-   from sklearn.preprocessing import StandardScaler
-   from datasets import Dataset
-   
-   class UdaoDataset(object, metaclass=ABCMeta):
-      """ tabular dataset"""
-      def __init__(self, path: str, schema: dict):
-         ...
-      @staticmethod
-      def collate(samples):
-         ...
-
-   def join(datasets: list[UdaoDataset], on_common_feat: str) -> UdaoDataset:
-      """join a list of datasets on a common feature (attribute)"""
-      ...
-   
-   def pipeline(data: UdaoDataset, tr_val_te_split: list[float], sel_cols: list[str], 
-                objs: list[str], normalization: str) -> [dict(str, DataLoader), dict]:
-       """
-       a pipeline to do train/val/test split, drop unnecessary columns, handle categorical features, 
-       and data normalization. Return a dict of DataLoaders for tr/val/te sets and the normalization meta info.
-       """
-       ...
-   ```
+    ```python
+    from abc import ABCMeta
+    from sklearn.preprocessing import StandardScaler
+    from datasets import Dataset
+    from torch.utils.data import DataLoader
+    
+    
+    class UdaoDataset(object, metaclass=ABCMeta):
+        """ tabular dataset"""
+    
+        def __init__(self, path: str, schema: dict):
+            ...
+    
+        @staticmethod
+        def collate(samples):
+            ...
+    
+    
+    def join(datasets: list[UdaoDataset], on_common_feat: str) -> UdaoDataset:
+        """join a list of datasets on a common feature (attribute)"""
+        ...
+    
+    
+    def pipeline(data: UdaoDataset, tr_val_te_split: list[float], sel_cols: list[str],
+                 objs: list[str], normalization: str) -> [dict[str, DataLoader], dict]:
+        """
+        a pipeline to do train/val/test split, drop unnecessary columns, handle categorical features,
+        and data normalization. Return a dict of DataLoaders for tr/val/te sets and the normalization meta info.
+        """
+        ...
+    ```
 
 2. Integrate our existing TPCH dataset in the designed module with customized Constructors.
 
@@ -231,83 +244,95 @@ We summarize the coding work into three categories.
 ### Modeling Module
 
 1. The classes and functions (refactor into seperate files if needed)
-   
-   ```python
-   # model.py
-   from abc import ABCMeta
-   import torch as th
-   import torch.nn as nn
-   from datasets import Dataset
-
-   class ModelWraper():
-      def __init__(self, type: str, net_params: dict, *args):
-         self.model = get_model_by_type(type, net_params)
-   
-      def fit(self, train_set: Dataset, val_set: Dataset, loss: WMAPE, learning_params: dict, *args):
-         ...
-   
-      def get_predictive_function(self, obj: str) -> UdaoModel:
-         ...
-   
-      def get_predictive_functions(self, objs: list[str]) -> list[UdaoModel]:
-         """return a list of `nn.Module` instances"""
-         ...
-   
-      def get_embedding(self, t: object) -> th.Tensor:
-         """
-         t represents the input of the arriving task. Notice that 
-         - In the black box approach, we can assume that UDAO works only for queries that have occurred before, for which we 
-           can use the query id in `t` to extract its encoding or previous trace to generate the encoding.
-         - in the white box approach, `t` includes the query plan.      
-         """
-         ...
-
-   def get_model_by_type(type: str, net_params: dict) -> UdaoModel:
-      ...
-
-   
-   # model.metric.*
-   class ModelMetric(object, metaclass=ABCMeta):
-      ...
-
-   class WMAPE(ModelMetric):
-      ...
-   
-   
-   # model.architecture.*
-   class UdaoEmbedder(nn.Module, metaclass=ABCMeta):
-      ...
-
-   class UdaoRegressor(nn.Module, metaclass=ABCMeta):
-      ...
-   
-   class UdaoModel(nn.Module, metaclass=ABCMeta):
-      def __init__(self, embedder: UdaoEmbedder, regr: UdaoRegressor):
-         super().__init__()
-         ...
-   
-   class GTN(UdaoEmbedder):
-      ...
-   
-   class AutoEncoder(UdaoEmbedder):
-      ...
-   
-   class Averager(UdaoEmbedder):
-      ...
-   
-   class MLP(UdaoRegressor):
-      ...
-   
-   class AveragerMLP(UdaoModel):
-      ...
-   
-   class GTN_MLP(UdaoModel):
-      ...
-   
-   class AutoEncoderMLP(UdaoModel):
-      ...
-   
-   ```
+    
+    ```python
+    # model.py
+    from abc import ABCMeta
+    import torch as th
+    import torch.nn as nn
+    from datasets import Dataset
+    
+    
+    class ModelWraper():
+        def __init__(self, type: str, net_params: dict, *args):
+            self.model = get_model_by_type(type, net_params)
+    
+        def fit(self, train_set: Dataset, val_set: Dataset, loss: WMAPE, learning_params: dict, *args):
+            ...
+    
+        def get_predictive_function(self, obj: str) -> UdaoModel:
+            ...
+    
+        def get_predictive_functions(self, objs: list[str]) -> list[UdaoModel]:
+            """return a list of `nn.Module` instances"""
+            ...
+    
+        def get_embedding(self, t: object) -> th.Tensor:
+            """
+            t represents the input of the arriving task. Notice that 
+            - In the black box approach, we can assume that UDAO works only for queries that have occurred before, for which we 
+              can use the query id in `t` to extract its encoding or previous trace to generate the encoding.
+            - in the white box approach, `t` includes the query plan.      
+            """
+            ...
+    
+    
+    def get_model_by_type(type: str, net_params: dict) -> UdaoModel:
+        ...
+    
+    
+    # model.metric.*
+    class ModelMetric(object, metaclass=ABCMeta):
+        ...
+    
+    
+    class WMAPE(ModelMetric):
+        ...
+    
+    
+    # model.architecture.*
+    class UdaoEmbedder(nn.Module, metaclass=ABCMeta):
+        ...
+    
+    
+    class UdaoRegressor(nn.Module, metaclass=ABCMeta):
+        ...
+    
+    
+    class UdaoModel(nn.Module, metaclass=ABCMeta):
+        def __init__(self, embedder: UdaoEmbedder, regr: UdaoRegressor):
+            super().__init__()
+            ...
+    
+    
+    class GTN(UdaoEmbedder):
+        ...
+    
+    
+    class AutoEncoder(UdaoEmbedder):
+        ...
+    
+    
+    class Averager(UdaoEmbedder):
+        ...
+    
+    
+    class MLP(UdaoRegressor):
+        ...
+    
+    
+    class AveragerMLP(UdaoModel):
+        ...
+    
+    
+    class GTN_MLP(UdaoModel):
+        ...
+    
+    
+    class AutoEncoderMLP(UdaoModel):
+        ...
+    
+    ```
 
 2. Integrate our built-in models (embedders and regressors) as listed in the above script for 
    - the black-box modeling approach
@@ -318,75 +343,96 @@ We summarize the coding work into three categories.
 ### Optimization Module
 
 1. The classes and functions (refactor into seperate files if needed)
-   ```python
-   # moo.py
-   from abc import ABCMeta
-   import torch as th
-   import numpy as np
-   from typing import Sequence, Iterable
-   
-   class Objective():
-      ...
-   
-   class Variable():
-      ...
-   
-   class Constraint():
-      ...
-   
-   class Preference():
-       ...   
-   
-   def solve(
-       obj_funcs: list[func],
-       configuration: list[Variable],
-       non_tunable_emb: th.Tensor,
-       moo_algo: MOOAlgo,
-       moo_solver: MOOSolver,
-       moo_preference: Preference,
-       constraints: list[Constraint]
-   ) -> list[Variable]:
+    ```python
+    # moo.py
+    # Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
+    #
+    # Description: TODO
+    #
+    # Created at 04/08/2023
+    
+    
+    from abc import ABCMeta
+    import torch as th
+    import numpy as np
+    from typing import Sequence, Iterable
+    
+    
+    class Objective():
         ...
-      
-   
-   # moo.algo.*
-   class MOOAlgo(object, metaclass=ABCMeta):
-      ...
-   
-   class PF(MOOAlgo):
-      ...
-   
-   class WS(MOOAlgo):
-      ...
-   
-   class EVO(MOOAlgo):
-      ...
-   
-   
-   # moo.solver.*
-   class MOOSolver(object, metaclass=ABCMeta):
-      ...
-   
-   class MOGD(MOOSolver):
-      ...
-   
-   class LHS(MOOSolver):
-      ...
-   
-   class RS(MOOSolver):
-       ...
-   
-   
-   # moo.utils.*
-   def filter_pareto_optimal(objs: Iterable[Sequence[int]]) -> Iterable[Sequence[int]]:
-       ...
-   
-   def plot(objs: np.ndarray, fig_type: str):
-       ...
-   
-   def wun(objs: Iterable[Sequence[int]], preferences: Preference) -> [int, Sequence[int]]:
-       """apply weighted utopia nearest method to get the objectives recommendation with its index in `objs`"""
-       ...
-   ```
+    
+    
+    class Variable():
+        ...
+    
+    
+    class Constraint():
+        ...
+    
+    
+    class Preference():
+        ...
+    
+    
+    def solve(
+            obj_funcs: list[func],
+            configuration: list[Variable],
+            non_tunable_emb: th.Tensor,
+            moo_algo: MOOAlgo,
+            moo_solver: MOOSolver,
+            moo_preference: Preference,
+            constraints: list[Constraint]
+    ) -> list[Variable]:
+        ...
+    
+    
+    # moo.algo.*
+    class MOOAlgo(object, metaclass=ABCMeta):
+        ...
+    
+    
+    class PF(MOOAlgo):
+        ...
+    
+    
+    class WS(MOOAlgo):
+        ...
+    
+    
+    class EVO(MOOAlgo):
+        ...
+    
+    
+    # moo.solver.*
+    class MOOSolver(object, metaclass=ABCMeta):
+        ...
+    
+    
+    class MOGD(MOOSolver):
+        ...
+    
+    
+    class LHS(MOOSolver):
+        ...
+    
+    
+    class RS(MOOSolver):
+        ...
+    
+    
+    # moo.utils.*
+    def filter_pareto_optimal(objs: Iterable[Sequence[int]]) -> Iterable[Sequence[int]]:
+        ...
+    
+    
+    def plot(objs: np.ndarray, fig_type: str):
+        ...
+    
+    
+    def wun(objs: Iterable[Sequence[int]], preferences: Preference) -> [int, Sequence[int]]:
+        """apply weighted utopia nearest method to get the objectives recommendation with its index in `objs`"""
+        ...
+    
+    ```
 
 2. Integrate our existing MOO toy examples (including the optimization problem from TPCH dataset and model) 
