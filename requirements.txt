@@ -31,7 +31,6 @@ comm==0.1.2
 contourpy==1.0.6
 cryptography==41.0.3
 cycler==0.11.0
-dask==2023.9.3
 datasets==2.8.0
 debugpy==1.6.5
 decorator==5.1.1
@@ -92,6 +91,7 @@ mpmath==1.3.0
 multidict==6.0.4
 multipledispatch==0.6.0
 multiprocess==0.70.14
+mypy==1.5.1
 mypy-extensions==1.0.0
 nbclassic==0.4.8
 nbclient==0.7.2
@@ -136,7 +136,6 @@ pydantic==1.10.4
 pyDOE==0.3.8
 pyFUME==0.2.25
 Pygments==2.14.0
-pylint==3.0.1
 pyOpenSSL==23.2.0
 pyparsing==3.0.9
 pyproject_hooks==1.0.0
@@ -169,7 +168,7 @@ smart-open==6.3.0
 sniffio==1.3.0
 snowballstemmer==2.2.0
 soupsieve==2.3.2.post1
-Sphinx==6.1.1
+Sphinx==5.0.2
 sphinx-rtd-theme==1.3.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
