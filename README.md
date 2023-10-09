@@ -57,3 +57,31 @@ bash $PWD/resources/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_
 Rules in implementation:
 1. use the variable type in the function name.
 2. to be added
+
+## Pre-commit hooks
+
+Install pre-commit hooks
+```bash
+pre-commit install
+```
+
+Then every time you commit, the following pre-commit hooks are run:
+- black: code formatter
+- ruff: fast linter
+- mypy: strict type checking
+- isort: import sorter
+- standard hooks from precommit: trailing whitespace, end of file newline, etc.
+
+## Documentation
+
+Install sphinx in your conda environment
+```bash
+conda install sphinx
+```
+Then go to the udao/docs directory and build the docs
+```bash
+cd docs
+make html
+```
+
+You can then open the index.html file in the _build/html directory to view the documentation.
