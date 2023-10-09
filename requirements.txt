@@ -14,7 +14,6 @@ autopep8==2.0.1
 Babel==2.11.0
 backcall==0.2.0
 beautifulsoup4==4.11.1
-black==23.9.2.dev27+g3a2d76c
 bleach==5.0.1
 botorch==0.8.1
 brotlipy==0.7.0
@@ -121,7 +120,6 @@ pip==23.2.1
 platformdirs==3.11.0
 Platypus-Opt==1.1.0
 ply==3.11
-polars==0.19.7
 pre-commit==3.4.0
 prometheus-client==0.15.0
 prompt-toolkit==3.0.36
