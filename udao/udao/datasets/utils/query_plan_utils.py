@@ -99,8 +99,6 @@ class QueryPlanStructure:
             return matcher.mapping  # type: ignore
         else:
             return None
-
-
         """
 
 
@@ -187,7 +185,6 @@ class LogicalOperation:
                         "The product of number of rows of parents should be 0, but "
                         f"got {rows_count[pid1] * rows_count[pid2]}"
                     )
-                assert rows_count[pid1] * rows_count[pid2] == 0
                 return 0
             else:
                 raise NotImplementedError("More than 2 predecessors")
