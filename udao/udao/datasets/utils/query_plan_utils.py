@@ -7,6 +7,23 @@ from typing import Dict, List, Optional, Tuple
 import dgl
 
 
+def format_size(size: str) -> float:
+    n, unit = size.replace(",", "").split()
+    float_size = float(n)
+    if unit == "B":
+        return float_size
+    elif unit == "KiB":
+        return float_size * 1024
+    elif unit == "MiB":
+        return float_size * 1024 * 1024
+    elif unit == "GiB":
+        return float_size * 1024 * 1024 * 1024
+    elif unit == "TiB":
+        return float_size * 1024 * 1024 * 1024 * 1024
+    else:
+        raise Exception(f"unseen {unit} in {size}")
+
+
 @dataclass
 class QueryPlanOperationFeatures:
     """Features of the operations in the logical plan"""
@@ -85,23 +102,6 @@ class QueryPlanStructure:
 
 
         """
-
-
-def format_size(size: str) -> float:
-    n, unit = size.replace(",", "").split()
-    float_size = float(n)
-    if unit == "B":
-        return float_size
-    elif unit == "KiB":
-        return float_size * 1024
-    elif unit == "MiB":
-        return float_size * 1024 * 1024
-    elif unit == "GiB":
-        return float_size * 1024 * 1024 * 1024
-    elif unit == "TiB":
-        return float_size * 1024 * 1024 * 1024 * 1024
-    else:
-        raise Exception(f"unseen {unit} in {size}")
 
 
 class LogicalOperation:
@@ -279,7 +279,6 @@ def extract_query_plan_features(
         LogicalOperation(id=i, value=step)
         for i, step in enumerate(logical_plan.splitlines())
     ]
-    len(operations)
     node_names: List[str] = []
     sizes: List[float] = []
     rows_counts: List[float] = []
