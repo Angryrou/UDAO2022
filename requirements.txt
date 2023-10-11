@@ -34,7 +34,7 @@ datasets==2.8.0
 debugpy==1.6.5
 decorator==5.1.1
 defusedxml==0.7.1
-dgl==0.9.1
+dgl==1.1.2.post1
 dglgo==0.0.2
 dill==0.3.6
 distlib==0.3.7

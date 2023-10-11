@@ -1,11 +1,94 @@
 import re
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 import dgl
-import networkx as nx  # brew install graphviz && pip install pydot==1.4.2
-from networkx.algorithms import isomorphism
+
+
+@dataclass
+class QueryPlanOperationFeatures:
+    rows_counts: List[float]
+    sizes: List[float]
+
+
+class QueryPlanStructure:
+    def __init__(
+        self,
+        node_names: List[str],
+        incoming_ids: List[int],
+        outgoing_ids: List[int],
+    ) -> None:
+        self.incoming_ids = incoming_ids
+        self.outgoing_ids = outgoing_ids
+        self.node_id2name = {i: n for i, n in enumerate(node_names)}
+        self.graph: dgl.DGLGraph = dgl.graph((incoming_ids, outgoing_ids))
+
+    """
+        self._nx_graph: Optional[nx.Graph] = None
+
+    @property
+    def nx_graph(self) -> nx.Graph:
+        if self._nx_graph is None:
+            self._nx_graph = dgl.to_networkx(self.graph)
+            nx.set_node_attributes(self._nx_graph, self.node_id2name, name="nname")
+        return self._nx_graph
+    """
+
+    def graph_match(self, plan: "QueryPlanStructure") -> bool:
+        """Computes a match between the current plan and another one.
+        If the match is successful, returns a mapping from the nodes of the current plan
+        to the nodes of the other plan. Else returns None.
+
+        Parameters
+        ----------
+        plan : QueryPlanFeatures
+            _description_
+        Returns
+        -------
+        Optional[Dict[int, int]]
+            _description_
+        """
+        return (
+            self.incoming_ids == plan.incoming_ids
+            and self.outgoing_ids == plan.outgoing_ids
+            and self.node_id2name == plan.node_id2name
+        )
+        """
+
+        Commented because matching does not return None in
+        cases where graphs are not equal
+
+        matcher = isomorphism.GraphMatcher(
+            self.nx_graph,
+            plan.nx_graph,
+            node_match=lambda n1, n2: n1["nname"] == n2["nname"],
+        )
+        if matcher.match():
+            return matcher.mapping  # type: ignore
+        else:
+            return None
+
+
+        """
+
+
+def format_size(size: str) -> float:
+    n, unit = size.replace(",", "").split()
+    float_size = float(n)
+    if unit == "B":
+        return float_size
+    elif unit == "KiB":
+        return float_size * 1024
+    elif unit == "MiB":
+        return float_size * 1024 * 1024
+    elif unit == "GiB":
+        return float_size * 1024 * 1024 * 1024
+    elif unit == "TiB":
+        return float_size * 1024 * 1024 * 1024 * 1024
+    else:
+        raise Exception(f"unseen {unit} in {size}")
 
 
 class LogicalOperation:
@@ -58,25 +141,41 @@ class LogicalOperation:
         return name
 
     @property
-    def size(self) -> str:
+    def size(self) -> float:
         """Extract the size of the operation, in bytes"""
-        return self.value.split("sizeInBytes=")[1].split("B")[0] + "B"
+        return format_size(self.value.split("sizeInBytes=")[1].split("B")[0] + "B")
 
-    def get_nrows(self, id_predecessors: List[int], nrows: List[str]) -> str:
+    def get_rows_count(
+        self, id_predecessors: List[int], rows_count: List[float]
+    ) -> float:
         """Extract the number of rows of the operation,
         or infer it from its predecessors if not available"""
         if "rowCount=" in self.value:
-            return self.value.split("rowCount=")[1].split(")")[0]
+            return float(self.value.split("rowCount=")[1].split(")")[0])
         else:
             if len(id_predecessors) == 1:
                 pid = id_predecessors[0]
-                assert nrows[pid] is not None
-                return nrows[pid]
+                if rows_count[pid] is None:
+                    raise ValueError(
+                        "The number of rows of the parent should be a float."
+                        f"Got None for {pid}"
+                    )
+                return rows_count[pid]
             elif len(id_predecessors) == 2:
                 pid1, pid2 = id_predecessors
-                assert nrows[pid1] is not None and nrows[pid2] is not None
-                assert float(nrows[pid1]) * float(nrows[pid2]) == 0
-                return "0"
+                if rows_count[pid1] is None or rows_count[pid2] is None:
+                    raise ValueError(
+                        "The number of rows of the parent should be a float, but "
+                        f"got None for {pid1}: {rows_count[pid1]}"
+                        f"or {pid2}: {rows_count[pid2]}"
+                    )
+                if rows_count[pid1] * rows_count[pid2] != 0:
+                    raise ValueError(
+                        "The product of number of rows of parents should be 0, but "
+                        f"got {rows_count[pid1] * rows_count[pid2]}"
+                    )
+                assert rows_count[pid1] * rows_count[pid2] == 0
+                return 0
             else:
                 raise NotImplementedError("More than 2 predecessors")
 
@@ -142,21 +241,33 @@ def _get_tree_structure(
     return incoming_ids, outgoing_ids
 
 
-def extract_operation_features(
+def extract_query_plan_features(
     logical_plan: str,
-) -> Tuple[List[str], List[str], List[str], List[int], List[int]]:
+) -> Tuple[QueryPlanStructure, QueryPlanOperationFeatures]:
     """Extract:
     - features of the operations in the logical plan
     - the tree structure of the logical plan
+
+
+    Parameters
+    ----------
+    logical_plan : str
+        string representation of the logical plan
+
+    Returns
+    -------
+    Tuple[QueryPlanStructure, QueryPlanOperationFeatures]
+        Query plan structure (dgl graph with node names)
+        Query plan features (sizes and rows_counts of the operations)
     """
     operations = [
         LogicalOperation(id=i, value=step)
         for i, step in enumerate(logical_plan.splitlines())
     ]
-    nops = len(operations)
-    nnames: List[str] = [""] * nops
-    sizes: List[str] = [""] * nops
-    nrows: List[str] = [""] * nops
+    len(operations)
+    node_names: List[str] = []
+    sizes: List[float] = []
+    rows_counts: List[float] = []
 
     incoming_ids, outgoing_ids = _get_tree_structure(operations)
     predecessors: Dict[int, List[int]] = defaultdict(list)
@@ -164,54 +275,12 @@ def extract_operation_features(
         predecessors[t].append(f)
 
     for step in reversed(operations):
-        nnames[step.id] = step.name
-        sizes[step.id] = step.size
-        nrows[step.id] = step.get_nrows(predecessors[step.id], nrows)
+        node_names.insert(0, step.name)
+        sizes.insert(0, step.size)
+        rows_counts.insert(0, step.get_rows_count(predecessors[step.id], rows_counts))
 
-    return sizes, nrows, nnames, incoming_ids, outgoing_ids
-
-
-class SqlStructData:
-    def __init__(
-        self,
-        node_id2name: Dict[int, str],
-        from_ids: List[int],
-        to_ids: List[int],
-        old: Any,
-    ):
-        self.node_id2name = node_id2name
-        self.from_ids = from_ids
-        self.to_ids = to_ids
-        g = dgl.graph((from_ids, to_ids))
-        G = dgl.to_networkx(g)
-        nx.set_node_attributes(G, self.node_id2name, name="nname")
-        self.g = g
-        self.G = G
-        self.old = old
-
-    # Think of the structure
-    # def plot(self, dir_name, title):
-    #    plot_nx_graph(self.G, self.node_id2name, dir_name=dir_name, title=title)
-
-    def graph_match(self, p2: "SqlStructData") -> Optional[Dict[int, int]]:
-        G1, G2 = self.G, p2.G
-        matcher = isomorphism.GraphMatcher(
-            G1, G2, node_match=lambda n1, n2: n1["nname"] == n2["nname"]
-        )
-        if matcher.match():
-            return matcher.mapping  # type: ignore
-        else:
-            return None
-
-
-def compute_logical_structure(
-    logical_plan: str,
-) -> Tuple[SqlStructData, List[str], List[str]]:
-    sizes, nrows, nnames, from_ids, to_ids = extract_operation_features(logical_plan)
-    struct = SqlStructData(
-        node_id2name={i: n for i, n in enumerate(nnames)},
-        from_ids=from_ids,
-        to_ids=to_ids,
-        old=None,
+    features = QueryPlanOperationFeatures(rows_counts=rows_counts, sizes=sizes)
+    structure = QueryPlanStructure(
+        node_names=node_names, incoming_ids=incoming_ids, outgoing_ids=outgoing_ids
     )
-    return struct, sizes, nrows
+    return structure, features
