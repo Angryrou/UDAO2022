@@ -8,20 +8,19 @@ import dgl
 
 
 def format_size(size: str) -> float:
+    unit_to_multiplier = {
+        "B": 1,
+        "KiB": 1024,
+        "MiB": 1024**2,
+        "GiB": 1024**3,
+        "TiB": 1024**4,
+    }
     n, unit = size.replace(",", "").split()
-    float_size = float(n)
-    if unit == "B":
-        return float_size
-    elif unit == "KiB":
-        return float_size * 1024
-    elif unit == "MiB":
-        return float_size * 1024 * 1024
-    elif unit == "GiB":
-        return float_size * 1024 * 1024 * 1024
-    elif unit == "TiB":
-        return float_size * 1024 * 1024 * 1024 * 1024
-    else:
-        raise Exception(f"unseen {unit} in {size}")
+
+    try:
+        return float(n) * unit_to_multiplier[unit]
+    except KeyError:
+        raise Exception(f"unkown {n} in {size}")
 
 
 @dataclass
