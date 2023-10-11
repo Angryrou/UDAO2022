@@ -9,6 +9,8 @@ import dgl
 
 @dataclass
 class QueryPlanOperationFeatures:
+    """Features of the operations in the logical plan"""
+
     rows_counts: List[float]
     sizes: List[float]
 
@@ -20,12 +22,23 @@ class QueryPlanStructure:
         incoming_ids: List[int],
         outgoing_ids: List[int],
     ) -> None:
+        """Generate a graph from the tree structure of the logical plan.
+
+        Parameters
+        ----------
+        node_names : List[str]
+            list of the names of the nodes in the graph
+        incoming_ids : List[int]
+            For each edge i, incoming_ids[i] is the id of the source node
+        outgoing_ids : List[int]
+            for each edge i, outgoing_ids[i] is the id of the destination node
+        """
         self.incoming_ids = incoming_ids
         self.outgoing_ids = outgoing_ids
         self.node_id2name = {i: n for i, n in enumerate(node_names)}
         self.graph: dgl.DGLGraph = dgl.graph((incoming_ids, outgoing_ids))
 
-    """
+    """ Commented because it is not used due to unexpected behavior
         self._nx_graph: Optional[nx.Graph] = None
 
     @property
@@ -222,7 +235,9 @@ def _get_tree_structure(
             outgoing_ids.append(pre_id)
             pre_id = op.id
         else:
-            raise ValueError(i, (op, op.rank, op.link))
+            raise ValueError(
+                f"Unexpected link {op.link} in {op.value}. Expected : or +"
+            )
 
     for rank, rank_operations in threads.items():
         incoming_ids.append(rank_operations[0].id)
