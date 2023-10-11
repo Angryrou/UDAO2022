@@ -415,11 +415,11 @@ class SqlStructData():
     def plot(self, dir_name, title):
         plot_nx_graph(self.G, self.node_id2name, dir_name=dir_name, title=title)
 
-    def graph_match(self, p2):
+    def graph_match(self, p2: "SqlStructData"):
         G1, G2 = self.G, p2.G
-        GM = isomorphism.GraphMatcher(G1, G2, node_match=lambda n1, n2: n1["nname"] == n2["nname"])
-        if GM.is_isomorphic():
-            return GM.mapping
+        matcher = isomorphism.GraphMatcher(G1, G2, node_match=lambda n1, n2: n1["nname"] == n2["nname"])
+        if matcher.is_isomorphic():
+            return matcher.mapping # type: ignore
         else:
             return None
 

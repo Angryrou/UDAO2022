@@ -1,4 +1,4 @@
-"""Provides a logger object for the package"""
+"""Provides a logger object for the udao library."""
 import logging
 
 
@@ -22,10 +22,12 @@ def _get_logger(name: str = "udao", level: int = logging.DEBUG) -> logging.Logge
 
     handler = logging.StreamHandler()
     handler.setLevel(level)
-
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    log_format = (
+        "%(asctime)s - [%(levelname)s] - %(name)s - "
+        "(%(filename)s:%(lineno)d) - "
+        "%(message)s"
     )
+    formatter = logging.Formatter(log_format)
     handler.setFormatter(formatter)
 
     _logger.addHandler(handler)
