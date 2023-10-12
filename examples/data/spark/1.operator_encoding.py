@@ -14,7 +14,6 @@ from gensim.models.phrases import Phrases, Phraser
 from gensim.models import Word2Vec, TfidfModel, Doc2Vec
 from gensim.corpora import Dictionary
 from gensim.models.doc2vec import TaggedDocument
-from nltk import WhitespaceTokenizer
 
 import numpy as np
 
@@ -139,8 +138,7 @@ if __name__ == "__main__":
         op_encs = np.array([np.mean([w2v_model.wv.get_vector(dictionary[wid], norm=True) * freq for wid, freq in wt], 0)
                             for wt in tfidf[BoW_corpus]])
     elif mode == "d2v":
-        tokenizer = WhitespaceTokenizer()
-        tokens_list = list(map(lambda x: tokenizer.tokenize(x), op_df.planDescription))
+        tokens_list = list(map(lambda x: x.split(), op_df.planDescription))
         corpus = [TaggedDocument(d, [i]) for i, d in enumerate(tokens_list)]
         d2v_model = Doc2Vec(min_count=1,
                             window=args.window,
