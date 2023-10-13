@@ -98,7 +98,6 @@ nbformat==5.7.1
 nest-asyncio==1.5.6
 networkx==2.8.8
 networkx-stubs==0.0.1
-nltk==3.8.1
 nodeenv==1.8.0
 notebook==6.5.2
 notebook_shim==0.2.2
@@ -142,6 +141,7 @@ pyro-ppl==1.8.4
 pyrsistent==0.19.3
 PySocks==1.7.1
 pytest==7.4.2
+pytest-cov==4.1.0
 python-dateutil==2.8.2
 python-json-logger==2.0.4
 pytorch-warmup==0.1.1

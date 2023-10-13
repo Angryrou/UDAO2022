@@ -85,3 +85,23 @@ make html
 ```
 
 You can then open the index.html file in the _build/html directory to view the documentation.
+
+## Testing
+We use pytest for testing.
+
+To run all the tests of the udao directory, run
+```bash
+    pytest udao
+```
+
+To run the tests with coverage
+```bash
+    pytest --cov=udao udao
+```
+
+To generate an html report for visualization of coverage line by line
+```bash
+    pytest --cov=udao --cov-report html udao
+```
+
+
