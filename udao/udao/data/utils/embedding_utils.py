@@ -24,6 +24,7 @@ class Word2VecParams:
     min_alpha: float = 0.0007
     workers: int = mp.cpu_count() - 1
     seed: int = 42
+    epochs: int = 10
 
 
 @dataclass
@@ -51,6 +52,7 @@ class Word2VecEmbedder:
             Parameters to pass to the gensim.Word2Vec model
             (ref: https://radimrehurek.com/gensim/models/word2vec.html)
         """
+        self.w2v_params = w2v_params
         self.w2v_model = Word2Vec(
             min_count=w2v_params.min_count,
             window=w2v_params.window,  # 3
@@ -60,6 +62,7 @@ class Word2VecEmbedder:
             min_alpha=w2v_params.min_alpha,
             workers=w2v_params.workers,
             seed=w2v_params.seed,
+            epochs=w2v_params.epochs,
         )
         self._bigram_model: Optional[Phraser] = None
         self.dictionary = Dictionary()
@@ -84,7 +87,7 @@ class Word2VecEmbedder:
         )
 
     def fit_transform(
-        self, training_plans: Sequence[str], epochs: int = 10
+        self, training_plans: Sequence[str], epochs: Optional[int] = None
     ) -> np.ndarray:
         """Train the Word2Vec model on the training plans and return the embeddings.
 
@@ -93,13 +96,16 @@ class Word2VecEmbedder:
         training_plans : Sequence[str]
             list of training plans
         epochs : int, optional
-            number of epochs for training the model, by default 10
+            number of epochs for training the model, by default will use the value
+            in the Word2VecParams.
 
         Returns
         -------
         np.ndarray
             Embeddings of the training plans
         """
+        if epochs is None:
+            epochs = self.w2v_params.epochs
         training_sentences = [row.split() for row in training_plans]
         phrases = Phrases(training_sentences, min_count=30)  # Extract parameter
         self._bigram_model = Phraser(phrases)
@@ -127,6 +133,9 @@ class Word2VecEmbedder:
         ----------
         plans : Sequence[str]
             list of query plans
+        epochs : int, optional
+            number of epochs for infering a document's embedding,
+            by default will use the value in the Word2VecParams.
 
         Returns
         -------
@@ -167,6 +176,7 @@ class Doc2VecEmbedder:
             Parameters to pass to the gensim.Doc2Vec model
             (ref: https://radimrehurek.com/gensim/models/doc2vec.html)
         """
+        self.d2v_params = d2v_params
         self.d2v_model = Doc2Vec(
             min_count=d2v_params.min_count,
             window=d2v_params.window,
@@ -176,6 +186,7 @@ class Doc2VecEmbedder:
             min_alpha=d2v_params.min_alpha,
             workers=d2v_params.workers,
             seed=d2v_params.seed,
+            epochs=d2v_params.epochs,
         )
         self._is_trained = False
 
@@ -188,6 +199,65 @@ class Doc2VecEmbedder:
         tokens_list = list(map(lambda x: x.split(), plans))
         corpus = [TaggedDocument(d, [i]) for i, d in enumerate(tokens_list)]
         return corpus
+
+    def fit(self, training_plans: Sequence[str], epochs: Optional[int] = None) -> None:
+        """Train the Doc2Vec model on the training plans
+
+        Parameters
+        ----------
+        training_plans : Sequence[str]
+            list of training plans
+        epochs : int, optional
+            number of epochs for training the model, by default
+            will use the value in the Doc2VecParams.
+
+        Returns
+        -------
+        np.ndarray
+            Normalized (L2) embeddings of the training plans
+        """
+        if epochs is None:
+            pass
+        corpus = self._prepare_corpus(training_plans)
+        self.d2v_model.build_vocab(corpus)
+        self.d2v_model.train(
+            corpus, total_examples=self.d2v_model.corpus_count, epochs=epochs
+        )
+        self._is_trained = True
+
+    def transform(
+        self, plans: Sequence[str], epochs: Optional[int] = None
+    ) -> np.ndarray:
+        """Transform a list of query plans into normalized embeddings.
+
+        Parameters
+        ----------
+        plans : Sequence[str]
+            list of query plans
+        epochs: int, optional
+            number of epochs for infering a document's embedding,
+            by default will use the value in the Doc2VecParams.
+
+        Returns
+        -------
+        np.ndarray
+            Normalized (L2) embeddings of the query plans
+
+        Raises
+        ------
+        ValueError
+            If the model has not been trained
+        """
+        if epochs is None:
+            epochs = self.d2v_params.epochs
+        if not self._is_trained:
+            raise ValueError("Must call fit_transform before calling transform")
+        encodings = [
+            self.d2v_model.infer_vector(doc.split(), epochs=epochs) for doc in plans
+        ]
+        norms = np.linalg.norm(encodings, axis=1)
+        # normalize the embeddings
+        return encodings / norms[..., np.newaxis]
 
     def fit_transform(
         self, training_plans: Sequence[str], epochs: int = 10
@@ -206,38 +276,5 @@ class Doc2VecEmbedder:
         np.ndarray
             Normalized (L2) embeddings of the training plans
         """
-        corpus = self._prepare_corpus(training_plans)
-
-        self.d2v_model.build_vocab(corpus)
-        self.d2v_model.train(
-            corpus, total_examples=self.d2v_model.corpus_count, epochs=epochs
-        )
-        self.d2v_model.dv.get_normed_vectors()
-        self._is_trained = True
-        return self.d2v_model.dv.get_normed_vectors()
-
-    def transform(self, plans: Sequence[str]) -> np.ndarray:
-        """Transform a list of query plans into normalized embeddings.
-
-        Parameters
-        ----------
-        plans : Sequence[str]
-            list of query plans
-
-        Returns
-        -------
-        np.ndarray
-            Normalized (L2) embeddings of the query plans
-
-        Raises
-        ------
-        ValueError
-            If the model has not been trained
-        """
-        if not self._is_trained:
-            raise ValueError("Must call fit_transform before calling transform")
-        corpus = self._prepare_corpus(plans)
-        encodings = [self.d2v_model.infer_vector(doc) for doc in corpus]
-        norms = np.linalg.norm(encodings, axis=1)
-        # normalize the embeddings
-        return encodings / norms[..., np.newaxis]
+        self.fit(training_plans, epochs)
+        return self.transform(training_plans)
