@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Tuple
 
@@ -11,149 +12,36 @@ from ...utils.query_plan_utils import (
 )
 
 
-@pytest.fixture
-def real_query_plan_sample() -> (
-    Tuple[str, QueryPlanStructure, QueryPlanOperationFeatures]
-):
+def get_query_plan_sample(
+    json_path: str,
+) -> Tuple[str, QueryPlanStructure, QueryPlanOperationFeatures]:
     base_dir = Path(__file__).parent
-    with open(base_dir / "sample_plan.txt", "r") as f:
-        query = f.read().replace("\\n", "\n")
-    incoming_ids = [
-        1,
-        2,
-        3,
-        4,
-        5,
-        19,
-        20,
-        21,
-        6,
-        7,
-        16,
-        17,
-        18,
-        8,
-        9,
-        13,
-        14,
-        15,
-        10,
-        11,
-        12,
-    ]
-    outgoing_ids = [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        19,
-        20,
-        5,
-        6,
-        7,
-        16,
-        17,
-        7,
-        8,
-        9,
-        13,
-        14,
-        9,
-        10,
-        11,
-    ]
-    names = [
-        "GlobalLimit",
-        "LocalLimit",
-        "Sort",
-        "Aggregate",
-        "Project",
-        "Join",
-        "Project",
-        "Join",
-        "Project",
-        "Join",
-        "Project",
-        "Filter",
-        "Relation tpch_100.customer",
-        "Project",
-        "Filter",
-        "Relation tpch_100.orders",
-        "Project",
-        "Filter",
-        "Relation tpch_100.nation",
-        "Project",
-        "Filter",
-        "Relation tpch_100.lineitem",
-    ]
-    rows_counts = [
-        float(v)
-        for v in [
-            "20",
-            "2.42E+7",
-            "2.42E+7",
-            "2.42E+7",
-            "2.42E+7",
-            "2.42E+7",
-            "6.16E+6",
-            "6.16E+6",
-            "6.16E+6",
-            "6.16E+6",
-            "1.50E+7",
-            "1.50E+7",
-            "1.50E+7",
-            "5.68E+6",
-            "5.68E+6",
-            "5.74E+6",
-            "25",
-            "25",
-            "25",
-            "2.00E+8",
-            "2.00E+8",
-            "6.00E+8",
-        ]
-    ]
-    sizes = [
-        format_size(s)
-        for s in [
-            "2.7 KiB",
-            "5.4 GiB",
-            "5.4 GiB",
-            "5.4 GiB",
-            "5.4 GiB",
-            "5.8 GiB",
-            "1357.0 MiB",
-            "1451.0 MiB",
-            "1286.5 MiB",
-            "1333.5 MiB",
-            "2.9 GiB",
-            "3.3 GiB",
-            "3.3 GiB",
-            "130.0 MiB",
-            "877.4 MiB",
-            "886.5 MiB",
-            "900.0 B",
-            "3.2 KiB",
-            "3.2 KiB",
-            "6.0 GiB",
-            "34.6 GiB",
-            "103.9 GiB",
-        ]
-    ]
+    with open(base_dir / json_path, "r") as f:
+        plan_features = json.load(f)
+    incoming_ids = plan_features["incoming_ids"]
+    outgoing_ids = plan_features["outgoing_ids"]
+    names = plan_features["names"]
+    row_counts = [float(v) for v in plan_features["row_counts"]]
+    sizes = [format_size(s) for s in plan_features["sizes"]]
 
     return (
-        query,
+        plan_features["query_plan"],
         QueryPlanStructure(names, incoming_ids, outgoing_ids),
-        QueryPlanOperationFeatures(rows_counts, sizes),
+        QueryPlanOperationFeatures(row_counts, sizes),
     )
 
 
+@pytest.mark.parametrize(
+    "query_plan_sample",
+    (
+        get_query_plan_sample(path)
+        for path in ["sample_plan_1.json", "sample_plan_2.json"]
+    ),
+)
 def test_logical_struct(
-    real_query_plan_sample: Tuple[str, QueryPlanStructure, QueryPlanOperationFeatures]
+    query_plan_sample: Tuple[str, QueryPlanStructure, QueryPlanOperationFeatures]
 ) -> None:
-    query, expected_structure, expected_op_features = real_query_plan_sample
+    query, expected_structure, expected_op_features = query_plan_sample
 
     structure, features = extract_query_plan_features(query)
     assert features.sizes == expected_op_features.sizes
@@ -161,3 +49,24 @@ def test_logical_struct(
     assert structure.incoming_ids == expected_structure.incoming_ids
     assert structure.outgoing_ids == expected_structure.outgoing_ids
     assert structure.node_id2name == expected_structure.node_id2name
+
+
+def test_compare_same_struct_is_True() -> None:
+    query_plan_sample = get_query_plan_sample("sample_plan_1.json")
+    query, expected_structure, expected_op_features = query_plan_sample
+
+    structure, features = extract_query_plan_features(query)
+    assert structure.graph_match(structure) is True
+    assert structure.nx_graph_match(structure) is not None
+
+
+def test_compare_different_structures_is_False() -> None:
+    query_plan_sample_1 = get_query_plan_sample("sample_plan_1.json")
+    query_plan_sample_2 = get_query_plan_sample("sample_plan_2.json")
+    query, expected_structure, expected_op_features = query_plan_sample_1
+    query_2, expected_structure_2, expected_op_features_2 = query_plan_sample_2
+
+    structure, features = extract_query_plan_features(query)
+    structure_2, features_2 = extract_query_plan_features(query_2)
+    assert structure.graph_match(structure_2) is False
+    assert structure.nx_graph_match(structure_2) is None
