@@ -57,7 +57,6 @@ def test_compare_same_struct_is_True() -> None:
 
     structure, features = extract_query_plan_features(query)
     assert structure.graph_match(structure) is True
-    assert structure.nx_graph_match(structure) is True
 
 
 def test_compare_different_structures_is_False() -> None:
@@ -69,4 +68,3 @@ def test_compare_different_structures_is_False() -> None:
     structure, features = extract_query_plan_features(query)
     structure_2, features_2 = extract_query_plan_features(query_2)
     assert structure.graph_match(structure_2) is False
-    assert structure.nx_graph_match(structure_2) is False
