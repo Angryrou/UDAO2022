@@ -84,17 +84,19 @@ class QueryPlanStructure:
             and self.node_id2name == plan.node_id2name
         )
 
-    def nx_graph_match(self, plan: "QueryPlanStructure") -> Optional[Dict[int, int]]:
+    def nx_graph_match(self, plan: "QueryPlanStructure") -> bool:
         print(self.nx_graph, plan.nx_graph)
         matcher = isomorphism.GraphMatcher(
             self.nx_graph,
             plan.nx_graph,
             node_match=lambda n1, n2: n1["nname"] == n2["nname"],
         )
-        if matcher.match():
-            return matcher.mapping  # type: ignore
-        else:
-            return None
+        return matcher.is_isomorphic()  # type: ignore
+
+        # if matcher.match():
+        #     return matcher.mapping  # type: ignore
+        # else:
+        #     return None
 
 
 class LogicalOperation:
