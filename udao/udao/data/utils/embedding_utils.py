@@ -260,7 +260,7 @@ class Doc2VecEmbedder:
         if epochs is None:
             epochs = self.d2v_params.epochs
         if not self._is_trained:
-            raise ValueError("Must call fit_transform before calling transform")
+            raise ValueError("Must call fit before calling transform")
         encodings = [
             self.d2v_model.infer_vector(doc.split(), epochs=epochs) for doc in plans
         ]
