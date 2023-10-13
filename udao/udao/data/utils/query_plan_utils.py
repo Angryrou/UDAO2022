@@ -65,36 +65,25 @@ class QueryPlanStructure:
         return self._nx_graph
 
     def graph_match(self, plan: "QueryPlanStructure") -> bool:
-        """Computes a match between the current plan and another one.
-        If the match is successful, returns a mapping from the nodes of the current plan
-        to the nodes of the other plan. Else returns None.
+        """Checks if the current plan and another one are isomorphic.
 
         Parameters
         ----------
-        plan : QueryPlanFeatures
-            _description_
+        plan : QueryPlanStructure
+            another plan to compare with
+
         Returns
         -------
-        Optional[Dict[int, int]]
-            _description_
+        bool
+            True if the plans are isomorphic, False otherwise
         """
-        return (
-            self.incoming_ids == plan.incoming_ids
-            and self.outgoing_ids == plan.outgoing_ids
-            and self.node_id2name == plan.node_id2name
-        )
-
-    def nx_graph_match(self, plan: "QueryPlanStructure") -> Optional[Dict[int, int]]:
         print(self.nx_graph, plan.nx_graph)
         matcher = isomorphism.GraphMatcher(
             self.nx_graph,
             plan.nx_graph,
             node_match=lambda n1, n2: n1["nname"] == n2["nname"],
         )
-        if matcher.match():
-            return matcher.mapping  # type: ignore
-        else:
-            return None
+        return matcher.is_isomorphic()  # type: ignore
 
 
 class LogicalOperation:
