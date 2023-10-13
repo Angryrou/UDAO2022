@@ -1,4 +1,3 @@
-import multiprocessing as mp
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -22,7 +21,7 @@ class Word2VecParams:
     alpha: float = 0.025
     sample: float = 0.1
     min_alpha: float = 0.0007
-    workers: int = mp.cpu_count() - 1
+    workers: int = 1  # mp.cpu_count() - 1
     seed: int = 42
     epochs: int = 10
 
@@ -41,6 +40,11 @@ class Word2VecEmbedder:
     To use it:
     - first call fit_transform on a list of training query plans,
     - then call transform on a list of query plans.
+
+    N.B. To ensure reproducibility, several things need to be done:
+    - set the seed in the Word2VecParams
+    - set the PYTHONHASHSEED
+    - set the number of workers to 1
     """
 
     def __init__(self, w2v_params: Word2VecParams):
@@ -165,6 +169,11 @@ class Doc2VecEmbedder:
     To use it:
     - first call fit_transform on a list of training query plans,
     - then call transform on a list of query plans.
+
+    N.B. To ensure reproducibility, several things need to be done:
+    - set the seed in the Doc2VecParams
+    - set the PYTHONHASHSEED
+    - set the number of workers to 1
     """
 
     def __init__(self, d2v_params: Doc2VecParams) -> None:
@@ -217,7 +226,7 @@ class Doc2VecEmbedder:
             Normalized (L2) embeddings of the training plans
         """
         if epochs is None:
-            pass
+            epochs = self.d2v_params.epochs
         corpus = self._prepare_corpus(training_plans)
         self.d2v_model.build_vocab(corpus)
         self.d2v_model.train(
@@ -258,23 +267,3 @@ class Doc2VecEmbedder:
         norms = np.linalg.norm(encodings, axis=1)
         # normalize the embeddings
         return encodings / norms[..., np.newaxis]
-
-    def fit_transform(
-        self, training_plans: Sequence[str], epochs: int = 10
-    ) -> np.ndarray:
-        """Train the Doc2Vec model on the training plans and return the embeddings.
-
-        Parameters
-        ----------
-        training_plans : Sequence[str]
-            list of training plans
-        epochs : int, optional
-            number of epochs for training the model, by default 10
-
-        Returns
-        -------
-        np.ndarray
-            Normalized (L2) embeddings of the training plans
-        """
-        self.fit(training_plans, epochs)
-        return self.transform(training_plans)
