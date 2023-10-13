@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import dgl
+import networkx as nx
+from networkx.algorithms import isomorphism
 
 
 def format_size(size: str) -> float:
@@ -53,8 +55,6 @@ class QueryPlanStructure:
         self.outgoing_ids = outgoing_ids
         self.node_id2name = {i: n for i, n in enumerate(node_names)}
         self.graph: dgl.DGLGraph = dgl.graph((incoming_ids, outgoing_ids))
-
-    """ Commented because it is not used due to unexpected behavior
         self._nx_graph: Optional[nx.Graph] = None
 
     @property
@@ -63,7 +63,6 @@ class QueryPlanStructure:
             self._nx_graph = dgl.to_networkx(self.graph)
             nx.set_node_attributes(self._nx_graph, self.node_id2name, name="nname")
         return self._nx_graph
-    """
 
     def graph_match(self, plan: "QueryPlanStructure") -> bool:
         """Computes a match between the current plan and another one.
@@ -84,11 +83,9 @@ class QueryPlanStructure:
             and self.outgoing_ids == plan.outgoing_ids
             and self.node_id2name == plan.node_id2name
         )
-        """
 
-        Commented because matching does not return None in
-        cases where graphs are not equal
-
+    def nx_graph_match(self, plan: "QueryPlanStructure") -> Optional[Dict[int, int]]:
+        print(self.nx_graph, plan.nx_graph)
         matcher = isomorphism.GraphMatcher(
             self.nx_graph,
             plan.nx_graph,
@@ -98,7 +95,6 @@ class QueryPlanStructure:
             return matcher.mapping  # type: ignore
         else:
             return None
-        """
 
 
 class LogicalOperation:
