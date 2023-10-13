@@ -40,7 +40,6 @@ multidict==6.0.4
 multipledispatch==0.6.0
 multiprocess==0.70.14
 networkx==2.8.8
-nltk==3.8.1
 numpy==1.24.1
 numpydoc==1.5.0
 nvidia-cublas-cu11==11.10.3.66
