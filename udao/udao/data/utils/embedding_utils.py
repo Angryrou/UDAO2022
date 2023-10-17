@@ -96,14 +96,14 @@ class Word2VecEmbedder:
         )
 
     def fit_transform(
-        self, training_plans: Sequence[str], epochs: Optional[int] = None
+        self, training_texts: Sequence[str], epochs: Optional[int] = None
     ) -> np.ndarray:
-        """Train the Word2Vec model on the training plans and return the embeddings.
+        """Train the Word2Vec model on the training texts and return the embeddings.
 
         Parameters
         ----------
-        training_plans : Sequence[str]
-            list of training plans
+        training_texts : Sequence[str]
+            list of training texts
         epochs : int, optional
             number of epochs for training the model, by default will use the value
             in the Word2VecParams.
@@ -115,7 +115,7 @@ class Word2VecEmbedder:
         """
         if epochs is None:
             epochs = self.w2v_params.epochs
-        training_sentences = [row.split() for row in training_plans]
+        training_sentences = [row.split() for row in training_texts]
         phrases = Phrases(training_sentences, min_count=30)  # Extract parameter
         self._bigram_model = Phraser(phrases)
         training_descriptions = self._bigram_model[training_sentences]
@@ -135,13 +135,13 @@ class Word2VecEmbedder:
         # print(f"get {len(self.tfidf.idfs)} words from tfidf")
         return self._get_encodings_from_corpus(bow_corpus=bow_corpus)
 
-    def transform(self, plans: Sequence[str]) -> np.ndarray:
+    def transform(self, texts: Sequence[str]) -> np.ndarray:
         """Transform a list of query plans into embeddings.
 
         Parameters
         ----------
-        plans : Sequence[str]
-            list of query plans
+        texts : Sequence[str]
+            list of texts to transform
         epochs : int, optional
             number of epochs for infering a document's embedding,
             by default will use the value in the Word2VecParams.
@@ -156,7 +156,7 @@ class Word2VecEmbedder:
         ValueError
             If the model has not been trained
         """
-        sentences = [row.split() for row in plans]
+        sentences = [row.split() for row in texts]
         if self._bigram_model is None:
             raise ValueError("Must call fit_transform before calling transform")
         descriptions = self._bigram_model[sentences]
@@ -206,17 +206,19 @@ class Doc2VecEmbedder:
         )
         self._is_trained = False
 
-    def _prepare_corpus(self, plans: Sequence[str]) -> List[TaggedDocument]:
+    def _prepare_corpus(self, texts: Sequence[str], /) -> List[TaggedDocument]:
         """Transform strings into a list of TaggedDocument
 
         a TaggedDocument consists in a list of tokens and a tag
         (here the index of the plan)
         """
-        tokens_list = list(map(lambda x: x.split(), plans))
+        tokens_list = list(map(lambda x: x.split(), texts))
         corpus = [TaggedDocument(d, [i]) for i, d in enumerate(tokens_list)]
         return corpus
 
-    def fit(self, training_plans: Sequence[str], epochs: Optional[int] = None) -> None:
+    def fit(
+        self, training_texts: Sequence[str], /, epochs: Optional[int] = None
+    ) -> None:
         """Train the Doc2Vec model on the training plans
 
         Parameters
@@ -234,7 +236,7 @@ class Doc2VecEmbedder:
         """
         if epochs is None:
             epochs = self.d2v_params.epochs
-        corpus = self._prepare_corpus(training_plans)
+        corpus = self._prepare_corpus(training_texts)
         self.d2v_model.build_vocab(corpus)
         self.d2v_model.train(
             corpus, total_examples=self.d2v_model.corpus_count, epochs=epochs
@@ -242,7 +244,7 @@ class Doc2VecEmbedder:
         self._is_trained = True
 
     def transform(
-        self, plans: Sequence[str], epochs: Optional[int] = None
+        self, texts: Sequence[str], /, epochs: Optional[int] = None
     ) -> np.ndarray:
         """Transform a list of query plans into normalized embeddings.
 
@@ -269,17 +271,17 @@ class Doc2VecEmbedder:
         if not self._is_trained:
             raise ValueError("Must call fit_transform before calling transform")
         encodings = [
-            self.d2v_model.infer_vector(doc.split(), epochs=epochs) for doc in plans
+            self.d2v_model.infer_vector(doc.split(), epochs=epochs) for doc in texts
         ]
         norms = np.linalg.norm(encodings, axis=1)
         # normalize the embeddings
         return encodings / norms[..., np.newaxis]
 
     def fit_transform(
-        self, training_plans: Sequence[str], epochs: Optional[int] = None
+        self, training_texts: Sequence[str], /, epochs: Optional[int] = None
     ) -> np.ndarray:
-        self.fit(training_plans, epochs)
-        return self.transform(training_plans, epochs)
+        self.fit(training_texts, epochs)
+        return self.transform(training_texts, epochs)
 
 
 def remove_statistics(s: str) -> str:
@@ -296,15 +298,6 @@ def remove_hashes(s: str) -> str:
     """Remove hashes from a query plan, e.g. #1234L"""
     # Replace hashes with a placeholder or remove them
     return re.sub(r"#[0-9]+[L]*", "", s)
-
-
-def replace_list_elements_with_token(s: str, token: str = "ELT_TOKEN") -> str:
-    pattern = r"(?<=IN \()([^)]+)(?=\))"
-    match = re.search(pattern, s)
-    if match:
-        replacement = re.sub(r"[^,]+", token, match.group())
-        return re.sub(pattern, replacement, s)
-    return s
 
 
 def brief_clean(s: str) -> str:
@@ -340,7 +333,6 @@ def prepare_operation(operation: str) -> str:
         remove_statistics,
         remove_hashes,
         replace_symbols,
-        replace_list_elements_with_token,
         brief_clean,
         remove_duplicate_spaces,
     ]
@@ -349,7 +341,9 @@ def prepare_operation(operation: str) -> str:
     return operation
 
 
-def extract_operations(plan_df: pd.DataFrame) -> Tuple[Dict[int, List[int]], List[str]]:
+def extract_operations(
+    plan_df: pd.DataFrame, operation_processing: Optional[Callable[[str], str]] = None
+) -> Tuple[Dict[int, List[int]], List[str]]:
     """Extract unique operations from a DataFrame of
     query plans and links them to query plans.
     Operations are transformed using prepare_operation
@@ -358,7 +352,11 @@ def extract_operations(plan_df: pd.DataFrame) -> Tuple[Dict[int, List[int]], Lis
     Parameters
     ----------
     plan_df : pd.DataFrame
-        _description_
+        DataFrame containing the query plans and their ids.
+
+    operation_processing : Callable[[str], str], optional
+        Function to process the operations, by default no processing will be applied
+        and the raw operations will be used.
 
     Returns
     -------
@@ -370,8 +368,13 @@ def extract_operations(plan_df: pd.DataFrame) -> Tuple[Dict[int, List[int]], Lis
     """
     df = plan_df[["id", "plan"]].copy()
 
+    if operation_processing is None:
+
+        def operation_processing(x: str) -> str:
+            return x
+
     df["plan"] = df["plan"].apply(
-        lambda plan: [prepare_operation(op) for op in plan.splitlines()]
+        lambda plan: [operation_processing(op) for op in plan.splitlines()]  # type: ignore
     )
     df = df.explode("plan", ignore_index=True)
     df.rename(columns={"plan": "operation"}, inplace=True)

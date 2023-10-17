@@ -314,8 +314,9 @@ class StructureExtractor:
             str, type
         ] = QueryPlanOperationFeatures.get_feature_names_and_types()
 
-    def extract_features(self, query_plan: str) -> Dict:
-        """_summary_
+    def extract_structure_and_features(self, query_plan: str) -> Dict:
+        """Extract the features of the operations in the logical plan,
+        and the tree structure of the logical plan.
 
         Parameters
         ----------
@@ -325,7 +326,11 @@ class StructureExtractor:
         Returns
         -------
         Dict
-            _description_
+            - template_id: id of the template of the query plan
+            - operation_id: list of operation ids in the query plan
+            - one key per feature for features of the operations
+            in the query plan
+
         """
         structure, features = extract_query_plan_features(query_plan)
         tid = None
