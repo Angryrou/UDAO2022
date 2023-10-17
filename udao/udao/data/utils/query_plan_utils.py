@@ -6,7 +6,11 @@ from typing import Dict, List, Optional, Tuple
 
 import dgl
 import networkx as nx
+import pandas as pd
 from networkx.algorithms import isomorphism
+from tqdm import tqdm
+
+tqdm.pandas()
 
 
 def format_size(size: str) -> float:
@@ -349,3 +353,37 @@ class StructureExtractor:
             "operation_id": features.operation_ids,
             **features.features_dict,
         }
+
+    def extract_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Extract the features of the operations in the logical plan,
+        and the tree structure of the logical plan for each query plan
+        in the dataframe.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Dataframe with a column "plan" containing the query plans.
+
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with one row per operation in the query plans,
+            and one column per feature of the operations.
+        """
+        df_features = (
+            df["plan"]
+            .progress_apply(
+                lambda plan: self.extract_structure_and_features(plan),
+            )
+            .apply(pd.Series)
+        )
+        df_features["plan_id"] = df["id"]
+        expanded_df = df_features.explode("operation_id", ignore_index=True)
+        for feature_name in self.feature_types.keys():
+            print(feature_name)
+            expanded_df[feature_name] = expanded_df[feature_name].explode(
+                ignore_index=True
+            )
+        expanded_df = expanded_df.set_index(["plan_id", "template_id", "operation_id"])
+
+        return expanded_df
