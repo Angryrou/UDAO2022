@@ -342,7 +342,7 @@ def prepare_operation(operation: str) -> str:
 
 
 def extract_operations(
-    plan_df: pd.DataFrame, operation_processing: Optional[Callable[[str], str]] = None
+    plan_df: pd.DataFrame, operation_processing: Callable[[str], str] = lambda x: x
 ) -> Tuple[Dict[int, List[int]], List[str]]:
     """Extract unique operations from a DataFrame of
     query plans and links them to query plans.
@@ -354,7 +354,7 @@ def extract_operations(
     plan_df : pd.DataFrame
         DataFrame containing the query plans and their ids.
 
-    operation_processing : Callable[[str], str], optional
+    operation_processing : Callable[[str], str]
         Function to process the operations, by default no processing will be applied
         and the raw operations will be used.
 
@@ -367,11 +367,6 @@ def extract_operations(
             List of unique operations in the dataset
     """
     df = plan_df[["id", "plan"]].copy()
-
-    if operation_processing is None:
-
-        def operation_processing(x: str) -> str:
-            return x
 
     df["plan"] = df["plan"].apply(
         lambda plan: [operation_processing(op) for op in plan.splitlines()]  # type: ignore
