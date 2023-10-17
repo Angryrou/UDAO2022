@@ -44,8 +44,8 @@ def test_logical_struct(
     query, expected_structure, expected_op_features = query_plan_sample
 
     structure, features = extract_query_plan_features(query)
-    assert features.sizes == expected_op_features.sizes
-    assert features.rows_counts == expected_op_features.rows_counts
+    assert features.size == expected_op_features.size
+    assert features.rows_count == expected_op_features.rows_count
     assert structure.incoming_ids == expected_structure.incoming_ids
     assert structure.outgoing_ids == expected_structure.outgoing_ids
     assert structure.node_id2name == expected_structure.node_id2name

@@ -1,7 +1,7 @@
 import re
 import warnings
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Dict, List, Optional, Tuple
 
 import dgl
@@ -29,8 +29,29 @@ def format_size(size: str) -> float:
 class QueryPlanOperationFeatures:
     """Features of the operations in the logical plan"""
 
-    rows_counts: List[float]
-    sizes: List[float]
+    rows_count: List[float]
+    size: List[float]
+
+    @property
+    def operation_ids(self) -> List[int]:
+        return list(range(len(self.rows_count)))
+
+    @property
+    def features_dict(self) -> Dict[str, List]:
+        return {"rows_count": self.rows_count, "size": self.size}
+
+    @classmethod
+    def get_feature_names_and_types(cls) -> Dict[str, type]:
+        """Retrieve the names and element types of features."""
+        feature_info = {}
+        for f in fields(cls):
+            # Assuming the type is always List[SomeType]
+            try:
+                element_type = f.type.__args__[0]
+            except AttributeError:
+                raise ValueError(f"Feature {f.name} should be a List, but got {f.type}")
+            feature_info[f.name] = element_type
+        return feature_info
 
 
 class QueryPlanStructure:
@@ -77,7 +98,6 @@ class QueryPlanStructure:
         bool
             True if the plans are isomorphic, False otherwise
         """
-        print(self.nx_graph, plan.nx_graph)
         matcher = isomorphism.GraphMatcher(
             self.nx_graph,
             plan.nx_graph,
@@ -86,7 +106,7 @@ class QueryPlanStructure:
         return matcher.is_isomorphic()  # type: ignore
 
 
-class LogicalOperation:
+class _LogicalOperation:
     """Describes an operation in the logical plan, with associated features."""
 
     def __init__(self, id: int, value: str) -> None:
@@ -173,13 +193,13 @@ class LogicalOperation:
             else:
                 raise NotImplementedError("More than 2 predecessors")
 
-    def get_unindented(self) -> "LogicalOperation":
+    def get_unindented(self) -> "_LogicalOperation":
         """Return the operation without one level of indentation removed"""
-        return LogicalOperation(self.id, self.value.lstrip()[3:])
+        return _LogicalOperation(self.id, self.value.lstrip()[3:])
 
 
 def _get_tree_structure(
-    operations: List[LogicalOperation],
+    operations: List[_LogicalOperation],
 ) -> Tuple[List[int], List[int]]:
     """Define the tree structure of the logical plan, as a tuple of two lists,
     where U[i], V[i] are the incoming and outgoing nodes of edge i.
@@ -203,7 +223,7 @@ def _get_tree_structure(
     outgoing_ids: List[int] = []
     pre_id = operations[0].id
     operations[0].rank = -1
-    threads: Dict[float, List[LogicalOperation]] = defaultdict(list)
+    threads: Dict[float, List[_LogicalOperation]] = defaultdict(list)
     for i, op in enumerate(operations):
         if i == 0:
             continue
@@ -257,7 +277,7 @@ def extract_query_plan_features(
         Query plan features (sizes and rows_counts of the operations)
     """
     operations = [
-        LogicalOperation(id=i, value=step)
+        _LogicalOperation(id=i, value=step)
         for i, step in enumerate(logical_plan.splitlines())
     ]
     node_names: List[str] = []
@@ -274,8 +294,53 @@ def extract_query_plan_features(
         sizes.insert(0, step.size)
         rows_counts.insert(0, step.get_rows_count(predecessors[step.id], rows_counts))
 
-    features = QueryPlanOperationFeatures(rows_counts=rows_counts, sizes=sizes)
+    features = QueryPlanOperationFeatures(rows_count=rows_counts, size=sizes)
     structure = QueryPlanStructure(
         node_names=node_names, incoming_ids=incoming_ids, outgoing_ids=outgoing_ids
     )
     return structure, features
+
+
+class StructureExtractor:
+    """
+    Extracts the features of the operations in the logical plan,
+    and the tree structure of the logical plan.
+    Keep track of the different query plans seen so far, and their template id.
+    """
+
+    def __init__(self) -> None:
+        self.template_plans: Dict[int, QueryPlanStructure] = {}
+        self.feature_types: Dict[
+            str, type
+        ] = QueryPlanOperationFeatures.get_feature_names_and_types()
+
+    def extract_features(self, query_plan: str) -> Dict:
+        """_summary_
+
+        Parameters
+        ----------
+        query_plan : str
+            A query plan string.
+
+        Returns
+        -------
+        Dict
+            _description_
+        """
+        structure, features = extract_query_plan_features(query_plan)
+        tid = None
+
+        for template_id, template_structure in self.template_plans.items():
+            if structure.graph_match(template_structure):
+                tid = template_id
+                break
+
+        if tid is None:
+            tid = len(self.template_plans)
+            self.template_plans[tid] = structure
+
+        return {
+            "template_id": tid,
+            "operation_id": features.operation_ids,
+            **features.features_dict,
+        }
