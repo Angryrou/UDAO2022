@@ -341,7 +341,7 @@ class StructureExtractor:
                 break
 
         if tid is None:
-            tid = len(self.template_plans)
+            tid = len(self.template_plans) + 1
             self.template_plans[tid] = structure
 
         return {
