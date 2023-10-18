@@ -3,6 +3,12 @@ from abc import ABC, abstractmethod
 from torch.utils.data import Dataset
 
 
+class BaseDatasetIterator(Dataset):
+    @abstractmethod
+    def __init__(self, keys, *args, **kwargs):  # type: ignore
+        pass
+
+
 class BaseDataHandler(ABC):
     @abstractmethod
     def split_data(self) -> "BaseDataHandler":
@@ -15,6 +21,6 @@ class BaseDataHandler(ABC):
         pass
 
     @abstractmethod
-    def get_dataset_iterator(self, split: str) -> Dataset:
+    def get_dataset_iterator(self, split: str) -> BaseDatasetIterator:
         """Return the DatasetIterator for a given split."""
         pass

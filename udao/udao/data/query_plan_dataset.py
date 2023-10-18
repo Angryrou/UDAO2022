@@ -1,18 +1,19 @@
-from typing import Callable, Dict, List, Sequence, Union
+from collections import defaultdict
+from typing import Callable, Dict, List, Sequence, Type, Union
 
 import dgl
 import pandas as pd
 import torch as th
-from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from ..data.dataset import BaseDatasetIterator
 from ..data.utils.utils import DatasetType, train_test_val_split_on_column
 from .utils.query_plan_utils import QueryPlanStructure
 
 tqdm.pandas()
 
 
-class DatasetIterator(Dataset):
+class DatasetIterator(BaseDatasetIterator):
     def __init__(
         self,
         keys: Sequence[str],
@@ -50,7 +51,7 @@ class DataHandler:
 
         self.full_df = self._load_data(path, index_column)
         self.data_splits: Dict[DatasetType, List[str]] = {}
-        self.features: Dict = {}
+        self.features: Dict[DatasetType, Dict] = defaultdict(dict)
         self.graph_features: Dict[DatasetType, pd.DataFrame] = {}
         self.embedding_features: Dict[DatasetType, pd.DataFrame] = {}
         self.template_plans: Dict[DatasetType, Dict[int, QueryPlanStructure]] = {}
@@ -61,16 +62,6 @@ class DataHandler:
         if self.dryrun:
             full_df = full_df.sample(5000)
         full_df.set_index(index_column, inplace=True, drop=False)
-        """
-        #brief_df = pd.read_csv(str(self.data_dir / "brief.csv"))
-        #cols_to_use = query_plan_df.columns.difference(brief_df.columns)
-        self.full_df = pd.merge(
-            brief_df,
-            query_plan_df[["id", *cols_to_use]],
-            how="inner",
-            on="id",
-        )
-        """
 
         return full_df
 
@@ -87,34 +78,25 @@ class DataHandler:
         }
         return self
 
-    def extract_features(
+    def get_iterators(
         self,
+        Iterator: Type[BaseDatasetIterator],
         features_funcs: Dict[str, Union[Callable, Dict[DatasetType, Callable]]],
-    ) -> "DataHandler":
+    ) -> Dict[DatasetType, BaseDatasetIterator]:
         if self.full_df is None:
             raise ValueError("Data not loaded yet.")
-        # extractors = {split: StructureExtractor() for
-        # split in self.data_splits.keys()}
-        # embeddings_extractor = EmbeddingExtractor(Word2VecEmbedder())
         for name, func in features_funcs.items():
             if isinstance(func, dict):
-                for split, f in func.items():
-                    keys = self.data_splits[split]
-                    self.graph_features[split][name] = f(self.full_df.loc[keys])
+                for split, keys in self.data_splits.items():
+                    self.features[split][name] = func[split](self.full_df.loc[keys])
             else:
                 for split, keys in self.data_splits.items():
-                    self.graph_features[split][name] = func(self.full_df.loc[keys])
-        """
-        for split, keys in self.data_splits.items():
-            df_split = self.full_df.loc[keys]
-            self.graph_features[split] = extractors[split].extract_features(df_split)
-            self.template_plans[split] = extractors[split].template_plans
-            self.id_to_template[split] = extractors[split].id_template_dict
-            self.embedding_features[split] = embeddings_extractor.extract_features(
-                df_split, split
-            )
-        """
-        return self
+                    self.features[split][name] = func(self.full_df.loc[keys], split)
+
+        return {
+            split: Iterator(self.data_splits[split], *self.features[split])
+            for split in self.data_splits
+        }
 
     def get_dataset_iterator(self, split: DatasetType) -> DatasetIterator:
         return DatasetIterator(

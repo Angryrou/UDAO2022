@@ -11,6 +11,8 @@ from gensim.models import Doc2Vec, TfidfModel, Word2Vec
 from gensim.models.doc2vec import TaggedDocument
 from gensim.models.phrases import Phraser, Phrases
 
+from udao.udao.data.utils.utils import TrainedFeatureExtractor
+
 
 @dataclass
 class Word2VecParams:
@@ -395,7 +397,7 @@ def extract_operations(
     return plan_to_ops, operations_list
 
 
-class EmbeddingExtractor:
+class EmbeddingExtractor(TrainedFeatureExtractor):
     """Class to extract embeddings from a DataFrame of query plans."""
 
     def __init__(
@@ -414,7 +416,7 @@ class EmbeddingExtractor:
         self.embedder = embedder
         self.op_preprocessing = op_preprocessing
 
-    def extract_features(self, df: pd.DataFrame, split: str) -> pd.DataFrame:
+    def extract_features(self, df: pd.DataFrame, split: str) -> Dict[str, pd.DataFrame]:
         """Extract embeddings from a DataFrame of query plans.
 
         Parameters
@@ -430,6 +432,7 @@ class EmbeddingExtractor:
         pd.DataFrame
             DataFrame containing the embeddings of each operation of the query plans.
         """
+
         plan_to_operations, operations_list = extract_operations(
             df, self.op_preprocessing
         )
@@ -451,4 +454,4 @@ class EmbeddingExtractor:
         emb_df = emb_df.drop(columns=["embeddings"])
         emb_df["operation_id"] = emb_df.groupby("plan_id").cumcount()
         emb_df = emb_df.set_index(["plan_id", "operation_id"])
-        return emb_df
+        return {"embeddings": emb_df}
