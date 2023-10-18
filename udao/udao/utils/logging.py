@@ -1,5 +1,6 @@
 """Provides a logger object for the udao library."""
 import logging
+import sys
 
 
 def _get_logger(name: str = "udao", level: int = logging.DEBUG) -> logging.Logger:
@@ -20,7 +21,7 @@ def _get_logger(name: str = "udao", level: int = logging.DEBUG) -> logging.Logge
     _logger = logging.getLogger(name)
     _logger.setLevel(logging.WARNING)
 
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(level)
     log_format = (
         "%(asctime)s - [%(levelname)s] - %(name)s - "

@@ -8,9 +8,8 @@ import dgl
 import networkx as nx
 import pandas as pd
 from networkx.algorithms import isomorphism
-from tqdm import tqdm
 
-tqdm.pandas()
+from .utils import PandasTypes
 
 
 def format_size(size: str) -> float:
@@ -317,8 +316,9 @@ class StructureExtractor:
         self.feature_types: Dict[
             str, type
         ] = QueryPlanOperationFeatures.get_feature_names_and_types()
+        self.id_template_dict: Dict[str, int] = {}
 
-    def extract_structure_and_features(self, query_plan: str) -> Dict:
+    def _extract_structure_and_features(self, idx: str, query_plan: str) -> Dict:
         """Extract the features of the operations in the logical plan,
         and the tree structure of the logical plan.
 
@@ -345,11 +345,10 @@ class StructureExtractor:
                 break
 
         if tid is None:
-            tid = len(self.template_plans)
+            tid = len(self.template_plans) + 1
             self.template_plans[tid] = structure
-
+        self.id_template_dict[idx] = tid
         return {
-            "template_id": tid,
             "operation_id": features.operation_ids,
             **features.features_dict,
         }
@@ -370,20 +369,19 @@ class StructureExtractor:
             Dataframe with one row per operation in the query plans,
             and one column per feature of the operations.
         """
-        df_features = (
-            df["plan"]
-            .progress_apply(
-                lambda plan: self.extract_structure_and_features(plan),
-            )
-            .apply(pd.Series)
-        )
+        df_features: pd.DataFrame = df.apply(
+            lambda row: self._extract_structure_and_features(row.id, row.plan),
+            axis=1,
+        ).apply(pd.Series)
         df_features["plan_id"] = df["id"]
+
         expanded_df = df_features.explode("operation_id", ignore_index=True)
         for feature_name in self.feature_types.keys():
-            print(feature_name)
-            expanded_df[feature_name] = expanded_df[feature_name].explode(
-                ignore_index=True
-            )
-        expanded_df = expanded_df.set_index(["plan_id", "template_id", "operation_id"])
+            expanded_df[feature_name] = (
+                expanded_df[feature_name]
+                .explode(ignore_index=True)  # type: ignore
+                .astype(PandasTypes[self.feature_types[feature_name]])
+            )  # convert to pandas type
+        expanded_df = expanded_df.set_index(["plan_id", "operation_id"])
 
         return expanded_df

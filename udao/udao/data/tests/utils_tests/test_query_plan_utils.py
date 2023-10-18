@@ -80,10 +80,10 @@ def df_fixture() -> pd.DataFrame:
         plan_1 = json.load(f)["query_plan"]
     with open(base_dir / "sample_plan_2.json", "r") as f:
         plan_2 = json.load(f)["query_plan"]
-    return pd.DataFrame.from_dict(
+    input_df = pd.DataFrame.from_dict(
         {
             "id": [1, 2, 3],
-            "tid": [0, 1, 0],
+            "tid": [1, 2, 1],
             "plan": [
                 plan_1,
                 plan_2,
@@ -91,6 +91,7 @@ def df_fixture() -> pd.DataFrame:
             ],
         }
     )
+    return input_df
 
 
 class TestStructureExtractor:
@@ -100,10 +101,28 @@ class TestStructureExtractor:
 
     def test_structures_match_templates(self, df_fixture: pd.DataFrame) -> None:
         extractor = StructureExtractor()
-        for row in df_fixture[["tid", "plan"]].itertuples():
-            s_dict = extractor.extract_structure_and_features(row.plan)
-            assert s_dict["template_id"] == row.tid
-            assert (
-                type(extractor.template_plans[s_dict["template_id"]])
-                == QueryPlanStructure
-            )
+        for row in df_fixture.itertuples():
+            s_dict = extractor._extract_structure_and_features(row.id, row.plan)
+            assert set(s_dict.keys()) == {
+                "operation_id",
+                *extractor.feature_types.keys(),
+            }
+        for plan in extractor.template_plans.values():
+            assert type(plan) == QueryPlanStructure
+        assert len(extractor.template_plans) == 2
+        assert extractor.id_template_dict == {1: 1, 2: 2, 3: 1}
+
+    def test_extract_structure_from_df_returns_correct_shape(
+        self, df_fixture: pd.DataFrame
+    ) -> None:
+        extractor = StructureExtractor()
+        df_features = extractor.extract_features(df_fixture)
+        multi_index = pd.MultiIndex.from_tuples(
+            [
+                [row.id, i]
+                for row in df_fixture.itertuples()
+                for i, _ in enumerate(row.plan.splitlines())
+            ],
+            names=["plan_id", "operation_id"],
+        )
+        assert (multi_index == df_features.index).all()
