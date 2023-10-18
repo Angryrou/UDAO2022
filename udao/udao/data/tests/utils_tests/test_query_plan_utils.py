@@ -125,4 +125,4 @@ class TestStructureExtractor:
             ],
             names=["plan_id", "operation_id"],
         )
-        assert (multi_index == df_features.index).all()
+        assert (multi_index == df_features["graph_features"].index).all()

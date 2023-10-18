@@ -2,14 +2,14 @@ import re
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, fields
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import dgl
 import networkx as nx
 import pandas as pd
 from networkx.algorithms import isomorphism
 
-from .utils import PandasTypes
+from .utils import PandasTypes, StaticFeatureExtractor
 
 
 def format_size(size: str) -> float:
@@ -304,7 +304,7 @@ def extract_query_plan_features(
     return structure, features
 
 
-class StructureExtractor:
+class StructureExtractor(StaticFeatureExtractor):
     """
     Extracts the features of the operations in the logical plan,
     and the tree structure of the logical plan.
@@ -353,7 +353,7 @@ class StructureExtractor:
             **features.features_dict,
         }
 
-    def extract_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    def extract_features(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Extract the features of the operations in the logical plan,
         and the tree structure of the logical plan for each query plan
         in the dataframe.
@@ -384,4 +384,8 @@ class StructureExtractor:
             )  # convert to pandas type
         expanded_df = expanded_df.set_index(["plan_id", "operation_id"])
 
-        return expanded_df
+        return {
+            "graph_features": expanded_df,
+            "template_plans": self.template_plans,
+            "key_to_template": self.id_template_dict,
+        }

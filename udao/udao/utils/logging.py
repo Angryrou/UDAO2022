@@ -19,19 +19,19 @@ def _get_logger(name: str = "udao", level: int = logging.DEBUG) -> logging.Logge
         logger object to call for logging
     """
     _logger = logging.getLogger(name)
-    _logger.setLevel(logging.WARNING)
+    _logger.setLevel(level)
+    if not _logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(level)
+        log_format = (
+            "%(asctime)s - [%(levelname)s] - %(name)s - "
+            "(%(filename)s:%(lineno)d) - "
+            "%(message)s"
+        )
+        formatter = logging.Formatter(log_format)
+        handler.setFormatter(formatter)
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(level)
-    log_format = (
-        "%(asctime)s - [%(levelname)s] - %(name)s - "
-        "(%(filename)s:%(lineno)d) - "
-        "%(message)s"
-    )
-    formatter = logging.Formatter(log_format)
-    handler.setFormatter(formatter)
-
-    _logger.addHandler(handler)
+        _logger.addHandler(handler)
     return _logger
 
 

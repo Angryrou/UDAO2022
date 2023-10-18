@@ -1,11 +1,39 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Type, Union
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
 PandasTypes = {float: "float64", int: "int64", str: "object"}
+
 DatasetType = Literal["train", "val", "test"]
+
+
+class TrainedFeatureExtractor(ABC):
+    trained: bool = True
+
+    def __init__(self) -> None:
+        pass
+
+    @abstractmethod
+    def extract_features(self, df: pd.DataFrame, split: DatasetType) -> Dict[str, Any]:
+        pass
+
+
+class StaticFeatureExtractor(ABC):
+    trained: bool = False
+
+    def __init__(self) -> None:
+        pass
+
+    @abstractmethod
+    def extract_features(self, df: pd.DataFrame) -> Dict[str, Any]:
+        pass
+
+
+FeatureExtractorType = Union[
+    Type[TrainedFeatureExtractor], Type[StaticFeatureExtractor]
+]
 
 
 def train_test_val_split_on_column(
@@ -26,26 +54,3 @@ def train_test_val_split_on_column(
         "test": test_df,
     }
     return df_dict
-
-
-class BaseFeatureExtractor(ABC):
-    trained: Optional[bool] = None
-
-    def __init_subclass__(cls) -> None:
-        # This enforces that child classes have these attributes set
-        if cls.trained is None:
-            raise NotImplementedError("Child classes must define is_fitted")
-
-
-class TrainedFeatureExtractor(BaseFeatureExtractor, ABC):
-    @abstractmethod
-    def extract_features(self, df: pd.DataFrame, split: DatasetType) -> Dict[str, Any]:
-        pass
-
-
-class StaticFeatureExtractor(BaseFeatureExtractor, ABC):
-    trained: bool = False
-
-    @abstractmethod
-    def extract_features(self, df: pd.DataFrame) -> Dict[str, Any]:
-        pass
