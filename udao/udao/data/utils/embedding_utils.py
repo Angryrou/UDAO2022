@@ -11,7 +11,7 @@ from gensim.models import Doc2Vec, TfidfModel, Word2Vec
 from gensim.models.doc2vec import TaggedDocument
 from gensim.models.phrases import Phraser, Phrases
 
-from udao.udao.data.utils.utils import TrainedFeatureExtractor
+from .utils import TrainedFeatureExtractor
 
 
 @dataclass
