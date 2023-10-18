@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, Optional
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -29,7 +29,7 @@ def train_test_val_split_on_column(
 
 
 class BaseFeatureExtractor(ABC):
-    trained: bool = False
+    trained: Optional[bool] = None
 
     def __init_subclass__(cls) -> None:
         # This enforces that child classes have these attributes set
