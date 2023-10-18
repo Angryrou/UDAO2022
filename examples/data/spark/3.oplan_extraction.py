@@ -87,6 +87,7 @@ except:
     df_tr, _, _ = get_csvs_tr_val_te(templates, src_path_header, cache_header, seed)
     ofeats = np.concatenate([v[df_tr.loc[f"q{1}"].q_sign.apply(lambda x: int(x.split("-")[1])).values].reshape(-1, 4)
                              for k, v in ofeat_dict.items()], axis=0)
+    # min and max are computed from the training set
     minmax = {"min": ofeats.min(0), "max": ofeats.max(0)}
     PickleUtils.save({
         "ofeat_dict": ofeat_dict,

@@ -1,6 +1,9 @@
-from typing import List, Optional, Sequence, Tuple
+import re
+from collections import defaultdict
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+import pandas as pd
 from attr import dataclass
 from gensim.corpora import Dictionary
 from gensim.models import Doc2Vec, TfidfModel, Word2Vec
@@ -47,7 +50,7 @@ class Word2VecEmbedder:
     - set the number of workers to 1
     """
 
-    def __init__(self, w2v_params: Word2VecParams):
+    def __init__(self, w2v_params: Optional[Word2VecParams] = None) -> None:
         """Initialize the Word2VecEmbedder
 
         Parameters
@@ -56,6 +59,8 @@ class Word2VecEmbedder:
             Parameters to pass to the gensim.Word2Vec model
             (ref: https://radimrehurek.com/gensim/models/word2vec.html)
         """
+        if w2v_params is None:
+            w2v_params = Word2VecParams()
         self.w2v_params = w2v_params
         self.w2v_model = Word2Vec(
             min_count=w2v_params.min_count,
@@ -91,14 +96,14 @@ class Word2VecEmbedder:
         )
 
     def fit_transform(
-        self, training_plans: Sequence[str], epochs: Optional[int] = None
+        self, training_texts: Sequence[str], epochs: Optional[int] = None
     ) -> np.ndarray:
-        """Train the Word2Vec model on the training plans and return the embeddings.
+        """Train the Word2Vec model on the training texts and return the embeddings.
 
         Parameters
         ----------
-        training_plans : Sequence[str]
-            list of training plans
+        training_texts : Sequence[str]
+            list of training texts
         epochs : int, optional
             number of epochs for training the model, by default will use the value
             in the Word2VecParams.
@@ -110,7 +115,7 @@ class Word2VecEmbedder:
         """
         if epochs is None:
             epochs = self.w2v_params.epochs
-        training_sentences = [row.split() for row in training_plans]
+        training_sentences = [row.split() for row in training_texts]
         phrases = Phrases(training_sentences, min_count=30)  # Extract parameter
         self._bigram_model = Phraser(phrases)
         training_descriptions = self._bigram_model[training_sentences]
@@ -130,13 +135,13 @@ class Word2VecEmbedder:
         # print(f"get {len(self.tfidf.idfs)} words from tfidf")
         return self._get_encodings_from_corpus(bow_corpus=bow_corpus)
 
-    def transform(self, plans: Sequence[str]) -> np.ndarray:
+    def transform(self, texts: Sequence[str]) -> np.ndarray:
         """Transform a list of query plans into embeddings.
 
         Parameters
         ----------
-        plans : Sequence[str]
-            list of query plans
+        texts : Sequence[str]
+            list of texts to transform
         epochs : int, optional
             number of epochs for infering a document's embedding,
             by default will use the value in the Word2VecParams.
@@ -151,7 +156,7 @@ class Word2VecEmbedder:
         ValueError
             If the model has not been trained
         """
-        sentences = [row.split() for row in plans]
+        sentences = [row.split() for row in texts]
         if self._bigram_model is None:
             raise ValueError("Must call fit_transform before calling transform")
         descriptions = self._bigram_model[sentences]
@@ -176,7 +181,7 @@ class Doc2VecEmbedder:
     - set the number of workers to 1
     """
 
-    def __init__(self, d2v_params: Doc2VecParams) -> None:
+    def __init__(self, d2v_params: Optional[Doc2VecParams] = None) -> None:
         """Initialize the Doc2VecEmbedder
 
         Parameters
@@ -185,6 +190,8 @@ class Doc2VecEmbedder:
             Parameters to pass to the gensim.Doc2Vec model
             (ref: https://radimrehurek.com/gensim/models/doc2vec.html)
         """
+        if d2v_params is None:
+            d2v_params = Doc2VecParams()
         self.d2v_params = d2v_params
         self.d2v_model = Doc2Vec(
             min_count=d2v_params.min_count,
@@ -199,17 +206,19 @@ class Doc2VecEmbedder:
         )
         self._is_trained = False
 
-    def _prepare_corpus(self, plans: Sequence[str]) -> List[TaggedDocument]:
+    def _prepare_corpus(self, texts: Sequence[str], /) -> List[TaggedDocument]:
         """Transform strings into a list of TaggedDocument
 
         a TaggedDocument consists in a list of tokens and a tag
         (here the index of the plan)
         """
-        tokens_list = list(map(lambda x: x.split(), plans))
+        tokens_list = list(map(lambda x: x.split(), texts))
         corpus = [TaggedDocument(d, [i]) for i, d in enumerate(tokens_list)]
         return corpus
 
-    def fit(self, training_plans: Sequence[str], epochs: Optional[int] = None) -> None:
+    def fit(
+        self, training_texts: Sequence[str], /, epochs: Optional[int] = None
+    ) -> None:
         """Train the Doc2Vec model on the training plans
 
         Parameters
@@ -227,7 +236,7 @@ class Doc2VecEmbedder:
         """
         if epochs is None:
             epochs = self.d2v_params.epochs
-        corpus = self._prepare_corpus(training_plans)
+        corpus = self._prepare_corpus(training_texts)
         self.d2v_model.build_vocab(corpus)
         self.d2v_model.train(
             corpus, total_examples=self.d2v_model.corpus_count, epochs=epochs
@@ -235,7 +244,7 @@ class Doc2VecEmbedder:
         self._is_trained = True
 
     def transform(
-        self, plans: Sequence[str], epochs: Optional[int] = None
+        self, texts: Sequence[str], /, epochs: Optional[int] = None
     ) -> np.ndarray:
         """Transform a list of query plans into normalized embeddings.
 
@@ -260,10 +269,117 @@ class Doc2VecEmbedder:
         if epochs is None:
             epochs = self.d2v_params.epochs
         if not self._is_trained:
-            raise ValueError("Must call fit before calling transform")
+            raise ValueError("Must call fit_transform before calling transform")
         encodings = [
-            self.d2v_model.infer_vector(doc.split(), epochs=epochs) for doc in plans
+            self.d2v_model.infer_vector(doc.split(), epochs=epochs) for doc in texts
         ]
         norms = np.linalg.norm(encodings, axis=1)
         # normalize the embeddings
         return encodings / norms[..., np.newaxis]
+
+    def fit_transform(
+        self, training_texts: Sequence[str], /, epochs: Optional[int] = None
+    ) -> np.ndarray:
+        self.fit(training_texts, epochs)
+        return self.transform(training_texts, epochs)
+
+
+def remove_statistics(s: str) -> str:
+    """Remove statistical information from a query plan
+    (in the form of Statistics(...)
+    """
+    pattern = r"\bStatistics\([^)]+\)"
+    # Remove statistical information
+    s = re.sub(pattern, "", s)
+    return s
+
+
+def remove_hashes(s: str) -> str:
+    """Remove hashes from a query plan, e.g. #1234L"""
+    # Replace hashes with a placeholder or remove them
+    return re.sub(r"#[0-9]+[L]*", "", s)
+
+
+def brief_clean(s: str) -> str:
+    """Remove special characters from a string and convert to lower case"""
+    return re.sub(r"[^0-9A-Za-z\'_.]+", " ", s).lower()
+
+
+def replace_symbols(s: str) -> str:
+    """Replace symbols with tokens"""
+    return (
+        s.replace(" >= ", " GE ")
+        .replace(" <= ", " LE ")
+        .replace(" == ", " EQ")
+        .replace(" = ", " EQ ")
+        .replace(" > ", " GT ")
+        .replace(" < ", " LT ")
+        .replace(" != ", " NEQ ")
+        .replace(" + ", " rADD ")
+        .replace(" - ", " rMINUS ")
+        .replace(" / ", " rDIV ")
+        .replace(" * ", " rMUL ")
+    )
+
+
+def remove_duplicate_spaces(s: str) -> str:
+    return " ".join(s.split())
+
+
+def prepare_operation(operation: str) -> str:
+    """Prepare an operation for embedding by keeping only
+    relevant semantic information"""
+    processings: List[Callable[[str], str]] = [
+        remove_statistics,
+        remove_hashes,
+        replace_symbols,
+        brief_clean,
+        remove_duplicate_spaces,
+    ]
+    for processing in processings:
+        operation = processing(operation)
+    return operation
+
+
+def extract_operations(
+    plan_df: pd.DataFrame, operation_processing: Callable[[str], str] = lambda x: x
+) -> Tuple[Dict[int, List[int]], List[str]]:
+    """Extract unique operations from a DataFrame of
+    query plans and links them to query plans.
+    Operations are transformed using prepare_operation
+    to remove statistical information and hashes.
+
+    Parameters
+    ----------
+    plan_df : pd.DataFrame
+        DataFrame containing the query plans and their ids.
+
+    operation_processing : Callable[[str], str]
+        Function to process the operations, by default no processing will be applied
+        and the raw operations will be used.
+
+    Returns
+    -------
+    Tuple[Dict[int, List[int]], List[str]]
+        plan_to_ops: Dict[int, List[int]]
+            Links a query plan ID to a list of operation IDs in the operations list
+        operations_list: List[str]
+            List of unique operations in the dataset
+    """
+    df = plan_df[["id", "plan"]].copy()
+
+    df["plan"] = df["plan"].apply(
+        lambda plan: [operation_processing(op) for op in plan.splitlines()]  # type: ignore
+    )
+    df = df.explode("plan", ignore_index=True)
+    df.rename(columns={"plan": "operation"}, inplace=True)
+
+    # Build a dictionary of unique operations and their IDs
+    unique_ops: Dict[str, int] = defaultdict(lambda: len(unique_ops))
+    plan_to_ops: Dict[int, List[int]] = defaultdict(list)
+    for row in df.itertuples():
+        plan_to_ops[row.id].append(unique_ops[row.operation])
+
+    operations_list = list(unique_ops.keys())
+
+    return plan_to_ops, operations_list
