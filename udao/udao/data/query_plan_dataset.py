@@ -3,14 +3,14 @@ from typing import Dict, Sequence
 import dgl
 import pandas as pd
 import torch as th
-from tqdm import tqdm
 
 from udao.udao.data.dataset import BaseDatasetIterator, DataHandlerParams
-from udao.udao.data.utils.embedding_utils import EmbeddingExtractor, Word2VecEmbedder
+from udao.udao.data.utils.embedding_utils import (
+    QueryEmbeddingExtractor,
+    Word2VecEmbedder,
+)
 
-from .utils.query_plan_utils import QueryPlanStructure, StructureExtractor
-
-tqdm.pandas()
+from .utils.query_plan_utils import QueryPlanStructure, QueryStructureExtractor
 
 
 class QueryPlanIterator(BaseDatasetIterator):
@@ -37,7 +37,6 @@ class QueryPlanIterator(BaseDatasetIterator):
     def __getitem__(self, idx: int) -> dgl.DGLGraph:
         key = self.keys[idx]
         graph = self._get_graph(key)
-        print(self.graph_features.loc[key].dtypes)
         graph.ndata["cbo"] = th.tensor(self.graph_features.loc[key].values)
         graph.ndata["op_encs"] = th.tensor(self.embeddings.loc[key].values)
         return graph
@@ -46,8 +45,8 @@ class QueryPlanIterator(BaseDatasetIterator):
 queryPlanDataHandlerParams = DataHandlerParams(
     index_column="id",
     feature_extractors=[
-        (StructureExtractor, []),
-        (EmbeddingExtractor, [Word2VecEmbedder()]),
+        (QueryStructureExtractor, []),
+        (QueryEmbeddingExtractor, [Word2VecEmbedder()]),
     ],
     target_Iterator=QueryPlanIterator,
     path="data/LQP.csv",

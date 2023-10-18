@@ -304,7 +304,7 @@ def extract_query_plan_features(
     return structure, features
 
 
-class StructureExtractor(StaticFeatureExtractor):
+class QueryStructureExtractor(StaticFeatureExtractor):
     """
     Extracts the features of the operations in the logical plan,
     and the tree structure of the logical plan.

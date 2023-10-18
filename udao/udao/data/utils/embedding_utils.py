@@ -397,7 +397,7 @@ def extract_operations(
     return plan_to_ops, operations_list
 
 
-class EmbeddingExtractor(TrainedFeatureExtractor):
+class QueryEmbeddingExtractor(TrainedFeatureExtractor):
     """Class to extract embeddings from a DataFrame of query plans."""
 
     def __init__(

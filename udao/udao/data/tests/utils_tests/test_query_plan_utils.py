@@ -8,7 +8,7 @@ import pytest
 from ...utils.query_plan_utils import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,
-    StructureExtractor,
+    QueryStructureExtractor,
     extract_query_plan_features,
     format_size,
 )
@@ -96,11 +96,11 @@ def df_fixture() -> pd.DataFrame:
 
 class TestStructureExtractor:
     def test_structure_extractor_has_feature_types(self) -> None:
-        extractor = StructureExtractor()
+        extractor = QueryStructureExtractor()
         assert extractor.feature_types == {"rows_count": float, "size": float}
 
     def test_structures_match_templates(self, df_fixture: pd.DataFrame) -> None:
-        extractor = StructureExtractor()
+        extractor = QueryStructureExtractor()
         for row in df_fixture.itertuples():
             s_dict = extractor._extract_structure_and_features(row.id, row.plan)
             assert set(s_dict.keys()) == {
@@ -115,7 +115,7 @@ class TestStructureExtractor:
     def test_extract_structure_from_df_returns_correct_shape(
         self, df_fixture: pd.DataFrame
     ) -> None:
-        extractor = StructureExtractor()
+        extractor = QueryStructureExtractor()
         df_features = extractor.extract_features(df_fixture)
         multi_index = pd.MultiIndex.from_tuples(
             [
