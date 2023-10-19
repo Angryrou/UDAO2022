@@ -32,53 +32,55 @@ class BaseDatasetIterator(Dataset):
 
 @dataclass
 class DataHandlerParams:
-    """DataHandlerParams class to store the parameters of the DataHandler.
+    index_column: str
+    """Column that should be used as index (unique identifier)"""
 
-    Parameters
-    ----------
-    index_column : str
-        Column that should be used as index (unique identifier)
-    feature_extractors : List[Tuple[FeatureExtractorType, Any]]
-        List of tuples of the form (Extractor, args) where Extractor
+    feature_extractors: List[Tuple[FeatureExtractorType, Any]]
+    """List of tuples of the form (Extractor, args) where Extractor
         implements FeatureExtractor and args are the arguments to be passed
         at initialization.
+
         If Extractor is a StaticFeatureExtractor, the features are extracted
         independently of the split.
-        If Extractor is a TrainedFeatureExtractor, the extractor is first fitted
-        on the train split and then applied to the other splits.
-    target_Iterator : Type[BaseDatasetIterator]
-        Iterator class to be returned after feature extraction.
-        It is assumed that the iterator class takes the keys and the features
-        extracted by the feature extractors as arguments.
-    dryrun : bool, optional
-        Dry run mode for fast computation on a large dataset (sampling of a
-        small portion), by default False
-    stratify_on : Optional[str], optional
-        Column on which to stratify the split
-        (keeping proportions for each split)
-        If None, no stratification is performed
-    val_frac : float, optional
-        Fraction allotted to the validation set, by default 0.2
-    test_frac : float, optional
-            Fraction allotted to the test set, by default 0.1
-    random_state : Optional[int], optional
-        Random state for reproducibility, by default None
-    """
 
-    index_column: str
-    feature_extractors: List[Tuple[FeatureExtractorType, Any]]
+        If Extractor is a TrainedFeatureExtractor, the extractor is first fitted
+        on the train split and then applied to the other splits."""
+
     Iterator: Type[BaseDatasetIterator]
+    """Iterator class to be returned after feature extraction.
+        It is assumed that the iterator class takes the keys and the features
+        extracted by the feature extractors as arguments."""
     stratify_on: Optional[str] = None
+    """Column on which to stratify the split, by default None.
+    If None, no stratification is performed."""
+
     val_frac: float = 0.2
+    """Column on which to stratify the split
+        (keeping proportions for each split)
+        If None, no stratification is performed"""
+
     test_frac: float = 0.1
+    """Fraction allotted to the validation set, by default 0.2"""
+
     dryrun: bool = False
+    """Dry run mode for fast computation on a large dataset (sampling of a
+        small portion), by default False"""
+
     random_state: Optional[int] = None
+    """Random state for reproducibility, by default None"""
 
 
 class DataHandler:
     """
     DataHandler class to handle data loading, splitting, feature extraction and
     dataset iterator creation.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Dataframe containing the data.
+    params : DataHandlerParams
+        DataHandlerParams object containing the parameters of the DataHandler.
     """
 
     @classmethod
@@ -109,15 +111,6 @@ class DataHandler:
         data: pd.DataFrame,
         params: DataHandlerParams,
     ) -> None:
-        """Initialize DataHandler.
-
-        Parameters
-        ----------
-        data : pd.DataFrame
-            Dataframe containing the data.
-        params : DataHandlerParams
-            DataHandlerParams object containing the parameters of the DataHandler.
-        """
         self.dryrun = params.dryrun
         self.index_column = params.index_column
         self.feature_extractors = params.feature_extractors
@@ -204,6 +197,13 @@ class DataHandler:
         return self
 
     def get_iterators(self) -> Dict[DatasetType, BaseDatasetIterator]:
+        """Return a dictionary of iterators for the different splits of the data.
+
+        Returns
+        -------
+        Dict[DatasetType, BaseDatasetIterator]
+            Dictionary of iterators for the different splits of the data.
+        """
         if not self.features:
             logger.warning("No features extracted yet. Extracting features now.")
             self.extract_features()

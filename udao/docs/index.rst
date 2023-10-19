@@ -26,7 +26,6 @@ UDAO
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:
    :special-members: __init__, __call__
 
 
@@ -38,8 +37,6 @@ Datasets
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:
-   :special-members: __init__, __call__
 
 Logging
 =======
