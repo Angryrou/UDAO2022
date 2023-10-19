@@ -11,10 +11,8 @@ from udao.data.utils.query_plan_utils import QueryPlanStructure
 def sample_iterator() -> QueryPlanIterator:
     """Builds a sample QueryPlanIterator, with 3 graphs from 2 templates."""
     keys = ["a", "b", "c"]
-    # Define the multi-index
     arrays = [["a", "a", "b", "b", "b", "c", "c"], [0, 1, 0, 1, 2, 0, 1]]
     multi_index = pd.MultiIndex.from_arrays(arrays, names=("plan_id", "operation_id"))
-    # Create the DataFrame
 
     graph_features = pd.DataFrame(
         data=np.vstack([np.linspace(i, i + 1, 2) for i in range(7)]),
