@@ -27,14 +27,15 @@ class QueryPlanIterator(BaseDatasetIterator):
         return len(self.keys)
 
     def _get_graph(self, key: str) -> dgl.DGLGraph:
-        return self.template_plans[self.key_to_template[key]].graph.clone()
+        graph = self.template_plans[self.key_to_template[key]].graph.clone()
+        graph.ndata["cbo"] = th.tensor(self.graph_features.loc[key].values)
+        graph.ndata["op_encs"] = th.tensor(self.embeddings.loc[key].values)
+
+        return graph
 
     def __getitem__(self, idx: int) -> dgl.DGLGraph:
         key = self.keys[idx]
-        graph = self._get_graph(key)
-        graph.ndata["cbo"] = th.tensor(self.graph_features.loc[key].values)
-        graph.ndata["op_encs"] = th.tensor(self.embeddings.loc[key].values)
-        return graph
+        return self._get_graph(key)
 
 
 queryPlanDataHandlerParams = DataHandlerParams(

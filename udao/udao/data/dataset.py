@@ -25,10 +25,15 @@ class BaseDatasetIterator(Dataset):
     def __init__(self, keys, *args, **kwargs):  # type: ignore
         pass
 
+    @abstractmethod
+    def __len__(self) -> int:
+        pass
+
 
 @dataclass
 class DataHandlerParams:
     """DataHandlerParams class to store the parameters of the DataHandler.
+
     Parameters
     ----------
     index_column : str

@@ -94,8 +94,23 @@ class TestDataHandler:
     def test_extract_feature_raises_error(
         self, df_fixture: Tuple[pd.DataFrame, DataHandlerParams]
     ) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+        ):
             df, params = df_fixture
-            params.feature_extractors = []
             dh = DataHandler(df, params)
             dh.extract_features()
+
+    def test_get_iterators(
+        self, df_fixture: Tuple[pd.DataFrame, DataHandlerParams]
+    ) -> None:
+        df, params = df_fixture
+        dh = DataHandler(df, params)
+        dh.split_data().extract_features()
+        iterators = dh.get_iterators()
+        assert len(iterators) == 3
+        assert all(isinstance(it, params.Iterator) for it in iterators.values())
+        assert all(
+            len(it) == len(dh.features[split]["feature_frame"])
+            for split, it in iterators.items()
+        )
