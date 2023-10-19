@@ -59,11 +59,13 @@ def train_test_val_split_on_column(
         df,
         test_size=val_frac + test_frac,
         stratify=df[groupby_col] if groupby_col else None,
+        random_state=random_state,
     )
     test_df, val_df = train_test_split(
         non_train_df,
         test_size=test_frac / (val_frac + test_frac),
         stratify=non_train_df[groupby_col] if groupby_col else None,
+        random_state=random_state,
     )
     df_dict: Dict[DatasetType, pd.DataFrame] = {
         "train": train_df,
