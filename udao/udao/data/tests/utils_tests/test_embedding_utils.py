@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-
-from ...utils.embedding_utils import (
+from udao.data.utils.embedding_utils import (
     Doc2VecEmbedder,
     Doc2VecParams,
     Word2VecEmbedder,

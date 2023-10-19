@@ -10,8 +10,7 @@ from gensim.corpora import Dictionary
 from gensim.models import Doc2Vec, TfidfModel, Word2Vec
 from gensim.models.doc2vec import TaggedDocument
 from gensim.models.phrases import Phraser, Phrases
-
-from .utils import TrainedFeatureExtractor
+from udao.data.utils.utils import TrainedFeatureExtractor
 
 
 @dataclass

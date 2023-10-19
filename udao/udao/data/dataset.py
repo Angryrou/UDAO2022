@@ -5,18 +5,14 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 import pandas as pd
 from attr import dataclass
 from torch.utils.data import Dataset
-from tqdm import tqdm
-
-from ..utils.logging import logger
-from .utils.utils import (
+from udao.data.utils.utils import (
     DatasetType,
     FeatureExtractorType,
     StaticFeatureExtractor,
     TrainedFeatureExtractor,
     train_test_val_split_on_column,
 )
-
-tqdm.pandas()
+from udao.utils.logging import logger
 
 
 class BaseDatasetIterator(Dataset):
@@ -30,71 +26,154 @@ class BaseDatasetIterator(Dataset):
         pass
 
 
+@dataclass
+class DataHandlerParams:
+    index_column: str
+    feature_extractors: List[Tuple[FeatureExtractorType, Any]]
+    Iterator: Type[BaseDatasetIterator]
+    stratify_on: Optional[str] = None
+    val_frac: float = 0.2
+    test_frac: float = 0.1
+    dryrun: bool = False
+    random_state: Optional[int] = None
+
+
 class DataHandler:
     """
     DataHandler class to handle data loading, splitting, feature extraction and
     dataset iterator creation.
     """
 
+    @classmethod
+    def from_csv(  # type: ignore
+        cls,
+        csv_path: str,
+        *args,  # type: ignore
+        **kwargs,  # type: ignore
+    ) -> "DataHandler":
+        """Initialize DataHandler from csv.
+
+        Parameters
+        ----------
+        csv_path : str
+            Path to the data file.
+        args : Any
+            Arguments to be passed to the DataHandler constructor.
+        kwargs : Any
+            Keyword arguments to be passed to the DataHandler constructor.
+        Returns
+        -------
+        DataHandler
+            Initialized DataHandler object.
+        """
+        return cls(
+            pd.read_csv(csv_path),
+            *args,
+            **kwargs,
+        )
+
     def __init__(
         self,
-        path: str,
+        data: pd.DataFrame,
         index_column: str,
         feature_extractors: List[Tuple[FeatureExtractorType, Any]],
-        target_Iterator: Type[BaseDatasetIterator],
+        Iterator: Type[BaseDatasetIterator],
         dryrun: bool = False,
-    ) -> None:
-        self.dryrun = dryrun
-        self.index_column = index_column
-        self.full_df = self._load_data(path)
-        self.index_splits: Dict[DatasetType, List[str]] = {}
-        self.features: Dict[DatasetType, Dict] = defaultdict(dict)
-        self.feature_extractors = feature_extractors
-        self.target_Iterator = target_Iterator
-
-    def _load_data(self, path: str, index_column: str = "id") -> pd.DataFrame:
-        full_df = pd.read_csv(path)
-        if self.dryrun:
-            full_df = full_df.sample(5000)
-        full_df.set_index(self.index_column, inplace=True, drop=False)
-
-        return full_df
-
-    def split_data(
-        self,
         stratify_on: Optional[str] = None,
         val_frac: float = 0.2,
         test_frac: float = 0.1,
+        random_state: Optional[int] = None,
+    ) -> None:
+        """Initialize DataHandler.
+
+        Parameters
+        ----------
+        csv_path : str
+            Path to the data file.
+        index_column : str
+            Column that should be used as index (unique identifier)
+        feature_extractors : List[Tuple[FeatureExtractorType, Any]]
+            List of tuples of the form (Extractor, args) where Extractor
+            implements FeatureExtractor and args are the arguments to be passed
+            at initialization.
+            If Extractor is a StaticFeatureExtractor, the features are extracted
+            independently of the split.
+            If Extractor is a TrainedFeatureExtractor, the extractor is first fitted
+            on the train split and then applied to the other splits.
+        target_Iterator : Type[BaseDatasetIterator]
+            Iterator class to be returned after feature extraction.
+            It is assumed that the iterator class takes the keys and the features
+            extracted by the feature extractors as arguments.
+        dryrun : bool, optional
+            Dry run mode for fast computation on a large dataset (sampling of a
+            small portion), by default False
+        stratify_on : Optional[str], optional
+            Column on which to stratify the split
+            (keeping proportions for each split)
+            If None, no stratification is performed
+        val_frac : float, optional
+            Fraction allotted to the validation set, by default 0.2
+        test_frac : float, optional
+             Fraction allotted to the test set, by default 0.1
+        random_state : Optional[int], optional
+            Random state for reproducibility, by default None
+
+        """
+        self.dryrun = dryrun
+        self.index_column = index_column
+        self.full_df = data
+        if self.dryrun:
+            self.full_df = self.full_df.sample(frac=0.1)
+        self.full_df.set_index(self.index_column, inplace=True, drop=False)
+
+        self.index_splits: Dict[DatasetType, List[str]] = {}
+        self.features: Dict[DatasetType, Dict] = defaultdict(dict)
+        self.feature_extractors = feature_extractors
+        self.Iterator = Iterator
+        self.stratify_on = stratify_on
+        self.val_frac = val_frac
+        self.test_frac = test_frac
+        self.random_state = random_state
+
+    def split_data(
+        self,
     ) -> "DataHandler":
-        if self.full_df is None:
-            raise ValueError("Data not loaded yet.")
-        if stratify_on is None:
-            stratify_on = self.index_column
+        """Split the data into train, test and validation sets,
+        split indices are stored in self.index_splits.
+
+        Returns
+        -------
+        DataHandler
+            set
+        """
+
         df_splits = train_test_val_split_on_column(
-            self.full_df, stratify_on, val_frac=val_frac, test_frac=test_frac
+            self.full_df,
+            self.stratify_on,
+            val_frac=self.val_frac,
+            test_frac=self.test_frac,
+            random_state=self.random_state,
         )
         self.index_splits = {
             split: df.index.to_list() for split, df in df_splits.items()
         }
         return self
 
-    def get_iterators(self) -> Dict[DatasetType, BaseDatasetIterator]:
-        """Get iterators for the different splits of the data.
+    def extract_features(self) -> "DataHandler":
+        """Extract features for the different splits of the data.
 
         Returns
         -------
-        Dict[DatasetType, BaseDatasetIterator]
-            _description_
+        DataHandler
+            self
 
         Raises
         ------
         ValueError
-            _description_
-        ValueError
-            _description_
+            Expects data to be split before extracting features.
         """
-        if self.full_df is None:
-            raise ValueError("Data not loaded yet.")
+        if not self.index_splits:
+            raise ValueError("Data not split yet.")
         for Extractor, args in self.feature_extractors:
             if issubclass(Extractor, StaticFeatureExtractor):
                 logger.info(
@@ -123,22 +202,13 @@ class DataHandler:
                     f"Extractor {Extractor.__name__} not supported. Should implement"
                     " either StaticFeatureExtractor or TrainedFeatureExtractor."
                 )
+        return self
 
+    def get_iterators(self) -> Dict[DatasetType, BaseDatasetIterator]:
+        if not self.features:
+            logger.warning("No features extracted yet. Extracting features now.")
+            self.extract_features()
         return {
-            split: self.target_Iterator(
-                self.index_splits[split], **self.features[split]
-            )
+            split: self.Iterator(self.index_splits[split], **self.features[split])
             for split in self.index_splits
         }
-
-
-@dataclass
-class DataHandlerParams:
-    index_column: str
-    feature_extractors: List[Tuple[FeatureExtractorType, Any]]
-    target_Iterator: Type[BaseDatasetIterator]
-    path: str
-    stratify_on: Optional[str]
-    val_frac: float = 0.2
-    test_frac: float = 0.1
-    dryrun: bool = False

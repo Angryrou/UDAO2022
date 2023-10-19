@@ -3,14 +3,9 @@ from typing import Dict, Sequence
 import dgl
 import pandas as pd
 import torch as th
-
-from udao.udao.data.dataset import BaseDatasetIterator, DataHandlerParams
-from udao.udao.data.utils.embedding_utils import (
-    QueryEmbeddingExtractor,
-    Word2VecEmbedder,
-)
-
-from .utils.query_plan_utils import QueryPlanStructure, QueryStructureExtractor
+from udao.data.dataset import BaseDatasetIterator, DataHandlerParams
+from udao.data.utils.embedding_utils import QueryEmbeddingExtractor, Word2VecEmbedder
+from udao.data.utils.query_plan_utils import QueryPlanStructure, QueryStructureExtractor
 
 
 class QueryPlanIterator(BaseDatasetIterator):
@@ -48,7 +43,6 @@ queryPlanDataHandlerParams = DataHandlerParams(
         (QueryStructureExtractor, []),
         (QueryEmbeddingExtractor, [Word2VecEmbedder()]),
     ],
-    target_Iterator=QueryPlanIterator,
-    path="data/LQP.csv",
+    Iterator=QueryPlanIterator,
     stratify_on="tid",
 )

@@ -4,8 +4,7 @@ from typing import Tuple
 
 import pandas as pd
 import pytest
-
-from ...utils.query_plan_utils import (
+from udao.data.utils.query_plan_utils import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,
     QueryStructureExtractor,
