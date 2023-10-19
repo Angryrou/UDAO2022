@@ -62,17 +62,15 @@ class Word2VecEmbedder(BaseEmbedder):
     - set the seed in the Word2VecParams
     - set the PYTHONHASHSEED
     - set the number of workers to 1
+
+    Parameters
+    ----------
+    w2v_params : Word2VecParams
+        Parameters to pass to the gensim.Word2Vec model
+        (ref: https://radimrehurek.com/gensim/models/word2vec.html)
     """
 
     def __init__(self, w2v_params: Optional[Word2VecParams] = None) -> None:
-        """Initialize the Word2VecEmbedder
-
-        Parameters
-        ----------
-        w2v_params : Word2VecParams
-            Parameters to pass to the gensim.Word2Vec model
-            (ref: https://radimrehurek.com/gensim/models/word2vec.html)
-        """
         if w2v_params is None:
             w2v_params = Word2VecParams()
         self.w2v_params = w2v_params
@@ -193,17 +191,15 @@ class Doc2VecEmbedder(BaseEmbedder):
     - set the seed in the Doc2VecParams
     - set the PYTHONHASHSEED
     - set the number of workers to 1
+
+    Parameters
+    ----------
+    d2v_params : Doc2VecParams
+        Parameters to pass to the gensim.Doc2Vec model
+        (ref: https://radimrehurek.com/gensim/models/doc2vec.html)
     """
 
     def __init__(self, d2v_params: Optional[Doc2VecParams] = None) -> None:
-        """Initialize the Doc2VecEmbedder
-
-        Parameters
-        ----------
-        d2v_params : Doc2VecParams
-            Parameters to pass to the gensim.Doc2Vec model
-            (ref: https://radimrehurek.com/gensim/models/doc2vec.html)
-        """
         if d2v_params is None:
             d2v_params = Doc2VecParams()
         self.d2v_params = d2v_params
@@ -397,21 +393,20 @@ def extract_operations(
 
 
 class QueryEmbeddingExtractor(TrainedFeatureExtractor):
-    """Class to extract embeddings from a DataFrame of query plans."""
+    """Class to extract embeddings from a DataFrame of query plans.
+
+    Parameters
+    ----------
+    embedder : BaseEmbedder
+        Embedder to use to extract the embeddings,
+        e.g. an instance of Word2Vecembedder.
+    """
 
     def __init__(
         self,
         embedder: BaseEmbedder,
         op_preprocessing: Callable[[str], str] = prepare_operation,
     ) -> None:
-        """Initialize the EmbeddingExtractor
-
-        Parameters
-        ----------
-        embedder : BaseEmbedder
-            Embedder to use to extract the embeddings,
-            e.g. an instance of Word2Vecembedder.
-        """
         self.embedder = embedder
         self.op_preprocessing = op_preprocessing
 

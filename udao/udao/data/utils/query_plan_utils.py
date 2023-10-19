@@ -57,23 +57,24 @@ class QueryPlanOperationFeatures:
 
 
 class QueryPlanStructure:
+    """Generate a graph from the tree structure of the logical plan.
+
+    Parameters
+    ----------
+    node_names : List[str]
+        list of the names of the nodes in the graph
+    incoming_ids : List[int]
+        For each edge i, incoming_ids[i] is the id of the source node
+    outgoing_ids : List[int]
+        for each edge i, outgoing_ids[i] is the id of the destination node
+    """
+
     def __init__(
         self,
         node_names: List[str],
         incoming_ids: List[int],
         outgoing_ids: List[int],
     ) -> None:
-        """Generate a graph from the tree structure of the logical plan.
-
-        Parameters
-        ----------
-        node_names : List[str]
-            list of the names of the nodes in the graph
-        incoming_ids : List[int]
-            For each edge i, incoming_ids[i] is the id of the source node
-        outgoing_ids : List[int]
-            for each edge i, outgoing_ids[i] is the id of the destination node
-        """
         self.incoming_ids = incoming_ids
         self.outgoing_ids = outgoing_ids
         self.node_id2name = {i: n for i, n in enumerate(node_names)}
@@ -109,18 +110,17 @@ class QueryPlanStructure:
 
 
 class _LogicalOperation:
-    """Describes an operation in the logical plan, with associated features."""
+    """Describes an operation in the logical plan, with associated features.
+
+    Parameters
+    ----------
+    id : int
+        id of the operation in the query plan (one id per line in the plan)
+    value : str
+        text of the operation (line in the string representation of the plan)
+    """
 
     def __init__(self, id: int, value: str) -> None:
-        """Generate a logical operation from the logical plan, with its id and text.
-
-        Parameters
-        ----------
-        id : int
-            id of the operation in the query plan (one id per line in the plan)
-        value : str
-            text of the operation (line in the string representation of the plan)
-        """
         self.id: int = id
         self.value: str = value
         self._rank: Optional[float] = None
