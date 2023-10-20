@@ -51,7 +51,7 @@ class QueryPlanIterator(BaseDatasetIterator):
         associated with features as th.tensor"""
         graph = self.template_plans[self.key_to_template[key]].graph.clone()
         graph.ndata["cbo"] = th.tensor(self.graph_features.loc[key].values)
-        graph.ndata["op_encs"] = th.tensor(self.embeddings.loc[key].values)
+        graph.ndata["op_emb"] = th.tensor(self.embeddings.loc[key].values)
         return graph
 
     def __getitem__(self, idx: int) -> dgl.DGLGraph:
