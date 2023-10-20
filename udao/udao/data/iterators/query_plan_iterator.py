@@ -2,8 +2,7 @@ from typing import Sequence
 
 import dgl
 import torch as th
-from udao.data.containers.query_embedding_container import DataFrameContainer
-from udao.data.containers.query_structure_container import QueryStructureContainer
+from udao.data.containers import DataFrameContainer, QueryStructureContainer
 
 from .base_iterator import BaseDatasetIterator
 
@@ -17,8 +16,7 @@ class QueryPlanIterator(BaseDatasetIterator):
     keys : Sequence[str]
         Keys of the dataset, used for accessing all features
     query_structure_container : QueryStructureContainer
-        Wrapper around the graph structure and the features
-        for each query plan
+        Wrapper around the graph structure and the features for each query plan
     query_embeddings_container : DataFrameContainer
         Wrapper around the DataFrame containing the embeddings
         of each operation of the query plans.

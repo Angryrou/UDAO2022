@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Type, Union
 
 import pandas as pd
-from udao.data.containers.base_container import BaseContainer
+from udao.data.containers import BaseContainer
 from udao.data.utils.utils import DatasetType
 
 

@@ -1,7 +1,7 @@
 from typing import Dict
 
 import pandas as pd
-from udao.data.containers.query_structure_container import QueryStructureContainer
+from udao.data.containers import QueryStructureContainer
 from udao.data.utils.query_plan import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,

@@ -1,7 +1,7 @@
 from typing import Callable
 
 import pandas as pd
-from udao.data.containers.query_embedding_container import DataFrameContainer
+from udao.data.containers import DataFrameContainer
 from udao.data.embedders import BaseEmbedder
 from udao.data.embedders.utils import extract_operations, prepare_operation
 

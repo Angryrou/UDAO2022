@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pandas as pd
 from attr import dataclass
-from udao.data.containers.base_container import BaseContainer
+from udao.data.containers import BaseContainer
 from udao.data.extractors import (
     FeatureExtractorType,
     StaticFeatureExtractor,

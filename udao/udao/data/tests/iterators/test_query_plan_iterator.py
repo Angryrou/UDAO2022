@@ -3,8 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch as th
-from udao.data.containers.query_embedding_container import DataFrameContainer
-from udao.data.containers.query_structure_container import QueryStructureContainer
+from udao.data.containers import DataFrameContainer, QueryStructureContainer
 from udao.data.iterators import QueryPlanIterator
 from udao.data.utils.query_plan import QueryPlanStructure
 

@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import List
 
 from torch.utils.data import Dataset
-from udao.data.containers.base_container import BaseContainer
+from udao.data.containers import BaseContainer
 
 
 class BaseDatasetIterator(Dataset):
