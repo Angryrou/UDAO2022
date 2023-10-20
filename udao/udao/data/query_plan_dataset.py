@@ -3,9 +3,10 @@ from typing import Dict, Sequence
 import dgl
 import pandas as pd
 import torch as th
-from udao.data.dataset import BaseDatasetIterator, DataHandlerParams
-from udao.data.utils.embedding_utils import QueryEmbeddingExtractor, Word2VecEmbedder
-from udao.data.utils.query_plan_utils import QueryPlanStructure, QueryStructureExtractor
+
+from .dataset import BaseDatasetIterator, DataHandlerParams
+from .utils.embedding_utils import QueryEmbeddingExtractor, Word2VecEmbedder
+from .utils.query_plan_utils import QueryPlanStructure, QueryStructureExtractor
 
 
 class QueryPlanIterator(BaseDatasetIterator):

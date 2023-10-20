@@ -8,7 +8,8 @@ import dgl
 import networkx as nx
 import pandas as pd
 from networkx.algorithms import isomorphism
-from udao.data.utils.utils import PandasTypes, StaticFeatureExtractor
+
+from ...data.utils.utils import PandasTypes, StaticFeatureExtractor
 
 
 def format_size(size: str) -> float:
