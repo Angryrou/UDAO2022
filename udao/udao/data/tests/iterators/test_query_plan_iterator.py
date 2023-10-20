@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch as th
-from udao.data.query_plan_dataset import QueryPlanIterator
-from udao.data.utils.query_plan_utils import QueryPlanStructure
+from udao.data.iterators import QueryPlanIterator
+from udao.data.utils.query_plan import QueryPlanStructure
 
 
 @pytest.fixture

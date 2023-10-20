@@ -3,9 +3,9 @@ from typing import Dict, Sequence
 import dgl
 import pandas as pd
 import torch as th
-from udao.data.dataset import BaseDatasetIterator, DataHandlerParams
-from udao.data.utils.embedding_utils import QueryEmbeddingExtractor, Word2VecEmbedder
-from udao.data.utils.query_plan_utils import QueryPlanStructure, QueryStructureExtractor
+from udao.data.utils.query_plan import QueryPlanStructure
+
+from .base_iterator import BaseDatasetIterator
 
 
 class QueryPlanIterator(BaseDatasetIterator):
@@ -58,6 +58,7 @@ class QueryPlanIterator(BaseDatasetIterator):
         return self._get_graph(key)
 
 
+"""
 queryPlanDataHandlerParams = DataHandlerParams(
     index_column="id",
     feature_extractors=[
@@ -67,3 +68,4 @@ queryPlanDataHandlerParams = DataHandlerParams(
     Iterator=QueryPlanIterator,
     stratify_on="tid",
 )
+"""

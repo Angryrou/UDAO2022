@@ -3,47 +3,31 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to UDAO's documentation!
-================================
+===============================
+UDAO Documentation
+===============================
+
+Welcome to the UDAO documentation! Here you'll find comprehensive information on how to use the UDAO library.
+
+Contents:
+---------
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: User Guide:
+
+   user_guide/introduction
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference:
+
+   api_reference/index
 
 
-
-Indices and tables
-==================
+Indices and tables:
+-------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-UDAO
-====
-
-.. automodule:: udao
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__, __call__
-
-
-
-Datasets
-========
-
-.. automodule:: udao.data.dataset
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Logging
-=======
-
-.. automodule:: udao.utils.logging
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :private-members:
-   :special-members: __init__, __call__

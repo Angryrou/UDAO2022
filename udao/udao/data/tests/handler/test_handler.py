@@ -4,9 +4,10 @@ from typing import Tuple
 
 import pandas as pd
 import pytest
-from udao.data.dataset import DataHandler, DataHandlerParams
-from udao.data.tabular_dataset import TabularIterator
-from udao.data.utils.utils import TabularFeatureExtractor
+from udao.data.extractors import TabularFeatureExtractor
+from udao.data.handler import DataHandler
+from udao.data.handler.data_handler import DataHandlerParams
+from udao.data.iterators import TabularIterator
 
 
 def random_string(length: int) -> str:

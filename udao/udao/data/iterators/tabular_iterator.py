@@ -1,7 +1,8 @@
 from typing import Any, Sequence
 
 import pandas as pd
-from udao.data.dataset import BaseDatasetIterator
+
+from .base_iterator import BaseDatasetIterator
 
 
 class TabularIterator(BaseDatasetIterator):

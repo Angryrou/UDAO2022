@@ -1,33 +1,16 @@
-from abc import abstractmethod
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pandas as pd
 from attr import dataclass
-from torch.utils.data import Dataset
-from udao.data.utils.utils import (
-    DatasetType,
+from udao.data.extractors import (
     FeatureExtractorType,
     StaticFeatureExtractor,
     TrainedFeatureExtractor,
-    train_test_val_split_on_column,
 )
+from udao.data.iterators import BaseDatasetIterator
+from udao.data.utils.utils import DatasetType, train_test_val_split_on_column
 from udao.utils.logging import logger
-
-
-class BaseDatasetIterator(Dataset):
-    """Dummy Base class for all dataset iterators.
-    Inherits from torch.utils.data.Dataset.
-    Defined to allow for type hinting and having an __init__ method.
-    """
-
-    @abstractmethod
-    def __init__(self, keys, *args, **kwargs):  # type: ignore
-        pass
-
-    @abstractmethod
-    def __len__(self) -> int:
-        pass
 
 
 @dataclass
