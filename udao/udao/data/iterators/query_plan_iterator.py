@@ -1,9 +1,9 @@
-from typing import Dict, Sequence
+from typing import Sequence
 
 import dgl
-import pandas as pd
 import torch as th
-from udao.data.utils.query_plan import QueryPlanStructure
+from udao.data.containers.query_embedding_container import DataFrameContainer
+from udao.data.containers.query_structure_container import QueryStructureContainer
 
 from .base_iterator import BaseDatasetIterator
 
@@ -31,16 +31,12 @@ class QueryPlanIterator(BaseDatasetIterator):
     def __init__(
         self,
         keys: Sequence[str],
-        graph_features: pd.DataFrame,
-        embeddings: pd.DataFrame,
-        template_plans: Dict[int, QueryPlanStructure],
-        key_to_template: Dict[str, int],
+        query_structure_container: QueryStructureContainer,
+        query_embeddings_container: DataFrameContainer,
     ):
         self.keys = keys
-        self.key_to_template = key_to_template
-        self.graph_features = graph_features
-        self.embeddings = embeddings
-        self.template_plans = template_plans
+        self.query_structure_container = query_structure_container
+        self.query_embeddings_container = query_embeddings_container
 
     def __len__(self) -> int:
         return len(self.keys)
@@ -48,9 +44,10 @@ class QueryPlanIterator(BaseDatasetIterator):
     def _get_graph(self, key: str) -> dgl.DGLGraph:
         """Returns the graph corresponding to the key,
         associated with features as th.tensor"""
-        graph = self.template_plans[self.key_to_template[key]].graph.clone()
-        graph.ndata["cbo"] = th.tensor(self.graph_features.loc[key].values)
-        graph.ndata["op_encs"] = th.tensor(self.embeddings.loc[key].values)
+        graph, graph_features = self.query_structure_container.get(key)
+        embeddings = self.query_embeddings_container.get(key)
+        graph.ndata["cbo"] = th.tensor(graph_features)
+        graph.ndata["op_encs"] = th.tensor(embeddings)
         return graph
 
     def __getitem__(self, idx: int) -> dgl.DGLGraph:
@@ -61,10 +58,10 @@ class QueryPlanIterator(BaseDatasetIterator):
 """
 queryPlanDataHandlerParams = DataHandlerParams(
     index_column="id",
-    feature_extractors=[
-        (QueryStructureExtractor, []),
-        (QueryEmbeddingExtractor, [Word2VecEmbedder()]),
-    ],
+    feature_extractors={
+        "query_structure_extractor": (QueryStructureExtractor, []),
+        "query_embedding_extractor": (QueryEmbeddingExtractor, [Word2VecEmbedder()]),
+    },
     Iterator=QueryPlanIterator,
     stratify_on="tid",
 )

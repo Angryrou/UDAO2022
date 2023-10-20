@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch as th
+from udao.data.containers.query_embedding_container import DataFrameContainer
+from udao.data.containers.query_structure_container import QueryStructureContainer
 from udao.data.iterators import QueryPlanIterator
 from udao.data.utils.query_plan import QueryPlanStructure
 
@@ -30,15 +32,20 @@ def sample_iterator() -> QueryPlanIterator:
         1: QueryPlanStructure(["node_1", "node_2"], [0], [1]),
         2: QueryPlanStructure(["node_1", "node_2", "node_3"], [0, 1], [1, 2]),
     }
+    structure_container = QueryStructureContainer(
+        graph_features, template_plans, key_to_template
+    )
     return QueryPlanIterator(
-        keys, graph_features, embeddings_features, template_plans, key_to_template
+        keys, structure_container, DataFrameContainer(embeddings_features)
     )
 
 
 class TestQueryPlanIterator:
     def test_len(self, sample_iterator: QueryPlanIterator) -> None:
         assert len(sample_iterator) == len(sample_iterator.keys)
-        assert len(sample_iterator) == len(sample_iterator.key_to_template)
+        assert len(sample_iterator) == len(
+            sample_iterator.query_structure_container.key_to_template
+        )
 
     def test_get_item(self, sample_iterator: QueryPlanIterator) -> None:
         first_sample = sample_iterator[0]

@@ -1,6 +1,7 @@
-from typing import Callable, Dict
+from typing import Callable
 
 import pandas as pd
+from udao.data.containers.query_embedding_container import DataFrameContainer
 from udao.data.embedders import BaseEmbedder
 from udao.data.embedders.utils import extract_operations, prepare_operation
 
@@ -25,7 +26,7 @@ class QueryEmbeddingExtractor(TrainedFeatureExtractor):
         self.embedder = embedder
         self.op_preprocessing = op_preprocessing
 
-    def extract_features(self, df: pd.DataFrame, split: str) -> Dict[str, pd.DataFrame]:
+    def extract_features(self, df: pd.DataFrame, split: str) -> DataFrameContainer:
         """Extract embeddings from a DataFrame of query plans.
 
         Parameters
@@ -63,4 +64,4 @@ class QueryEmbeddingExtractor(TrainedFeatureExtractor):
         emb_df = emb_df.drop(columns=["embeddings"])
         emb_df["operation_id"] = emb_df.groupby("plan_id").cumcount()
         emb_df = emb_df.set_index(["plan_id", "operation_id"])
-        return {"embeddings": emb_df}
+        return DataFrameContainer(emb_df)

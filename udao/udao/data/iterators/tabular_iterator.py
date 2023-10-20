@@ -1,6 +1,6 @@
 from typing import Any, Sequence
 
-import pandas as pd
+from udao.data.containers.query_embedding_container import DataFrameContainer
 
 from .base_iterator import BaseDatasetIterator
 
@@ -9,14 +9,14 @@ class TabularIterator(BaseDatasetIterator):
     def __init__(
         self,
         keys: Sequence[str],
-        feature_frame: pd.DataFrame,
+        dataframe_container: DataFrameContainer,
     ):
         self.keys = keys
-        self.feature_frame = feature_frame
+        self.dataframe_container = dataframe_container
 
     def __len__(self) -> int:
         return len(self.keys)
 
     def __getitem__(self, idx: int) -> Any:
         key = self.keys[idx]
-        return self.feature_frame.loc[key].values
+        return self.dataframe_container.get(key)

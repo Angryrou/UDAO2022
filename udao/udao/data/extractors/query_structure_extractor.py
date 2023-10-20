@@ -1,6 +1,7 @@
-from typing import Any, Dict
+from typing import Dict
 
 import pandas as pd
+from udao.data.containers.query_structure_container import QueryStructureContainer
 from udao.data.utils.query_plan import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,
@@ -60,7 +61,7 @@ class QueryStructureExtractor(StaticFeatureExtractor):
             **features.features_dict,
         }
 
-    def extract_features(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def extract_features(self, df: pd.DataFrame) -> QueryStructureContainer:
         """Extract the features of the operations in the logical plan,
         and the tree structure of the logical plan for each query plan
         in the dataframe.
@@ -91,8 +92,8 @@ class QueryStructureExtractor(StaticFeatureExtractor):
             )  # convert to pandas type
         expanded_df = expanded_df.set_index(["plan_id", "operation_id"])
 
-        return {
-            "graph_features": expanded_df,
-            "template_plans": self.template_plans,
-            "key_to_template": self.id_template_dict,
-        }
+        return QueryStructureContainer(
+            graph_features=expanded_df,
+            template_plans=self.template_plans,
+            key_to_template=self.id_template_dict,
+        )

@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Type, Union
+from typing import Type, Union
 
 import pandas as pd
+from udao.data.containers.base_container import BaseContainer
 from udao.data.utils.utils import DatasetType
 
 
@@ -12,7 +13,7 @@ class TrainedFeatureExtractor(ABC):
         pass
 
     @abstractmethod
-    def extract_features(self, df: pd.DataFrame, split: DatasetType) -> Dict[str, Any]:
+    def extract_features(self, df: pd.DataFrame, split: DatasetType) -> BaseContainer:
         pass
 
 
@@ -23,7 +24,7 @@ class StaticFeatureExtractor(ABC):
         pass
 
     @abstractmethod
-    def extract_features(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def extract_features(self, df: pd.DataFrame) -> BaseContainer:
         pass
 
 

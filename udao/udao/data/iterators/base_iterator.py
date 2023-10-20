@@ -1,6 +1,8 @@
 from abc import abstractmethod
+from typing import List
 
 from torch.utils.data import Dataset
+from udao.data.containers.base_container import BaseContainer
 
 
 class BaseDatasetIterator(Dataset):
@@ -10,7 +12,7 @@ class BaseDatasetIterator(Dataset):
     """
 
     @abstractmethod
-    def __init__(self, keys, *args, **kwargs):  # type: ignore
+    def __init__(self, keys, *args: List[BaseContainer]):  # type: ignore
         pass
 
     @abstractmethod

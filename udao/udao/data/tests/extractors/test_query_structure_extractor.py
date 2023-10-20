@@ -45,7 +45,8 @@ class TestStructureExtractor:
         self, df_fixture: pd.DataFrame
     ) -> None:
         extractor = QueryStructureExtractor()
-        df_features = extractor.extract_features(df_fixture)
+        structure_container = extractor.extract_features(df_fixture)
+
         multi_index = pd.MultiIndex.from_tuples(
             [
                 [row.id, i]
@@ -54,4 +55,4 @@ class TestStructureExtractor:
             ],
             names=["plan_id", "operation_id"],
         )
-        assert (multi_index == df_features["graph_features"].index).all()
+        assert (multi_index == structure_container.graph_features.index).all()
