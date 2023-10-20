@@ -7,6 +7,8 @@ from .base_container import BaseContainer
 
 @dataclass
 class DataFrameContainer(BaseContainer):
+    """Container for a pandas DataFrame"""
+
     df: pd.DataFrame
     """Embeddings for each operation.
     MultiIndex (plan, operation)"""

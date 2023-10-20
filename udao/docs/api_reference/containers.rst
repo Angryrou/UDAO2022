@@ -13,8 +13,8 @@ Query Structure Container
    :members:
    :show-inheritance:
 
-Tabular Container
------------------
-.. automodule:: data.containers.tabular_container
+Dataframe Container
+-------------------
+.. automodule:: data.containers.dataframe_container
    :members:
    :show-inheritance:

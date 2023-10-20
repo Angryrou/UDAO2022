@@ -11,6 +11,8 @@ from .base_container import BaseContainer
 
 @dataclass
 class QueryStructureContainer(BaseContainer):
+    """Container for the query structure and features of a query plan."""
+
     graph_features: pd.DataFrame
     """Operation features (typically rows_count, size).
         MultiIndex (plan, operation)"""
