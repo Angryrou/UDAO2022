@@ -38,10 +38,10 @@ class QueryPlanIterator(BaseDatasetIterator):
         key_to_template: Dict[str, int],
     ):
         self.keys = keys
-        self.key_to_template = key_to_template
         self.graph_features = graph_features
         self.embeddings = embeddings
         self.template_plans = template_plans
+        self.key_to_template = key_to_template
 
     def __len__(self) -> int:
         return len(self.keys)
