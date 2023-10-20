@@ -16,16 +16,12 @@ class QueryPlanIterator(BaseDatasetIterator):
     ----------
     keys : Sequence[str]
         Keys of the dataset, used for accessing all features
-    graph_features : pd.DataFrame
-        Operation features (typically rows_count, size).
-        MultiIndex (plan, operation)
-    embeddings : pd.DataFrame
-        Embeddings for each operation.
-        MultiIndex (plan, operation)
-    template_plans : Dict[int, QueryPlanStructure]
-        Link a template id to a QueryPlanStructure
-    key_to_template : Dict[str, int]
-        Link a key to a template id.
+    query_structure_container : QueryStructureContainer
+        Wrapper around the graph structure and the features
+        for each query plan
+    query_embeddings_container : DataFrameContainer
+        Wrapper around the DataFrame containing the embeddings
+        of each operation of the query plans.
     """
 
     def __init__(
