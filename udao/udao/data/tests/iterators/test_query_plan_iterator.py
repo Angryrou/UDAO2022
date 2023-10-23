@@ -61,6 +61,6 @@ class TestQueryPlanIterator:
             graph.ndata["cbo"], th.tensor([np.linspace(i, i + 1, 2) for i in range(2)])  # type: ignore
         )
         assert th.equal(
-            graph.ndata["op_encs"],  # type: ignore
+            graph.ndata["op_emb"],  # type: ignore
             th.tensor([np.linspace(i, i + 1, 10) for i in range(2)]),
         )

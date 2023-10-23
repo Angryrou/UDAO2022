@@ -41,7 +41,7 @@ class QueryPlanIterator(BaseDatasetIterator):
         graph, graph_features = self.query_structure_container.get(key)
         embeddings = self.query_embeddings_container.get(key)
         graph.ndata["cbo"] = th.tensor(graph_features)
-        graph.ndata["op_encs"] = th.tensor(embeddings)
+        graph.ndata["op_emb"] = th.tensor(embeddings)
         return graph
 
     def __getitem__(self, idx: int) -> dgl.DGLGraph:
