@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
-from udao.data.embedders.utils import extract_operations, prepare_operation
+
+from ...embedders.utils import extract_operations, prepare_operation
 
 
 @pytest.mark.parametrize(

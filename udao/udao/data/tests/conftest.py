@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
-from udao.data.utils.query_plan import (
+
+from ..utils.query_plan import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,
     format_size,

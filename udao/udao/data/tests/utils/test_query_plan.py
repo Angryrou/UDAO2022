@@ -1,8 +1,9 @@
 from typing import Any
 
 import pytest
-from udao.data.tests.conftest import QueryPlanElements
-from udao.data.utils.query_plan import extract_query_plan_features
+
+from ...utils.query_plan import extract_query_plan_features
+from ..conftest import QueryPlanElements
 
 
 # Define a custom fixture to handle both sample plans

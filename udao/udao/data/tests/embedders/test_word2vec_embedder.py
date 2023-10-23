@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
-from udao.data.embedders import Word2VecEmbedder, Word2VecParams
+
+from ...embedders import Word2VecEmbedder, Word2VecParams
 
 
 @pytest.fixture

@@ -2,8 +2,8 @@ from typing import Sequence
 
 import dgl
 import torch as th
-from udao.data.containers import DataFrameContainer, QueryStructureContainer
 
+from ..containers import DataFrameContainer, QueryStructureContainer
 from .base_iterator import BaseDatasetIterator
 
 

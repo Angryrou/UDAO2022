@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch as th
-from udao.data.containers import DataFrameContainer, QueryStructureContainer
-from udao.data.iterators import QueryPlanIterator
-from udao.data.utils.query_plan import QueryPlanStructure
+
+from ...containers import DataFrameContainer, QueryStructureContainer
+from ...iterators import QueryPlanIterator
+from ...utils.query_plan import QueryPlanStructure
 
 
 @pytest.fixture

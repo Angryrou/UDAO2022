@@ -1,8 +1,8 @@
 from typing import Callable
 
 import pandas as pd
-from udao.data.containers import DataFrameContainer
 
+from ..containers import DataFrameContainer
 from .base_extractors import StaticFeatureExtractor
 
 

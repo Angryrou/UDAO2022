@@ -4,8 +4,8 @@ import dgl
 import numpy as np
 import pandas as pd
 from attr import dataclass
-from udao.data.utils.query_plan import QueryPlanStructure
 
+from ..utils.query_plan import QueryPlanStructure
 from .base_container import BaseContainer
 
 

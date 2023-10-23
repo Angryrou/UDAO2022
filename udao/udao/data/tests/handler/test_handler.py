@@ -4,11 +4,12 @@ from typing import Dict, Tuple
 
 import pandas as pd
 import pytest
-from udao.data.extractors import TabularFeatureExtractor
-from udao.data.handler import DataHandler
-from udao.data.handler.data_handler import DataHandlerParams
-from udao.data.iterators import TabularIterator
-from udao.data.utils.utils import DatasetType
+
+from ...extractors import TabularFeatureExtractor
+from ...handler import DataHandler
+from ...handler.data_handler import DataHandlerParams
+from ...iterators import TabularIterator
+from ...utils.utils import DatasetType
 
 
 def random_string(length: int) -> str:

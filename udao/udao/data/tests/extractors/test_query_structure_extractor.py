@@ -1,8 +1,9 @@
 import pandas as pd
 import pytest
-from udao.data.extractors import QueryStructureExtractor
-from udao.data.tests.conftest import QueryPlanElements
-from udao.data.utils.query_plan import QueryPlanStructure
+
+from ...extractors import QueryStructureExtractor
+from ...utils.query_plan import QueryPlanStructure
+from ..conftest import QueryPlanElements
 
 
 @pytest.fixture

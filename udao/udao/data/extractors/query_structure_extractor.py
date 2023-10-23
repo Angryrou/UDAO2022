@@ -1,14 +1,14 @@
 from typing import Dict
 
 import pandas as pd
-from udao.data.containers import QueryStructureContainer
-from udao.data.utils.query_plan import (
+
+from ..containers import QueryStructureContainer
+from ..utils.query_plan import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,
     extract_query_plan_features,
 )
-from udao.data.utils.utils import PandasTypes
-
+from ..utils.utils import PandasTypes
 from .base_extractors import StaticFeatureExtractor
 
 

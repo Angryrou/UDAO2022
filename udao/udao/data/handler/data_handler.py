@@ -3,15 +3,16 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pandas as pd
 from attr import dataclass
-from udao.data.containers import BaseContainer
-from udao.data.extractors import (
+
+from ...utils.logging import logger
+from ..containers import BaseContainer
+from ..extractors import (
     FeatureExtractorType,
     StaticFeatureExtractor,
     TrainedFeatureExtractor,
 )
-from udao.data.iterators import BaseDatasetIterator
-from udao.data.utils.utils import DatasetType, train_test_val_split_on_column
-from udao.utils.logging import logger
+from ..iterators import BaseDatasetIterator
+from ..utils.utils import DatasetType, train_test_val_split_on_column
 
 
 @dataclass

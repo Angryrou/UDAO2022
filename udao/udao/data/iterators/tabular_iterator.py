@@ -1,7 +1,6 @@
 from typing import Any, Sequence
 
-from udao.data.containers import DataFrameContainer
-
+from ..containers import DataFrameContainer
 from .base_iterator import BaseDatasetIterator
 
 

@@ -1,10 +1,10 @@
 from typing import Callable
 
 import pandas as pd
-from udao.data.containers import DataFrameContainer
-from udao.data.embedders import BaseEmbedder
-from udao.data.embedders.utils import extract_operations, prepare_operation
 
+from ..containers import DataFrameContainer
+from ..embedders import BaseEmbedder
+from ..embedders.utils import extract_operations, prepare_operation
 from .base_extractors import TrainedFeatureExtractor
 
 
