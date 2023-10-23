@@ -2,11 +2,14 @@ import re
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, fields
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import dgl
 import networkx as nx
+import pandas as pd
 from networkx.algorithms import isomorphism
+
+from ...data.utils.utils import PandasTypes, StaticFeatureExtractor
 
 
 def format_size(size: str) -> float:
@@ -55,23 +58,24 @@ class QueryPlanOperationFeatures:
 
 
 class QueryPlanStructure:
+    """Generate a graph from the tree structure of the logical plan.
+
+    Parameters
+    ----------
+    node_names : List[str]
+        list of the names of the nodes in the graph
+    incoming_ids : List[int]
+        For each edge i, incoming_ids[i] is the id of the source node
+    outgoing_ids : List[int]
+        for each edge i, outgoing_ids[i] is the id of the destination node
+    """
+
     def __init__(
         self,
         node_names: List[str],
         incoming_ids: List[int],
         outgoing_ids: List[int],
     ) -> None:
-        """Generate a graph from the tree structure of the logical plan.
-
-        Parameters
-        ----------
-        node_names : List[str]
-            list of the names of the nodes in the graph
-        incoming_ids : List[int]
-            For each edge i, incoming_ids[i] is the id of the source node
-        outgoing_ids : List[int]
-            for each edge i, outgoing_ids[i] is the id of the destination node
-        """
         self.incoming_ids = incoming_ids
         self.outgoing_ids = outgoing_ids
         self.node_id2name = {i: n for i, n in enumerate(node_names)}
@@ -107,18 +111,17 @@ class QueryPlanStructure:
 
 
 class _LogicalOperation:
-    """Describes an operation in the logical plan, with associated features."""
+    """Describes an operation in the logical plan, with associated features.
+
+    Parameters
+    ----------
+    id : int
+        id of the operation in the query plan (one id per line in the plan)
+    value : str
+        text of the operation (line in the string representation of the plan)
+    """
 
     def __init__(self, id: int, value: str) -> None:
-        """Generate a logical operation from the logical plan, with its id and text.
-
-        Parameters
-        ----------
-        id : int
-            id of the operation in the query plan (one id per line in the plan)
-        value : str
-            text of the operation (line in the string representation of the plan)
-        """
         self.id: int = id
         self.value: str = value
         self._rank: Optional[float] = None
@@ -301,7 +304,7 @@ def extract_query_plan_features(
     return structure, features
 
 
-class StructureExtractor:
+class QueryStructureExtractor(StaticFeatureExtractor):
     """
     Extracts the features of the operations in the logical plan,
     and the tree structure of the logical plan.
@@ -313,8 +316,9 @@ class StructureExtractor:
         self.feature_types: Dict[
             str, type
         ] = QueryPlanOperationFeatures.get_feature_names_and_types()
+        self.id_template_dict: Dict[str, int] = {}
 
-    def extract_structure_and_features(self, query_plan: str) -> Dict:
+    def _extract_structure_and_features(self, idx: str, query_plan: str) -> Dict:
         """Extract the features of the operations in the logical plan,
         and the tree structure of the logical plan.
 
@@ -343,9 +347,45 @@ class StructureExtractor:
         if tid is None:
             tid = len(self.template_plans) + 1
             self.template_plans[tid] = structure
-
+        self.id_template_dict[idx] = tid
         return {
-            "template_id": tid,
             "operation_id": features.operation_ids,
             **features.features_dict,
+        }
+
+    def extract_features(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Extract the features of the operations in the logical plan,
+        and the tree structure of the logical plan for each query plan
+        in the dataframe.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Dataframe with a column "plan" containing the query plans.
+
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with one row per operation in the query plans,
+            and one column per feature of the operations.
+        """
+        df_features: pd.DataFrame = df.apply(
+            lambda row: self._extract_structure_and_features(row.id, row.plan),
+            axis=1,
+        ).apply(pd.Series)
+        df_features["plan_id"] = df["id"]
+
+        expanded_df = df_features.explode("operation_id", ignore_index=True)
+        for feature_name in self.feature_types.keys():
+            expanded_df[feature_name] = (
+                expanded_df[feature_name]
+                .explode(ignore_index=True)  # type: ignore
+                .astype(PandasTypes[self.feature_types[feature_name]])
+            )  # convert to pandas type
+        expanded_df = expanded_df.set_index(["plan_id", "operation_id"])
+
+        return {
+            "graph_features": expanded_df,
+            "template_plans": self.template_plans,
+            "key_to_template": self.id_template_dict,
         }

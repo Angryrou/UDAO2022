@@ -1,4 +1,5 @@
 import re
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -9,6 +10,8 @@ from gensim.corpora import Dictionary
 from gensim.models import Doc2Vec, TfidfModel, Word2Vec
 from gensim.models.doc2vec import TaggedDocument
 from gensim.models.phrases import Phraser, Phrases
+
+from ...data.utils.utils import TrainedFeatureExtractor
 
 
 @dataclass
@@ -34,7 +37,19 @@ class Doc2VecParams(Word2VecParams):
     pass
 
 
-class Word2VecEmbedder:
+class BaseEmbedder(ABC):
+    @abstractmethod
+    def fit_transform(
+        self, training_texts: Sequence[str], epochs: Optional[int] = None
+    ) -> np.ndarray:
+        pass
+
+    @abstractmethod
+    def transform(self, texts: Sequence[str]) -> np.ndarray:
+        pass
+
+
+class Word2VecEmbedder(BaseEmbedder):
     """
     A class to embed query plans using Word2Vec.
     The embedding is computed as the average of the word
@@ -48,17 +63,15 @@ class Word2VecEmbedder:
     - set the seed in the Word2VecParams
     - set the PYTHONHASHSEED
     - set the number of workers to 1
+
+    Parameters
+    ----------
+    w2v_params : Word2VecParams
+        Parameters to pass to the gensim.Word2Vec model
+        (ref: https://radimrehurek.com/gensim/models/word2vec.html)
     """
 
     def __init__(self, w2v_params: Optional[Word2VecParams] = None) -> None:
-        """Initialize the Word2VecEmbedder
-
-        Parameters
-        ----------
-        w2v_params : Word2VecParams
-            Parameters to pass to the gensim.Word2Vec model
-            (ref: https://radimrehurek.com/gensim/models/word2vec.html)
-        """
         if w2v_params is None:
             w2v_params = Word2VecParams()
         self.w2v_params = w2v_params
@@ -169,7 +182,7 @@ class Word2VecEmbedder:
         return self._get_encodings_from_corpus(bow_corpus=bow_corpus)
 
 
-class Doc2VecEmbedder:
+class Doc2VecEmbedder(BaseEmbedder):
     """A class to embed query plans using Doc2Vec.
     To use it:
     - first call fit_transform on a list of training query plans,
@@ -179,17 +192,15 @@ class Doc2VecEmbedder:
     - set the seed in the Doc2VecParams
     - set the PYTHONHASHSEED
     - set the number of workers to 1
+
+    Parameters
+    ----------
+    d2v_params : Doc2VecParams
+        Parameters to pass to the gensim.Doc2Vec model
+        (ref: https://radimrehurek.com/gensim/models/doc2vec.html)
     """
 
     def __init__(self, d2v_params: Optional[Doc2VecParams] = None) -> None:
-        """Initialize the Doc2VecEmbedder
-
-        Parameters
-        ----------
-        d2v_params : Doc2VecParams
-            Parameters to pass to the gensim.Doc2Vec model
-            (ref: https://radimrehurek.com/gensim/models/doc2vec.html)
-        """
         if d2v_params is None:
             d2v_params = Doc2VecParams()
         self.d2v_params = d2v_params
@@ -243,9 +254,7 @@ class Doc2VecEmbedder:
         )
         self._is_trained = True
 
-    def transform(
-        self, texts: Sequence[str], /, epochs: Optional[int] = None
-    ) -> np.ndarray:
+    def transform(self, texts: Sequence[str]) -> np.ndarray:
         """Transform a list of query plans into normalized embeddings.
 
         Parameters
@@ -266,8 +275,7 @@ class Doc2VecEmbedder:
         ValueError
             If the model has not been trained
         """
-        if epochs is None:
-            epochs = self.d2v_params.epochs
+        epochs = self.d2v_params.epochs
         if not self._is_trained:
             raise ValueError("Must call fit_transform before calling transform")
         encodings = [
@@ -281,7 +289,7 @@ class Doc2VecEmbedder:
         self, training_texts: Sequence[str], /, epochs: Optional[int] = None
     ) -> np.ndarray:
         self.fit(training_texts, epochs)
-        return self.transform(training_texts, epochs)
+        return self.transform(training_texts)
 
 
 def remove_statistics(s: str) -> str:
@@ -383,3 +391,62 @@ def extract_operations(
     operations_list = list(unique_ops.keys())
 
     return plan_to_ops, operations_list
+
+
+class QueryEmbeddingExtractor(TrainedFeatureExtractor):
+    """Class to extract embeddings from a DataFrame of query plans.
+
+    Parameters
+    ----------
+    embedder : BaseEmbedder
+        Embedder to use to extract the embeddings,
+        e.g. an instance of Word2Vecembedder.
+    """
+
+    def __init__(
+        self,
+        embedder: BaseEmbedder,
+        op_preprocessing: Callable[[str], str] = prepare_operation,
+    ) -> None:
+        self.embedder = embedder
+        self.op_preprocessing = op_preprocessing
+
+    def extract_features(self, df: pd.DataFrame, split: str) -> Dict[str, pd.DataFrame]:
+        """Extract embeddings from a DataFrame of query plans.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing the query plans and their ids.
+        split : str
+            Split of the dataset, either "train", "test" or "validation".
+            Will fit the embedder if "train" and transform otherwise.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the embeddings of each operation of the query plans.
+        """
+
+        plan_to_operations, operations_list = extract_operations(
+            df, self.op_preprocessing
+        )
+        if split == "train":
+            embeddings_list = self.embedder.fit_transform(operations_list)
+        else:
+            embeddings_list = self.embedder.transform(operations_list)
+        emb_series = df["id"].apply(
+            lambda idx: [embeddings_list[op_id] for op_id in plan_to_operations[idx]]
+        )
+        emb_df = emb_series.to_frame("embeddings")
+        emb_df["plan_id"] = df["id"]
+        emb_df = emb_df.explode("embeddings", ignore_index=True)
+        emb_df[[f"emb_{i}" for i in range(32)]] = pd.DataFrame(
+            emb_df.embeddings.tolist(),
+            index=emb_df.index,
+        )
+
+        emb_df = emb_df.drop(columns=["embeddings"])
+        emb_df["operation_id"] = emb_df.groupby("plan_id").cumcount()
+        emb_df = emb_df.set_index(["plan_id", "operation_id"])
+        return {"embeddings": emb_df}

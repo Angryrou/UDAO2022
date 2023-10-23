@@ -89,6 +89,12 @@ You can then open the index.html file in the _build/html directory to view the d
 ## Testing
 We use pytest for testing.
 
+First, so that imports are recognized within the module, add the udao root directory (containing docs/ and udao/) to your PYTHONPATH
+
+```bash
+export PYTHONPATH=$PYTHONPATH:/path/to/udao
+```
+
 To run all the tests of the udao directory, run
 ```bash
     pytest udao
