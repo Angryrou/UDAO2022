@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
-from udao.data.embedders import Doc2VecEmbedder, Doc2VecParams
+
+from ...embedders import Doc2VecEmbedder, Doc2VecParams
 
 
 @pytest.fixture
