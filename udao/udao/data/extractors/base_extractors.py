@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Type, Union
 
 import pandas as pd
-from udao.data.containers import BaseContainer
-from udao.data.utils.utils import DatasetType
+
+from ...data.containers import BaseContainer
+from ...data.utils.utils import DatasetType
 
 
 class TrainedFeatureExtractor(ABC):

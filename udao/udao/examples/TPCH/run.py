@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from udao.data.embedders import Word2VecEmbedder
-from udao.data.extractors import QueryEmbeddingExtractor, QueryStructureExtractor
-from udao.data.handler.data_handler import DataHandler, DataHandlerParams
-from udao.data.iterators import QueryPlanIterator
-from udao.utils.logging import logger
+from ...data.embedders import Word2VecEmbedder
+from ...data.extractors import QueryEmbeddingExtractor, QueryStructureExtractor
+from ...data.handler.data_handler import DataHandler, DataHandlerParams
+from ...data.iterators import QueryPlanIterator
+from ...utils.logging import logger
 
 if __name__ == "__main__":
     queryPlanDataHandlerParams = DataHandlerParams(
