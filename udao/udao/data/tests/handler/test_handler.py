@@ -1,13 +1,15 @@
 import random
 import string
-from typing import Tuple
+from typing import Dict, Tuple
 
 import pandas as pd
 import pytest
 
-from ...data.dataset import DataHandler, DataHandlerParams
-from ...data.tabular_dataset import TabularIterator
-from ...data.utils.utils import TabularFeatureExtractor
+from ...extractors import TabularFeatureExtractor
+from ...handler import DataHandler
+from ...handler.data_handler import DataHandlerParams
+from ...iterators import TabularIterator
+from ...utils.utils import DatasetType
 
 
 def random_string(length: int) -> str:
@@ -24,7 +26,9 @@ def df_fixture() -> Tuple[pd.DataFrame, DataHandlerParams]:
     df = pd.DataFrame.from_dict({"id": ids, "tid": tids, "plan": random_strings})
     params = DataHandlerParams(
         index_column="id",
-        feature_extractors=[(TabularFeatureExtractor, [lambda r: r["plan"][0]])],
+        feature_extractors={
+            "dataframe_container": (TabularFeatureExtractor, [lambda r: r["plan"][0]])
+        },
         Iterator=TabularIterator,
         stratify_on=None,
         test_frac=0.1,
@@ -81,16 +85,21 @@ class TestDataHandler:
         df, params = df_fixture
         dh = DataHandler(df, params)
         dh.split_data().extract_features()
-        print(dh.features["train"]["feature_frame"].index)
+        df_features_dict: Dict[DatasetType, pd.DataFrame] = {
+            s: dh.features[s]["dataframe_container"].df for s in dh.features  # type: ignore
+        }
         for split in dh.features:
-            assert set(dh.features[split]["feature_frame"].index) == set(
-                dh.index_splits[split]
-            )
-        assert len(dh.features["train"]["feature_frame"]) == len(df) * (
-            1 - params.val_frac - params.test_frac
-        )
-        assert len(dh.features["val"]["feature_frame"]) == len(df) * params.val_frac
-        assert len(dh.features["test"]["feature_frame"]) == len(df) * params.test_frac
+            assert set(df_features_dict[split].index) == set(dh.index_splits[split])
+
+        expected_lengths = {
+            "train": len(df) * (1 - params.val_frac - params.test_frac),
+            "val": len(df) * params.val_frac,
+            "test": len(df) * params.test_frac,
+        }
+        for df_feature, length in zip(
+            df_features_dict.values(), expected_lengths.values()
+        ):
+            assert len(df_feature) == length
 
     def test_extract_feature_raises_error(
         self, df_fixture: Tuple[pd.DataFrame, DataHandlerParams]
@@ -112,6 +121,6 @@ class TestDataHandler:
         assert len(iterators) == 3
         assert all(isinstance(it, params.Iterator) for it in iterators.values())
         assert all(
-            len(it) == len(dh.features[split]["feature_frame"])
+            len(it) == len(dh.features[split]["dataframe_container"].df)  # type: ignore
             for split, it in iterators.items()
         )

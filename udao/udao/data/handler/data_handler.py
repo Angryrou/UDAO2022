@@ -1,34 +1,18 @@
-from abc import abstractmethod
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pandas as pd
 from attr import dataclass
-from torch.utils.data import Dataset
 
-from ..utils.logging import logger
-from .utils.utils import (
-    DatasetType,
+from ...utils.logging import logger
+from ..containers import BaseContainer
+from ..extractors import (
     FeatureExtractorType,
     StaticFeatureExtractor,
     TrainedFeatureExtractor,
-    train_test_val_split_on_column,
 )
-
-
-class BaseDatasetIterator(Dataset):
-    """Dummy Base class for all dataset iterators.
-    Inherits from torch.utils.data.Dataset.
-    Defined to allow for type hinting and having an __init__ method.
-    """
-
-    @abstractmethod
-    def __init__(self, keys, *args, **kwargs):  # type: ignore
-        pass
-
-    @abstractmethod
-    def __len__(self) -> int:
-        pass
+from ..iterators import BaseDatasetIterator
+from ..utils.utils import DatasetType, train_test_val_split_on_column
 
 
 @dataclass
@@ -36,10 +20,11 @@ class DataHandlerParams:
     index_column: str
     """Column that should be used as index (unique identifier)"""
 
-    feature_extractors: List[Tuple[FeatureExtractorType, Any]]
-    """List of tuples of the form (Extractor, args) where Extractor
-        implements FeatureExtractor and args are the arguments to be passed
-        at initialization.
+    feature_extractors: Dict[str, Tuple[FeatureExtractorType, Any]]
+    """Dict that links a feature name to tuples of the form (Extractor, args)
+        where Extractor implements FeatureExtractor and args are the arguments
+        to be passed at initialization.
+        N.B.: Feature names must match the iterator's parameters.
 
         If Extractor is a StaticFeatureExtractor, the features are extracted
         independently of the split.
@@ -126,7 +111,7 @@ class DataHandler:
         self.full_df.set_index(self.index_column, inplace=True, drop=False)
 
         self.index_splits: Dict[DatasetType, List[str]] = {}
-        self.features: Dict[DatasetType, Dict] = defaultdict(dict)
+        self.features: Dict[DatasetType, Dict[str, BaseContainer]] = defaultdict(dict)
 
     def split_data(
         self,
@@ -167,29 +152,26 @@ class DataHandler:
         """
         if not self.index_splits:
             raise ValueError("Data not split yet.")
-        for Extractor, args in self.feature_extractors:
+        for name, (Extractor, args) in self.feature_extractors.items():
             if issubclass(Extractor, StaticFeatureExtractor):
                 logger.info(
                     f"Extracting features for static extractor {Extractor.__name__}"
                 )
 
                 for split, keys in self.index_splits.items():
-                    self.features[split] = {
-                        **self.features[split],
-                        **Extractor(*args).extract_features(self.full_df.loc[keys]),
-                    }
+                    self.features[split][name] = Extractor(*args).extract_features(
+                        self.full_df.loc[keys]
+                    )
 
             elif issubclass(Extractor, TrainedFeatureExtractor):
                 logger.info(
                     f"Extracting features for trained extractor {Extractor.__name__}"
                 )
                 for split, keys in self.index_splits.items():
-                    self.features[split] = {
-                        **self.features[split],
-                        **Extractor(*args).extract_features(
-                            self.full_df.loc[keys], split=split
-                        ),
-                    }
+                    self.features[split][name] = Extractor(*args).extract_features(
+                        self.full_df.loc[keys], split=split
+                    )
+
             else:
                 raise ValueError(
                     f"Extractor {Extractor.__name__} not supported. Should implement"

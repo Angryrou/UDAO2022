@@ -14,7 +14,6 @@ import sys
 from pathlib import Path
 
 path = str(Path(__file__).parent.parent)
-print(path)
 sys.path.insert(0, path)
 
 
