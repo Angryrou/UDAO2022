@@ -74,6 +74,5 @@ def test_extract_operations_processing_is_applied(df_fixture: pd.DataFrame) -> N
     plan_to_op, operations = extract_operations(
         df_fixture, operation_processing=lambda s: s.replace("x", "c")
     )
-    print(operations)
     assert plan_to_op == {1: [0, 1], 2: [1, 0]}
     assert operations == ["a b c", "a b d"]

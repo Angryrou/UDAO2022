@@ -12,7 +12,7 @@ from ..utils.utils import PandasTypes
 from .base_extractors import StaticFeatureExtractor
 
 
-class QueryStructureExtractor(StaticFeatureExtractor):
+class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
     """
     Extracts the features of the operations in the logical plan,
     and the tree structure of the logical plan.

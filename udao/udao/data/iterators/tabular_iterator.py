@@ -1,21 +1,31 @@
 from typing import Any, Sequence
 
-from ..containers import DataFrameContainer
+from ..containers import TabularContainer
 from .base_iterator import BaseDatasetIterator
 
 
 class TabularIterator(BaseDatasetIterator):
+    """Iterator on tabular data.
+
+    Parameters
+    ----------
+    keys : Sequence[str]
+        Keys of the dataset, used for accessing all features
+    table : TabularContainer
+        Container for the tabular data
+    """
+
     def __init__(
         self,
         keys: Sequence[str],
-        dataframe_container: DataFrameContainer,
+        tabular_feature: TabularContainer,
     ):
         self.keys = keys
-        self.dataframe_container = dataframe_container
+        self.tabular_feature = tabular_feature
 
     def __len__(self) -> int:
         return len(self.keys)
 
     def __getitem__(self, idx: int) -> Any:
         key = self.keys[idx]
-        return self.dataframe_container.get(key)
+        return self.tabular_feature.get(key)
