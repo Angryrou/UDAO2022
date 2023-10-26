@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, Type
 
 import dgl
 import dgl.function as fn
@@ -63,6 +63,7 @@ class MultiHeadAttentionLayer(nn.Module):
 
     def _apply_attention(self, g: dgl.DGLGraph) -> torch.Tensor:
         edge_ids: Tuple[torch.Tensor, torch.Tensor] = g.edges()
+        print(g.ndata["V_h"].shape, g.edata["score"].shape)  # type: ignore
         g.send_and_recv(
             edge_ids,
             fn.u_mul_e("V_h", "score", "V_h"),  # type: ignore
@@ -74,6 +75,9 @@ class MultiHeadAttentionLayer(nn.Module):
         head_out = g.ndata["wV"] / (
             g.ndata["z"] + torch.full_like(g.ndata["z"], 1e-6)  # type: ignore
         )
+        g.ndata.pop("wV")
+        g.ndata.pop("z")
+        g.edata.pop("score")
         return head_out
 
     def compute_attention(self, g: dgl.DGLGraph) -> dgl.DGLGraph:
@@ -185,11 +189,8 @@ class QFMultiHeadAttentionLayer(MultiHeadAttentionLayer):
 
 AttentionLayerName = Literal["QF", "GTN", "RAAL"]
 
-ATTENTION_TYPES: Dict[AttentionLayerName, Dict] = {
-    "QF": {"layer": QFMultiHeadAttentionLayer, "requires": ["attention_bias"]},
-    "GTN": {"layer": MultiHeadAttentionLayer, "requires": []},
-    "RAAL": {
-        "layer": RAALMultiHeadAttentionLayer,
-        "requires": ["non_siblings_map"],
-    },
+ATTENTION_TYPES: Dict[AttentionLayerName, Type[MultiHeadAttentionLayer]] = {
+    "QF": QFMultiHeadAttentionLayer,
+    "GTN": MultiHeadAttentionLayer,
+    "RAAL": RAALMultiHeadAttentionLayer,
 }

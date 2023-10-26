@@ -1,11 +1,16 @@
-from typing import Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 import dgl
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .multi_head_attention import ATTENTION_TYPES, AttentionLayerName
+from .multi_head_attention import (
+    ATTENTION_TYPES,
+    AttentionLayerName,
+    QFMultiHeadAttentionLayer,
+    RAALMultiHeadAttentionLayer,
+)
 
 
 class GraphTransformerLayer(nn.Module):
@@ -24,7 +29,6 @@ class GraphTransformerLayer(nn.Module):
         attention_bias: Optional[th.Tensor] = None,
     ) -> None:
         super().__init__()
-
         self.attention_layer_name = attention_layer_name
         self.in_channels = in_dim
         self.out_channels = out_dim
@@ -35,21 +39,21 @@ class GraphTransformerLayer(nn.Module):
         self.batch_norm = batch_norm
         self.attention_bias = attention_bias
         self.non_siblings_map = non_siblings_map
-        attention_config = ATTENTION_TYPES.get(self.attention_layer_name)
-        if not attention_config:
+        attention_layer = ATTENTION_TYPES.get(self.attention_layer_name)
+        if not attention_layer:
             raise ValueError(f"Unknown attention type: {self.name}")
 
-        required_attrs = attention_config["requires"]
-        for attr in required_attrs:
-            if self.__getattr__(attr) is None:
-                raise ValueError(f"{self.name} requires {attr}")
-
-        self.attention = attention_config["layer"](
+        additional_args: Dict[str, Any] = {}
+        if attention_layer == QFMultiHeadAttentionLayer:
+            additional_args = {"attention_bias": self.attention_bias}
+        elif attention_layer == RAALMultiHeadAttentionLayer:
+            additional_args = {"non_siblings_map": self.non_siblings_map}
+        self.attention = attention_layer(
             in_dim,
             out_dim // n_heads,
             n_heads,
             use_bias,
-            **{attr: self.__getattr__(attr) for attr in required_attrs},
+            **additional_args,
         )
 
         self.O = nn.Linear(out_dim, out_dim)
@@ -73,7 +77,9 @@ class GraphTransformerLayer(nn.Module):
     def forward(self, g: dgl.DGLGraph, h: th.Tensor) -> th.Tensor:
         h_in1 = h  # for first residual connection
         # multi-head attention out
+        print(h_in1.shape)
         attn_out = self.attention.forward(g, h)
+        print(attn_out.shape)
         h = attn_out.view(-1, self.out_channels)
         h = F.dropout(h, self.dropout, training=self.training)
         h = self.O(h)

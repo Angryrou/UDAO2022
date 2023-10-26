@@ -1,9 +1,3 @@
-# Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
-#
-# Description: TODO
-#
-# Created at 16/02/2023
-from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Literal, Optional, Sequence
 
@@ -95,7 +89,3 @@ class BaseEmbedder(nn.Module):
         if self.out_norm is not None:
             embedding = self.out_norm(embedding)
         return embedding
-
-    @abstractmethod
-    def forward(self):  # type: ignore
-        ...

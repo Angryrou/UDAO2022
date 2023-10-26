@@ -1,10 +1,3 @@
-# Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
-#
-# Description: Graph Transformer Network implementation, adjusted based on
-# https://github.com/graphdeeplearning/graphtransformer/blob/main/nets/molecules_graph_regression/graph_transformer_net.py
-#
-# Created at 03/01/2023
-
 from dataclasses import dataclass
 from typing import Literal, Optional, Sequence
 
@@ -20,10 +13,10 @@ ReadoutType = Literal["sum", "max", "mean"]
 
 
 @dataclass
-class TransformerParams(EmbedderParams):
-    ped: int
-    """"""
-    n_gcn_layers: int
+class GraphTransformerParams(EmbedderParams):
+    pos_encoding_dim: int
+    """Dimension of the position encoding."""
+    n_layers: int
     """Number of GCN layers."""
     n_heads: int
     """Number of attention heads."""
@@ -56,12 +49,15 @@ class GraphTransformer(BaseEmbedder):
     (either QF, RAAL, or GTN)
     """
 
-    def __init__(self, net_params: TransformerParams) -> None:
+    def __init__(self, net_params: GraphTransformerParams) -> None:
         super().__init__(net_params=net_params)
         self.attention_layer_name = net_params.attention_layer_name
-        self.embedding_lap_pos_enc = nn.Linear(net_params.ped, net_params.hidden_dim)
+        self.embedding_lap_pos_enc = nn.Linear(
+            net_params.pos_encoding_dim, net_params.hidden_dim
+        )
         self.embedding_h = nn.Linear(self.input_size, net_params.hidden_dim)
         self.readout = net_params.readout
+        self.attention_bias = None
         if self.attention_layer_name == "QF":
             if net_params.max_dist is None:
                 raise ValueError("max_dist is required for QF")
@@ -93,9 +89,9 @@ class GraphTransformer(BaseEmbedder):
                 )
                 for out_dim in [
                     net_params.hidden_dim
-                    if i < net_params.n_gcn_layers - 1
+                    if i < net_params.n_layers - 1
                     else net_params.embedding_size
-                    for i in range(net_params.n_gcn_layers)
+                    for i in range(net_params.n_layers)
                 ]
             ]
         )
@@ -108,8 +104,8 @@ class GraphTransformer(BaseEmbedder):
         h = h + h_lap_pos_enc
 
         # convnets
-        for conv in self.layers:
-            h = conv.forward(g, h)
+        for layer in self.layers:
+            h = layer.forward(g, h)
         g.ndata["h"] = h
 
         if self.readout == "sum":
