@@ -9,23 +9,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Python 3.9
+      - name: Set up Python 3.11
         uses: actions/setup-python@v2
         with:
-          python-version: "3.9"
-
-      - uses: actions/cache@v3
-        id: cache
+          python-version: "3.11"
+      
+      - name: Cache Python virtual environment
+        uses: actions/cache@v3
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.*') }}
+          path: venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            ${{ runner.os }}-venv-
 
-      - name: Install dependencies
+      - name: Install dependencies (if cache miss)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r udao/requirements.txt  
+          python -m venv venv
+          . venv/bin/activate
+          if [ ! -d "venv/lib/python3.9/site-packages" ]; then
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+          fi
 
-      - name: Run tests with pytest
-        run: pytest udao
+      - name: Run your commands
+        run: |
+          . venv/bin/activate
+          pytest udao
