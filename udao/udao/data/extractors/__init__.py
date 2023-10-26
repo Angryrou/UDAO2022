@@ -3,7 +3,7 @@ from .base_extractors import (
     StaticFeatureExtractor,
     TrainedFeatureExtractor,
 )
-from .query_embedding_extractor import QueryEmbeddingExtractor
+from .predicate_embedding_extractor import PredicateEmbeddingExtractor
 from .query_structure_extractor import QueryStructureExtractor
 from .tabular_extractor import TabularFeatureExtractor
 
@@ -11,7 +11,7 @@ __all__ = [
     "FeatureExtractorType",
     "StaticFeatureExtractor",
     "TrainedFeatureExtractor",
-    "QueryEmbeddingExtractor",
+    "PredicateEmbeddingExtractor",
     "QueryStructureExtractor",
     "TabularFeatureExtractor",
 ]

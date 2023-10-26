@@ -1,0 +1,45 @@
+name: PyTest
+
+on:
+  pull_request:
+    branches:
+      - '*' 
+  push:
+    branches:
+      - 'main'
+      - 'trace-parsing-and-modeling-spark'
+      - 'dev'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+      
+      - name: Cache Python virtual environment
+        uses: actions/cache@v3
+        with:
+          path: venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('udao/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-venv-
+
+      - name: Install dependencies (if cache miss)
+        run: |
+          python -m venv venv
+          . venv/bin/activate
+          if [ ! -d "venv/lib/python3.9/site-packages" ]; then
+              python -m pip install --upgrade pip
+              pip install -r udao/requirements.txt
+          fi
+
+      - name: Run Pytest
+        run: |
+          . venv/bin/activate
+          pytest udao
