@@ -18,7 +18,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-venv-${{ hashFiles('udao/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-venv-
 
@@ -28,10 +28,10 @@ jobs:
           . venv/bin/activate
           if [ ! -d "venv/lib/python3.9/site-packages" ]; then
               python -m pip install --upgrade pip
-              pip install -r requirements.txt
+              pip install -r udao/requirements.txt
           fi
 
-      - name: Run your commands
+      - name: Run Pytest
         run: |
           . venv/bin/activate
           pytest udao
