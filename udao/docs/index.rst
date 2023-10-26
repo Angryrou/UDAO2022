@@ -16,7 +16,7 @@ Contents:
    :maxdepth: 2
    :caption: User Guide:
 
-   user_guide/introduction
+   user_guide/index
 
 .. toctree::
    :maxdepth: 2

@@ -2,13 +2,13 @@ from typing import Callable
 
 import pandas as pd
 
-from ..containers import DataFrameContainer
+from ..containers import TabularContainer
 from ..embedders import BaseEmbedder
 from ..embedders.utils import extract_operations, prepare_operation
 from .base_extractors import TrainedFeatureExtractor
 
 
-class QueryEmbeddingExtractor(TrainedFeatureExtractor):
+class PredicateEmbeddingExtractor(TrainedFeatureExtractor[TabularContainer]):
     """Class to extract embeddings from a DataFrame of query plans.
 
     Parameters
@@ -26,7 +26,7 @@ class QueryEmbeddingExtractor(TrainedFeatureExtractor):
         self.embedder = embedder
         self.op_preprocessing = op_preprocessing
 
-    def extract_features(self, df: pd.DataFrame, split: str) -> DataFrameContainer:
+    def extract_features(self, df: pd.DataFrame, split: str) -> TabularContainer:
         """Extract embeddings from a DataFrame of query plans.
 
         Parameters
@@ -51,7 +51,7 @@ class QueryEmbeddingExtractor(TrainedFeatureExtractor):
         else:
             embeddings_list = self.embedder.transform(operations_list)
         emb_series = df["id"].apply(
-            lambda idx: [embeddings_list[op_id] for op_id in plan_to_operations[idx]]
+            lambda idx: [embeddings_list[op_id] for op_id in plan_to_operations[idx]]  # type: ignore
         )
         emb_df = emb_series.to_frame("embeddings")
         emb_df["plan_id"] = df["id"]
@@ -64,4 +64,4 @@ class QueryEmbeddingExtractor(TrainedFeatureExtractor):
         emb_df = emb_df.drop(columns=["embeddings"])
         emb_df["operation_id"] = emb_df.groupby("plan_id").cumcount()
         emb_df = emb_df.set_index(["plan_id", "operation_id"])
-        return DataFrameContainer(emb_df)
+        return TabularContainer(emb_df)

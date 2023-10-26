@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 from attr import dataclass
 
+from ...data.containers.base_container import BaseContainer
 from ..utils.query_plan import QueryPlanStructure
-from .base_container import BaseContainer
 
 
 @dataclass
@@ -14,8 +14,7 @@ class QueryStructureContainer(BaseContainer):
     """Container for the query structure and features of a query plan."""
 
     graph_features: pd.DataFrame
-    """Operation features (typically rows_count, size).
-        MultiIndex (plan, operation)"""
+    """ Stores the features of the operations in the query plan."""
 
     template_plans: Dict[int, QueryPlanStructure]
     """Link a template id to a QueryPlanStructure"""

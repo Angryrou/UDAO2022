@@ -21,9 +21,3 @@ the optimization component.
 the models that will act as functions for the optimization component.
 - **Optimization**: The optimization component is responsible for solving the
 MOO problem given the user-defined optimization problem and datasets.
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Data processing
-
-   data_processing
