@@ -12,7 +12,7 @@ def test_graph_transformer_initialization() -> None:
     for attention_layer in ["QF", "RAAL", "GTN"]:
         net_params = GraphTransformerParams(
             input_size=3,
-            embedding_size=2,
+            output_size=2,
             op_groups=["ch1_type", "ch1_cbo"],
             type_embedding_dim=3,
             embedding_normalizer="BN",
@@ -37,7 +37,7 @@ def test_graph_transformer_initialization() -> None:
 def test_graph_transformer_forward() -> None:
     net_params = GraphTransformerParams(
         input_size=8,
-        embedding_size=6,
+        output_size=6,
         op_groups=["ch1_type", "ch1_cbo"],
         type_embedding_dim=5,
         embedding_normalizer="BN",
@@ -68,4 +68,4 @@ def test_graph_transformer_forward() -> None:
     transformer.eval()
     output = transformer.forward(g_batch, h_lap_pos_enc)
 
-    assert output.shape == (2, net_params.embedding_size)
+    assert output.shape == (2, net_params.output_size)

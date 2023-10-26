@@ -14,7 +14,7 @@ NormalizerType = Literal["BN", "LN", "IsoBN"]
 class EmbedderParams:
     input_size: int  # depends on the data
     """The size of the input features."""
-    embedding_size: int
+    output_size: int
     """The size of the output embedding."""
     op_groups: Sequence[str]
     """The groups of operation features to be included in the embedding."""
@@ -40,7 +40,7 @@ class BaseEmbedder(nn.Module):
     def __init__(self, net_params: EmbedderParams) -> None:
         super().__init__()
         self.input_size = net_params.input_size
-        self.embedding_size = net_params.embedding_size
+        self.embedding_size = net_params.output_size
 
         op_groups = net_params.op_groups
         self.op_type = "ch1_type" in op_groups

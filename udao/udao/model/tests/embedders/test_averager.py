@@ -9,7 +9,7 @@ from .conftest import generate_dgl_graph
 def params_fixture() -> AveragerParams:
     return AveragerParams(
         input_size=7,
-        embedding_size=10,
+        output_size=10,
         op_groups=["ch1_type", "ch1_cbo"],
         type_embedding_dim=5,
         embedding_normalizer=None,

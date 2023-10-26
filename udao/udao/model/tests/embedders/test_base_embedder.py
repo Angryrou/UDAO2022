@@ -8,7 +8,7 @@ from .conftest import generate_dgl_graph
 def test_base_embedder_initialization() -> None:
     params = EmbedderParams(
         input_size=5,
-        embedding_size=10,
+        output_size=10,
         op_groups=["ch1_type", "ch1_cbo"],
         type_embedding_dim=5,
         embedding_normalizer="BN",
@@ -27,7 +27,7 @@ def test_base_embedder_initialization() -> None:
 def test_base_embedder_invalid_normalizer() -> None:
     params = EmbedderParams(
         input_size=5,
-        embedding_size=10,
+        output_size=10,
         op_groups=["ch1_type", "ch1_cbo"],
         type_embedding_dim=5,
         embedding_normalizer="UNKNOWN",  # type: ignore
@@ -41,7 +41,7 @@ def test_base_embedder_invalid_normalizer() -> None:
 def test_base_embedder_concatenate_op_features() -> None:
     params = EmbedderParams(
         input_size=5,
-        embedding_size=10,
+        output_size=10,
         op_groups=["ch1_type", "ch1_cbo"],
         type_embedding_dim=5,
         embedding_normalizer=None,
@@ -63,7 +63,7 @@ def test_base_embedder_concatenate_op_features() -> None:
 def test_base_embedder_normalize_embedding() -> None:
     params = EmbedderParams(
         input_size=5,
-        embedding_size=3,
+        output_size=3,
         op_groups=["ch1_type"],
         type_embedding_dim=5,
         embedding_normalizer="BN",

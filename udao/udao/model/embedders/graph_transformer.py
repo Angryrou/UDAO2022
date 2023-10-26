@@ -90,7 +90,7 @@ class GraphTransformer(BaseEmbedder):
                 for out_dim in [
                     net_params.hidden_dim
                     if i < net_params.n_layers - 1
-                    else net_params.embedding_size
+                    else net_params.output_size
                     for i in range(net_params.n_layers)
                 ]
             ]
