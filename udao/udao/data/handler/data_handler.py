@@ -1,8 +1,8 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pandas as pd
-from attr import dataclass
 
 from ...utils.logging import logger
 from ..containers import BaseContainer
