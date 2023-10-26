@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple
 
 import dgl
 import dgl.function as fn
@@ -38,16 +38,28 @@ def add_att_weights_bias(field: str) -> Callable[[Any], Dict[str, torch.Tensor]]
 
 
 class MultiHeadAttentionLayer(nn.Module):
-    def __init__(
-        self, in_dim: int, out_dim: int, num_heads: int, use_bias: bool
-    ) -> None:
+    """Multi-Head Attention Layer for Graph
+
+    Parameters
+    ----------
+        in_dim : int
+            Input dimension
+        out_dim : int
+            Output dimension
+        n_heads : int
+            Number of attention heads
+        use_bias : bool
+            Whether to use bias
+    """
+
+    def __init__(self, in_dim: int, out_dim: int, n_heads: int, use_bias: bool) -> None:
         super().__init__()
         self.out_dim = out_dim
-        self.num_heads = num_heads
+        self.n_heads = n_heads
 
-        self.Q = nn.Linear(in_dim, out_dim * num_heads, bias=use_bias)
-        self.K = nn.Linear(in_dim, out_dim * num_heads, bias=use_bias)
-        self.V = nn.Linear(in_dim, out_dim * num_heads, bias=use_bias)
+        self.Q = nn.Linear(in_dim, out_dim * n_heads, bias=use_bias)
+        self.K = nn.Linear(in_dim, out_dim * n_heads, bias=use_bias)
+        self.V = nn.Linear(in_dim, out_dim * n_heads, bias=use_bias)
 
     def _apply_attention(self, g: dgl.DGLGraph) -> torch.Tensor:
         edge_ids: Tuple[torch.Tensor, torch.Tensor] = g.edges()
@@ -72,9 +84,9 @@ class MultiHeadAttentionLayer(nn.Module):
     def forward(self, g: dgl.DGLGraph, h: torch.Tensor) -> torch.Tensor:
         # Reshaping into [num_nodes, num_heads, feat_dim] to
         # get projections for multi-head attention
-        g.ndata["Q_h"] = self.Q(h).view(-1, self.num_heads, self.out_dim)
-        g.ndata["K_h"] = self.K(h).view(-1, self.num_heads, self.out_dim)
-        g.ndata["V_h"] = self.V(h).view(-1, self.num_heads, self.out_dim)
+        g.ndata["Q_h"] = self.Q(h).view(-1, self.n_heads, self.out_dim)
+        g.ndata["K_h"] = self.K(h).view(-1, self.n_heads, self.out_dim)
+        g.ndata["V_h"] = self.V(h).view(-1, self.n_heads, self.out_dim)
 
         g = self.compute_attention(g)
 
@@ -82,6 +94,16 @@ class MultiHeadAttentionLayer(nn.Module):
 
 
 class RAALMultiHeadAttentionLayer(MultiHeadAttentionLayer):
+    """MultiHead Attention using Resource-Aware Attentional LSTM
+    proposed by "A Resource-Aware Deep Cost Model for Big Data Query Processing”
+    https://ieeexplore.ieee.org/document/9835426
+
+
+    Parameters
+    ----------
+    non_siblings_map : Sequence[Sequence[int]]
+    """
+
     def __init__(
         self,
         in_dim: int,
@@ -107,8 +129,8 @@ class RAALMultiHeadAttentionLayer(MultiHeadAttentionLayer):
         for sid, gg_list in gg_map.items():
             n_gg = len(gg_list)
             gb = dgl.batch(gg_list)
-            Q = gb.ndata["Q_h"].reshape(n_gg, -1, self.num_heads, self.out_dim)  # type: ignore
-            K = gb.ndata["K_h"].reshape(n_gg, -1, self.num_heads, self.out_dim)  # type: ignore
+            Q = gb.ndata["Q_h"].reshape(n_gg, -1, self.n_heads, self.out_dim)  # type: ignore
+            K = gb.ndata["K_h"].reshape(n_gg, -1, self.n_heads, self.out_dim)  # type: ignore
             QK = (
                 torch.matmul(Q.transpose(1, 2), K.transpose(1, 2).transpose(2, 3))
                 .transpose(1, 2)
@@ -125,12 +147,22 @@ class RAALMultiHeadAttentionLayer(MultiHeadAttentionLayer):
                     srcs.cpu().numpy(), dsts.cpu().numpy(), eids.cpu().numpy()
                 )
             ]
-            gb.edata["score"] = torch.cat(score_list, dim=1).view(-1, self.num_heads, 1)
+            gb.edata["score"] = torch.cat(score_list, dim=1).view(-1, self.n_heads, 1)
             gb_list.append(gb)
         return dgl.batch(gb_list)
 
 
 class QFMultiHeadAttentionLayer(MultiHeadAttentionLayer):
+    """MultiHead Attention using QueryFormer
+    proposed by "QueryFormer: A Tree Transformer Model for Query Plan
+    Representation"
+    https://www.vldb.org/pvldb/vol15/p1658-zhao.pdf
+
+    Parameters
+    ----------
+    attention_bias : torch.Tensor
+    """
+
     def __init__(
         self,
         in_dim: int,
@@ -149,3 +181,15 @@ class QFMultiHeadAttentionLayer(MultiHeadAttentionLayer):
         ).reshape(-1, 1, 1)
         g.edata["score"] = g.edata["score"] + g.edata["att_bias"]  # type: ignore
         return g
+
+
+AttentionLayerName = Literal["QF", "GTN", "RAAL"]
+
+ATTENTION_TYPES: Dict[AttentionLayerName, Dict] = {
+    "QF": {"layer": QFMultiHeadAttentionLayer, "requires": ["attention_bias"]},
+    "GTN": {"layer": MultiHeadAttentionLayer, "requires": []},
+    "RAAL": {
+        "layer": RAALMultiHeadAttentionLayer,
+        "requires": ["non_siblings_map"],
+    },
+}

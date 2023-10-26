@@ -5,7 +5,7 @@
 # Created at 16/02/2023
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 import dgl
 import torch as th
@@ -13,23 +13,39 @@ import torch.nn as nn
 
 from .layers.iso_bn import IsoBN
 
+NormalizerType = Literal["BN", "LN", "IsoBN"]
+
 
 @dataclass
 class EmbedderParams:
-    in_feat_size_op: int  # depends on the data
+    input_size: int  # depends on the data
+    """The size of the input features."""
     embedding_size: int
+    """The size of the output embedding."""
     op_groups: Sequence[str]
-    ch1_type_dim: int
-    embedding_normalizer: str
+    """The groups of operation features to be included in the embedding."""
+    type_embedding_dim: int
+    """The dimension of the operation type embedding."""
+    embedding_normalizer: Optional[NormalizerType]
+    """Name of the normalizer to use for the output embedding."""
     n_op_types: int  # depends on the data
-    name: str
+    """The number of operation types - defines the
+    size of the operation type embedding."""
 
 
 class BaseEmbedder(nn.Module):
+    """Base class for Embedder networks.
+    Takes care of preparing the input features for the
+    embedding layer, and normalizing the output embedding.
+
+    Parameters
+    ----------
+    net_params : EmbedderParams
+    """
+
     def __init__(self, net_params: EmbedderParams) -> None:
         super().__init__()
-        self.name = net_params.name
-        self.in_feat_size_op = net_params.in_feat_size_op  # depends on the data
+        self.input_size = net_params.input_size
         self.embedding_size = net_params.embedding_size
 
         op_groups = net_params.op_groups
@@ -38,7 +54,7 @@ class BaseEmbedder(nn.Module):
         self.op_enc = "ch1_enc" in op_groups
         if self.op_type:
             self.op_embedder = nn.Embedding(
-                net_params.n_op_types, net_params.ch1_type_dim
+                net_params.n_op_types, net_params.type_embedding_dim
             )
         self.out_norm: Optional[nn.Module] = None
         if net_params.embedding_normalizer is None:
@@ -52,7 +68,19 @@ class BaseEmbedder(nn.Module):
         else:
             raise ValueError(net_params.embedding_normalizer)
 
-    def concatenate_op(self, g: dgl.DGLGraph) -> th.Tensor:
+    def concatenate_op_features(self, g: dgl.DGLGraph) -> th.Tensor:
+        """Concatenate the operation features into a single tensor.
+
+        Parameters
+        ----------
+        g : dgl.DGLGraph
+            Input graph
+
+        Returns
+        -------
+        th.Tensor
+            output tensor of shape (num_nodes, input_size)
+        """
         op_list = []
         if self.op_type:
             op_list.append(self.op_embedder(g.ndata["op_gid"]))
@@ -63,6 +91,7 @@ class BaseEmbedder(nn.Module):
         return th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
 
     def normalize_embedding(self, embedding: th.Tensor) -> th.Tensor:
+        """Normalizes the embedding."""
         if self.out_norm is not None:
             embedding = self.out_norm(embedding)
         return embedding

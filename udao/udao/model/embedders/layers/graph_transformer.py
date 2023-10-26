@@ -5,17 +5,12 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .multi_head_attention import (
-    MultiHeadAttentionLayer,
-    QFMultiHeadAttentionLayer,
-    RAALMultiHeadAttentionLayer,
-)
+from .multi_head_attention import ATTENTION_TYPES, AttentionLayerName
 
 
 class GraphTransformerLayer(nn.Module):
     def __init__(
         self,
-        name: str,
         in_dim: int,
         out_dim: int,
         n_heads: int,
@@ -24,12 +19,13 @@ class GraphTransformerLayer(nn.Module):
         batch_norm: bool = True,
         residual: bool = True,
         use_bias: bool = False,
+        attention_layer_name: AttentionLayerName = "GTN",
         non_siblings_map: Optional[Sequence[Sequence[int]]] = None,
         attention_bias: Optional[th.Tensor] = None,
     ) -> None:
         super().__init__()
 
-        self.name = name
+        self.attention_layer_name = attention_layer_name
         self.in_channels = in_dim
         self.out_channels = out_dim
         self.n_heads = n_heads
@@ -37,23 +33,24 @@ class GraphTransformerLayer(nn.Module):
         self.residual = residual
         self.layer_norm = layer_norm
         self.batch_norm = batch_norm
-        self.attention: nn.Module
-        if self.name == "QF":
-            if attention_bias is None:
-                raise ValueError("QF requires attention_bias")
-            self.attention = QFMultiHeadAttentionLayer(
-                in_dim, out_dim // n_heads, n_heads, use_bias, attention_bias
-            )
-        elif self.name == "GTN":
-            self.attention = MultiHeadAttentionLayer(
-                in_dim, out_dim // n_heads, n_heads, use_bias
-            )
-        elif self.name == "RAAL":
-            if non_siblings_map is None:
-                raise ValueError("RAAL requires non_siblings_map")
-            self.attention = RAALMultiHeadAttentionLayer(
-                in_dim, out_dim // n_heads, n_heads, use_bias, non_siblings_map
-            )
+        self.attention_bias = attention_bias
+        self.non_siblings_map = non_siblings_map
+        attention_config = ATTENTION_TYPES.get(self.attention_layer_name)
+        if not attention_config:
+            raise ValueError(f"Unknown attention type: {self.name}")
+
+        required_attrs = attention_config["requires"]
+        for attr in required_attrs:
+            if self.__getattr__(attr) is None:
+                raise ValueError(f"{self.name} requires {attr}")
+
+        self.attention = attention_config["layer"](
+            in_dim,
+            out_dim // n_heads,
+            n_heads,
+            use_bias,
+            **{attr: self.__getattr__(attr) for attr in required_attrs},
+        )
 
         self.O = nn.Linear(out_dim, out_dim)
 

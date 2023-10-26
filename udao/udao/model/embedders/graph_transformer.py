@@ -6,100 +6,99 @@
 # Created at 03/01/2023
 
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 import dgl
 import torch as th
 import torch.nn as nn
-from udao.model.embedders.base_embedder import BaseEmbedder, EmbedderParams
-from udao.model.embedders.layers.graph_transformer import GraphTransformerLayer
+
+from .base_embedder import BaseEmbedder, EmbedderParams
+from .layers.graph_transformer import GraphTransformerLayer
+from .layers.multi_head_attention import AttentionLayerName
+
+ReadoutType = Literal["sum", "max", "mean"]
 
 
 @dataclass
 class TransformerParams(EmbedderParams):
     ped: int
+    """"""
     n_gcn_layers: int
+    """Number of GCN layers."""
     n_heads: int
+    """Number of attention heads."""
     hidden_dim: int
-    dropout: float
-    residual: bool
-    readout: str
-    batch_norm: bool
-    layer_norm: bool
-    out_norm: str
-    max_dist: Optional[int]
-    non_siblings_map: Sequence[Sequence[int]]
+    """Size of the hidden layers outputs."""
+    readout: ReadoutType
+    """Readout type: how the node embeddings are aggregated
+    to form the graph embedding."""
+    max_dist: Optional[int] = None
+    """Maximum distance for QF attention."""
+    non_siblings_map: Optional[Sequence[Sequence[int]]] = None
+    """Non-siblings map for RAAL attention."""
+    attention_layer_name: AttentionLayerName = "GTN"
+    """Defines which attention layer to use (QF, RAAL, or GTN))"""
+    dropout: float = 0.0
+    """Dropout probability."""
+    residual: bool = True
+    """Whether to make the layer residual. Defaults to True."""
+    use_bias: bool = False
+    """Whether to use bias in the attention layer. Defaults to False."""
+    batch_norm: bool = True
+    """Whether to use batch normalization. Defaults to True."""
+    layer_norm: bool = False
+    """Whether to use layer normalization. Defaults to False."""
 
 
 class GraphTransformer(BaseEmbedder):
+    """Graph Transformer Network
+    Computes graph embedding using attention mechanism
+    (either QF, RAAL, or GTN)
+    """
+
     def __init__(self, net_params: TransformerParams) -> None:
         super().__init__(net_params=net_params)
-
-        ped = net_params.ped
-        n_gcn_layers = net_params.n_gcn_layers
-        n_heads = net_params.n_heads
-        hidden_dim = net_params.hidden_dim
-        dropout = net_params.dropout
-
-        self.residual = net_params.residual
+        self.attention_layer_name = net_params.attention_layer_name
+        self.embedding_lap_pos_enc = nn.Linear(net_params.ped, net_params.hidden_dim)
+        self.embedding_h = nn.Linear(self.input_size, net_params.hidden_dim)
         self.readout = net_params.readout
-        self.batch_norm = net_params.batch_norm
-        self.layer_norm = net_params.layer_norm
-        self.embedding_lap_pos_enc = nn.Linear(ped, hidden_dim)
-        self.embedding_h = nn.Linear(self.in_feat_size_op, hidden_dim)
-
-        if self.name == "QF":
+        if self.attention_layer_name == "QF":
             if net_params.max_dist is None:
                 raise ValueError("max_dist is required for QF")
             max_dist = net_params.max_dist
-            self.attention_bias = nn.Parameter(
-                th.zeros(max_dist)
-            )  # fixme: should be renamed to `attention_bias`
-            self.layers = nn.ModuleList(
-                [
-                    GraphTransformerLayer(
-                        self.name,
-                        hidden_dim,
-                        out_dim,
-                        n_heads,
-                        dropout,
-                        self.layer_norm,
-                        self.batch_norm,
-                        self.residual,
-                        attention_bias=self.attention_bias,
-                    )
-                    for out_dim in [
-                        hidden_dim if i < n_gcn_layers - 1 else self.embedding_size
-                        for i in range(n_gcn_layers)
-                    ]
-                ]
-            )
+            self.attention_bias = nn.Parameter(th.zeros(max_dist))
 
+        elif self.attention_layer_name == "RAAL":
+            if net_params.non_siblings_map is None:
+                raise ValueError("non_siblings_map is required for RAAL")
+        elif self.attention_layer_name == "GTN":
+            pass
         else:
-            if self.name == "RAAL":
-                self.add_misc = net_params.non_siblings_map
-            else:
-                raise ValueError(self.name)
+            raise ValueError(self.attention_layer_name)
 
-            self.layers = nn.ModuleList(
-                [
-                    GraphTransformerLayer(
-                        self.name,
-                        hidden_dim,
-                        out_dim,
-                        n_heads,
-                        dropout,
-                        self.layer_norm,
-                        self.batch_norm,
-                        self.residual,
-                        non_siblings_map=net_params.non_siblings_map,
-                    )
-                    for out_dim in [
-                        hidden_dim if i < n_gcn_layers - 1 else self.embedding_size
-                        for i in range(n_gcn_layers)
-                    ]
+        self.layers = nn.ModuleList(
+            [
+                GraphTransformerLayer(
+                    in_dim=net_params.hidden_dim,
+                    out_dim=out_dim,
+                    n_heads=net_params.n_heads,
+                    dropout=net_params.dropout,
+                    layer_norm=net_params.layer_norm,
+                    batch_norm=net_params.batch_norm,
+                    residual=net_params.residual,
+                    use_bias=net_params.use_bias,
+                    attention_layer_name=net_params.attention_layer_name,
+                    attention_bias=self.attention_bias,
+                    non_siblings_map=net_params.non_siblings_map,
+                )
+                for out_dim in [
+                    net_params.hidden_dim
+                    if i < net_params.n_gcn_layers - 1
+                    else net_params.embedding_size
+                    for i in range(net_params.n_gcn_layers)
                 ]
-            )
+            ]
+        )
 
     def _embed(
         self, g: dgl.DGLGraph, h: th.Tensor, h_lap_pos_enc: th.Tensor
@@ -124,5 +123,5 @@ class GraphTransformer(BaseEmbedder):
         return hg
 
     def forward(self, g: dgl.DGLGraph, h_lap_pos_enc: th.Tensor) -> th.Tensor:  # type: ignore[override]
-        h = self.concatenate_op(g)
+        h = self.concatenate_op_features(g)
         return self.normalize_embedding(self._embed(g, h, h_lap_pos_enc))
