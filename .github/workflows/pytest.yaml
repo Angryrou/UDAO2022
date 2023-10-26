@@ -1,6 +1,14 @@
 name: PyTest
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches:
+      - '*' 
+  push:
+    branches:
+      - 'main'
+      - 'trace-parsing-and-modeling-spark'
+      - 'dev'
 
 jobs:
   test:
