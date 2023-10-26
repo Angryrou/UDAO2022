@@ -1,11 +1,3 @@
-# Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
-#
-# Description: Isotropic Batch Normalization from AAAI21
-# (IsoBN: Fine-Tuning BERT with Isotropic Batch Normalization)
-# https://github.com/INK-USC/IsoBN/blob/master/model.py
-#
-# Created at 15/02/2023
-
 import torch
 import torch.nn as nn
 
