@@ -6,7 +6,7 @@ import torch as th
 import torch.nn as nn
 
 from .base_embedder import BaseEmbedder, EmbedderParams
-from .layers.graph_transformer import GraphTransformerLayer
+from .layers.graph_transformer_layer import GraphTransformerLayer
 from .layers.multi_head_attention import AttentionLayerName
 
 ReadoutType = Literal["sum", "max", "mean"]
