@@ -4,12 +4,12 @@
 #
 # Created at 16/02/2023
 from abc import abstractmethod
+from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import dgl
 import torch as th
 import torch.nn as nn
-from attr import dataclass
 
 from .layers.iso_bn import IsoBN
 
