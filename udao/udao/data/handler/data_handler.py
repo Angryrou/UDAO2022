@@ -1,8 +1,8 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type
 
 import pandas as pd
-from attr import dataclass
 
 from ...data.preprocessors.base_preprocessor import (
     FeaturePreprocessorType,

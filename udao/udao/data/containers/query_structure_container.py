@@ -1,9 +1,9 @@
+from dataclasses import dataclass
 from typing import Dict, Tuple
 
 import dgl
 import numpy as np
 import pandas as pd
-from attr import dataclass
 
 from ...data.containers.base_container import BaseContainer
 from ..utils.query_plan import QueryPlanStructure

@@ -1,8 +1,8 @@
+from dataclasses import dataclass
 from typing import List, Sequence, Tuple
 
 import dgl
 import torch as th
-from attr import dataclass
 
 from ...data.containers.tabular_container import TabularContainer
 from ..containers import QueryStructureContainer
