@@ -1,4 +1,8 @@
+import copy
 from abc import ABC, abstractmethod
+from typing import TypeVar
+
+T = TypeVar("T", bound="BaseContainer")
 
 
 class BaseContainer(ABC):
@@ -9,3 +13,6 @@ class BaseContainer(ABC):
     @abstractmethod
     def get(self, key: str):  # type: ignore
         pass
+
+    def copy(self: T) -> T:
+        return copy.deepcopy(self)

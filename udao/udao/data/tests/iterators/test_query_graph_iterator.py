@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 import torch as th
 
-from ...containers import DataFrameContainer, QueryStructureContainer
+from ...containers import QueryStructureContainer, TabularContainer
 from ...iterators import QueryPlanIterator
 from ...utils.query_plan import QueryPlanStructure
 
@@ -35,12 +35,26 @@ def sample_iterator() -> QueryPlanIterator:
     structure_container = QueryStructureContainer(
         graph_features, template_plans, key_to_template
     )
+
+    df_features = pd.DataFrame.from_dict({"id": ["a", "b", "c"], "feature": [1, 2, 1]})
+    df_features.set_index("id", inplace=True)
+    features_container = TabularContainer(df_features)
+    df_objectives = pd.DataFrame.from_dict(
+        {"id": ["a", "b", "c"], "objective": [0, 1, 0]}
+    )
+    df_objectives.set_index("id", inplace=True)
+    objectives_container = TabularContainer(df_objectives)
+
     return QueryPlanIterator(
-        keys, structure_container, DataFrameContainer(embeddings_features)
+        keys,
+        features_container,
+        objectives_container,
+        structure_container,
+        op_emb=TabularContainer(embeddings_features),
     )
 
 
-class TestQueryPlanIterator:
+class TestQueryGraphIterator:
     def test_len(self, sample_iterator: QueryPlanIterator) -> None:
         assert len(sample_iterator) == len(sample_iterator.keys)
         assert len(sample_iterator) == len(
@@ -49,18 +63,22 @@ class TestQueryPlanIterator:
 
     def test_get_item(self, sample_iterator: QueryPlanIterator) -> None:
         first_sample = sample_iterator[0]
+
         a_sample = sample_iterator._get_graph("a")
-        for key in first_sample.ndata:
-            assert th.equal(first_sample.ndata[key], a_sample.ndata[key])  # type: ignore
+        for key in first_sample.graph.ndata:
+            assert th.equal(first_sample.graph.ndata[key], a_sample.ndata[key])  # type: ignore
+        assert np.equal(first_sample.features, [1])
+        assert np.equal(first_sample.objectives, [0])
 
     def test_get_graph(self, sample_iterator: QueryPlanIterator) -> None:
         graph = sample_iterator._get_graph("a")
         assert isinstance(graph, dgl.DGLGraph)
         assert graph.number_of_nodes() == 2
         assert th.equal(
-            graph.ndata["cbo"], th.tensor([np.linspace(i, i + 1, 2) for i in range(2)])  # type: ignore
+            graph.ndata["cbo"],  # type: ignore
+            th.tensor(np.array([np.linspace(i, i + 1, 2) for i in range(2)])),
         )
         assert th.equal(
             graph.ndata["op_emb"],  # type: ignore
-            th.tensor([np.linspace(i, i + 1, 10) for i in range(2)]),
+            th.tensor(np.array([np.linspace(i, i + 1, 10) for i in range(2)])),
         )

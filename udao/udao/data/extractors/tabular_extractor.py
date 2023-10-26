@@ -2,15 +2,13 @@ from typing import Callable
 
 import pandas as pd
 
-from ..containers import DataFrameContainer
+from ..containers import TabularContainer
 from .base_extractors import StaticFeatureExtractor
 
 
-class TabularFeatureExtractor(StaticFeatureExtractor):
+class TabularFeatureExtractor(StaticFeatureExtractor[TabularContainer]):
     def __init__(self, feature_func: Callable) -> None:
         self.feature_func = feature_func
 
-    def extract_features(self, df: pd.DataFrame) -> DataFrameContainer:
-        feature_series = df.apply(self.feature_func, axis=1)
-        feature_df = feature_series.to_frame(name="feature")
-        return DataFrameContainer(feature_df)
+    def extract_features(self, df: pd.DataFrame) -> TabularContainer:
+        return TabularContainer(self.feature_func(df))
