@@ -2,18 +2,17 @@ from pathlib import Path
 
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
-
-from ...data.embedders import Word2VecEmbedder
-from ...data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
-from ...data.extractors.tabular_extractor import TabularFeatureExtractor
-from ...data.handler.data_handler import (
+from udao.data.embedders import Word2VecEmbedder
+from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
+from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
+from udao.data.handler.data_handler import (
     DataHandler,
     FeaturePipeline,
     create_data_handler_params,
 )
-from ...data.iterators import QueryPlanIterator
-from ...data.preprocessors.normalize_preprocessor import NormalizePreprocessor
-from ...utils.logging import logger
+from udao.data.iterators import QueryPlanIterator
+from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
+from udao.utils.logging import logger
 
 if __name__ == "__main__":
     params_getter = create_data_handler_params(QueryPlanIterator, "op_emb")
