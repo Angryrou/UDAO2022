@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import torch as th
-import torch.nn as nn
 
+from .base_regressor import BaseRegressor
 from .layers.mlp_readout import MLPReadout
 
 
@@ -25,7 +25,7 @@ class MLPParams:
     """Dimensions of the aggregation layers in the MLP."""
 
 
-class MLP(nn.Module):
+class MLP(BaseRegressor):
     """MLP to compute the final regression from
     the embedding and the tabular input features.
     Parameters
