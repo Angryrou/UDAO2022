@@ -5,7 +5,7 @@ import dgl
 import torch as th
 import torch.nn as nn
 
-from .base_embedder import BaseEmbedder, EmbedderParams
+from .graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
 from .layers.graph_transformer_layer import GraphTransformerLayer
 from .layers.multi_head_attention import AttentionLayerName
 
@@ -13,7 +13,7 @@ ReadoutType = Literal["sum", "max", "mean"]
 
 
 @dataclass
-class GraphTransformerParams(EmbedderParams):
+class GraphTransformerParams(GraphEmbedderParams):
     pos_encoding_dim: int
     """Dimension of the position encoding."""
     n_layers: int
@@ -45,7 +45,7 @@ class GraphTransformerParams(EmbedderParams):
     """Whether to use layer normalization. Defaults to False."""
 
 
-class GraphTransformer(BaseEmbedder):
+class GraphTransformer(BaseGraphEmbedder):
     """Graph Transformer Network
     Computes graph embedding using attention mechanism
     (either QF, RAAL, or GTN)

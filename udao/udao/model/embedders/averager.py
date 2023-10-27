@@ -4,21 +4,21 @@ import dgl
 import torch as th
 import torch.nn as nn
 
-from .base_embedder import BaseEmbedder, EmbedderParams
+from .graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
 
 
 @dataclass
-class AveragerParams(EmbedderParams):
+class GraphAveragerParams(GraphEmbedderParams):
     pass
 
 
-class Averager(BaseEmbedder):
+class GraphAverager(BaseGraphEmbedder):
     """Averager Embedder network.
     Computes an embedding for each operation using a linear layer,
     then averages the embeddings of all operations in the graph.
     """
 
-    def __init__(self, net_params: AveragerParams) -> None:
+    def __init__(self, net_params: GraphAveragerParams) -> None:
         super().__init__(net_params)
 
         self.emb = nn.Sequential(

@@ -1,13 +1,13 @@
 import dgl
 import pytest
 
-from ...embedders.averager import Averager, AveragerParams
+from ...embedders.averager import GraphAverager, GraphAveragerParams
 from .conftest import generate_dgl_graph
 
 
 @pytest.fixture
-def params_fixture() -> AveragerParams:
-    return AveragerParams(
+def params_fixture() -> GraphAveragerParams:
+    return GraphAveragerParams(
         input_size=7,
         output_size=10,
         op_groups=["ch1_type", "ch1_cbo"],
@@ -18,8 +18,8 @@ def params_fixture() -> AveragerParams:
 
 
 class TestAverager:
-    def test_forward_shape(self, params_fixture: AveragerParams) -> None:
-        averager = Averager(params_fixture)
+    def test_forward_shape(self, params_fixture: GraphAveragerParams) -> None:
+        averager = GraphAverager(params_fixture)
         features_dict = {
             "op_gid": {"size": 1, "type": "int"},
             "cbo": {"size": 2, "type": "float"},

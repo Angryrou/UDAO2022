@@ -1,12 +1,12 @@
 import pytest
 import torch as th
 
-from ...embedders.base_embedder import BaseEmbedder, EmbedderParams
+from ...embedders.graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
 from .conftest import generate_dgl_graph
 
 
 def test_base_embedder_initialization() -> None:
-    params = EmbedderParams(
+    params = GraphEmbedderParams(
         input_size=5,
         output_size=10,
         op_groups=["ch1_type", "ch1_cbo"],
@@ -15,7 +15,7 @@ def test_base_embedder_initialization() -> None:
         n_op_types=3,
     )
 
-    embedder = BaseEmbedder(params)
+    embedder = BaseGraphEmbedder(params)
 
     assert embedder.input_size == 5
     assert embedder.embedding_size == 10
@@ -25,7 +25,7 @@ def test_base_embedder_initialization() -> None:
 
 
 def test_base_embedder_invalid_normalizer() -> None:
-    params = EmbedderParams(
+    params = GraphEmbedderParams(
         input_size=5,
         output_size=10,
         op_groups=["ch1_type", "ch1_cbo"],
@@ -35,11 +35,11 @@ def test_base_embedder_invalid_normalizer() -> None:
     )
 
     with pytest.raises(ValueError):
-        BaseEmbedder(params)
+        BaseGraphEmbedder(params)
 
 
 def test_base_embedder_concatenate_op_features() -> None:
-    params = EmbedderParams(
+    params = GraphEmbedderParams(
         input_size=5,
         output_size=10,
         op_groups=["ch1_type", "ch1_cbo"],
@@ -48,7 +48,7 @@ def test_base_embedder_concatenate_op_features() -> None:
         n_op_types=3,
     )
 
-    embedder = BaseEmbedder(params)
+    embedder = BaseGraphEmbedder(params)
     g = generate_dgl_graph(
         3,
         2,
@@ -61,7 +61,7 @@ def test_base_embedder_concatenate_op_features() -> None:
 
 
 def test_base_embedder_normalize_embedding() -> None:
-    params = EmbedderParams(
+    params = GraphEmbedderParams(
         input_size=5,
         output_size=3,
         op_groups=["ch1_type"],
@@ -70,7 +70,7 @@ def test_base_embedder_normalize_embedding() -> None:
         n_op_types=3,
     )
 
-    embedder = BaseEmbedder(params)
+    embedder = BaseGraphEmbedder(params)
     tensor = th.randn(5, 3)
 
     normalized_tensor = embedder.normalize_embedding(tensor)
