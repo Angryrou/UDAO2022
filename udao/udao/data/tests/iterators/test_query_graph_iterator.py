@@ -65,7 +65,6 @@ class TestQueryGraphIterator:
         first_sample = sample_iterator[0]
 
         expected_graph, expected_meta = sample_iterator._get_graph_and_meta("a")
-        print(first_sample.features, np.concatenate([[1], expected_meta]))
         for key in first_sample.graph.ndata:
             assert th.equal(first_sample.graph.ndata[key], expected_graph.ndata[key])  # type: ignore
         assert th.equal(
@@ -75,7 +74,6 @@ class TestQueryGraphIterator:
 
     def test_get_graph(self, sample_iterator: QueryPlanIterator) -> None:
         graph, meta = sample_iterator._get_graph_and_meta("a")
-        print(meta)
         assert th.equal(meta, th.tensor([0, 1]))
         assert isinstance(graph, dgl.DGLGraph)
         assert graph.number_of_nodes() == 2
