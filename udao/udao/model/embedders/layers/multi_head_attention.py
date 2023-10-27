@@ -107,9 +107,12 @@ class RAALMultiHeadAttentionLayer(MultiHeadAttentionLayer):
 
     The RAAL MultiHead Attention Layer requires the graphs to have an "sid" node
     feature.
+
     Parameters
     ----------
     non_siblings_map : Dict[int, Dict[int, List[int]]]
+    For each type of graph, maps the edge id to
+    all nodes that are not siblings of its source node
     """
 
     def __init__(

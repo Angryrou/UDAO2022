@@ -14,6 +14,44 @@ from .multi_head_attention import (
 
 
 class GraphTransformerLayer(nn.Module):
+    """Graph Transformer Layer that applies multi-head attention
+    and feed-forward network to an input containing a graph.
+
+    Parameters
+    ----------
+    in_dim : int
+        Dimension of the input tensor
+    out_dim : int
+        Dimension of the output tensor
+    n_heads : int
+        Number of attention heads
+    dropout : float, optional
+        Probability of dropout to apply to attention output,
+        by default 0.0
+    layer_norm : bool, optional
+        Whether to apply layer normalization, by default False
+    batch_norm : bool, optional
+        Whether to apply batch normalization, by default True
+    residual : bool, optional
+        Whether to make a residual connection, by default True
+    use_bias : bool, optional
+        Whether to use bias, by default False
+    attention_layer_name : AttentionLayerName, optional
+        Choice of the kind of attention layer, by default "GTN"
+    non_siblings_map : Optional[Dict[int, Dict[int, List[int]]]], optional
+        For each type of graph, maps the edge id to
+        all nodes that are not siblings of its source node
+    attention_bias : Optional[th.Tensor], optional
+        by default None
+
+    Raises
+    ------
+    ValueError
+        _description_
+    ValueError
+        _description_
+    """
+
     def __init__(
         self,
         in_dim: int,
@@ -81,9 +119,7 @@ class GraphTransformerLayer(nn.Module):
     def forward(self, g: dgl.DGLGraph, h: th.Tensor) -> th.Tensor:
         h_in1 = h  # for first residual connection
         # multi-head attention out
-        print(h_in1.shape)
         attn_out = self.attention.forward(g, h)
-        print(attn_out.shape)
         h = attn_out.view(-1, self.out_channels)
         h = F.dropout(h, self.dropout, training=self.training)
         h = self.O(h)
