@@ -55,20 +55,32 @@ class QueryPlanIterator(BaseDatasetIterator):
     def __len__(self) -> int:
         return len(self.keys)
 
-    def _get_graph(self, key: str) -> dgl.DGLGraph:
+    @staticmethod
+    def _get_meta(g: dgl.DGLGraph) -> th.Tensor:
+        """Returns the meta information of the graph,
+        defined as the sum of the cbo features of the input nodes.
+        """
+        input_nodes_index = th.where(g.in_degrees() == 0)[0]
+        input_meta = g.ndata["cbo"][input_nodes_index].sum(0)
+        return input_meta
+
+    def _get_graph_and_meta(self, key: str) -> Tuple[dgl.DGLGraph, th.Tensor]:
         """Returns the graph corresponding to the key,
-        associated with features as th.tensor"""
+        associated with features as th.tensor,
+        and the meta information.
+        """
         graph, graph_features = self.query_structure_container.get(key)
         graph.ndata["cbo"] = th.tensor(graph_features)
         for feature, container in self.other_graph_features.items():
             graph.ndata[feature] = th.tensor(container.get(key))
-        return graph
+        return graph, self._get_meta(graph)
 
     def __getitem__(self, idx: int) -> FeatureItem:
         key = self.keys[idx]
         features = th.tensor(self.tabular_features.get(key))
         objectives = th.tensor(self.objectives.get(key))
-        graph = self._get_graph(key)
+        graph, meta_input = self._get_graph_and_meta(key)
+        features = th.cat([features, meta_input])
         return QueryPlanIterator.FeatureItem(
             graph=graph, features=features, objectives=objectives
         )
