@@ -1,7 +1,7 @@
 import pytest
 import torch as th
 
-from ...embedders.graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
+from ...embedders.base_graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
 from .conftest import generate_dgl_graph
 
 

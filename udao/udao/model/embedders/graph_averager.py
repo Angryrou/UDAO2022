@@ -4,7 +4,7 @@ import dgl
 import torch as th
 import torch.nn as nn
 
-from .graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
+from .base_graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
 
 
 @dataclass

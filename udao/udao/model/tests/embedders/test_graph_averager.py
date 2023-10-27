@@ -1,7 +1,7 @@
 import dgl
 import pytest
 
-from ...embedders.averager import GraphAverager, GraphAveragerParams
+from ...embedders.graph_averager import GraphAverager, GraphAveragerParams
 from .conftest import generate_dgl_graph
 
 
