@@ -37,6 +37,8 @@ def e_scaled_exp(
 
 class MultiHeadAttentionLayer(nn.Module):
     """Multi-Head Attention Layer for Graph
+    proposed by "A Generalization of Transformer Networks to Graphs", DLG-AAAI'21.
+    https://arxiv.org/pdf/2012.09699.pdf
 
     Parameters
     ----------

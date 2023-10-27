@@ -16,6 +16,8 @@ from .multi_head_attention import (
 class GraphTransformerLayer(nn.Module):
     """Graph Transformer Layer that applies multi-head attention
     and feed-forward network to an input containing a graph.
+    proposed by "A Generalization of Transformer Networks to Graphs", DLG-AAAI'21.
+    https://arxiv.org/pdf/2012.09699.pdf
 
     Parameters
     ----------

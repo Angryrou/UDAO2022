@@ -6,6 +6,7 @@ import dgl
 import torch as th
 import torch.nn as nn
 
+from .base_embedder import BaseEmbedder
 from .layers.iso_bn import IsoBN
 
 NormalizerType = Literal["BN", "LN", "IsoBN"]
@@ -28,7 +29,7 @@ class GraphEmbedderParams:
     size of the operation type embedding."""
 
 
-class BaseGraphEmbedder(nn.Module, ABC):
+class BaseGraphEmbedder(BaseEmbedder, ABC):
     """Base class for Embedder networks.
     Takes care of preparing the input features for the
     embedding layer, and normalizing the output embedding.
