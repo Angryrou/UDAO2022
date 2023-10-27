@@ -106,7 +106,8 @@ class RAALMultiHeadAttentionLayer(MultiHeadAttentionLayer):
     https://ieeexplore.ieee.org/document/9835426
 
     The RAAL MultiHead Attention Layer requires the graphs to have an "sid" node
-    feature.
+    feature, corresponding to the id of the template graph.
+    This makes the link with the non_siblings_map.
 
     Parameters
     ----------

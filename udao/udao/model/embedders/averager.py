@@ -1,8 +1,3 @@
-# Author(s): Chenghao Lyu <chenghao at cs dot umass dot edu>
-#
-# Description: TODO
-#
-# Created at 16/02/2023
 from dataclasses import dataclass
 
 import dgl
