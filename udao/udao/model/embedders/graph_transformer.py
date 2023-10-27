@@ -5,7 +5,7 @@ import dgl
 import torch as th
 import torch.nn as nn
 
-from .graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
+from .base_graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
 from .layers.graph_transformer_layer import GraphTransformerLayer
 from .layers.multi_head_attention import AttentionLayerName
 
