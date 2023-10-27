@@ -8,9 +8,11 @@ import torch
 import torch.nn as nn
 
 
-def src_dot_dst(
+def e_src_dot_dst(
     src_field: str, dst_field: str, out_field: str
 ) -> Callable[[Any], Dict[str, torch.Tensor]]:
+    """Multiply source and destination node features and sum them up"""
+
     def func(edges: Any) -> Dict[str, torch.Tensor]:
         return {
             out_field: (edges.src[src_field] * edges.dst[dst_field]).sum(
@@ -21,19 +23,14 @@ def src_dot_dst(
     return func
 
 
-def scaled_exp(
+def e_scaled_exp(
     field: str, scale_constant: float
 ) -> Callable[[Any], Dict[str, torch.Tensor]]:
+    """Compute scaled exponential of a graph's edge field"""
+
     def func(edges: Any) -> Dict[str, torch.Tensor]:
         # clamp for softmax numerical stability
         return {field: torch.exp((edges.data[field] / scale_constant).clamp(-5, 5))}
-
-    return func
-
-
-def add_att_weights_bias(field: str) -> Callable[[Any], Dict[str, torch.Tensor]]:
-    def func(edges: Any) -> Dict[str, torch.Tensor]:
-        return {field: edges.data[field] + edges.data["att_weights"]}
 
     return func
 
@@ -75,7 +72,8 @@ class MultiHeadAttentionLayer(nn.Module):
         head_out = g.ndata["wV"] / (
             g.ndata["z"] + torch.full_like(g.ndata["z"], 1e-6)  # type: ignore
         )
-        # uncommenting below would delete intermediate values from graph
+        # uncommenting below would delete intermediate values from graph.
+        # Necessary if hidden_dim is different from out_dim
         # g.ndata.pop("wV")
         # g.ndata.pop("z")
         # g.edata.pop("score")
@@ -83,8 +81,8 @@ class MultiHeadAttentionLayer(nn.Module):
 
     def compute_attention(self, g: dgl.DGLGraph) -> dgl.DGLGraph:
         """Simple attention mechanism"""
-        g.apply_edges(src_dot_dst("K_h", "Q_h", "score"))
-        g.apply_edges(scaled_exp("score", np.sqrt(self.out_dim)))
+        g.apply_edges(e_src_dot_dst("K_h", "Q_h", "score"))
+        g.apply_edges(e_scaled_exp("score", np.sqrt(self.out_dim)))
         return g
 
     def compute_query_key_value(self, g: dgl.DGLGraph, h: torch.Tensor) -> dgl.DGLGraph:

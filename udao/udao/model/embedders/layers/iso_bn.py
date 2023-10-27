@@ -3,6 +3,8 @@ import torch.nn as nn
 
 
 class IsoBN(nn.Module):
+    """Isotropic Batch Normalization."""
+
     def __init__(self, hidden_dim: int) -> None:
         super().__init__()
         self.cov = nn.Parameter(torch.zeros(hidden_dim, hidden_dim))

@@ -47,9 +47,9 @@ class GraphTransformerLayer(nn.Module):
     Raises
     ------
     ValueError
-        _description_
+        Unknown attention type
     ValueError
-        _description_
+        out_dim must be divisible by n_heads
     """
 
     def __init__(

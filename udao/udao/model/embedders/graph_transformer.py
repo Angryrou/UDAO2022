@@ -74,6 +74,11 @@ class GraphTransformer(BaseEmbedder):
         else:
             raise ValueError(self.attention_layer_name)
 
+        if net_params.hidden_dim != net_params.output_size:
+            raise ValueError(
+                f"hidden_dim ({net_params.hidden_dim}) must be "
+                f"equal to output_size ({net_params.output_size})"
+            )
         self.layers = nn.ModuleList(
             [
                 GraphTransformerLayer(
@@ -105,7 +110,6 @@ class GraphTransformer(BaseEmbedder):
         h_lap_pos_enc = self.embedding_lap_pos_enc(h_lap_pos_enc)
         h = h + h_lap_pos_enc
 
-        # convnets
         for layer in self.layers:
             h = layer.forward(g, h)
         g.ndata["h"] = h
