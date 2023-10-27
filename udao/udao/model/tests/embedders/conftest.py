@@ -4,12 +4,9 @@ import torch as th
 
 
 def generate_dgl_graph(num_nodes: int, num_edges: int, features: dict) -> dgl.DGLGraph:
-    # Create a simple graph for the example
     u = th.tensor(range(num_edges))
     v = th.tensor(range(1, num_edges + 1))
     g = dgl.graph((u, v))
-
-    # Assign features
     for feat_name, props in features.items():
         if props["type"] == "float":
             g.ndata[feat_name] = th.randn(num_nodes, props["size"])
