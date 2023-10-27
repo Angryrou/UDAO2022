@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal, Optional, Sequence
+from typing import Dict, List, Literal, Optional
 
 import dgl
 import torch as th
@@ -27,8 +27,10 @@ class GraphTransformerParams(EmbedderParams):
     to form the graph embedding."""
     max_dist: Optional[int] = None
     """Maximum distance for QF attention."""
-    non_siblings_map: Optional[Sequence[Sequence[int]]] = None
-    """Non-siblings map for RAAL attention."""
+    non_siblings_map: Optional[Dict[int, Dict[int, List[int]]]] = None
+    """Non-siblings map for RAAL attention.
+    For each type of graph, maps the edge id to
+    all nodes that are not siblings of its source node"""
     attention_layer_name: AttentionLayerName = "GTN"
     """Defines which attention layer to use (QF, RAAL, or GTN))"""
     dropout: float = 0.0

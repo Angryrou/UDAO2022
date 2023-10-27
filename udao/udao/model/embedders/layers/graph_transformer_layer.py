@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 import dgl
 import torch as th
@@ -25,7 +25,7 @@ class GraphTransformerLayer(nn.Module):
         residual: bool = True,
         use_bias: bool = False,
         attention_layer_name: AttentionLayerName = "GTN",
-        non_siblings_map: Optional[Sequence[Sequence[int]]] = None,
+        non_siblings_map: Optional[Dict[int, Dict[int, List[int]]]] = None,
         attention_bias: Optional[th.Tensor] = None,
     ) -> None:
         super().__init__()
@@ -48,6 +48,10 @@ class GraphTransformerLayer(nn.Module):
             additional_args = {"attention_bias": self.attention_bias}
         elif attention_layer == RAALMultiHeadAttentionLayer:
             additional_args = {"non_siblings_map": self.non_siblings_map}
+        if out_dim % n_heads != 0:
+            raise ValueError(
+                f"out_dim ({out_dim}) must be divisible by n_heads ({n_heads})"
+            )
         self.attention = attention_layer(
             in_dim,
             out_dim // n_heads,

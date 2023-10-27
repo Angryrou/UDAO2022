@@ -1,4 +1,5 @@
-from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, Type
+from collections import defaultdict
+from typing import Any, Callable, Dict, List, Literal, Tuple, Type
 
 import dgl
 import dgl.function as fn
@@ -63,7 +64,6 @@ class MultiHeadAttentionLayer(nn.Module):
 
     def _apply_attention(self, g: dgl.DGLGraph) -> torch.Tensor:
         edge_ids: Tuple[torch.Tensor, torch.Tensor] = g.edges()
-        print(g.ndata["V_h"].shape, g.edata["score"].shape)  # type: ignore
         g.send_and_recv(
             edge_ids,
             fn.u_mul_e("V_h", "score", "V_h"),  # type: ignore
@@ -75,25 +75,28 @@ class MultiHeadAttentionLayer(nn.Module):
         head_out = g.ndata["wV"] / (
             g.ndata["z"] + torch.full_like(g.ndata["z"], 1e-6)  # type: ignore
         )
-        g.ndata.pop("wV")
-        g.ndata.pop("z")
-        g.edata.pop("score")
+        # uncommenting below would delete intermediate values from graph
+        # g.ndata.pop("wV")
+        # g.ndata.pop("z")
+        # g.edata.pop("score")
         return head_out
 
     def compute_attention(self, g: dgl.DGLGraph) -> dgl.DGLGraph:
-        g.apply_edges(src_dot_dst("K_h", "Q_h", "score"))  # , edges)
+        """Simple attention mechanism"""
+        g.apply_edges(src_dot_dst("K_h", "Q_h", "score"))
         g.apply_edges(scaled_exp("score", np.sqrt(self.out_dim)))
         return g
 
-    def forward(self, g: dgl.DGLGraph, h: torch.Tensor) -> torch.Tensor:
-        # Reshaping into [num_nodes, num_heads, feat_dim] to
-        # get projections for multi-head attention
+    def compute_query_key_value(self, g: dgl.DGLGraph, h: torch.Tensor) -> dgl.DGLGraph:
+        """Compute query, key, and value for each node"""
         g.ndata["Q_h"] = self.Q(h).view(-1, self.n_heads, self.out_dim)
         g.ndata["K_h"] = self.K(h).view(-1, self.n_heads, self.out_dim)
         g.ndata["V_h"] = self.V(h).view(-1, self.n_heads, self.out_dim)
+        return g
 
+    def forward(self, g: dgl.DGLGraph, h: torch.Tensor) -> torch.Tensor:
+        g = self.compute_query_key_value(g, h)
         g = self.compute_attention(g)
-
         return self._apply_attention(g)
 
 
@@ -102,45 +105,44 @@ class RAALMultiHeadAttentionLayer(MultiHeadAttentionLayer):
     proposed by "A Resource-Aware Deep Cost Model for Big Data Query Processing”
     https://ieeexplore.ieee.org/document/9835426
 
-
+    The RAAL MultiHead Attention Layer requires the graphs to have an "sid" node
+    feature.
     Parameters
     ----------
-    non_siblings_map : Sequence[Sequence[int]]
+    non_siblings_map : Dict[int, Dict[int, List[int]]]
     """
 
     def __init__(
         self,
         in_dim: int,
         out_dim: int,
-        num_heads: int,
+        n_heads: int,
         use_bias: bool,
-        non_siblings_map: Sequence[Sequence[int]],
+        non_siblings_map: Dict[int, Dict[int, List[int]]],
     ) -> None:
-        super().__init__(in_dim, out_dim, num_heads, use_bias)
+        super().__init__(in_dim, out_dim, n_heads, use_bias)
         self.non_siblings_map = non_siblings_map
 
     def compute_attention(self, g: dgl.DGLGraph) -> dgl.DGLGraph:
+        """Attention mechanism with non-siblings attention"""
         g_list = dgl.unbatch(g)
-        gg_map: Dict[int, List[dgl.DGLGraph]] = {}
+        sid_g_map: Dict[int, List[dgl.DGLGraph]] = defaultdict(list)
         for gg in g_list:
             sid = gg.ndata["sid"][0].cpu().item()
-            if sid in gg_map:
-                gg_map[sid].append(gg)
-            else:
-                gg_map[sid] = [gg]
+            sid_g_map[sid].append(gg)
 
         gb_list = []
-        for sid, gg_list in gg_map.items():
-            n_gg = len(gg_list)
-            gb = dgl.batch(gg_list)
-            Q = gb.ndata["Q_h"].reshape(n_gg, -1, self.n_heads, self.out_dim)  # type: ignore
-            K = gb.ndata["K_h"].reshape(n_gg, -1, self.n_heads, self.out_dim)  # type: ignore
+        for sid, graphs in sid_g_map.items():
+            n_graphs = len(graphs)
+            gb = dgl.batch(graphs)
+            Q = gb.ndata["Q_h"].reshape(n_graphs, -1, self.n_heads, self.out_dim)  # type: ignore
+            K = gb.ndata["K_h"].reshape(n_graphs, -1, self.n_heads, self.out_dim)  # type: ignore
             QK = (
                 torch.matmul(Q.transpose(1, 2), K.transpose(1, 2).transpose(2, 3))
                 .transpose(1, 2)
                 .clamp(-5, 5)
             )
-            srcs, dsts, eids = gg_list[0].edges(form="all", order="srcdst")
+            srcs, dsts, eids = graphs[0].edges(form="all", order="srcdst")
             score_list = [
                 QK[:, src, :, dst]
                 / (
@@ -162,6 +164,9 @@ class QFMultiHeadAttentionLayer(MultiHeadAttentionLayer):
     Representation"
     https://www.vldb.org/pvldb/vol15/p1658-zhao.pdf
 
+    The QF MultiHead Attention Layer requires the graphs to have a "dist"
+    edge feature. see examples/data/spark/4.qf_addition
+
     Parameters
     ----------
     attention_bias : torch.Tensor
@@ -171,14 +176,15 @@ class QFMultiHeadAttentionLayer(MultiHeadAttentionLayer):
         self,
         in_dim: int,
         out_dim: int,
-        num_heads: int,
+        n_heads: int,
         use_bias: bool,
         attention_bias: torch.Tensor,
     ) -> None:
-        super().__init__(in_dim, out_dim, num_heads, use_bias)
+        super().__init__(in_dim, out_dim, n_heads, use_bias)
         self.attention_bias = attention_bias
 
     def compute_attention(self, g: dgl.DGLGraph) -> dgl.DGLGraph:
+        """Attention mechanism with attention bias"""
         g = super().compute_attention(g)
         g.edata["att_bias"] = torch.index_select(
             self.attention_bias, 0, g.edata["dist"] - 1  # type: ignore

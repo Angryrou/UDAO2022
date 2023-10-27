@@ -25,7 +25,7 @@ def test_graph_transformer_initialization() -> None:
             attention_layer_name=cast(AttentionLayerName, attention_layer),
             dropout=0.1,
             max_dist=3 if attention_layer == "QF" else None,
-            non_siblings_map=[[0, 1, 2], [1, 2, 3]]
+            non_siblings_map={0: {0: [0, 1, 2], 1: [1, 2, 3]}}
             if attention_layer == "RAAL"
             else None,
         )
