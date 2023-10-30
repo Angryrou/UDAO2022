@@ -3,18 +3,12 @@ from typing import List, Optional
 
 import torch as th
 
-from .base_regressor import BaseRegressor
+from .base_regressor import BaseRegressor, BaseRegressorParams
 from .layers.mlp_readout import MLPReadout
 
 
 @dataclass
-class MLPParams:
-    input_embedding_dim: int
-    """Size of the embedding part of the input."""
-    input_features_dim: int  # depends on the data
-    """Size of the tabular features."""
-    output_dim: int
-    """Size of the output tensor."""
+class MLPParams(BaseRegressorParams):
     n_layers: int
     """Number of layers in the MLP"""
     hidden_dim: int
@@ -36,12 +30,10 @@ class MLP(BaseRegressor):
 
     def __init__(self, net_params: MLPParams) -> None:
         """_summary_"""
-        super().__init__()
-        self.name = "AVGMLP"
-        input_dim = net_params.input_embedding_dim + net_params.input_features_dim
+        super().__init__(net_params)
 
         self.MLP_layers = MLPReadout(
-            input_dim=input_dim,
+            input_dim=self.input_dim,
             hidden_dim=net_params.hidden_dim,
             output_dim=net_params.output_dim,
             n_layers=net_params.n_layers,

@@ -4,6 +4,7 @@ import pytest
 import torch as th
 
 from ....regressors.layers.mlp_readout import MLPReadout
+from ....utils import set_deterministic_torch
 
 
 @pytest.mark.parametrize("agg_dims", [None, [10, 15], [12]])
@@ -24,10 +25,37 @@ def test_init_with_dropout() -> None:
     assert model.BN_layers is None
 
 
-@pytest.mark.parametrize("agg_dims", [None, [10, 15], [12]])
-@pytest.mark.parametrize("dropout", [0, 0.5])
-def test_mlp_readout_forward(agg_dims: Optional[List[int]], dropout: float) -> None:
-    model = MLPReadout(10, 20, 5, dropout=dropout, n_layers=3, agg_dims=agg_dims)
-    input_tensor = th.rand((32, 10))
+@pytest.mark.parametrize(
+    "agg_dims, dropout, expected_output",
+    [
+        (
+            None,
+            0,
+            th.tensor([[-9.637698e-02, -5.446782e-02], [5.620091e-02, -3.493200e-02]]),
+        ),
+        (
+            None,
+            0.5,
+            th.tensor([[-8.102962e-02, -7.972025e-02], [1.521334e-01, -1.905714e-01]]),
+        ),
+        (
+            [10, 15],
+            0,
+            th.tensor([[-5.963351e-01, 4.445746e-02], [1.587002e-01, 2.566562e-01]]),
+        ),
+        (
+            [12],
+            0.5,
+            th.tensor([[2.615969e-01, -1.729497e-01], [7.635087e-03, -2.497894e-01]]),
+        ),
+    ],
+)
+def test_mlp_readout_forward(
+    agg_dims: Optional[List[int]], dropout: float, expected_output: th.Tensor
+) -> None:
+    set_deterministic_torch(0)
+    model = MLPReadout(10, 20, 2, dropout=dropout, n_layers=3, agg_dims=agg_dims)
+    input_tensor = th.rand((2, 10))
     output = model.forward(input_tensor)
-    assert output.shape == (32, 5)
+    assert output.shape == (2, 2)
+    assert th.allclose(output, expected_output, rtol=1e-5)
