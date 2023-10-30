@@ -44,7 +44,7 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             in the query plan
 
         """
-        structure, features = extract_query_plan_features(query_plan)
+        structure, op_features = extract_query_plan_features(query_plan)
         tid = None
 
         for template_id, template_structure in self.template_plans.items():
@@ -57,8 +57,8 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             self.template_plans[tid] = structure
         self.id_template_dict[idx] = tid
         return {
-            "operation_id": features.operation_ids,
-            **features.features_dict,
+            "operation_id": op_features.operation_ids,
+            **op_features.features_dict,
         }
 
     def extract_features(self, df: pd.DataFrame) -> QueryStructureContainer:
@@ -77,23 +77,27 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             Dataframe with one row per operation in the query plans,
             and one column per feature of the operations.
         """
-        df_features: pd.DataFrame = df.apply(
+        df_op_features: pd.DataFrame = df.apply(
             lambda row: self._extract_structure_and_features(row.id, row.plan),
             axis=1,
         ).apply(pd.Series)
-        df_features["plan_id"] = df["id"]
+        df_op_features["plan_id"] = df["id"]
 
-        expanded_df = df_features.explode("operation_id", ignore_index=True)
+        df_op_features_exploded = df_op_features.explode(
+            "operation_id", ignore_index=True
+        )
         for feature_name in self.feature_types.keys():
-            expanded_df[feature_name] = (
-                expanded_df[feature_name]
+            df_op_features_exploded[feature_name] = (
+                df_op_features_exploded[feature_name]
                 .explode(ignore_index=True)  # type: ignore
                 .astype(PandasTypes[self.feature_types[feature_name]])
             )  # convert to pandas type
-        expanded_df = expanded_df.set_index(["plan_id", "operation_id"])
+        df_op_features_exploded = df_op_features_exploded.set_index(
+            ["plan_id", "operation_id"]
+        )
 
         return QueryStructureContainer(
-            graph_features=expanded_df,
+            graph_features=df_op_features_exploded,
             template_plans=self.template_plans,
             key_to_template=self.id_template_dict,
         )

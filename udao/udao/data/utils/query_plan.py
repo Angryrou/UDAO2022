@@ -294,8 +294,8 @@ def extract_query_plan_features(
         sizes.insert(0, step.size)
         rows_counts.insert(0, step.get_rows_count(predecessors[step.id], rows_counts))
 
-    features = QueryPlanOperationFeatures(rows_count=rows_counts, size=sizes)
+    op_features = QueryPlanOperationFeatures(rows_count=rows_counts, size=sizes)
     structure = QueryPlanStructure(
         node_names=node_names, incoming_ids=incoming_ids, outgoing_ids=outgoing_ids
     )
-    return structure, features
+    return structure, op_features
