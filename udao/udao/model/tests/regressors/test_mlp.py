@@ -1,8 +1,12 @@
+import os
+
 import pytest
 import torch as th
 
 from ...regressors.mlp import MLP, MLPParams
 from ...utils import set_deterministic_torch
+
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 
 @pytest.mark.parametrize(
@@ -33,6 +37,7 @@ from ...utils import set_deterministic_torch
 def test_udao_mlp_forward_shape(
     embed_dim: int, feat_dim: int, expected_output: th.Tensor
 ) -> None:
+    th.device("cpu")
     set_deterministic_torch(0)
     sample_mlp_params = MLPParams(
         input_embedding_dim=embed_dim,

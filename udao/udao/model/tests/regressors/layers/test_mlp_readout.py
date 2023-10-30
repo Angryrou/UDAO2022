@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional
 
 import pytest
@@ -5,6 +6,8 @@ import torch as th
 
 from ....regressors.layers.mlp_readout import MLPReadout
 from ....utils import set_deterministic_torch
+
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 
 @pytest.mark.parametrize("agg_dims", [None, [10, 15], [12]])
@@ -53,6 +56,7 @@ def test_init_with_dropout() -> None:
 def test_mlp_readout_forward(
     agg_dims: Optional[List[int]], dropout: float, expected_output: th.Tensor
 ) -> None:
+    th.device("cpu")
     set_deterministic_torch(0)
     model = MLPReadout(10, 20, 2, dropout=dropout, n_layers=3, agg_dims=agg_dims)
     input_tensor = th.rand((2, 10))
