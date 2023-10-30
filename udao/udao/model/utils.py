@@ -20,6 +20,4 @@ def set_deterministic_torch(seed: int = 0) -> None:
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
-
-        torch.backends.cudnn.deterministic = True  # type: ignore
-        torch.backends.cudnn.benchmark = False  # type: ignore
+        torch.use_deterministic_algorithms(True)  # type: ignore
