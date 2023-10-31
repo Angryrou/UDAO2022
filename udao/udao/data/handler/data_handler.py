@@ -105,8 +105,20 @@ def create_data_handler_params(
     Returns
     -------
     Type[DataHandlerParams]
-        A dynamically generated DataHandlerParams class with arguments
-        from the provided iterator class and additional arguments.
+    A dynamically generated DataHandlerParams class with arguments
+    from the provided iterator class and additional arguments.
+    The returned function has the following signature:
+    >> def get_data_handler_params(
+    >>    index_column: str,
+    >>    stratify_on: Optional[str] = None,
+    >>    val_frac: float = 0.2,
+    >>    test_frac: float = 0.1,
+    >>    dryrun: bool = False,
+    >>    random_state: Optional[int] = None,
+    >>    **kwargs: FeaturePipeline,
+    ) -> DataHandlerParams:
+
+    where kwargs are the feature names and their corresponding feature
     """
     params = iterator_cls.get_parameter_names()
     if args is not None:
