@@ -100,7 +100,8 @@ To process a dataframe for training, with column selection and normalization, on
           key = self.keys[idx]
           return self.features.get(key), self.objectives.get(key)
 
-You can then set up the following data handler::
+You can then set up the data handler, based on the iterator. Here we use :py:func:`~udao.data.handler.data_handler.create_data_handler_params` to generate the parameters
+This enables to obtain a training dataloader ready for model training::
 
   from udao.data.handler import DataHandler, create_data_handler_params, FeaturePipeline
   from udao.data.extractors import TabularFeatureExtractor, select_columns

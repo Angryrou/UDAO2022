@@ -17,8 +17,5 @@ It contains the following submodules:
    iterators
    containers
    extractors
-   embedders
+   predicate_embedders
    preprocessors
-
-
-If you're just starting out with UDAO, it's recommended to visit the :doc:`User Guide <../user_guide/introduction>` to get a holistic understanding of the project.

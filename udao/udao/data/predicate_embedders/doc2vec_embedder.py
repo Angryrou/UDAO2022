@@ -5,7 +5,7 @@ import numpy as np
 from gensim.models import Doc2Vec
 from gensim.models.doc2vec import TaggedDocument
 
-from .base_embedder import BaseEmbedder
+from .base_predicate_embedder import BasePredicateEmbedder
 from .word2vec_embedder import Word2VecParams
 
 
@@ -14,7 +14,7 @@ class Doc2VecParams(Word2VecParams):
     pass
 
 
-class Doc2VecEmbedder(BaseEmbedder):
+class Doc2VecEmbedder(BasePredicateEmbedder):
     """A class to embed query plans using Doc2Vec.
     To use it:
     - first call fit_transform on a list of training query plans,
