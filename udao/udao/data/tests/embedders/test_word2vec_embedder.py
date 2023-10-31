@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ...embedders import Word2VecEmbedder, Word2VecParams
+from ...predicate_embedders import Word2VecEmbedder, Word2VecParams
 
 
 @pytest.fixture
