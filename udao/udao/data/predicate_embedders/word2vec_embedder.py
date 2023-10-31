@@ -6,7 +6,7 @@ from gensim.corpora import Dictionary
 from gensim.models import TfidfModel, Word2Vec
 from gensim.models.phrases import Phraser, Phrases
 
-from .base_embedder import BaseEmbedder
+from .base_predicate_embedder import BasePredicateEmbedder
 
 
 @dataclass
@@ -27,7 +27,7 @@ class Word2VecParams:
     epochs: int = 10
 
 
-class Word2VecEmbedder(BaseEmbedder):
+class Word2VecEmbedder(BasePredicateEmbedder):
     """
     A class to embed query plans using Word2Vec.
     The embedding is computed as the average of the word

@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from ...embedders.utils import extract_operations, prepare_operation
+from ...predicate_embedders.utils import extract_operations, prepare_operation
 
 
 @pytest.mark.parametrize(

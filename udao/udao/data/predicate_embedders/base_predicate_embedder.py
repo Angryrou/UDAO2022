@@ -4,7 +4,7 @@ from typing import Optional, Sequence
 import numpy as np
 
 
-class BaseEmbedder(ABC):
+class BasePredicateEmbedder(ABC):
     @abstractmethod
     def fit_transform(
         self, training_texts: Sequence[str], epochs: Optional[int] = None
