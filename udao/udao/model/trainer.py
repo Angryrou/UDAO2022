@@ -103,7 +103,7 @@ class UdaoModule(pl.LightningModule):
         self.validation_step_targets: List[th.Tensor] = []
         self.loss_type = loss_type
         self.objectives = objectives
-        self.lr_scheduler: th.optim.lr_scheduler.LRScheduler
+        self.lr_scheduler: Optional[th.optim.lr_scheduler.LRScheduler] = None
         if learning_params is None:
             self.learning_params = {
                 "init_lr": 1e-3,
@@ -153,8 +153,8 @@ class UdaoModule(pl.LightningModule):
             scheduler.step(metric)
 
     def on_train_epoch_end(self) -> None:
-        all_preds = th.stack(self.training_step_outputs)
-        all_targets = th.stack(self.training_step_targets)
+        all_preds = th.cat(self.training_step_outputs, dim=0)
+        all_targets = th.cat(self.training_step_targets, dim=0)
 
         for i, objective in enumerate(self.objectives):
             metrics = compute_metrics(
@@ -171,7 +171,13 @@ class UdaoModule(pl.LightningModule):
         self.training_step_targets.clear()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
-        return {"optimizer": self.optimizer, "lr_scheduler": self.lr_scheduler}
+        if self.lr_scheduler is None:
+            return {"optimizer": self.optimizer}
+        else:
+            return {
+                "optimizer": self.optimizer,
+                "lr_scheduler": self.lr_scheduler,
+            }
 
     def on_train_start(self) -> None:
         self.lr_scheduler = th.optim.lr_scheduler.CosineAnnealingLR(
@@ -190,8 +196,8 @@ class UdaoModule(pl.LightningModule):
         self.validation_step_targets.append(y)
 
     def on_validation_epoch_end(self) -> None:
-        all_preds = th.stack(self.validation_step_outputs)
-        all_targets = th.stack(self.validation_step_outputs)
+        all_preds = th.cat(self.validation_step_outputs, dim=0)
+        all_targets = th.cat(self.validation_step_targets, dim=0)
 
         loss, _ = loss_compute(
             all_targets, all_preds, self.loss_type, self.objectives, self.loss_weights

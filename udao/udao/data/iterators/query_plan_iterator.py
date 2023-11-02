@@ -70,15 +70,15 @@ class QueryPlanIterator(BaseDatasetIterator):
         and the meta information.
         """
         graph, graph_features = self.query_structure_container.get(key)
-        graph.ndata["cbo"] = th.tensor(graph_features)
+        graph.ndata["cbo"] = th.tensor(graph_features, dtype=th.float32)
         for feature, container in self.other_graph_features.items():
-            graph.ndata[feature] = th.tensor(container.get(key))
+            graph.ndata[feature] = th.tensor(container.get(key), dtype=th.float32)
         return graph, self._get_meta(graph)
 
     def __getitem__(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
         key = self.keys[idx]
-        features = th.tensor(self.tabular_features.get(key))
-        objectives = th.tensor(self.objectives.get(key))
+        features = th.tensor(self.tabular_features.get(key), dtype=th.float32)
+        objectives = th.tensor(self.objectives.get(key), dtype=th.float32)
         graph, meta_input = self._get_graph_and_meta(key)
         features = th.cat([features, meta_input])
         input_data = QueryPlanInput(graph, features)
@@ -90,6 +90,6 @@ class QueryPlanIterator(BaseDatasetIterator):
     ) -> Tuple[QueryPlanInput, th.Tensor]:
         """Collate a list of FeatureItem into a single graph."""
         graphs = [item[0].embedding_input for item in items]
-        features = th.cat([item[0].feature_input for item in items], dim=0)
-        objectives = th.cat([item[1] for item in items], dim=0)
+        features = th.vstack([item[0].feature_input for item in items])
+        objectives = th.vstack([item[1] for item in items])
         return QueryPlanInput(dgl.batch(graphs), features), objectives

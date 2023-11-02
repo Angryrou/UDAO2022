@@ -83,7 +83,8 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
             op_list.append(g.ndata["cbo"])
         if self.op_enc:
             op_list.append(g.ndata["enc"])
-        return th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
+        op_tensor = th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
+        return op_tensor
 
     def normalize_embedding(self, embedding: th.Tensor) -> th.Tensor:
         """Normalizes the embedding."""
