@@ -10,3 +10,4 @@ This section of the documentation contains information on the usage of the
 
    introduction
    data_processing
+   model

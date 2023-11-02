@@ -3,8 +3,8 @@ from typing import Callable
 import pandas as pd
 
 from ..containers import TabularContainer
-from ..embedders import BaseEmbedder
-from ..embedders.utils import extract_operations, prepare_operation
+from ..predicate_embedders import BasePredicateEmbedder
+from ..predicate_embedders.utils import extract_operations, prepare_operation
 from .base_extractors import TrainedFeatureExtractor
 
 
@@ -20,7 +20,7 @@ class PredicateEmbeddingExtractor(TrainedFeatureExtractor[TabularContainer]):
 
     def __init__(
         self,
-        embedder: BaseEmbedder,
+        embedder: BasePredicateEmbedder,
         op_preprocessing: Callable[[str], str] = prepare_operation,
     ) -> None:
         self.embedder = embedder

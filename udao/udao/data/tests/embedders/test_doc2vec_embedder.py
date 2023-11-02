@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ...embedders import Doc2VecEmbedder, Doc2VecParams
+from ...predicate_embedders import Doc2VecEmbedder, Doc2VecParams
 
 
 @pytest.fixture

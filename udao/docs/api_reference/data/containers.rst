@@ -1,5 +1,6 @@
 Containers
 ==========
+Containers are the data structures outputted by the extractors and used by the iterators.
 
 Base Container
 ---------------
