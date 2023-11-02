@@ -25,8 +25,7 @@ class GraphEmbedderParams:
     embedding_normalizer: Optional[NormalizerType]
     """Name of the normalizer to use for the output embedding."""
     n_op_types: int  # depends on the data
-    """The number of operation types - defines the
-    size of the operation type embedding."""
+    """The number of operation types."""
 
 
 class BaseGraphEmbedder(BaseEmbedder, ABC):

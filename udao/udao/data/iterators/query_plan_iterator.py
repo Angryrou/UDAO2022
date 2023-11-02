@@ -5,8 +5,16 @@ import dgl
 import torch as th
 
 from ...data.containers.tabular_container import TabularContainer
+from ...utils.interfaces import BaseUdaoInput
 from ..containers import QueryStructureContainer
 from .base_iterator import BaseDatasetIterator
+
+
+@dataclass
+class QueryPlanInput(BaseUdaoInput[dgl.DGLGraph]):
+    """The embedding input is a dgl.DGLGraph"""
+
+    pass
 
 
 class QueryPlanIterator(BaseDatasetIterator):
@@ -29,14 +37,6 @@ class QueryPlanIterator(BaseDatasetIterator):
     kwargs: BaseContainer
         Variable number of other features to add to the graph, e.g. embeddings
     """
-
-    @dataclass
-    class FeatureItem:
-        """Named tuple for the features of a query plan."""
-
-        graph: dgl.DGLGraph
-        features: th.Tensor
-        objectives: th.Tensor
 
     def __init__(
         self,
@@ -75,20 +75,21 @@ class QueryPlanIterator(BaseDatasetIterator):
             graph.ndata[feature] = th.tensor(container.get(key))
         return graph, self._get_meta(graph)
 
-    def __getitem__(self, idx: int) -> FeatureItem:
+    def __getitem__(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
         key = self.keys[idx]
         features = th.tensor(self.tabular_features.get(key))
         objectives = th.tensor(self.objectives.get(key))
         graph, meta_input = self._get_graph_and_meta(key)
         features = th.cat([features, meta_input])
-        return QueryPlanIterator.FeatureItem(
-            graph=graph, features=features, objectives=objectives
-        )
+        input_data = QueryPlanInput(graph, features)
+        return input_data, objectives
 
     @staticmethod
-    def collate(items: List[FeatureItem]) -> Tuple[dgl.DGLGraph, th.Tensor, th.Tensor]:
+    def collate(
+        items: List[Tuple[QueryPlanInput, th.Tensor]],
+    ) -> Tuple[QueryPlanInput, th.Tensor]:
         """Collate a list of FeatureItem into a single graph."""
-        graphs = [item.graph for item in items]
-        features = th.cat([item.features for item in items], dim=0)
-        objectives = th.cat([item.objectives for item in items], dim=0)
-        return dgl.batch(graphs), features, objectives
+        graphs = [item[0].embedding_input for item in items]
+        features = th.cat([item[0].feature_input for item in items], dim=0)
+        objectives = th.cat([item[1] for item in items], dim=0)
+        return QueryPlanInput(dgl.batch(graphs), features), objectives

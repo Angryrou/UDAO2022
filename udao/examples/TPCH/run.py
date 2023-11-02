@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import pytorch_lightning as pl
 from sklearn.preprocessing import MinMaxScaler
 from udao.data.embedders import Word2VecEmbedder
 from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
@@ -12,6 +13,10 @@ from udao.data.handler.data_handler import (
 )
 from udao.data.iterators import QueryPlanIterator
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
+from udao.model.embedders.graph_averager import GraphAverager, GraphAveragerParams
+from udao.model.model import UdaoModel
+from udao.model.regressors.mlp import MLP, MLPParams
+from udao.model.trainer import UdaoModule
 from udao.utils.logging import logger
 
 if __name__ == "__main__":
@@ -57,3 +62,11 @@ if __name__ == "__main__":
     data_handler = DataHandler(df, params)
     split_iterators = data_handler.get_iterators()
     logger.info(split_iterators["train"][0])
+    regressor = MLP(MLPParams(10, 10, 2, 2, 2, 0))
+    embedder = GraphAverager(GraphAveragerParams(10, 10, ["ch1_cbo"], 5, "BN", 4))
+    model = UdaoModel(embedder=embedder, regressor=regressor)
+    module = UdaoModule(model, ["latency"])
+    trainer = pl.Trainer(fast_dev_run=100)
+    trainer.fit(
+        model=module, train_dataloaders=split_iterators["train"].get_dataloader(32)
+    )
