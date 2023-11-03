@@ -83,9 +83,14 @@ class TestQueryGraphIterator:
         assert graph.number_of_nodes() == 2
         assert th.equal(
             graph.ndata["cbo"],  # type: ignore
-            th.tensor(np.array([np.linspace(i, i + 1, 2) for i in range(2)])),
+            th.tensor(
+                np.array([np.linspace(i, i + 1, 2) for i in range(2)]), dtype=th.float32
+            ),
         )
         assert th.equal(
             graph.ndata["op_emb"],  # type: ignore
-            th.tensor(np.array([np.linspace(i, i + 1, 10) for i in range(2)])),
+            th.tensor(
+                np.array([np.linspace(i, i + 1, 10) for i in range(2)]),
+                dtype=th.float32,
+            ),
         )

@@ -6,7 +6,7 @@ import torch as th
 
 from ...embedders.graph_transformer import GraphTransformer, GraphTransformerParams
 from ...embedders.layers.multi_head_attention import AttentionLayerName
-from ...utils import set_deterministic_torch
+from ...utils.utils import set_deterministic_torch
 from .conftest import generate_dgl_graph
 
 

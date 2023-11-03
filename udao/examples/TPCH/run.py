@@ -1,7 +1,9 @@
 from pathlib import Path
 
+import lightning as pl
 import pandas as pd
-import pytorch_lightning as pl
+import pytorch_warmup as warmup
+from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
 from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
@@ -17,9 +19,12 @@ from udao.model.embedders.graph_averager import GraphAverager, GraphAveragerPara
 from udao.model.model import UdaoModel
 from udao.model.regressors.mlp import MLP, MLPParams
 from udao.model.trainer import UdaoModule
+from udao.model.utils.losses import WMAPELoss
+from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 from udao.utils.logging import logger
 
 if __name__ == "__main__":
+    #### Data definition ####
     params_getter = create_data_handler_params(QueryPlanIterator, "op_emb")
     params = params_getter(
         index_column="id",
@@ -34,11 +39,9 @@ if __name__ == "__main__":
                     ]
                 ],
             ),
-            preprocessors=None,
         ),
         objectives=FeaturePipeline(
             extractor=(TabularFeatureExtractor, [lambda df: df[["latency"]]]),
-            preprocessors=None,
         ),
         query_structure=FeaturePipeline(
             extractor=(QueryStructureExtractor, []),
@@ -46,7 +49,6 @@ if __name__ == "__main__":
         ),
         op_emb=FeaturePipeline(
             extractor=(PredicateEmbeddingExtractor, [Word2VecEmbedder()]),
-            preprocessors=None,
         ),
     )
 
@@ -60,13 +62,45 @@ if __name__ == "__main__":
         on="id",
     )
     data_handler = DataHandler(df, params)
+
     split_iterators = data_handler.get_iterators()
     logger.info(split_iterators["train"][0])
-    regressor = MLP(MLPParams(10, 12, 1, 2, 2, 0))
-    embedder = GraphAverager(GraphAveragerParams(2, 10, ["ch1_cbo"], 5, "BN", 4))
+
+    #### Model definition ####
+
+    # Todo: make below parameters more automated from data properties
+    # (e.g. dimension of inputs)
+    # extract some dimensions from the data directly
+    # expect a dimension dataclass that iterator should implement
+
+    embedder = GraphAverager(
+        GraphAveragerParams(
+            input_size=2,
+            n_op_types=4,
+            output_size=10,
+            op_groups=["ch1_cbo"],
+            type_embedding_dim=5,
+            embedding_normalizer="BN",
+        )
+    )
+    regressor = MLP(
+        MLPParams(
+            input_embedding_dim=10,
+            input_features_dim=12,
+            output_dim=1,
+            n_layers=2,
+            hidden_dim=2,
+            dropout=0,
+        )
+    )
+
     model = UdaoModel(embedder=embedder, regressor=regressor)
-    module = UdaoModule(model, ["latency"])
-    trainer = pl.Trainer(fast_dev_run=100, accelerator="cpu")
+    module = UdaoModule(model, ["latency"], loss=WMAPELoss())
+    tb_logger = TensorBoardLogger("tb_logs")
+    scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
+    trainer = pl.Trainer(
+        accelerator="cpu", max_epochs=2, logger=tb_logger, callbacks=[scheduler]
+    )
     trainer.fit(
         model=module,
         train_dataloaders=split_iterators["train"].get_dataloader(32),

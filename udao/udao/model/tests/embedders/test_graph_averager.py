@@ -2,8 +2,8 @@ import dgl
 import pytest
 import torch as th
 
-from ....model.utils import set_deterministic_torch
 from ...embedders.graph_averager import GraphAverager, GraphAveragerParams
+from ...utils.utils import set_deterministic_torch
 from .conftest import generate_dgl_graph
 
 

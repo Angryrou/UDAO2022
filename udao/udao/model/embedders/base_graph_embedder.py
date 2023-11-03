@@ -16,6 +16,8 @@ NormalizerType = Literal["BN", "LN", "IsoBN"]
 class GraphEmbedderParams:
     input_size: int  # depends on the data
     """The size of the input features."""
+    n_op_types: int  # depends on the data
+    """The number of operation types."""
     output_size: int
     """The size of the output embedding."""
     op_groups: Sequence[str]
@@ -24,8 +26,6 @@ class GraphEmbedderParams:
     """The dimension of the operation type embedding."""
     embedding_normalizer: Optional[NormalizerType]
     """Name of the normalizer to use for the output embedding."""
-    n_op_types: int  # depends on the data
-    """The number of operation types."""
 
 
 class BaseGraphEmbedder(BaseEmbedder, ABC):

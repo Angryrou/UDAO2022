@@ -9,7 +9,7 @@ from ....embedders.layers.multi_head_attention import (
     QFMultiHeadAttentionLayer,
     RAALMultiHeadAttentionLayer,
 )
-from ....utils import set_deterministic_torch
+from ....utils.utils import set_deterministic_torch
 
 FixtureType = Tuple[MultiHeadAttentionLayer, dgl.DGLGraph, th.Tensor]
 
