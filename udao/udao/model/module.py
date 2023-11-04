@@ -74,8 +74,9 @@ class UdaoModule(pl.LightningModule):
     loss_weights : Optional[Dict[str, float]], optional
         Loss weights to apply in sum of different
         objective losses, by default None
-    learning_params : Optional[Dict[str, Any]], optional
-        _description_, by default None
+    learning_params : Optional[LearningParams], optional
+        Learning parameters, by default None
+        Default values are used if None.
     """
 
     def __init__(
