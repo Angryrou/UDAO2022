@@ -14,3 +14,4 @@ torch==2.0.1
 gensim==4.3.0
 pytorch-warmup==0.1.1
 lightning==2.1.0
+pytest-mock==3.12.0
