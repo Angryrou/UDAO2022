@@ -43,7 +43,7 @@ class TestUdaoModule:
         assert len(sample_module.step_outputs["train"]) == 1
         assert len(sample_module.step_outputs["train"]) == 1
 
-    def test_on_train_epoch_end(self, sample_module: UdaoModule, mocker: Any) -> None:
+    def test__shared_estimate(self, sample_module: UdaoModule, mocker: Any) -> None:
         batch = (
             th.tensor([[0.5, 2], [0.5, 2]], dtype=th.float32),
             th.tensor([[1, 1], [1, 1]], dtype=th.float32),
