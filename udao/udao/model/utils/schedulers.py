@@ -4,7 +4,7 @@ import lightning.pytorch as pl
 import pytorch_warmup as warmup
 from torch.optim.lr_scheduler import CosineAnnealingLR, LRScheduler
 
-from ..trainer import UdaoModule
+from ..module import UdaoModule
 
 SchedulerType = Union[LRScheduler, Callable[[pl.Trainer, UdaoModule], LRScheduler]]
 
@@ -18,13 +18,16 @@ class UdaoLRScheduler(pl.Callback):
     Parameters
     ----------
     scheduler : SchedulerType
-        _description_
+        Either a torch.optim.lr_scheduler.LRScheduler or
+        a callable that instantiates a scheduler based on the trainer and module.
+        This second option is useful when the scheduler needs access to data properties.
     warmup_cls : Type[warmup.BaseWarmup]
-        _description_
+        A warmup class from pytorch-warmup. Will be instantiated with the optimizer.
+        If None, no warmup will be used.
     scheduler_params : Optional[Dict[str, Any]], optional
-        _description_, by default None
+        Parameters to pass at scheduler instantiation, by default None
     warmup_params : Optional[Dict[str, Any]], optional
-        _description_, by default None
+        Parameters to pass at warmup instantiation, by default None
     """
 
     def __init__(
@@ -98,6 +101,6 @@ def setup_cosine_annealing_lr(
     scheduler = CosineAnnealingLR(
         optimizer,
         T_max=int(max_steps),
-        eta_min=pl_module.learning_params["min_lr"],
+        eta_min=pl_module.learning_params.min_lr,
     )
     return scheduler

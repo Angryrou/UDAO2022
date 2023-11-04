@@ -17,8 +17,8 @@ from udao.data.predicate_embedders import Word2VecEmbedder
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
 from udao.model.embedders.graph_averager import GraphAverager, GraphAveragerParams
 from udao.model.model import UdaoModel
+from udao.model.module import UdaoModule
 from udao.model.regressors.mlp import MLP, MLPParams
-from udao.model.trainer import UdaoModule
 from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 from udao.utils.logging import logger
