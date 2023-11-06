@@ -126,7 +126,7 @@ class UdaoModule(pl.LightningModule):
         for objective in self.objectives:
             metric = self.metrics[split][objective]
             output = metric.compute()
-            self.log_dict(output)
+            self.log_dict(output, on_epoch=True, prog_bar=True, logger=True)
             metric.reset()
 
     def training_step(self, batch: Tuple[Any, th.Tensor], batch_idx: int) -> th.Tensor:

@@ -5,6 +5,7 @@ import pandas as pd
 import pytorch_warmup as warmup
 from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
+from torchmetrics import WeightedMeanAbsolutePercentageError
 from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
 from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
 from udao.data.handler.data_handler import (
@@ -95,7 +96,12 @@ if __name__ == "__main__":
     )
 
     model = UdaoModel(embedder=embedder, regressor=regressor)
-    module = UdaoModule(model, ["latency"], loss=WMAPELoss())
+    module = UdaoModule(
+        model,
+        ["latency"],
+        loss=WMAPELoss(),
+        metrics=[WeightedMeanAbsolutePercentageError()],
+    )
     tb_logger = TensorBoardLogger("tb_logs")
     scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
     trainer = pl.Trainer(
