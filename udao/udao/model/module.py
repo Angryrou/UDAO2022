@@ -1,49 +1,15 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import lightning.pytorch as pl
-import numpy as np
 import torch as th
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
-from scipy.stats import pearsonr
 from torch import nn
 from torch.nn.modules.loss import _Loss
+from torchmetrics import Metric, MetricCollection
 
 from .utils.losses import WMAPELoss
-
-
-def compute_metrics(y_objective: th.Tensor, y_hat_objective: th.Tensor) -> Dict:
-    """Compute a dictionary of metrics for a given objective."""
-    y_err = np.abs(y_objective - y_hat_objective)
-    wmape = (y_err.sum() / y_objective.sum()).item()
-    y_err_rate = y_err / (y_objective + np.finfo(np.float32).eps)
-    mape = y_err_rate.mean()
-    err_50, err_90, err_95, err_99 = np.percentile(y_err_rate, [50, 90, 95, 99])
-    glb_err = np.abs(y_objective.sum() - y_hat_objective.sum()) / y_hat_objective.sum()
-    corr, _ = pearsonr(y_objective, y_hat_objective)
-    q_errs = np.maximum(
-        (y_objective + np.finfo(np.float32).eps)
-        / (y_hat_objective + np.finfo(np.float32).eps),
-        (y_hat_objective + np.finfo(np.float32).eps)
-        / (y_objective + np.finfo(np.float32).eps),
-    )
-    q_err_mean = np.mean(q_errs)
-    q_err_50, q_err_90, q_err_95, q_err_99 = np.percentile(q_errs, [50, 90, 95, 99])
-    return {
-        "wmape": wmape,
-        "mape": mape,
-        "err_50": err_50,
-        "err_90": err_90,
-        "err_95": err_95,
-        "err_99": err_99,
-        "q_err_mean": q_err_mean,
-        "q_err_50": q_err_50,
-        "q_err_90": q_err_90,
-        "q_err_95": q_err_95,
-        "q_err_99": q_err_99,
-        "glb_err": glb_err,
-        "corr": corr,
-    }
 
 
 @dataclass
@@ -63,6 +29,9 @@ class UdaoModule(pl.LightningModule):
     ----------
     model : nn.Module
         The model to train.
+    metrics: Optional[List[Metric]], optional
+        A list of metrics - from torchmetrics - to compute,
+        by default None
     objectives : List[str]
         The list of objectives to train on.
         Should be a subset of the objectives in the dataset, i.e.
@@ -84,6 +53,7 @@ class UdaoModule(pl.LightningModule):
         model: nn.Module,
         objectives: List[str],
         loss: Optional[_Loss] = None,
+        metrics: Optional[List[Metric]] = None,
         loss_weights: Optional[Dict[str, float]] = None,
         learning_params: Optional[LearningParams] = None,
     ) -> None:
@@ -109,18 +79,14 @@ class UdaoModule(pl.LightningModule):
             self.loss_weights = {m: 1.0 for m in self.objectives}
         else:
             self.loss_weights = loss_weights
-
-        # value lists for end of epoch computations
-        self.step_outputs: Dict[str, List[th.Tensor]] = {
-            "train": [],
-            "val": [],
-            "test": [],
-        }
-        self.step_targets: Dict[str, List[th.Tensor]] = {
-            "train": [],
-            "val": [],
-            "test": [],
-        }
+        self.metrics: Dict[str, Dict[str, MetricCollection]] = defaultdict(dict)
+        if metrics:
+            metric_collection = MetricCollection(metrics)
+            for split in ["train", "val", "test"]:
+                for objective in self.objectives:
+                    self.metrics[split][objective] = metric_collection.clone(
+                        prefix=f"{split}_{objective}_"
+                    )
 
     def compute_loss(
         self,
@@ -144,10 +110,27 @@ class UdaoModule(pl.LightningModule):
             )
         return loss, loss_dict
 
-    def training_step(self, batch: Tuple[Any, th.Tensor], batch_idx: int) -> th.Tensor:
-        # training_step defines the train loop.
+    def configure_optimizers(self) -> OptimizerLRScheduler:
+        return self.optimizer
+
+    def _shared_step(
+        self, batch: Tuple[Any, th.Tensor], split: str
+    ) -> Tuple[th.Tensor, th.Tensor]:
         features, y = batch
         y_hat = self.model(features)
+        for i, objective in enumerate(self.objectives):
+            self.metrics[split][objective].update(y_hat[:, i], y[:, i])
+        return y_hat, y
+
+    def _shared_epoch_end(self, split: str) -> None:
+        for objective in self.objectives:
+            metric = self.metrics[split][objective]
+            output = metric.compute()
+            self.log_dict(output)
+            metric.reset()
+
+    def training_step(self, batch: Tuple[Any, th.Tensor], batch_idx: int) -> th.Tensor:
+        y_hat, y = self._shared_step(batch, "train")
         loss, _ = self.compute_loss(y, y_hat)
         if th.isnan(loss):
             raise ValueError("get a nan loss in train")
@@ -156,51 +139,19 @@ class UdaoModule(pl.LightningModule):
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
-        self.step_outputs["train"].append(y_hat)
-        self.step_targets["train"].append(y)
         return loss
 
     def on_train_epoch_end(self) -> None:
-        self._shared_estimate("train")
-
-    def configure_optimizers(self) -> OptimizerLRScheduler:
-        return self.optimizer
+        self._shared_epoch_end("train")
 
     def validation_step(self, batch: Tuple[Any, th.Tensor], batch_idx: int) -> None:
-        features, y = batch
-        y_hat = self.model(features)
-        self.step_outputs["val"].append(y_hat)
-        self.step_targets["val"].append(y)
-
-    def _shared_estimate(self, split: str) -> None:
-        all_preds = th.cat(self.step_outputs[split], dim=0)
-        all_targets = th.cat(self.step_targets[split], dim=0)
-
-        loss, _ = self.compute_loss(all_targets, all_preds)
-        self.log(f"{split}_loss_epoch", loss, prog_bar=True, logger=True)
-
-        for i, objective in enumerate(self.objectives):
-            metrics = compute_metrics(
-                all_targets[:, i].detach().cpu().numpy(),
-                all_preds[:, i].detach().cpu().numpy(),
-            )
-            self.log(
-                f"wmape_{objective}",
-                metrics["wmape"],
-                prog_bar=True,
-                logger=True,
-            )
-        self.step_outputs[split].clear()
-        self.step_targets[split].clear()
+        self._shared_step(batch, "val")
 
     def on_validation_epoch_end(self) -> None:
-        self._shared_estimate("val")
+        self._shared_epoch_end("val")
 
     def test_step(self, batch: Tuple[Any, th.Tensor], batch_idx: int) -> None:
-        features, y = batch
-        y_hat = self.model(features)
-        self.step_outputs["test"].append(y_hat)
-        self.step_targets["test"].append(y)
+        self._shared_step(batch, "test")
 
     def on_test_epoch_end(self) -> None:
-        self._shared_estimate("val")
+        self._shared_epoch_end("test")

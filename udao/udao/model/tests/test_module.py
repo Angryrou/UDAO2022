@@ -3,8 +3,10 @@ from typing import Any
 import pytest
 import torch as th
 from torch import nn
+from torchmetrics import WeightedMeanAbsolutePercentageError
 
 from ..module import UdaoModule
+from ..utils.losses import WMAPELoss
 from ..utils.utils import set_deterministic_torch
 
 
@@ -14,8 +16,13 @@ def sample_module() -> UdaoModule:
 
     model = nn.Linear(2, 2)
     objectives = ["obj1", "obj2"]
-    loss = nn.L1Loss()
-    module = UdaoModule(model, objectives, loss)
+    loss = WMAPELoss()
+    module = UdaoModule(
+        model=model,
+        objectives=objectives,
+        loss=loss,
+        metrics=[WeightedMeanAbsolutePercentageError()],
+    )
     return module
 
 
@@ -28,8 +35,8 @@ class TestUdaoModule:
         y = th.tensor([[1, 1], [2, 2]], dtype=th.float32)
         y_hat = th.tensor([[2, 2], [1, 1]], dtype=th.float32)
         loss, loss_dict = sample_module.compute_loss(y, y_hat)
-        assert loss == 2.0
-        assert loss_dict == {"obj1": 1.0, "obj2": 1.0}
+        assert th.allclose(loss, th.tensor(4 / 3))
+        assert loss_dict == {"obj1": 2 / 3, "obj2": 2 / 3}
 
     def test_training_step(self, sample_module: UdaoModule, mocker: Any) -> None:
         batch = (
@@ -39,20 +46,45 @@ class TestUdaoModule:
         mocked_log = mocker.patch.object(sample_module, "log")
         returned = sample_module.training_step(batch, 0)
         assert mocked_log.called
-        assert th.allclose(returned, th.tensor(4.1752))
-        assert len(sample_module.step_outputs["train"]) == 1
-        assert len(sample_module.step_outputs["train"]) == 1
+        assert th.allclose(returned, th.tensor(2.7835))
 
-    def test__shared_estimate(self, sample_module: UdaoModule, mocker: Any) -> None:
+    def test__shared_epoch_end(self, sample_module: UdaoModule, mocker: Any) -> None:
+        batch = (
+            th.tensor([[1, 1], [2, 2]], dtype=th.float32),
+            th.tensor([[2, 2], [1, 1]], dtype=th.float32),
+        )
+        mocked_log_dict = mocker.spy(sample_module, "log_dict")
+
+        mocker.patch.object(sample_module, "log")
+        loss = sample_module.training_step(batch, 0)
+
+        sample_module._shared_epoch_end("train")
+        assert mocked_log_dict.call_count == 2
+
+        obj1_metric = mocked_log_dict.call_args_list[0][0][0][
+            "train_obj1_WeightedMeanAbsolutePercentageError"
+        ]
+        obj2_metric = mocked_log_dict.call_args_list[1][0][0][
+            "train_obj2_WeightedMeanAbsolutePercentageError"
+        ]
+        # assert the loss is the same as the metrics (WMAPE in both cases)
+        assert th.equal(obj1_metric + obj2_metric, loss)
+        assert th.allclose(
+            obj1_metric,
+            th.tensor(0.8075),
+            rtol=1e-4,
+        )
+        assert th.allclose(
+            obj2_metric,
+            th.tensor(1.9760),
+            rtol=1e-4,
+        )
+
+    def test_shared_step(self, sample_module: UdaoModule) -> None:
         batch = (
             th.tensor([[0.5, 2], [0.5, 2]], dtype=th.float32),
             th.tensor([[1, 1], [1, 1]], dtype=th.float32),
         )
-        mocked_log = mocker.spy(sample_module, "log")
-        sample_module.step_outputs["train"].append(batch[0])
-        sample_module.step_targets["train"].append(batch[1])
-        sample_module._shared_estimate("train")
-        assert mocked_log.call_count == 3
-        assert mocked_log.call_args_list[0][0] == ("train_loss_epoch", 1.5)
-        assert mocked_log.call_args_list[1][0] == ("wmape_obj1", 0.5)
-        assert mocked_log.call_args_list[2][0] == ("wmape_obj2", 1)
+        y_hat, y = sample_module._shared_step(batch, "train")
+        assert y_hat.shape == (2, 2)
+        assert y.shape == (2, 2)
