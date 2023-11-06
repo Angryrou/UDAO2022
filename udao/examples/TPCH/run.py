@@ -3,6 +3,7 @@ from pathlib import Path
 import lightning as pl
 import pandas as pd
 import pytorch_warmup as warmup
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torchmetrics import WeightedMeanAbsolutePercentageError
@@ -22,7 +23,6 @@ from udao.model.module import UdaoModule
 from udao.model.regressors.mlp import MLP, MLPParams
 from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
-from udao.utils.logging import logger
 
 if __name__ == "__main__":
     #### Data definition ####
@@ -65,7 +65,6 @@ if __name__ == "__main__":
     data_handler = DataHandler(df, params)
 
     split_iterators = data_handler.get_iterators()
-    logger.info(split_iterators["train"][0])
 
     #### Model definition ####
 
@@ -103,9 +102,18 @@ if __name__ == "__main__":
         metrics=[WeightedMeanAbsolutePercentageError()],
     )
     tb_logger = TensorBoardLogger("tb_logs")
+    checkpoint_callback = ModelCheckpoint(
+        dirpath="checkpoints/",
+        filename="{epoch}-val_WMAPE={val_latency_WeightedMeanAbsolutePercentageError:.2f}",
+        auto_insert_metric_name=False,
+    )
+
     scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
     trainer = pl.Trainer(
-        accelerator="cpu", max_epochs=2, logger=tb_logger, callbacks=[scheduler]
+        accelerator="cpu",
+        max_epochs=2,
+        logger=tb_logger,
+        callbacks=[scheduler, checkpoint_callback],
     )
     trainer.fit(
         model=module,
