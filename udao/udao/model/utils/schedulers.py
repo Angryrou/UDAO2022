@@ -13,7 +13,8 @@ class UdaoLRScheduler(pl.Callback):
     """Manual LR scheduler for pytorch-lightning.
     This is a callback that can be used to manually control the learning rate.
     It can be used to implement warmup or other learning rate schedules,
-    needing access to data properties such as the number of training batches.
+    in particular when needing access to data properties such
+    as the number of training batches.
 
     Parameters
     ----------
@@ -89,6 +90,8 @@ class UdaoLRScheduler(pl.Callback):
 def setup_cosine_annealing_lr(
     trainer: pl.Trainer, pl_module: UdaoModule
 ) -> CosineAnnealingLR:
+    """Instantiation of a CosineAnnealingLR scheduler
+    from data size and number of epochs."""
     num_training_batches = len(trainer.train_dataloader)  # type: ignore
     max_steps = 0
     if trainer.max_steps:

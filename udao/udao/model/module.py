@@ -116,6 +116,7 @@ class UdaoModule(pl.LightningModule):
     def _shared_step(
         self, batch: Tuple[Any, th.Tensor], split: str
     ) -> Tuple[th.Tensor, th.Tensor]:
+        """Update metrics for a given split."""
         features, y = batch
         y_hat = self.model(features)
         for i, objective in enumerate(self.objectives):
@@ -123,6 +124,7 @@ class UdaoModule(pl.LightningModule):
         return y_hat, y
 
     def _shared_epoch_end(self, split: str) -> None:
+        """Compute and log metrics of all objectives for a given split."""
         for objective in self.objectives:
             metric = self.metrics[split][objective]
             output = metric.compute()
@@ -133,9 +135,9 @@ class UdaoModule(pl.LightningModule):
         y_hat, y = self._shared_step(batch, "train")
         loss, _ = self.compute_loss(y, y_hat)
         if th.isnan(loss):
-            raise ValueError("get a nan loss in train")
+            raise ValueError("got a nan loss in train")
         elif th.isinf(loss):
-            raise ValueError("get an inf loss in train")
+            raise ValueError("got an inf loss in train")
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
