@@ -2,17 +2,17 @@ import dgl
 import pytest
 import torch as th
 
-from ...embedders.graph_averager import GraphAverager, GraphAveragerParams
+from ...embedders.graph_averager import GraphAverager
 from ...utils.utils import set_deterministic_torch
 from .conftest import generate_dgl_graph
 
 
 @pytest.fixture
-def params_fixture() -> GraphAveragerParams:
-    return GraphAveragerParams(
-        input_size=7,
+def params_fixture() -> GraphAverager.Params:
+    return GraphAverager.Params(
+        input_size=2,
         output_size=4,
-        op_groups=["ch1_type", "ch1_cbo"],
+        op_groups=["type", "cbo"],
         type_embedding_dim=5,
         embedding_normalizer=None,
         n_op_types=3,
@@ -20,7 +20,7 @@ def params_fixture() -> GraphAveragerParams:
 
 
 class TestAverager:
-    def test_forward_shape(self, params_fixture: GraphAveragerParams) -> None:
+    def test_forward_shape(self, params_fixture: GraphAverager.Params) -> None:
         set_deterministic_torch(0)
         averager = GraphAverager(params_fixture)
         features_dict = {

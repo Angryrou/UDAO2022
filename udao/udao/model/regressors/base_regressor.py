@@ -5,19 +5,18 @@ import torch as th
 from torch import nn
 
 
-@dataclass
-class BaseRegressorParams:
-    input_embedding_dim: int
-    """Size of the embedding part of the input."""
-    input_features_dim: int  # depends on the data
-    """Size of the tabular features."""
-    output_dim: int
-    """Size of the output tensor."""
-
-
 class BaseRegressor(nn.Module, ABC):
+    @dataclass
+    class Params:
+        input_embedding_dim: int
+        """Size of the embedding part of the input."""
+        input_features_dim: int  # depends on the data
+        """Size of the tabular features."""
+        output_dim: int
+        """Size of the output tensor."""
+
     @abstractmethod
-    def __init__(self, net_params: BaseRegressorParams) -> None:
+    def __init__(self, net_params: Params) -> None:
         super().__init__()
         self.input_dim = net_params.input_embedding_dim + net_params.input_features_dim
 

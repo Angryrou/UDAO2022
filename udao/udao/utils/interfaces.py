@@ -5,8 +5,17 @@ import torch as th
 
 T = TypeVar("T")
 
+ST = TypeVar("ST")
+
 
 @dataclass
-class BaseUdaoInput(Generic[T]):
+class UdaoInput(Generic[T]):
     embedding_input: T
     feature_input: th.Tensor
+
+
+@dataclass
+class UdaoInputShape(Generic[ST]):
+    embedding_input_shape: ST
+    feature_input_shape: int
+    output_shape: int

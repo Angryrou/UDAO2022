@@ -17,10 +17,10 @@ from udao.data.handler.data_handler import (
 from udao.data.iterators import QueryPlanIterator
 from udao.data.predicate_embedders import Word2VecEmbedder
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
-from udao.model.embedders.graph_averager import GraphAverager, GraphAveragerParams
+from udao.model.embedders.graph_averager import GraphAverager
 from udao.model.model import UdaoModel
 from udao.model.module import UdaoModule
-from udao.model.regressors.mlp import MLP, MLPParams
+from udao.model.regressors.mlp import MLP
 from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 
@@ -73,28 +73,18 @@ if __name__ == "__main__":
     # extract some dimensions from the data directly
     # expect a dimension dataclass that iterator should implement
 
-    embedder = GraphAverager(
-        GraphAveragerParams(
-            input_size=2,
-            n_op_types=4,
-            output_size=10,
-            op_groups=["ch1_cbo"],
-            type_embedding_dim=5,
-            embedding_normalizer="BN",
-        )
+    model = UdaoModel.from_config(
+        embedder_cls=GraphAverager,
+        regressor_cls=MLP,
+        iterator_shape=split_iterators["train"].get_iterator_shape(),
+        regressor_params={"n_layers": 2, "hidden_dim": 2, "dropout": 0},
+        embedder_params={
+            "output_size": 10,
+            "op_groups": ["cbo", "op_emb"],
+            "type_embedding_dim": 5,
+            "embedding_normalizer": "BN",
+        },
     )
-    regressor = MLP(
-        MLPParams(
-            input_embedding_dim=10,
-            input_features_dim=12,
-            output_dim=1,
-            n_layers=2,
-            hidden_dim=2,
-            dropout=0,
-        )
-    )
-
-    model = UdaoModel(embedder=embedder, regressor=regressor)
     module = UdaoModule(
         model,
         ["latency"],

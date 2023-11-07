@@ -1,23 +1,23 @@
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import dgl
 import torch as th
 
 from ...data.containers.tabular_container import TabularContainer
-from ...utils.interfaces import BaseUdaoInput
+from ...utils.interfaces import UdaoInput, UdaoInputShape
 from ..containers import QueryStructureContainer
 from .base_iterator import BaseDatasetIterator
 
 
 @dataclass
-class QueryPlanInput(BaseUdaoInput[dgl.DGLGraph]):
+class QueryPlanInput(UdaoInput[dgl.DGLGraph]):
     """The embedding input is a dgl.DGLGraph"""
 
     pass
 
 
-class QueryPlanIterator(BaseDatasetIterator):
+class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
     """
     Iterator that returns a dgl.DGLGraph for each key, with associated node features.
     The features are stored in the graph.ndata dictionary.
@@ -50,6 +50,7 @@ class QueryPlanIterator(BaseDatasetIterator):
         self.tabular_features = tabular_features
         self.objectives = objectives
         self.query_structure_container = query_structure
+        self.base_graph_features = ["cbo"]
         self.other_graph_features = kwargs
 
     def __len__(self) -> int:
@@ -83,6 +84,26 @@ class QueryPlanIterator(BaseDatasetIterator):
         features = th.cat([features, meta_input])
         input_data = QueryPlanInput(graph, features)
         return input_data, objectives
+
+    def get_iterator_shape(self) -> UdaoInputShape[Dict[str, int]]:
+        """Returns the dimensions of the iterator inputs and outputs."""
+
+        sample_input, sample_output = self._get_sample()
+        embedding_input_shape = {}
+        feature_names = self.base_graph_features + list(
+            self.other_graph_features.keys()
+        )
+        for feature_name in feature_names:
+            embedding_input_shape[feature_name] = sample_input.embedding_input.ndata[
+                feature_name
+            ].shape[  # type: ignore
+                1
+            ]
+        return UdaoInputShape(
+            embedding_input_shape=embedding_input_shape,
+            feature_input_shape=sample_input.feature_input.shape[0],
+            output_shape=sample_output.shape[0],
+        )
 
     @staticmethod
     def collate(

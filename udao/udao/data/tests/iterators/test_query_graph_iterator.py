@@ -94,3 +94,12 @@ class TestQueryGraphIterator:
                 dtype=th.float32,
             ),
         )
+
+    def test_iterator_shape(self, sample_iterator: QueryPlanIterator) -> None:
+        shape = sample_iterator.get_iterator_shape()
+        assert shape.embedding_input_shape == {
+            "cbo": 2,
+            "op_emb": 10,
+        }
+        assert shape.feature_input_shape == 3
+        assert shape.output_shape == 1

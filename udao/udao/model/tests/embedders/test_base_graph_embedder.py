@@ -1,15 +1,15 @@
 import pytest
 import torch as th
 
-from ...embedders.base_graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
+from ...embedders.base_graph_embedder import BaseGraphEmbedder
 from .conftest import generate_dgl_graph
 
 
 def test_base_embedder_initialization() -> None:
-    params = GraphEmbedderParams(
+    params = BaseGraphEmbedder.Params(
         input_size=5,
         output_size=10,
-        op_groups=["ch1_type", "ch1_cbo"],
+        op_groups=["type", "cbo"],
         type_embedding_dim=5,
         embedding_normalizer="BN",
         n_op_types=3,
@@ -17,7 +17,7 @@ def test_base_embedder_initialization() -> None:
 
     embedder = BaseGraphEmbedder(params)
 
-    assert embedder.input_size == 5
+    assert embedder.input_size == 10
     assert embedder.embedding_size == 10
     assert embedder.op_type
     assert embedder.op_cbo
@@ -25,10 +25,10 @@ def test_base_embedder_initialization() -> None:
 
 
 def test_base_embedder_invalid_normalizer() -> None:
-    params = GraphEmbedderParams(
+    params = BaseGraphEmbedder.Params(
         input_size=5,
         output_size=10,
-        op_groups=["ch1_type", "ch1_cbo"],
+        op_groups=["type", "cbo"],
         type_embedding_dim=5,
         embedding_normalizer="UNKNOWN",  # type: ignore
         n_op_types=3,
@@ -39,10 +39,10 @@ def test_base_embedder_invalid_normalizer() -> None:
 
 
 def test_base_embedder_concatenate_op_features() -> None:
-    params = GraphEmbedderParams(
+    params = BaseGraphEmbedder.Params(
         input_size=5,
         output_size=10,
-        op_groups=["ch1_type", "ch1_cbo"],
+        op_groups=["type", "cbo"],
         type_embedding_dim=5,
         embedding_normalizer=None,
         n_op_types=3,
@@ -61,10 +61,10 @@ def test_base_embedder_concatenate_op_features() -> None:
 
 
 def test_base_embedder_normalize_embedding() -> None:
-    params = GraphEmbedderParams(
+    params = BaseGraphEmbedder.Params(
         input_size=5,
         output_size=3,
-        op_groups=["ch1_type"],
+        op_groups=["type"],
         type_embedding_dim=5,
         embedding_normalizer="BN",
         n_op_types=3,
