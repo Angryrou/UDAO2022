@@ -2,6 +2,7 @@ from abc import abstractmethod
 from inspect import signature
 from typing import Any, List, Sequence, Type
 
+import torch as th
 from torch.utils.data import DataLoader, Dataset
 
 from ..containers import BaseContainer
@@ -12,8 +13,9 @@ class BaseDatasetIterator(Dataset):
     Inherits from torch.utils.data.Dataset.
     """
 
-    @abstractmethod
     def __init__(self, keys: Sequence[str], *args: Type[BaseContainer]) -> None:
+        self.keys = keys
+        self.tensors_dtype = th.float32
         pass
 
     @abstractmethod
@@ -67,3 +69,9 @@ class BaseDatasetIterator(Dataset):
             if param not in ["self", "keys", "args", "kwargs"]
         ]
         return params_list
+
+    def set_tensors_dtype(self, dtype: th.dtype) -> None:
+        """Sets the dtype of the iterator.
+        Useful for mixed precision training.
+        """
+        self.tensors_dtype = dtype
