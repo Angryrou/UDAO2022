@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import lightning as pl
+import lightning.pytorch as pl
 import pandas as pd
 import pytorch_warmup as warmup
 from lightning.pytorch.callbacks import ModelCheckpoint
