@@ -26,7 +26,7 @@ from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_
 
 if __name__ == "__main__":
     #### Data definition ####
-    params_getter = create_data_handler_params(QueryPlanIterator, "op_emb")
+    params_getter = create_data_handler_params(QueryPlanIterator, "op_enc")
     params = params_getter(
         index_column="id",
         stratify_on="tid",
@@ -48,7 +48,7 @@ if __name__ == "__main__":
             extractor=(QueryStructureExtractor, []),
             preprocessors=[(NormalizePreprocessor, [MinMaxScaler(), "graph_features"])],
         ),
-        op_emb=FeaturePipeline(
+        op_enc=FeaturePipeline(
             extractor=(PredicateEmbeddingExtractor, [Word2VecEmbedder()]),
         ),
     )
@@ -80,7 +80,7 @@ if __name__ == "__main__":
         regressor_params={"n_layers": 2, "hidden_dim": 2, "dropout": 0},
         embedder_params={
             "output_size": 10,
-            "op_groups": ["cbo", "op_emb"],
+            "op_groups": ["cbo", "op_enc"],
             "type_embedding_dim": 5,
             "embedding_normalizer": "BN",
         },

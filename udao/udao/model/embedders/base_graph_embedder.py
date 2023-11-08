@@ -76,7 +76,7 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
         op_groups = net_params.op_groups
         self.op_type = "type" in op_groups
         self.op_cbo = "cbo" in op_groups
-        self.op_enc = "op_emb" in op_groups
+        self.op_enc = "op_enc" in op_groups
         if self.op_type:
             if net_params.n_op_types is None or net_params.type_embedding_dim is None:
                 raise ValueError(
@@ -118,7 +118,7 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
         if self.op_cbo:
             op_list.append(g.ndata["cbo"])
         if self.op_enc:
-            op_list.append(g.ndata["op_emb"])
+            op_list.append(g.ndata["op_enc"])
         op_tensor = th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
         return op_tensor
 
