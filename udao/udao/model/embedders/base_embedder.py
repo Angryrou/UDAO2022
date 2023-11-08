@@ -21,8 +21,12 @@ class BaseEmbedder(nn.Module, ABC):
         iterator_shape: UdaoInputShape,
         **kwargs: Any,
     ) -> "BaseEmbedder":
-        pass
+        ...
 
-    def __init__(self, net_params: Any) -> None:
+    def __init__(self, net_params: Params) -> None:
         super().__init__()
         self.embedding_size = net_params.output_size
+
+    @abstractmethod
+    def forward(self, input: Any) -> Any:
+        ...

@@ -15,10 +15,10 @@ class BaseRegressor(nn.Module, ABC):
         output_dim: int
         """Size of the output tensor."""
 
-    @abstractmethod
     def __init__(self, net_params: Params) -> None:
         super().__init__()
         self.input_dim = net_params.input_embedding_dim + net_params.input_features_dim
+        self.output_dim = net_params.output_dim
 
     @abstractmethod
     def forward(self, embedding: th.Tensor, inst_feat: th.Tensor) -> th.Tensor:
