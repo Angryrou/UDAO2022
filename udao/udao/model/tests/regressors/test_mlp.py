@@ -2,7 +2,7 @@ import pytest
 import torch as th
 
 from ...regressors.mlp import MLP, MLPParams
-from ...utils import set_deterministic_torch
+from ...utils.utils import set_deterministic_torch
 
 
 @pytest.mark.parametrize(

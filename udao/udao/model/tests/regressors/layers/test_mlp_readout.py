@@ -4,7 +4,7 @@ import pytest
 import torch as th
 
 from ....regressors.layers.mlp_readout import MLPReadout
-from ....utils import set_deterministic_torch
+from ....utils.utils import set_deterministic_torch
 
 
 @pytest.mark.parametrize("agg_dims", [None, [10, 15], [12]])

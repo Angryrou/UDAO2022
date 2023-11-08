@@ -16,6 +16,8 @@ NormalizerType = Literal["BN", "LN", "IsoBN"]
 class GraphEmbedderParams:
     input_size: int  # depends on the data
     """The size of the input features."""
+    n_op_types: int  # depends on the data
+    """The number of operation types."""
     output_size: int
     """The size of the output embedding."""
     op_groups: Sequence[str]
@@ -24,9 +26,6 @@ class GraphEmbedderParams:
     """The dimension of the operation type embedding."""
     embedding_normalizer: Optional[NormalizerType]
     """Name of the normalizer to use for the output embedding."""
-    n_op_types: int  # depends on the data
-    """The number of operation types - defines the
-    size of the operation type embedding."""
 
 
 class BaseGraphEmbedder(BaseEmbedder, ABC):
@@ -84,7 +83,8 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
             op_list.append(g.ndata["cbo"])
         if self.op_enc:
             op_list.append(g.ndata["enc"])
-        return th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
+        op_tensor = th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
+        return op_tensor
 
     def normalize_embedding(self, embedding: th.Tensor) -> th.Tensor:
         """Normalizes the embedding."""

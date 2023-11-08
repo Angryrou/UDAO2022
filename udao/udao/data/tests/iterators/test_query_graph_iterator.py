@@ -62,15 +62,19 @@ class TestQueryGraphIterator:
         )
 
     def test_get_item(self, sample_iterator: QueryPlanIterator) -> None:
-        first_sample = sample_iterator[0]
+        first_sample, objectives = sample_iterator[0]
 
         expected_graph, expected_meta = sample_iterator._get_graph_and_meta("a")
-        for key in first_sample.graph.ndata:
-            assert th.equal(first_sample.graph.ndata[key], expected_graph.ndata[key])  # type: ignore
+        for key in first_sample.embedding_input.ndata:
+            assert th.equal(
+                first_sample.embedding_input.ndata[key],  # type: ignore
+                expected_graph.ndata[key],  # type: ignore
+            )
         assert th.equal(
-            first_sample.features, th.tensor(np.concatenate([[1], expected_meta]))
+            first_sample.feature_input,
+            th.tensor(np.concatenate([[1], expected_meta])),
         )
-        assert np.equal(first_sample.objectives, [0])
+        assert np.equal(objectives, [0])
 
     def test_get_graph(self, sample_iterator: QueryPlanIterator) -> None:
         graph, meta = sample_iterator._get_graph_and_meta("a")
@@ -79,9 +83,14 @@ class TestQueryGraphIterator:
         assert graph.number_of_nodes() == 2
         assert th.equal(
             graph.ndata["cbo"],  # type: ignore
-            th.tensor(np.array([np.linspace(i, i + 1, 2) for i in range(2)])),
+            th.tensor(
+                np.array([np.linspace(i, i + 1, 2) for i in range(2)]), dtype=th.float32
+            ),
         )
         assert th.equal(
             graph.ndata["op_emb"],  # type: ignore
-            th.tensor(np.array([np.linspace(i, i + 1, 10) for i in range(2)])),
+            th.tensor(
+                np.array([np.linspace(i, i + 1, 10) for i in range(2)]),
+                dtype=th.float32,
+            ),
         )
