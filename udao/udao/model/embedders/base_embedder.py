@@ -26,7 +26,3 @@ class BaseEmbedder(nn.Module, ABC):
     def __init__(self, net_params: Params) -> None:
         super().__init__()
         self.embedding_size = net_params.output_size
-
-    @abstractmethod
-    def forward(self, input: Any) -> Any:
-        ...
