@@ -28,6 +28,7 @@ from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_
 if __name__ == "__main__":
     tensor_dtypes = th.float32
     device = "gpu" if th.cuda.is_available() else "cpu"
+    batch_size = 32
 
     th.set_default_dtype(tensor_dtypes)  # type: ignore
     #### Data definition ####
@@ -123,6 +124,6 @@ if __name__ == "__main__":
     )
     trainer.fit(
         model=module,
-        train_dataloaders=split_iterators["train"].get_dataloader(32),
-        val_dataloaders=split_iterators["val"].get_dataloader(32),
+        train_dataloaders=split_iterators["train"].get_dataloader(batch_size),
+        val_dataloaders=split_iterators["val"].get_dataloader(batch_size),
     )
