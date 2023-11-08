@@ -1,5 +1,6 @@
 import heapq
 import itertools
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -24,12 +25,12 @@ class ProgressiveFrontier(BaseMOO):
         const_funcs: list,
         const_types: list,
         opt_obj_ind: int,
-        wl_list,
-        wl_ranges,
-        vars_constraints,
-        accurate,
-        std_func,
-    ):
+        wl_list: Optional[List[str]] = None,
+        wl_ranges: Optional[Dict[str, Any]] = None,
+        vars_constraints: Optional[Dict] = None,
+        accurate: Optional[bool] = None,
+        std_func: Optional[Callable] = None,
+    ) -> None:
         """
         initialize parameters in Progressive Frontier method
         :param pf_option: str, internal algorithm ("pf_as" or "pf_ap")
@@ -39,12 +40,18 @@ class ProgressiveFrontier(BaseMOO):
         :param obj_funcs: list, objective functions
         :param opt_type: list, objectives to minimize or maximize
         :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types ("<=" "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
-        :param opt_obj_ind: int, the index of the objective to be optimized
-        :param wl_list: None/list, each element is a string to indicate workload id
-        :param wl_ranges: function, provided by users, to return upper and lower bounds of variables (used in MOGD)
-        :param vars_constraints: dict, keys are "conf_min" and "conf_max" to indicate the variable range (only used in MOGD)
-        :param accurate: bool, to indicate whether the predictive model is accurate (True) (used in MOGD)
+        :param const_types: list, constraint types
+            ("<=" "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
+        :param opt_obj_ind: int, the index of the objective
+            to be optimized
+        :param wl_list: None/list, each element is a string
+            to indicate workload id
+        :param wl_ranges: function, provided by users, to return upper
+            and lower bounds of variables (used in MOGD)
+        :param vars_constraints: dict, keys are "conf_min" and
+            "conf_max" to indicate the variable range (only used in MOGD)
+        :param accurate: bool, to indicate whether the predictive
+            model is accurate (True) (used in MOGD)
         :param std_func: function, used in in-accurate predictive models
         """
         super().__init__()
@@ -78,23 +85,27 @@ class ProgressiveFrontier(BaseMOO):
 
     def solve(
         self,
-        wl_id,
-        accurate,
-        alpha,
-        var_bounds,
-        var_types,
-        precision_list,
-        n_probes,
-        n_grids=None,
-        max_iters=None,
-        anchor_option="2_step",
-    ):
+        wl_id: str | None,
+        accurate: bool,
+        alpha: float,
+        var_bounds: np.ndarray,
+        var_types: list,
+        precision_list: list,
+        n_probes: int,
+        n_grids: Optional[int] = None,
+        max_iters: Optional[int] = None,
+        anchor_option: str = "2_step",
+    ) -> Tuple[np.ndarray | None, np.ndarray | None]:
         """
         solve MOO by Progressive Frontier
         :param wl_id: str, workload id, e.g. '1-7'
-        :param accurate: bool, whether the predictive model is accurate (True) or not (False), used in MOGD
-        :param alpha: float, the value used in loss calculation of the inaccurate model
-        :param var_bounds: ndarray (n_vars,), the lower and upper var_ranges of non-ENUM variables, and values of ENUM variables
+        :param accurate: bool, whether the predictive model
+            is accurate (True) or not (False), used in MOGD
+        :param alpha: float, the value used in loss calculation
+            of the inaccurate model
+        :param var_bounds: ndarray (n_vars,),
+            the lower and upper var_ranges of non-ENUM variables,
+            and values of ENUM variables
         :param var_types: list, variable types (float, integer, binary, enum)
         :param precision_list: list, precision for all variables
         :param n_probes: int, the upper bound of number of solutions
@@ -102,7 +113,8 @@ class ProgressiveFrontier(BaseMOO):
         :param max_iters: int, the number of iterations in pf-ap
         :return:
                 po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
+                po_vars: ndarray(n_solutions, n_vars),
+                    corresponding variables of Pareto solutions
         """
         if self.pf_option == "pf_as":
             po_objs, po_vars = self.solve_pf_as(
@@ -138,34 +150,43 @@ class ProgressiveFrontier(BaseMOO):
 
     def solve_pf_as(
         self,
-        wl_id,
-        accurate,
-        alpha,
-        obj_names,
-        var_bounds,
-        opt_obj_ind,
-        var_types,
-        n_probes,
-        precision_list,
-        anchor_option="2_step",
-        verbose=False,
-    ):
+        wl_id: str,
+        accurate: bool,
+        alpha: float,
+        obj_names: List[str],
+        var_bounds: np.ndarray,
+        opt_obj_ind: int,
+        var_types: List,
+        n_probes: int,
+        precision_list: List,
+        anchor_option: str = "2_step",
+        verbose: bool = False,
+    ) -> Tuple[np.ndarray | None, np.ndarray | None]:
         """
-        Progressive Frontier(PF)-Approximation Sequential (AS) algorithm, get MOO solutions sequentially
+        Progressive Frontier(PF)-Approximation Sequential
+        (AS) algorithm, get MOO solutions sequentially
         :param wl_id: str, workload id, e.g. '1-7'
-        :param accurate: bool, whether the predictive model is accurate (True) or not (False), used in MOGD
-        :param alpha: float, the value used in loss calculation of the inaccurate model
+        :param accurate: bool, whether the predictive model
+            is accurate (True) or not (False), used in MOGD
+        :param alpha: float, the value used in loss
+            calculation of the inaccurate model
         :param obj_names: list, objective names
-        :param var_bounds: ndarray (n_vars,), the lower and upper var_ranges of non-ENUM variables, and values of ENUM variables
+        :param var_bounds: ndarray (n_vars,), the lower and
+            upper var_ranges of non-ENUM variables,
+            and values of ENUM variables
         :param opt_obj_ind: int, index of objective to be optimized
-        :param var_types: list, variable types (float, integer, binary, enum)
+        :param var_types: list, variable types
+            (float, integer, binary, enum)
         :param n_probes: int, the upper bound of number of solutions
         :param precision_list: list, precision for all variables
         :return:
-                po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
+                po_objs: ndarray(n_solutions, n_objs),
+                    Pareto solutions
+                po_vars: ndarray(n_solutions, n_vars),
+                    corresponding variables of Pareto solutions
         """
-        # PF-S do not support multi-threading as the solutions are searched within the hyperrectangle with maximum volume,
+        # PF-S do not support multi-threading as
+        # the solutions are searched within the hyperrectangle with maximum volume,
         # which is generated sequentially
 
         ## setup the priority queue sorted by hyperrectangle volume
@@ -301,26 +322,30 @@ class ProgressiveFrontier(BaseMOO):
 
     def solve_pf_ap(
         self,
-        wl_id,
-        accurate,
-        alpha,
-        obj_names,
-        var_bounds,
-        opt_obj_ind,
-        var_types,
-        precision_list,
-        n_grids,
-        max_iters,
-        anchor_option="2_step",
-        verbose=False,
-    ):
+        wl_id: str,
+        accurate: bool,
+        alpha: float,
+        obj_names: List[str],
+        var_bounds: np.ndarray,
+        opt_obj_ind: int,
+        var_types: List,
+        precision_list: List,
+        n_grids: int,
+        max_iters: int,
+        anchor_option: str = "2_step",
+        verbose: bool = False,
+    ) -> Tuple[np.ndarray | None, np.ndarray | None]:
         """
-        Progressive Frontier(PF)-Approximation Parallel (AP) algorithm, get MOO solutions parallely
+        Progressive Frontier(PF)-Approximation Parallel (AP) algorithm,
+        get MOO solutions parallely
         :param wl_id: str, workload id, e.g. '1-7'
-        :param accurate: bool, whether the predictive model is accurate (True) or not (False), used in MOGD
-        :param alpha: float, the value used in loss calculation of the inaccurate model
+        :param accurate: bool, whether the predictive model is
+        accurate (True) or not (False), used in MOGD
+        :param alpha: float, the value used in loss
+            calculation of the inaccurate model
         :param obj_names: list, objective names
-        :param var_bounds: ndarray (n_vars,), the lower and upper var_ranges of non-ENUM variables, and values of ENUM variables
+        :param var_bounds: ndarray (n_vars,), the lower and upper
+        var_ranges of non-ENUM variables, and values of ENUM variables
         :param opt_obj_ind: int, index of objective to be optimized
         :param var_types: list, variable types (float, integer, binary, enum)
         :param precision_list: list, precision for all variables
@@ -328,7 +353,8 @@ class ProgressiveFrontier(BaseMOO):
         :param max_iters: int, the number of iterations in pf-ap
         :return:
                 po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
+                po_vars: ndarray(n_solutions, n_vars), corresponding
+                variables of Pareto solutions
         """
         # create initial rectangle
         # get initial plans/form a intial hyperrectangle
@@ -447,14 +473,14 @@ class ProgressiveFrontier(BaseMOO):
 
     def get_anchor_points(
         self,
-        wl_id,
-        obj_names,
-        obj_ind,
-        accurate,
-        alpha,
-        var_types,
-        var_bounds,
-        precision_list,
+        wl_id: str,
+        obj_names: List[str],
+        obj_ind: int,
+        accurate: bool,
+        alpha: float,
+        var_types: List,
+        var_bounds: np.ndarray,
+        precision_list: List,
         anchor_option="2_step",
         verbose=False,
     ):
@@ -463,10 +489,12 @@ class ProgressiveFrontier(BaseMOO):
         :param wl_id: str, workload id, e.g. '1-7'
         :param obj_names: list, objective names
         :param obj_ind: int, objective index
-        :param accurate:  bool, whether the predictive model is accurate (True) or not (False), used in MOGD
+        :param accurate:  bool, whether the predictive model
+        is accurate (True) or not (False), used in MOGD
         :param alpha: float, the value used in loss calculation of the inaccurate model
         :param var_types: list, variable types (float, integer, binary, enum)
-        :param var_bounds: ndarray (n_vars,), the lower and upper var_ranges of non-ENUM variables, and values of ENUM variables
+        :param var_bounds: ndarray (n_vars,), the lower and upper var_ranges
+        of non-ENUM variables, and values of ENUM variables
         :param precision_list: list, precision for all variables
         :param anchor_option: str, a choice for anchor points calculation
         :param verbose: bool, to indicate whether to print information
@@ -689,18 +717,18 @@ class ProgressiveFrontier(BaseMOO):
 
             if self.pf_option == "pf_as":
                 if i == opt_obj_ind:
-                    tmp[0], tmp[1] = solver_ut._get_tensor(
+                    tmp[0], tmp[1] = solver_ut.get_tensor(
                         int(utopia.objs[i])
-                    ), solver_ut._get_tensor(int(nadir.objs[i]))
+                    ), solver_ut.get_tensor(int(nadir.objs[i]))
                 else:
                     # fixme: to be the same as in Java
-                    tmp[0], tmp[1] = solver_ut._get_tensor(
+                    tmp[0], tmp[1] = solver_ut.get_tensor(
                         int(utopia.objs[i])
-                    ), solver_ut._get_tensor(int((utopia.objs[i] + nadir.objs[i]) / 2))
+                    ), solver_ut.get_tensor(int((utopia.objs[i] + nadir.objs[i]) / 2))
             elif self.pf_option == "pf_ap":
-                tmp[0], tmp[1] = solver_ut._get_tensor(
+                tmp[0], tmp[1] = solver_ut.get_tensor(
                     int(utopia.objs[i])
-                ), solver_ut._get_tensor(int(nadir.objs[i]))
+                ), solver_ut.get_tensor(int(nadir.objs[i]))
             else:
                 raise Exception(f"{self.pf_option} is not supported!")
             obj_bounds_dict[obj_key] = tmp

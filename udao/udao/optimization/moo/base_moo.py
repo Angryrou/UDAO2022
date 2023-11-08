@@ -1,12 +1,13 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
+from typing import Any
 
 
-class BaseMOO(object, metaclass=ABCMeta):
+class BaseMOO(ABC):
     def __init__(
         self,
-    ):
+    ) -> None:
         pass
 
     @abstractmethod
-    def solve(self, *args):
+    def solve(self, *args: Any, **kwargs: Any) -> Any:
         ...

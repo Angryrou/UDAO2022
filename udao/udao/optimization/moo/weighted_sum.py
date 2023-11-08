@@ -9,7 +9,7 @@ from .base_moo import BaseMOO
 class WeightedSum(BaseMOO):
     def __init__(
         self,
-        ws_pairs: list,
+        ws_pairs: np.ndarray,
         inner_solver: str,
         solver_params: dict,
         n_objs: int,
@@ -44,16 +44,22 @@ class WeightedSum(BaseMOO):
         else:
             raise Exception(f"WS does not support {self.inner_solver}!")
 
-    def solve(self, wl_id, var_ranges, var_types):
+    def solve(self, wl_id, var_ranges, var_types) -> tuple:
         """
         solve MOO by Weighted Sum (WS)
         :param wl_id: str, workload id
-        :param var_ranges: ndarray(n_vars,), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
+        :param var_ranges: ndarray(n_vars,),
+        lower and upper var_ranges of variables(non-ENUM),
+        and values of ENUM variables
         :param var_types: list, variable types (float, integer, binary, enum)
-        :return: po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                 po_vars: ndarray(n_solutions, n_vars), corresponding variables of Pareto solutions
+        :return:
+            po_objs: ndarray(n_solutions, n_objs), Pareto solutions
+            po_vars: ndarray(n_solutions, n_vars),
+            corresponding variables of Pareto solutions
         """
-        # TODO: we will compare the current WS implementation with the existing WS numerical solver in the future, and the one with better performance will be kept in the package.
+        # TODO: we will compare the current WS implementation with
+        # the existing WS numerical solver in the future,
+        # and the one with better performance will be kept in the package.
         if self.inner_solver == "grid_search":
             vars = self.gs._get_input(var_ranges, var_types)
         elif self.inner_solver == "random_sampler":
@@ -78,7 +84,9 @@ class WeightedSum(BaseMOO):
                     available_indice = np.where(const_violation[:, i] == 0)
                 else:
                     raise Exception(
-                        f"No feasible constraints provided! Please check constraint type settings in configurations. We do not support {self.const_types}."
+                        "No feasible constraints provided! "
+                        "Please check constraint type settings in configurations. "
+                        "We do not support {self.const_types}."
                     )
                 available_indices = np.intersect1d(available_indice, available_indices)
             vars_after_const_check = vars[available_indices]

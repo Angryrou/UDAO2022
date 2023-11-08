@@ -1,4 +1,5 @@
 import itertools
+from typing import Dict
 
 import numpy as np
 
@@ -7,17 +8,19 @@ from .base_solver import BaseSolver
 
 
 class GridSearch(BaseSolver):
-    def __init__(self, gs_params):
+    def __init__(self, gs_params: Dict) -> None:
         """
         :param gs_params: dict, the parameters used in grid_search
         """
         super().__init__()
         self.n_grids_per_var = gs_params["n_grids_per_var"]
 
-    def _get_input(self, var_ranges, var_types):
+    def _get_input(self, var_ranges: np.ndarray, var_types: list) -> np.ndarray:
         """
         generate grids for each variable
-        :param var_ranges: ndarray (n_vars,), the lower and upper var_ranges of non-ENUM variables, and values of ENUM variables
+        :param var_ranges: ndarray (n_vars,),
+            the lower and upper var_ranges of non-ENUM variables,
+            and values of ENUM variables
         :param var_types: list, type of each variable
         :return: array, variables (n_grids * n_vars)
         """
@@ -35,11 +38,13 @@ class GridSearch(BaseSolver):
                 upper, lower = values[1], values[0]
                 if (lower - upper) > 0:
                     raise Exception(
-                        f"ERROR: the lower bound of variable {i} is greater than its upper bound!"
+                        f"ERROR: the lower bound of variable {i}"
+                        " is greater than its upper bound!"
                     )
 
                 # make sure the grid point is the same with the type
-                # e.g., if int x.min=0, x.max=5, n_grids_per_var=10, ONLY points[0, 1, 2, 3, 4, 5] are feasible
+                # e.g., if int x.min=0, x.max=5, n_grids_per_var=10,
+                # ONLY points[0, 1, 2, 3, 4, 5] are feasible
                 if var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
                     if n_grids_per_var > (upper - lower + 1):
                         n_grids_per_var = int(upper - lower + 1)
@@ -51,7 +56,8 @@ class GridSearch(BaseSolver):
                 grids_per_var = values
             else:
                 raise Exception(
-                    f"Grid-Search solver does not support variable type {var_types[i]}!"
+                    "Grid-Search solver does "
+                    f"not support variable type {var_types[i]}!"
                 )
 
             grids_list.append(grids_per_var)
