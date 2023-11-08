@@ -3,6 +3,8 @@ import random
 import numpy as np
 import torch
 
+EPS = 1e-7
+
 
 def set_deterministic_torch(seed: int = 0) -> None:
     """

@@ -3,7 +3,7 @@ from typing import Dict, List
 import torch as th
 from torchmetrics import Metric
 
-EPS = 1e-7
+from .utils import EPS
 
 
 class ErrorPercentiles(Metric):
