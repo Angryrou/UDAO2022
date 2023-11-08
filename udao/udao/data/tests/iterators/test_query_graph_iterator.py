@@ -94,3 +94,9 @@ class TestQueryGraphIterator:
                 dtype=th.float32,
             ),
         )
+
+    def test_set_tensor_type(self, sample_iterator: QueryPlanIterator) -> None:
+        sample_iterator.set_tensors_dtype(th.float64)
+        assert sample_iterator.tensors_dtype == th.float64
+        graph, meta = sample_iterator._get_graph_and_meta("a")
+        assert graph.ndata["cbo"].dtype == th.float64  # type: ignore

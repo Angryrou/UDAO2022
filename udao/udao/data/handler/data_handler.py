@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type
 
 import pandas as pd
+import torch as th
 
 from ...data.preprocessors.base_preprocessor import (
     FeaturePreprocessorType,
@@ -78,6 +79,8 @@ class DataHandlerParams:
     random_state: Optional[int] = None
     """Random state for reproducibility, by default None"""
 
+    tensors_dtype: Optional[th.dtype] = None
+
 
 @dataclass
 class FeaturePipeline:
@@ -134,6 +137,7 @@ def create_data_handler_params(
         val_frac: float = 0.2,
         test_frac: float = 0.1,
         dryrun: bool = False,
+        tensors_dtype: Optional[th.dtype] = None,
         random_state: Optional[int] = None,
         **kwargs: FeaturePipeline,
     ) -> DataHandlerParams:
@@ -158,6 +162,7 @@ def create_data_handler_params(
             val_frac=val_frac,
             test_frac=test_frac,
             dryrun=dryrun,
+            tensors_dtype=tensors_dtype,
             random_state=random_state,
             feature_extractors=feature_extractors,
             feature_preprocessors=feature_preprocessors,
@@ -216,6 +221,7 @@ class DataHandler:
         self.val_frac = params.val_frac
         self.test_frac = params.test_frac
         self.random_state = params.random_state
+        self.tensors_dtype = params.tensors_dtype
         self.full_df = data
         if self.dryrun:
             self.full_df = self.full_df.sample(frac=0.1, random_state=self.random_state)
@@ -318,6 +324,12 @@ class DataHandler:
                         )
         return self
 
+    def _get_split_iterator(self, split: DatasetType) -> BaseDatasetIterator:
+        iterator = self.Iterator(self.index_splits[split], **self.features[split])
+        if self.tensors_dtype is not None:
+            iterator.set_tensors_dtype(self.tensors_dtype)
+        return iterator
+
     def get_iterators(self) -> Dict[DatasetType, BaseDatasetIterator]:
         """Return a dictionary of iterators for the different splits of the data.
 
@@ -329,7 +341,5 @@ class DataHandler:
         if not self.features:
             logger.warning("No features extracted yet. Extracting features now.")
             self.extract_features().process_features()
-        return {
-            split: self.Iterator(self.index_splits[split], **self.features[split])
-            for split in self.index_splits
-        }
+
+        return {split: self._get_split_iterator(split) for split in self.index_splits}

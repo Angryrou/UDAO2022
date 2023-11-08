@@ -3,6 +3,7 @@ from pathlib import Path
 import lightning as pl
 import pandas as pd
 import pytorch_warmup as warmup
+import torch as th
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
@@ -25,12 +26,17 @@ from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 
 if __name__ == "__main__":
+    tensor_dtypes = th.float32
+    device = "gpu" if th.cuda.is_available() else "cpu"
+
+    th.set_default_dtype(tensor_dtypes)  # type: ignore
     #### Data definition ####
     params_getter = create_data_handler_params(QueryPlanIterator, "op_emb")
     params = params_getter(
         index_column="id",
         stratify_on="tid",
         dryrun=True,
+        tensor_dtypes=tensor_dtypes,
         tabular_features=FeaturePipeline(
             extractor=(
                 TabularFeatureExtractor,
@@ -110,7 +116,7 @@ if __name__ == "__main__":
 
     scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
     trainer = pl.Trainer(
-        accelerator="cpu",
+        accelerator=device,
         max_epochs=2,
         logger=tb_logger,
         callbacks=[scheduler, checkpoint_callback],
