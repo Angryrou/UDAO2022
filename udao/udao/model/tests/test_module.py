@@ -59,6 +59,7 @@ class TestUdaoModule:
         loss = sample_module.training_step(batch, 0)
 
         sample_module._shared_epoch_end("train")
+        # assert the metrics are logged once per objective
         assert mocked_log_dict.call_count == 2
 
         obj1_metric = mocked_log_dict.call_args_list[0][0][0][
