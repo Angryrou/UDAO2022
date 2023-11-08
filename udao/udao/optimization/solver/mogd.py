@@ -8,7 +8,7 @@ from torch.multiprocessing import Pool
 from ..utils import moo_utils as moo_ut
 from ..utils import solver_utils as solver_ut
 from ..utils.parameters import VarTypes
-from .base_solver1 import BaseSolver
+from .base_solver import BaseSolver
 
 SEED = 0
 DEFAULT_DEVICE = th.device("cpu")

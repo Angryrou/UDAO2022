@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 
 from ..utils.parameters import VarTypes
-from .base_solver1 import BaseSolver
+from .base_solver import BaseSolver
 
 
 class GridSearch(BaseSolver):
