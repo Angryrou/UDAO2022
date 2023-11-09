@@ -84,13 +84,13 @@ if __name__ == "__main__":
         embedder_cls=GraphAverager,
         regressor_cls=MLP,
         iterator_shape=split_iterators["train"].get_iterator_shape(),
-        regressor_params={"n_layers": 2, "hidden_dim": 2, "dropout": 0},
         embedder_params={
             "output_size": 10,
             "op_groups": ["cbo", "op_enc"],
             "type_embedding_dim": 5,
             "embedding_normalizer": "BN",
         },
+        regressor_params={"n_layers": 2, "hidden_dim": 2, "dropout": 0},
     )
     module = UdaoModule(
         model,

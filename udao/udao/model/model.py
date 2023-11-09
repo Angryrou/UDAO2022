@@ -12,8 +12,8 @@ class UdaoModel(nn.Module):
     @classmethod
     def from_config(
         cls,
-        regressor_cls: Type[BaseRegressor],
         embedder_cls: Type[BaseEmbedder],
+        regressor_cls: Type[BaseRegressor],
         iterator_shape: UdaoInputShape,
         regressor_params: Dict,
         embedder_params: Dict,
@@ -27,13 +27,13 @@ class UdaoModel(nn.Module):
                 **regressor_params
             ),
         )
-        return cls(regressor, embedder)
+        return cls(embedder, regressor)
         pass
 
-    def __init__(self, regressor: BaseRegressor, embedder: BaseEmbedder) -> None:
+    def __init__(self, embedder: BaseEmbedder, regressor: BaseRegressor) -> None:
         super().__init__()
-        self.regressor = regressor
         self.embedder = embedder
+        self.regressor = regressor
 
     def forward(self, input_data: UdaoInput) -> th.Tensor:
         embedding = self.embedder(input_data.embedding_input)
