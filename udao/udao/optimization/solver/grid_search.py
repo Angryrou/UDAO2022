@@ -1,5 +1,6 @@
 import itertools
-from typing import Dict
+from dataclasses import dataclass
+from typing import List
 
 import numpy as np
 
@@ -8,14 +9,18 @@ from .base_solver import BaseSolver
 
 
 class GridSearch(BaseSolver):
-    def __init__(self, gs_params: Dict) -> None:
+    @dataclass
+    class Params:
+        n_grids_per_var: List[int]
+
+    def __init__(self, gs_params: Params) -> None:
         """
         :param gs_params: dict, the parameters used in grid_search
         """
         super().__init__()
-        self.n_grids_per_var = gs_params["n_grids_per_var"]
+        self.n_grids_per_var = gs_params.n_grids_per_var
 
-    def _get_input(self, var_ranges: np.ndarray, var_types: list) -> np.ndarray:
+    def _get_input(self, var_ranges: list, var_types: list) -> np.ndarray:
         """
         generate grids for each variable
         :param var_ranges: ndarray (n_vars,),

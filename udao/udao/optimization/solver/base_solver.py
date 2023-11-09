@@ -5,10 +5,10 @@
 # Created at 9/14/22
 
 
-from abc import ABCMeta
+from abc import ABC
 
 
-class BaseSolver(object, metaclass=ABCMeta):
+class BaseSolver(ABC):
     def __init__(self) -> None:
         pass
 
