@@ -46,7 +46,7 @@ class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
         query_structure: QueryStructureContainer,
         **kwargs: TabularContainer,
     ):
-        self.keys = keys
+        super().__init__(keys)
         self.tabular_features = tabular_features
         self.objectives = objectives
         self.query_structure_container = query_structure
@@ -71,15 +71,17 @@ class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
         and the meta information.
         """
         graph, graph_features = self.query_structure_container.get(key)
-        graph.ndata["cbo"] = th.tensor(graph_features, dtype=th.float32)
+        graph.ndata["cbo"] = th.tensor(graph_features, dtype=self.tensors_dtype)
         for feature, container in self.other_graph_features.items():
-            graph.ndata[feature] = th.tensor(container.get(key), dtype=th.float32)
+            graph.ndata[feature] = th.tensor(
+                container.get(key), dtype=self.tensors_dtype
+            )
         return graph, self._get_meta(graph)
 
     def __getitem__(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
         key = self.keys[idx]
-        features = th.tensor(self.tabular_features.get(key), dtype=th.float32)
-        objectives = th.tensor(self.objectives.get(key), dtype=th.float32)
+        features = th.tensor(self.tabular_features.get(key), dtype=self.tensors_dtype)
+        objectives = th.tensor(self.objectives.get(key), dtype=self.tensors_dtype)
         graph, meta_input = self._get_graph_and_meta(key)
         features = th.cat([features, meta_input])
         input_data = QueryPlanInput(graph, features)

@@ -3,6 +3,7 @@ from pathlib import Path
 import lightning.pytorch as pl
 import pandas as pd
 import pytorch_warmup as warmup
+import torch as th
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
@@ -25,12 +26,18 @@ from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 
 if __name__ == "__main__":
+    tensor_dtypes = th.float32
+    device = "gpu" if th.cuda.is_available() else "cpu"
+    batch_size = 32
+
+    th.set_default_dtype(tensor_dtypes)  # type: ignore
     #### Data definition ####
     params_getter = create_data_handler_params(QueryPlanIterator, "op_enc")
     params = params_getter(
         index_column="id",
         stratify_on="tid",
         dryrun=True,
+        tensor_dtypes=tensor_dtypes,
         tabular_features=FeaturePipeline(
             extractor=(
                 TabularFeatureExtractor,
@@ -100,13 +107,13 @@ if __name__ == "__main__":
 
     scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
     trainer = pl.Trainer(
-        accelerator="cpu",
+        accelerator=device,
         max_epochs=2,
         logger=tb_logger,
         callbacks=[scheduler, checkpoint_callback],
     )
     trainer.fit(
         model=module,
-        train_dataloaders=split_iterators["train"].get_dataloader(32),
-        val_dataloaders=split_iterators["val"].get_dataloader(32),
+        train_dataloaders=split_iterators["train"].get_dataloader(batch_size),
+        val_dataloaders=split_iterators["val"].get_dataloader(batch_size),
     )
