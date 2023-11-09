@@ -1,8 +1,9 @@
 import heapq
 import itertools
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
+import torch as th
 
 from ..solver.mogd import MOGD
 from ..utils import moo_utils as moo_ut
@@ -21,15 +22,15 @@ class ProgressiveFrontier(BaseMOO):
         obj_names: list,
         obj_funcs: list,
         opt_type: list,
-        obj_types,
+        obj_types: list,
         const_funcs: list,
         const_types: list,
         opt_obj_ind: int,
-        wl_list: Optional[List[str]] = None,
-        wl_ranges: Optional[Dict[str, Any]] = None,
-        vars_constraints: Optional[Dict] = None,
-        accurate: Optional[bool] = None,
-        std_func: Optional[Callable] = None,
+        wl_list: List[str],
+        wl_ranges: Callable,
+        vars_constraints: Dict,
+        accurate: bool,
+        std_func: Callable,
     ) -> None:
         """
         initialize parameters in Progressive Frontier method
@@ -85,7 +86,7 @@ class ProgressiveFrontier(BaseMOO):
 
     def solve(
         self,
-        wl_id: str | None,
+        wl_id: str,
         accurate: bool,
         alpha: float,
         var_bounds: np.ndarray,
@@ -130,6 +131,8 @@ class ProgressiveFrontier(BaseMOO):
                 anchor_option=anchor_option,
             )
         elif self.pf_option == "pf_ap":
+            if n_grids is None or max_iters is None:
+                raise Exception("n_grids and max_iters should be provided")
             po_objs, po_vars = self.solve_pf_ap(
                 wl_id,
                 accurate,
@@ -191,11 +194,11 @@ class ProgressiveFrontier(BaseMOO):
 
         ## setup the priority queue sorted by hyperrectangle volume
         ## the initial is empty
-        pq = []
+        pq: List[Rectangles] = []
         ## get initial plans/form a intial hyperrectangle
-        plans = []
+        plans: List[Points] = []
 
-        n_objs, n_vars = len(self.opt_type), len(self.const_types)
+        n_objs = len(self.opt_type)
 
         for i in range(n_objs):
             objs, vars = self.get_anchor_points(
@@ -209,10 +212,12 @@ class ProgressiveFrontier(BaseMOO):
                 precision_list,
                 anchor_option=anchor_option,
             )
+            if objs is None:
+                raise Exception("Cannot find anchor points.")
             plans.append(Points(objs, vars))
         ## compute initial utopia and nadir point
         utopia, nadir = self.get_utopia_and_nadir(plans, n_objs)
-        if utopia is None:
+        if utopia is None or nadir is None:
             print("Cannot find utopia/nadir points")
             return None, None
         seg = Rectangles(utopia, nadir)
@@ -288,7 +293,8 @@ class ProgressiveFrontier(BaseMOO):
                 if verbose:
                     print("This is an empty area")
                     print(
-                        "don't have pareto points, only divide current uncertainty space"
+                        "don't have pareto points, only "
+                        "divide current uncertainty space"
                     )
 
                 rectangles = self.generate_sub_rectangles(
@@ -309,7 +315,9 @@ class ProgressiveFrontier(BaseMOO):
 
         ## filter dominated points
         po_objs_list = [point.objs.tolist() for point in plans]
-        po_vars_list = [point.vars.tolist() for point in plans]
+        po_vars_list = [
+            point.vars.tolist() if point.vars is not None else [] for point in plans
+        ]
         sorted_inds = np.argsort(np.array(po_objs_list)[:, 0])
         sorted_po_objs_list = np.array(po_objs_list)[sorted_inds].tolist()
         sorted_po_vars_list = np.array(po_vars_list)[sorted_inds].tolist()
@@ -358,11 +366,11 @@ class ProgressiveFrontier(BaseMOO):
         """
         # create initial rectangle
         # get initial plans/form a intial hyperrectangle
-        plans = []
+        plans: List[Points] = []
         n_objs = len(obj_names)
 
-        all_objs_list, all_vars_list = [], []
-
+        all_objs_list: List[List] = []
+        all_vars_list: List[List] = []
         for i in range(n_objs):
             objs, vars = self.get_anchor_points(
                 wl_id,
@@ -375,9 +383,11 @@ class ProgressiveFrontier(BaseMOO):
                 precision_list,
                 anchor_option=anchor_option,
             )
+            if objs is None:
+                raise Exception("Cannot find anchor points.")
             plans.append(Points(objs, vars))
             all_objs_list.append(objs.tolist())
-            all_vars_list.append(vars.tolist())
+            all_vars_list.append(vars.tolist() if vars is not None else [])
 
         if verbose:
             # fixme: to be the same as Java PF
@@ -407,7 +417,9 @@ class ProgressiveFrontier(BaseMOO):
                 Points(objs=np.array(all_objs_list)[input_ind + 1]),
             ]
             utopia, nadir = self.get_utopia_and_nadir(plan, n_objs=n_objs)
-
+            if utopia is None or nadir is None:
+                print("Cannot find utopia/nadir points")
+                return None, None
             # create uniform n_grids ^ (n_objs) grid cells based on the rectangle
             grid_cells_list = self._create_grid_cells(utopia, nadir, n_grids, n_objs)
 
@@ -443,6 +455,8 @@ class ProgressiveFrontier(BaseMOO):
                     if verbose:
                         print(f"the objective values are:{solution[0]} ")
                     po_objs_list.append(solution[0])
+                    if solution[1] is None:
+                        raise Exception("Unexpected vars None for objective value.")
                     po_vars_list.append(solution[1].tolist())
 
             if verbose:
@@ -460,8 +474,8 @@ class ProgressiveFrontier(BaseMOO):
             sorted_po_vars = np.array(all_vars_list)[sorted_inds].tolist()
 
             all_objs, all_vars = moo_ut._summarize_ret(sorted_po_objs, sorted_po_vars)
-            all_objs_list = all_objs.tolist()
-            all_vars_list = all_vars.tolist()
+            all_objs_list = all_objs.tolist() if all_objs is not None else []
+            all_vars_list = all_vars.tolist() if all_vars is not None else []
             iter = iter + 1
             if verbose:
                 print("the sorted_po_objs is: ")
@@ -481,9 +495,9 @@ class ProgressiveFrontier(BaseMOO):
         var_types: List,
         var_bounds: np.ndarray,
         precision_list: List,
-        anchor_option="2_step",
-        verbose=False,
-    ):
+        anchor_option: str = "2_step",
+        verbose: bool = False,
+    ) -> Tuple[np.ndarray | None, np.ndarray | None]:
         """
         get anchor points
         :param wl_id: str, workload id, e.g. '1-7'
@@ -528,7 +542,8 @@ class ProgressiveFrontier(BaseMOO):
                 opt_type=self.opt_type, obj_index=j
             )
 
-        # If the current objective type is Integer, further find the optimal value for other objectives with float type
+        # If the current objective type is Integer,
+        # further find the optimal value for other objectives with float type
         if anchor_option == "2_step":
             if self.obj_types[obj_ind] == VarTypes.INTEGER:
                 utopia_init = np.zeros(
@@ -570,7 +585,9 @@ class ProgressiveFrontier(BaseMOO):
         else:
             raise Exception(f"anchor_option {anchor_option} is not valid!")
 
-    def get_utopia_and_nadir(self, plans, n_objs):
+    def get_utopia_and_nadir(
+        self, plans: list[Points], n_objs: int
+    ) -> Tuple[Points | None, Points | None]:
         """
         get the utopia and nadir points
         :param plans: list, each element is a Point (defined class).
@@ -602,15 +619,19 @@ class ProgressiveFrontier(BaseMOO):
 
         return utopia, nadir
 
-    def generate_sub_rectangles(self, utopia, nadir, middle, flag="good"):
+    def generate_sub_rectangles(
+        self, utopia: Points, nadir: Points, middle: Points, flag: str = "good"
+    ) -> List[Rectangles]:
         """
         generate uncertainty space to be explored
         :param utopia: Points (defined by class), the utopia point
         :param nadir: Points (defined by class), the nadir point
-        :param middle: Points (defined by class), the middle point generated by the constrained single objective optimization
+        :param middle: Points (defined by class), the middle point
+            generated by the constrained single objective optimization
         :param flag: str, to indicate whether
         :return:
-                rectangles, list, uncertainty space (Rectangles) divided by the middle point
+                rectangles, list, uncertainty space (Rectangles)
+                divided by the middle point
         """
         rectangles = []
 
@@ -622,7 +643,8 @@ class ProgressiveFrontier(BaseMOO):
                 sub_rect = Rectangles(point, middle)
             elif all((middle.objs - point.objs) < 0):
                 ## the nadir point
-                ## the rectangle with nadir point will always be dominated by the middle point
+                ## the rectangle with nadir point will
+                # always be dominated by the middle point
                 if flag == "good":
                     continue
                 else:
@@ -631,19 +653,22 @@ class ProgressiveFrontier(BaseMOO):
                 sub_rect_u, sub_rect_n = self.get_utopia_and_nadir(
                     [point, middle], n_objs
                 )
+                if sub_rect_u is None or sub_rect_n is None:
+                    raise Exception("Cannot find utopia/nadir points")
                 sub_rect = Rectangles(sub_rect_u, sub_rect_n)
 
             rectangles.append(sub_rect)
 
         return rectangles
 
-    def _get_corner_points(self, utopia, nadir):
+    def _get_corner_points(self, utopia: Points, nadir: Points) -> List[Points]:
         """
         get the corner points that can form a hyper_rectangle
         :param utopia: Points (defined by class), the utopia point
         :param nadir: Points (defined by class), the nadir point
         :return:
-                corner_points: list, each element is a point (Points class) that can form a hyper_rectangle
+                corner_points: list, each element is a point
+                (Points class) that can form a hyper_rectangle
                 ## total 2^n_objs corner points
         """
         n_objs = utopia.n_objs
@@ -658,9 +683,12 @@ class ProgressiveFrontier(BaseMOO):
 
         return corner_points
 
-    def _create_grid_cells(self, utopia, nadir, n_grids, n_objs):
+    def _create_grid_cells(
+        self, utopia: Points, nadir: Points, n_grids: int, n_objs: int
+    ) -> List[Rectangles]:
         """
-        create cells used in Progressive Frontier(PF)-Approximation Parallel (AP) algorithm
+        create cells used in Progressive Frontier(PF)-Approximation
+        Parallel (AP) algorithm
         :param utopia: Points (defined by class), the utopia point
         :param nadir: Points (defined by class), the nadir point
         :param n_grids: int, the number of grids per objective
@@ -693,12 +721,16 @@ class ProgressiveFrontier(BaseMOO):
 
         return grid_cell_list
 
-    def _form_obj_bounds_dict(self, utopia, nadir, obj_names, opt_obj_ind):
+    def _form_obj_bounds_dict(
+        self, utopia: Points, nadir: Points, obj_names: list, opt_obj_ind: int
+    ) -> dict[str, list]:
         """
         form the dict used in the constrained optimization
         e.g. the format:
-        obj_bounds_dict = {"latency": [solver_ut._get_tensor(0), solver_ut._get_tensor(10000000)],
-                      "cores": [solver_ut._get_tensor(0), solver_ut._get_tensor(58)]
+        obj_bounds_dict = {"latency": [solver_ut._get_tensor(0),
+                      solver_ut._get_tensor(10000000)],
+                      "cores": [solver_ut._get_tensor(0),
+                      solver_ut._get_tensor(58)]
                       }
         :param utopia: Points (defined by class), the utopia point
         :param nadir: Points (defined by class), the nadir point
@@ -712,23 +744,22 @@ class ProgressiveFrontier(BaseMOO):
 
         for i in range(n_objs):
             # lower and upper var_ranges per objective
-            tmp = [None] * 2
+            tmp = [th.tensor(0)] * 2
             obj_key = obj_names[i]
 
             if self.pf_option == "pf_as":
                 if i == opt_obj_ind:
-                    tmp[0], tmp[1] = solver_ut.get_tensor(
-                        int(utopia.objs[i])
-                    ), solver_ut.get_tensor(int(nadir.objs[i]))
+                    tmp[0] = solver_ut.get_tensor(int(utopia.objs[i]))
+                    tmp[1] = solver_ut.get_tensor(int(nadir.objs[i]))
                 else:
                     # fixme: to be the same as in Java
-                    tmp[0], tmp[1] = solver_ut.get_tensor(
-                        int(utopia.objs[i])
-                    ), solver_ut.get_tensor(int((utopia.objs[i] + nadir.objs[i]) / 2))
+                    tmp[0] = solver_ut.get_tensor(int(utopia.objs[i]))
+                    tmp[1] = solver_ut.get_tensor(
+                        int((utopia.objs[i] + nadir.objs[i]) / 2)
+                    )
             elif self.pf_option == "pf_ap":
-                tmp[0], tmp[1] = solver_ut.get_tensor(
-                    int(utopia.objs[i])
-                ), solver_ut.get_tensor(int(nadir.objs[i]))
+                tmp[0] = solver_ut.get_tensor(int(utopia.objs[i]))
+                tmp[1] = solver_ut.get_tensor(int(nadir.objs[i]))
             else:
                 raise Exception(f"{self.pf_option} is not supported!")
             obj_bounds_dict[obj_key] = tmp

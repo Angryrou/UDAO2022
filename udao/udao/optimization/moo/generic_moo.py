@@ -97,9 +97,11 @@ class GenericMOO:
             po_objs_list: list, each element is solutions
                 (ndarray(n_solutions, n_objs)) for one job
             po_vars_list: list, each element is solutions
-                (ndarray(n_solutions, n_vars)) for one job, corresponding variables of MOO solutions
+                (ndarray(n_solutions, n_vars)) for one job,
+                corresponding variables of MOO solutions
             job_Ids: list, workload ids, each element is a string or None.
-            time_cost_list: list, each element is the time cost of MOO solving for one job.
+            time_cost_list: list, each element is the
+            time cost of MOO solving for one job.
         """
         po_objs_list = []
         po_vars_list = []
@@ -140,6 +142,8 @@ class GenericMOO:
                 else:
                     pass
                 start_time = time.time()
+                if wl_id is None:
+                    raise Exception("workload id is None.")
                 po_objs, po_vars = ws.solve(wl_id, self.var_ranges, self.var_types)
                 time_cost = time.time() - start_time
                 po_objs_list.append(po_objs)
@@ -168,19 +172,21 @@ class GenericMOO:
                 self.obj_names,
                 self.obj_funcs,
                 self.opt_types,
-                self.obj_types,
+                self.obj_types,  # type: ignore
                 self.const_funcs,
                 self.const_types,
                 opt_obj_ind,
-                self.wl_list,
-                self.wl_ranges,
-                self.vars_constraints,
-                self.accurate,
-                self.std_func,
+                self.wl_list,  # type: ignore
+                self.wl_ranges,  # type: ignore
+                self.vars_constraints,  # type: ignore
+                self.accurate,  # type: ignore
+                self.std_func,  # type: ignore
             )
 
             for wl_id in job_ids:
                 start_time = time.time()
+                if wl_id is None:
+                    raise Exception("workload id is None.")
                 po_objs, po_vars = pf.solve(
                     wl_id,
                     accurate,

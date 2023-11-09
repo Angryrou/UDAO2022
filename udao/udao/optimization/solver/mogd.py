@@ -163,7 +163,7 @@ class MOGD(BaseSolver):
         precision_list: list,
         bs: int = 16,
         verbose: bool = False,
-    ) -> Tuple[float, np.ndarray]:
+    ) -> Tuple[float, np.ndarray | None]:
         """
         solve (constrained) single-objective optimization
         :param wl_id: str, workload id, e.g. '1-7'
@@ -205,7 +205,7 @@ class MOGD(BaseSolver):
 
         best_loss_list: List[float] = []
         objs_list: List[float] = []
-        vars_list: List[np.ndarray] = []
+        vars_list: List[np.ndarray | None] = []
         for _ in range(self.multistart):
             best_loss, best_obj, best_vars, iter_num = np.inf, np.inf, None, 0
             for bv in meshed_categorical_vars:
@@ -227,8 +227,8 @@ class MOGD(BaseSolver):
                 local_best_loss = np.inf
                 local_best_obj: float | None = None
                 local_best_var: np.ndarray | None = None
-
-                for i in range(self.max_iter):
+                i = 0
+                while i < self.max_iter:
                     vars_kernal = self._get_tensor_vars_cat(
                         numerical_var_inds,
                         numerical_var_list,
@@ -278,17 +278,21 @@ class MOGD(BaseSolver):
                                 f"iteration {i}, {obj}: {obj_pred[loss_id].item():.2f}"
                             )
                             print(vars)
+                    i += 1
                 logging.info(
-                    f"Local best {obj}: {local_best_obj:.5f} at {local_best_iter} with vars:\n"
+                    f"Local best {obj}: {local_best_obj:.5f} "
+                    f"at {local_best_iter} with vars:\n"
                     f"{local_best_var}"
                 )
-
+                if local_best_var is None:
+                    raise Exception("Unexpected local_best_var is None.")
                 if verbose:
                     denormalized = self.get_raw_vars(
                         local_best_var, vars_max, vars_min, precision_list
                     )
                     print(
-                        f"Finished at iteration {i}, best local {obj} found as {local_best_obj:.5f}"
+                        f"Finished at iteration {i}, best local "
+                        f"{obj} found as {local_best_obj:.5f}"
                         f" \nat iteration {local_best_iter},"
                         f" \nwith vars: {denormalized}"
                     )
@@ -296,12 +300,16 @@ class MOGD(BaseSolver):
                 iter_num += i + 1
 
                 if self.check_const_func_vio(wl_id, local_best_var):
+                    if local_best_obj is None:
+                        raise Exception("Unexpected local_best_obj is None.")
                     if local_best_loss < best_loss:
                         best_obj = local_best_obj
                         best_loss = local_best_loss
                         best_vars = local_best_var
 
             if self.check_const_func_vio(wl_id, best_vars):
+                if best_vars is None:
+                    raise Exception("Unexpected best_vars is None.")
                 best_raw_vars = self.get_raw_vars(
                     best_vars, vars_max, vars_min, precision_list
                 )
@@ -327,11 +335,13 @@ class MOGD(BaseSolver):
             vars_list.append(best_raw_vars)
 
         idx = np.argmin(best_loss_list)
-        if vars_list[idx] is not None:
-            vars = vars_list[idx].reshape([1, len(var_types)])
+        vars_cand = vars_list[idx]
+
+        if vars_cand is not None:
+            return_vars = vars_cand.reshape([1, len(var_types)])
         else:
-            vars = None
-        return objs_list[idx], vars
+            return_vars = None
+        return objs_list[idx], return_vars
 
     def constraint_so_opt(
         self,
@@ -346,7 +356,7 @@ class MOGD(BaseSolver):
         precision_list: list,
         verbose: bool = False,
         is_parallel: bool = False,
-    ):
+    ) -> Tuple[List[float] | None, np.ndarray | None]:
         """
         solve single objective optimization constrained by objective values
         :param wl_id: str, workload id, e.g. '1-7'
@@ -373,10 +383,10 @@ class MOGD(BaseSolver):
         th.manual_seed(self.seed)
 
         if not (self._check_wl(wl_id) and self._check_obj(obj)):
-            return CHECK_FALSE_RET
+            raise Exception(f"Workload {wl_id} or objective {obj}" "is not supported!")
         for cst_obj in obj_bounds_dict:
             if not self._check_obj(cst_obj):
-                return CHECK_FALSE_RET
+                raise Exception(f"Objective {cst_obj} is not supported!")
         assert self.multistart >= 1
 
         vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
@@ -389,7 +399,7 @@ class MOGD(BaseSolver):
         categorical_var_inds = self.get_categorical_var_inds(var_types)
 
         if meshed_categorical_vars is None:
-            meshed_categorical_vars = [0]
+            raise Exception("No categorical variables found.")
 
         best_loss_list = []
         objs_list, vars_list = [], []
@@ -450,7 +460,7 @@ class MOGD(BaseSolver):
                         local_best_iter = iter
 
                     optimizer.zero_grad()
-                    loss.backward()
+                    loss.backward()  # type: ignore
                     optimizer.step()  # update parameters
 
                     constrained_numerical_var_list = (
@@ -471,19 +481,27 @@ class MOGD(BaseSolver):
                     if verbose:
                         if iter % 10 == 0:
                             print(
-                                f"iteration {iter}, {obj}: {objs_pred_dict[obj].item():.2f}"
+                                f"iteration {iter}, {obj}: "
+                                f"{objs_pred_dict[obj].item():.2f}"
                             )
                             print(vars)
                 logging.info(
                     f"Local best {local_best_objs} at {local_best_iter} with vars:\n"
                     f"{local_best_var}"
                 )
-
+                if local_best_objs is None or local_best_var is None:
+                    raise Exception(
+                        "Unexpected local_best_objs or local_best_var is None."
+                    )
                 if verbose:
+                    displayed_vars = self.get_raw_vars(
+                        local_best_var, vars_max, vars_min, precision_list
+                    )
                     print(
-                        f"Finished at iteration {iter}, best local {obj} found as {local_best_objs[obj]:.5f}"
+                        f"Finished at iteration {iter}, "
+                        f"best local {obj} found as {local_best_objs[obj]:.5f}"
                         f" \nat iteration {local_best_iter},"
-                        f" \nwith vars: {self.get_raw_vars(local_best_var, vars_max, vars_min, precision_list)}"
+                        f" \nwith vars: {displayed_vars}"
                     )
 
                 iter_num += iter + 1
@@ -499,18 +517,21 @@ class MOGD(BaseSolver):
             if self.check_const_func_vio(wl_id, best_vars) & self.check_obj_bounds_vio(
                 best_objs, obj_bounds_dict
             ):
+                if best_vars is None:
+                    raise Exception("Unexpected best_vars is None.")
                 best_raw_vars = self.get_raw_vars(
                     best_vars, vars_max, vars_min, precision_list
                 )
                 obj_pred_dict = self._get_obj_pred_dict(
-                    wl_id, obj_bounds_dict, best_objs, best_raw_vars
+                    wl_id, obj_bounds_dict, best_raw_vars
                 )
                 target_obj_val.append(obj_pred_dict[obj])
                 if verbose:
                     print()
                     print("*" * 10)
                     print(
-                        f"get best {obj}: {best_objs} at {best_vars} with {iter_num} iterations, loss = {best_loss}"
+                        f"get best {obj}: {best_objs} at {best_vars}"
+                        f" with {iter_num} iterations, loss = {best_loss}"
                     )
             else:
                 obj_pred_dict = None
@@ -524,13 +545,17 @@ class MOGD(BaseSolver):
             vars_list.append(best_raw_vars)
 
         idx = np.argmin(target_obj_val)
-        if vars_list[idx] is not None:
-            objs = list(objs_list[idx].values())
-            vars = vars_list[idx].reshape([1, len(var_types)])
+        vars_cand = vars_list[idx]
+        if vars_cand is not None:
+            obj_cand = objs_list[idx]
+            if obj_cand is None:
+                raise Exception(f"Unexpected objs_list[{idx}] is None.")
+            objs = list(obj_cand.values())
+            return_vars = vars_cand.reshape([1, len(var_types)])
         else:
-            objs, vars = None, None
+            objs, return_vars = None, None
 
-        return objs, vars
+        return objs, return_vars
 
     def constraint_so_parallel(
         self,
@@ -543,13 +568,16 @@ class MOGD(BaseSolver):
         var_ranges: np.ndarray,
         precision_list: list,
         cell_list: list,
-    ):
+    ) -> List[Tuple[List[float] | None, np.ndarray | None]]:
         """
-        solve the single objective optimization constrained by objective values parallelly
+        solve the single objective optimization
+        constrained by objective values parallelly
         :param wl_id: str, workload id, e.g. '1-7'
         :param obj: str, name of objective to be optimized
-        :param accurate: bool, whether the predictive model is accurate (True) or not (False)
-        :param alpha: float, the value used in loss calculation of the inaccurate model
+        :param accurate: bool,
+            whether the predictive model is accurate (True) or not (False)
+        :param alpha: float,
+            the value used in loss calculation of the inaccurate model
         :param opt_obj_ind: int, index of objective to be optimized
         :param var_types: list, variable types
         :param var_ranges: ndarray (n_vars,), the lower and upper
@@ -603,8 +631,10 @@ class MOGD(BaseSolver):
         """
         compute loss of the values of each constraint function fixme: double-check
         :param wl_id: str, workload id, e.g. '1-7'
-        :param vars: tensor ((bs, n_vars) or (n_vars, )), variables, where bs is batch_size
-        :return: const_loss: tensor (Tensor:()), loss of the values of each constraint function
+        :param vars: tensor ((bs, n_vars) or (n_vars, )),
+            variables, where bs is batch_size
+        :return: const_loss: tensor (Tensor:()),
+            loss of the values of each constraint function
         """
         # vars: a tensor
         # get loss for constraint functions defined in the problem setting
@@ -757,7 +787,8 @@ class MOGD(BaseSolver):
         """
         get indices of numerical (float, integer) variables
         :param var_types: list, variable types (float, integer, binary, enum)
-        :return: numerical_var_inds: list, indices of numerical (float, integer) variables
+        :return: numerical_var_inds: list, indices of
+            numerical (float, integer) variables
         """
         numerical_var_inds = [
             ind
@@ -782,7 +813,8 @@ class MOGD(BaseSolver):
             or (numerical_var_inds,)), values of numercial variables
         :param categorical_var_inds: list, indices of (binary, enum) variables
         :param cv_dict: dict(key: indices of (binary, enum) variables,
-            value: value of (binary, enum) variables), indices and values of bianry variables
+            value: value of (binary, enum) variables),
+            indices and values of bianry variables
         :return: vars: tensor((bs, len(numerical_var_inds))
             or (numerical_var_inds,)), values of all variables
         """
@@ -832,8 +864,10 @@ class MOGD(BaseSolver):
         """
         make the values of numerical variables within their range
         :param numerical_var_list: tensor ((bs, len(numerical_var_inds)
-            or (len(numerical_var_ids), ), values of numerical variables (FLOAT and INTEGER)
-        :param numerical_var_inds: list, indices of numerical variables (float and integer)
+            or (len(numerical_var_ids), ), values of numerical variables
+            (FLOAT and INTEGER)
+        :param numerical_var_inds: list, indices of numerical variables
+            (float and integer)
         :param vars_max: ndarray(n_vars, ), upper var_ranges of each variable
         :param vars_min: ndarray(n_vars, ), lower var_ranges of each variable
         :param precision_list: list, precision of each variable
@@ -841,6 +875,8 @@ class MOGD(BaseSolver):
                 solver_ut._get_tensor(normalized_np): Tensor(n_numerical_inds,),
                     normalized numerical variables
         """
+        if self.vars_cons_max_norm is None or self.vars_cons_min_norm is None:
+            raise Exception("vars_cons_max_norm and vars_cons_min_norm are None.")
         vars_cons_max_ = self.vars_cons_max_norm[numerical_var_inds]
         vars_cons_min_ = self.vars_cons_min_norm[numerical_var_inds]
         if numerical_var_list.ndimension() == 1:
@@ -872,8 +908,13 @@ class MOGD(BaseSolver):
 
     # reuse code in UDAO
     def get_raw_vars(
-        self, normalized_vars, vars_max, vars_min, precision_list, normalized_ids=None
-    ):
+        self,
+        normalized_vars: np.ndarray,
+        vars_max: np.ndarray,
+        vars_min: np.ndarray,
+        precision_list: list,
+        normalized_ids: list | None = None,
+    ) -> np.ndarray:
         """
         denormalize the values of each variable
         :param normalized_vars: ndarray((bs, n_vars) or (n_vars,)), normalized variables
@@ -903,7 +944,7 @@ class MOGD(BaseSolver):
         vars_max: np.ndarray,
         vars_min: np.ndarray,
         normalized_ids: Optional[list] = None,
-    ):
+    ) -> np.ndarray:
         """
         normalize the values of each variable
         :param raw_vars: ndarray((bs, n_vars) or (n_vars, )),
@@ -953,7 +994,7 @@ class MOGD(BaseSolver):
     ## _get (objs)  ##
     ##################
     def _get_tensor_obj_pred(
-        self, wl_id: str, vars: th.Tensor, obj_ind: int
+        self, wl_id: str, vars: np.ndarray | th.Tensor, obj_ind: int
     ) -> th.Tensor:
         """
         get objective values
@@ -963,7 +1004,7 @@ class MOGD(BaseSolver):
         :param obj_ind: int, the index of objective to optimize
         :return: obj_pred: tensor(1,1), the objective value
         """
-        if not th.is_tensor(vars):
+        if not th.is_tensor(vars):  # type: ignore
             vars = solver_ut.get_tensor(vars)
         if vars.ndim == 1:
             obj_pred = self.obj_funcs[obj_ind](vars.reshape([1, vars.shape[0]]), wl_id)
@@ -1036,7 +1077,7 @@ class MOGD(BaseSolver):
         return True
 
     # check violations of constraint functions
-    def check_const_func_vio(self, wl_id: str, best_var: np.ndarray) -> bool:
+    def check_const_func_vio(self, wl_id: str, best_var: np.ndarray | None) -> bool:
         """
         check whether the best variable values resulting
         in violation of constraint functions
@@ -1047,12 +1088,11 @@ class MOGD(BaseSolver):
         if best_var is None:
             return False
 
-        if not th.is_tensor(best_var):
-            best_var = solver_ut.get_tensor(best_var)
+        tensor_best_var = solver_ut.get_tensor(best_var)
 
-        if best_var.ndim == 1:
-            best_var = best_var.reshape([1, best_var.shape[0]])
-        const_loss = self._get_tensor_loss_const_funcs(wl_id, best_var)
+        if tensor_best_var.ndim == 1:
+            tensor_best_var = tensor_best_var.reshape([1, best_var.shape[0]])
+        const_loss = self._get_tensor_loss_const_funcs(wl_id, tensor_best_var)
         if const_loss <= 0:
             return True
         else:
@@ -1060,7 +1100,7 @@ class MOGD(BaseSolver):
 
     # check violations of objective value var_ranges
     # reuse code in UDAO
-    def check_obj_bounds_vio(self, pred_dict: Dict, obj_bounds: Dict) -> bool:
+    def check_obj_bounds_vio(self, pred_dict: Dict | None, obj_bounds: Dict) -> bool:
         """
         check whether violating the objective value var_ranges
         :param pred_dict: dict, keys are objective names,

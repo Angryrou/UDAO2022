@@ -1,13 +1,13 @@
-import numpy as np
+from typing import Any
+
 import torch as th
 
-# DEFAULT_DEVICE = th.device("cpu")
 DEFAULT_DEVICE = th.device("cuda") if th.cuda.is_available() else th.device("cpu")
 DEFAULT_DTYPE = th.float32
 
 
 def get_tensor(
-    x: np.ndarray | list | tuple | th.Tensor,
+    x: Any,
     dtype: th.dtype | None = None,
     device: th.device | None = None,
     requires_grad: bool = False,

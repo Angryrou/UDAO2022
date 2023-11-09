@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 
 from ..solver.grid_search import GridSearch
@@ -20,14 +22,17 @@ class WeightedSum(BaseMOO):
     ):
         """
         parameters used in Weighted Sum
-        :param ws_pairs: list, even weight settings for all objectives, e.g. for 2d, [[0, 1], [0.1, 0.9], ... [1, 0]]
+        :param ws_pairs: list, even weight settings for all
+            objectives, e.g. for 2d, [[0, 1], [0.1, 0.9], ... [1, 0]]
         :param inner_solver: str, the name of the solver used in Weighted Sum
-        :param solver_params: dict, parameter used in solver, e.g. in grid-search, it is the number of grids for each variable
+        :param solver_params: dict, parameter used in solver,
+            e.g. in grid-search, it is the number of grids for each variable
         :param n_objs: int, the number of objectives
         :param obj_funcs: list, objective functions
         :param opt_type: list, objectives to minimize or maximize
         :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types ("<=", "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
+        :param const_types: list, constraint types ("<=",
+            "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
         """
         super().__init__()
         self.inner_solver = inner_solver
@@ -44,7 +49,7 @@ class WeightedSum(BaseMOO):
         else:
             raise Exception(f"WS does not support {self.inner_solver}!")
 
-    def solve(self, wl_id, var_ranges, var_types) -> tuple:
+    def solve(self, wl_id: str, var_ranges: np.ndarray, var_types: List) -> tuple:
         """
         solve MOO by Weighted Sum (WS)
         :param wl_id: str, workload id
@@ -74,7 +79,7 @@ class WeightedSum(BaseMOO):
             # if (const_violation.size != 0) & (const_violation.max() > 0):
             ## find the var index which violate the constraint
             n_const = const_violation.shape[1]
-            available_indices = range(const_violation.shape[0])
+            available_indices = np.array(range(const_violation.shape[0]))
             for i in range(n_const):
                 if self.const_types[i] == "<=":
                     available_indice = np.where(const_violation[:, i] <= 0)
@@ -113,26 +118,27 @@ class WeightedSum(BaseMOO):
                 objs.append(obj.squeeze())
 
             # transform objs to array: (n_samples/grids * n_objs)
-            objs = np.array(objs).T
+            objs_array = np.array(objs).T
 
             # normalization
-            objs_min, objs_max = objs.min(0), objs.max(0)
+            objs_min, objs_max = objs_array.min(0), objs_array.max(0)
 
             if all((objs_min - objs_max) < 0):
-                objs_norm = (objs - objs_min) / (objs_max - objs_min)
+                objs_norm = (objs_array - objs_min) / (objs_max - objs_min)
                 for ws in self.ws_pairs:
                     po_ind = self.get_soo_index(objs_norm, ws)
-                    po_obj_list.append(objs[po_ind])
+                    po_obj_list.append(objs_array[po_ind])
                     po_var_list.append(vars_after_const_check[po_ind])
 
                 # only keep non-dominated solutions
                 return moo_ut._summarize_ret(po_obj_list, po_var_list)
             else:
                 raise Exception(
-                    "Cannot do normalization! Lower bounds of objective values are higher than their upper bounds."
+                    "Cannot do normalization! Lower bounds of "
+                    "objective values are higher than their upper bounds."
                 )
 
-    def get_soo_index(self, objs, ws_pairs):
+    def get_soo_index(self, objs: np.ndarray, ws_pairs: list) -> int:
         """
         reuse code in VLDB2022
         :param objs: ndarray(n_feasible_samples/grids, 2)
@@ -140,9 +146,9 @@ class WeightedSum(BaseMOO):
         :return: int, index of the minimum weighted sum
         """
         obj = np.sum(objs * ws_pairs, axis=1)
-        return np.argmin(obj)
+        return int(np.argmin(obj))
 
-    def _get_const_violation(self, wl_id, vars):
+    def _get_const_violation(self, wl_id: str, vars: np.ndarray) -> np.ndarray:
         """
         get violation of each constraint
         :param wl_id: str, workload id
