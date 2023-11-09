@@ -1,4 +1,5 @@
 import random
+from typing import Any, Callable, List, Tuple
 
 import numpy as np
 from platypus import (
@@ -29,16 +30,19 @@ class EVO(BaseMOO):
         nfe: int,
         fix_randomness_flag: bool,
         seed: int,
-    ):
+    ) -> None:
         """
-        :param inner_algo: str, the name of Multi-Objective Evolutionary Algorithm used. By default, it is NSGA-II
+        :param inner_algo: str, the name of Multi-Objective
+        Evolutionary Algorithm used. By default, it is NSGA-II
         :param obj_funcs: list, objective functions
         :param opt_type: list, objectives to minimize or maximize
         :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types ("<=", "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
+        :param const_types: list, constraint types ("<=", "==" or ">=",
+        e.g. g1(x1, x2, ...) - c <= 0)
         :param pop_size: int, population size
         :param nfe: int, the number of function evaluations
-        :param fix_randomness_flag: bool, to indicate whether to fix randomness (if so, True)
+        :param fix_randomness_flag: bool, to indicate whether
+        to fix randomness (if so, True)
         :param seed: int, the random seed to fix randomness
         """
         super().__init__()
@@ -59,29 +63,33 @@ class EVO(BaseMOO):
             raise Exception(f"Algorithm {inner_algo} is not supported!")
         self.seed = seed
 
-    def solve(self, wl_id, var_ranges, var_types):
+    def solve(
+        self, wl_id: str | None, var_ranges: np.ndarray, var_types: list
+    ) -> Tuple[np.ndarray | None, np.ndarray | None]:  # type: ignore[override]
         """
         solve MOO with NSGA-II algorithm
         :param wl_id: str, workload id, e.g. '1-7'
-        :param var_ranges: ndarray(n_vars,), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
+        :param var_ranges: ndarray(n_vars,),
+            lower and upper var_ranges of variables(non-ENUM),
+            and values of ENUM variables
         :param var_types: list, variable types (float, integer, binary, enum)
         :return:
-                po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                po_vars: ndarray(n_solutions, n_vars), corresponding variable values of Pareto solutions
+                po_objs: ndarray(n_solutions, n_objs),
+                    Pareto solutions
+                po_vars: ndarray(n_solutions, n_vars),
+                    corresponding variable values of Pareto solutions
         """
 
-        global global_var_range
-        global job
         global_var_range = var_ranges
         job = wl_id
 
         # class to add all solutions during evolutionary iterations
         class LoggingArchive(Archive):
-            def __init__(self, *args, **kwargs):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
                 super().__init__(*args, *kwargs)
-                self.log = []
+                self.log: Any = []
 
-            def add(self, solution):
+            def add(self, solution: Any) -> None:
                 super().add(solution)
                 self.log.append(solution)
 
@@ -94,10 +102,10 @@ class EVO(BaseMOO):
         self.problem = Problem(n_vars, n_objs, n_consts)
 
         # set up variable types and constraint types
-        flag_mixed_var_type = self.set_var_types(var_types)
+        flag_mixed_var_type, enum_inds = self.set_var_types(var_types, global_var_range)
         self.set_const_types()
         # pass the functions of objectives and constraints
-        self.problem.function = self.problem_def
+        self.problem.function = self.get_problem_def(global_var_range, job, enum_inds)
 
         # fix randomness
         if self.fix_randomness_flag:
@@ -120,10 +128,12 @@ class EVO(BaseMOO):
         # find feasible solutions
         feasible_solutions_algo = [s for s in algorithm.result if s.feasible]
         if len(feasible_solutions_algo) > 0:
-            # if the algorithm returns feasible solutions, keep them to further find non-dominated solutions
+            # if the algorithm returns feasible solutions,
+            # keep them to further find non-dominated solutions
             feasible_solutions = feasible_solutions_algo
         else:
-            # if no feasible solutions are returned by the algorithm, it tries to find feasible solutions among all iterations from log
+            # if no feasible solutions are returned by the algorithm,
+            # it tries to find feasible solutions among all iterations from log
             feasible_solutions_log = [s for s in log_archive.log if s.feasible]
             feasible_solutions = feasible_solutions_log
 
@@ -146,16 +156,20 @@ class EVO(BaseMOO):
                 uniq_non_dominated_index
             ].tolist()
             print(
-                f"the number of non-dominated solutions is {len(uniq_non_dominated_objs)}"
+                "the number of non-dominated solutions"
+                f" is {len(uniq_non_dominated_objs)}"
             )
 
             po_objs_list, po_vars_list = [], []
             for solution in uniq_non_dominated:
-                # Within the internal Platypus library, the INTEGER variable is encoded with binary numbers.
+                # Within the internal Platypus library,
+                # the INTEGER variable is encoded with binary numbers.
                 # Here it uses decode to return back the INTEGER value
                 po_vars = [
                     x.decode(y)
-                    for [x, y] in zip(self.problem.types, solution.variables)
+                    for [x, y] in zip(
+                        self.problem.types, solution.variables  # type: ignore
+                    )
                 ]
                 for i in enum_inds:
                     ind = int(po_vars[i])
@@ -166,19 +180,26 @@ class EVO(BaseMOO):
 
             return np.array(po_objs_list), np.array(po_vars_list)
 
-    def set_var_types(self, var_types):
+    def set_var_types(
+        self,
+        var_types: List[VarTypes],
+        global_var_range: np.ndarray,
+    ) -> Tuple[bool, list]:
         """
         :param var_types: list, variable types (float, integer, binary, enum)
         :return:
-                flag_mixed_var_type: bool, to indicate whether the variable types are mixed (True) or all the same (False)
+                flag_mixed_var_type: bool,
+                to indicate whether the variable types are mixed
+                (True) or all the same (False)
         """
         n_vars = len(var_types)
         # find list of indices for different variable types
         float_inds = [i for i, x in enumerate(var_types) if x == VarTypes.FLOAT]
         int_inds = [i for i, x in enumerate(var_types) if x == VarTypes.INTEGER]
         binary_inds = [i for i, x in enumerate(var_types) if x == VarTypes.BOOL]
-        # make it global as it will be used to decode the solutions in the method self.solve
-        global enum_inds
+        # make it global as it will be used to decode
+        # the solutions in the method self.solve
+
         enum_inds = [i for i, x in enumerate(var_types) if x == VarTypes.ENUM]
 
         # set variable types for the problem
@@ -199,14 +220,16 @@ class EVO(BaseMOO):
             # Platypus does not support the categorical variable type
             # Here the ENUM variable type is transformed by using INTEGER type to:
             # 1) indicate the indices of categorical values
-            # 2) will be decoded back to the categorical values when calculating values of objectives and constraints,
+            # 2) will be decoded back to the categorical values
+            # when calculating values of objectives and constraints,
             #   and return final variable values of Pareto solutions
             for i in enum_inds:
                 self.problem.types[i] = Integer(0, len(global_var_range[i]) - 1)
 
         if len(float_inds) + len(int_inds) + len(binary_inds) + len(enum_inds) == 0:
             raise Exception(
-                "ERROR: No feasilbe variables provided, please check the variable types setting!"
+                "ERROR: No feasilbe variables provided,"
+                "please check the variable types setting!"
             )
         assert (
             len(float_inds) + len(int_inds) + len(binary_inds) + len(enum_inds)
@@ -224,9 +247,9 @@ class EVO(BaseMOO):
         else:
             flag_mixed_var_type = True
 
-        return flag_mixed_var_type
+        return flag_mixed_var_type, enum_inds
 
-    def set_const_types(self):
+    def set_const_types(self) -> None:
         n_consts = len(self.const_types)
         # indices of constraint types
         le_inds = [i for i, x in enumerate(self.const_types) if x == "<="]
@@ -245,59 +268,73 @@ class EVO(BaseMOO):
 
         if (len(le_inds) + len(ge_inds) + len(eq_inds) == 0) & (n_consts != 0):
             raise Exception(
-                "ERROR: No feasilbe constraints provided, please check the constraint types setting!"
+                "ERROR: No feasilbe constraints provided, "
+                "please check the constraint types setting!"
             )
         assert len(le_inds) + len(ge_inds) + len(eq_inds) == n_consts
 
-    def problem_def(self, vars):
+    def get_problem_def(
+        self, global_var_range: np.ndarray, global_job: str | None, enum_inds: list
+    ) -> Callable:
         """
-        define the problem with objective and constraints, only support variables as input.
+        define the problem with objective and constraints,
+        only support variables as input.
         :param vars:  list, variable types (float, integer, binary, enum)
         :return:
                 f_list: list, values of objective functions
-                g_list: list, values of constraint functions
+                g_list: list, values of constraint functions if any
         """
-        # defined_functions need the input variables to be array with shape([n, n_vars]), where n can be any positive number
-        vars = np.array(vars)
-        vars = vars.reshape([1, vars.shape[0]])
 
-        if len(enum_inds) > 0:
-            vars_decoded = np.ones_like(vars) * np.inf
-            for i in enum_inds:
-                ind = int(vars[0, i])
-                decoded_enum = global_var_range[i][ind]
-                vars_decoded[0, i] = decoded_enum
-        else:
-            vars_decoded = vars
+        def problem_def(vars: Any) -> Tuple[list, list] | list:
+            if global_var_range is None or enum_inds is None:
+                raise Exception("Global_var_range is not provided")
+            # defined_functions need the input variables to be array
+            # with shape([n, n_vars]), where n can be any positive number
+            vars = np.array(vars)
+            vars = vars.reshape([1, vars.shape[0]])
 
-        # the formats of f_list(and g_list) is required as list[value1, value2, ...]
-        # f_list = [obj_func(job, vars_decoded).tolist()[0] for obj_func in self.obj_funcs]
-        # g_list = [const_func(job, vars_decoded).tolist()[0] for const_func in self.const_funcs]
-
-        f_list = []
-
-        for obj_func in self.obj_funcs:
-            if job is None:
-                obj_value = obj_func(vars_decoded).tolist()
+            if len(enum_inds) > 0:
+                vars_decoded = np.ones_like(vars) * np.inf
+                for i in enum_inds:
+                    ind = int(vars[0, i])
+                    decoded_enum = global_var_range[i][ind]
+                    vars_decoded[0, i] = decoded_enum
             else:
-                obj_value = obj_func(job, vars_decoded).tolist()
-            if isinstance(obj_value, list):
-                f_list.append(obj_value[0])
+                vars_decoded = vars
+
+            # the formats of f_list(and g_list) is required
+            # as list[value1, value2, ...]
+            # f_list = [obj_func(job, vars_decoded).tolist()[0]
+            # for obj_func in self.obj_funcs]
+            # g_list = [const_func(job, vars_decoded).tolist()[0]
+            # for const_func in self.const_funcs]
+
+            f_list = []
+
+            for obj_func in self.obj_funcs:
+                if global_job is None:
+                    obj_value = obj_func(vars_decoded).tolist()
+                else:
+                    obj_value = obj_func(global_job, vars_decoded).tolist()
+                if isinstance(obj_value, list):
+                    f_list.append(obj_value[0])
+                else:
+                    f_list.append(obj_value)
+
+            if len(self.const_funcs) > 0:
+                g_list = []
+                for const_func in self.const_funcs:
+                    if global_job is None:
+                        const_value = const_func(vars_decoded).tolist()
+                    else:
+                        const_value = const_func(global_job, vars_decoded).tolist()
+                    if isinstance(const_value, list):
+                        g_list.append(const_value[0])
+                    else:
+                        g_list.append(const_value)
+
+                return f_list, g_list
             else:
-                f_list.append(obj_value)
+                return f_list
 
-        if len(self.const_funcs) > 0:
-            g_list = []
-            for const_func in self.const_funcs:
-                if job is None:
-                    const_value = const_func(vars_decoded).tolist()
-                else:
-                    const_value = const_func(job, vars_decoded).tolist()
-                if isinstance(const_value, list):
-                    g_list.append(const_value[0])
-                else:
-                    g_list.append(const_value)
-
-            return f_list, g_list
-        else:
-            return f_list
+        return problem_def

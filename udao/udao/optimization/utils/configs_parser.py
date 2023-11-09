@@ -1,5 +1,6 @@
 import argparse
 import json
+from typing import Any, List, Tuple
 
 import numpy as np
 
@@ -7,22 +8,22 @@ from .parameters import VarTypes
 
 
 class ConfigsParser:
-    def __init__(self):
+    def __init__(self) -> None:
         parser = argparse.ArgumentParser(description="ConfigsParser")
         parser.add_argument(
             "-c", "--config", required=True, help="the configuration file location"
         )
         self.parser = parser
 
-    def parse(self):
+    def parse(self) -> argparse.Namespace:
         return self.parser.parse_args()
 
-    def parse_details(self, option=None):
+    def parse_details(self, option: Any = None) -> list:
         args = self.parse()
-        try:
+        if "config" in args:
             with open(args.config) as f:
                 configs = json.load(f)
-        except:
+        else:
             raise Exception(f"{args.config} does not exist")
 
         if option is None:
@@ -85,8 +86,7 @@ class ConfigsParser:
                     add_params.append(seed)
                 else:
                     raise Exception(f"Algorithm {moo_algo} is not configured")
-
-            except:
+            except KeyError:
                 raise Exception("configurations are not well specified.")
 
             return [
@@ -105,7 +105,7 @@ class ConfigsParser:
             model_params = configs["model"]
             return model_params
 
-    def get_vars_conf(self, var_params):
+    def get_vars_conf(self, var_params: List) -> Tuple[List, np.ndarray]:
         var_types, var_bounds = [], []
 
         for var in var_params:
@@ -128,10 +128,11 @@ class ConfigsParser:
 
         return var_types, np.array(var_bounds)
 
-    def get_objs_conf(self, obj_params):
+    def get_objs_conf(self, obj_params: List) -> Tuple[List, List, List]:
         """
         get names and optimization types for objectives
-        :param obj_params: list, each element is a dict for each constraint, including keys of "name", "optimize_trend", "type"
+        :param obj_params: list, each element is a dict
+        for each constraint, including keys of "name", "optimize_trend", "type"
         :return:
                 obj_names: list, objective names
                 opt_types: list, optimization types (e.g. minimization or maximization)
@@ -154,10 +155,11 @@ class ConfigsParser:
 
         return obj_names, opt_types, obj_types
 
-    def get_const(self, const_params):
+    def get_const(self, const_params: List) -> Tuple[List, List]:
         """
         get constraint types
-        :param const_params: list, each element is a dict for each constraint, including keys of "name", "type"
+        :param const_params: list, each element is
+        a dict for each constraint, including keys of "name", "type"
         :return: list, constraint types
         """
         const_types = [const["type"] for const in const_params]
@@ -165,10 +167,11 @@ class ConfigsParser:
 
         return const_types, const_names
 
-    def get_precision_list(self, vars):
+    def get_precision_list(self, vars: List) -> List:
         """
         get precision of each variable (only used in MOGD solver)
-        :param vars: list, each element is a dict for each variable, including keys of "name", "type", "min", "max", (or "values"), "precision"
+        :param vars: list, each element is a dict for each variable,
+        including keys of "name", "type", "min", "max", (or "values"), "precision"
         :return: precision_list: variable precision
         """
         precision_list = [var["precision"] for var in vars]

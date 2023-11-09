@@ -1,3 +1,6 @@
+import os
+from typing import List, Optional, Sequence, Tuple
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -5,10 +8,16 @@ from .parameters import VarTypes
 
 
 class Points:
-    def __init__(self, objs, vars=None):
+    def __init__(self, objs: np.ndarray, vars: Optional[np.ndarray] = None) -> None:
         """
-        :param objs: ndarray(n_objs,), objective values
-        :param vars: ndarray(1, n_vars), variable values
+        # Docstring in numpy format
+
+        Parameters
+        ----------
+        objs : np.ndarray(n_objs,)
+            objective values
+        vars :np.ndarray(1, n_vars), default=None
+            variable values, by default None
         """
         self.objs = objs
         self.vars = vars
@@ -16,11 +25,17 @@ class Points:
 
 
 class Rectangles:
-    def __init__(self, utopia: Points, nadir: Points):
+    def __init__(self, utopia: Points, nadir: Points) -> None:
         """
-        :param utopia: Points (defined by class), utopia point
-        :param nadir: Points (defined by class), nadir point
+
+        Parameters
+        ----------
+        utopia : Points
+            utopia point
+        nadir : Points
+            nadir point
         """
+
         self.upper_bounds = nadir.objs
         self.lower_bounds = utopia.objs
         self.n_objs = nadir.objs.shape[0]
@@ -29,31 +44,48 @@ class Rectangles:
         self.utopia = utopia
         self.nadir = nadir
 
-    def cal_volume(self, upper_bounds, lower_bounds):
+    def cal_volume(self, upper_bounds: np.ndarray, lower_bounds: np.ndarray) -> float:
         """
-        calculate the volume of the hyper_rectangle
-        :param upper_bounds: ndarray(n_objs,)
-        :param lower_bounds: ndarray(n_objs,)
-        :return:
-                float, volume of the hyper_rectangle
+        Calculate the volume of the hyper_rectangle
+
+        Parameters
+        ----------
+        upper_bounds : np.ndarray(n_objs,)
+            upper bounds of the hyper_rectangle
+        lower_bounds : np.ndarray(n_objs,)
+            lower bounds of the hyper_rectangle
+
+        Returns
+        -------
+        float
+            volume of the hyper_rectangle
         """
-        volume = abs(np.prod(upper_bounds - lower_bounds))
+        volume = np.abs(np.prod(upper_bounds - lower_bounds))
         return volume
 
-    # Override the `__lt__()` function to make `Rectangles` class work with min-heap (referred from VLDB2022)
-    def __lt__(self, other):
+    # Override the `__lt__()` function to make `Rectangles`
+    # class work with min-heap (referred from VLDB2022)
+    def __lt__(self, other: "Rectangles") -> bool:
         return self.neg_vol < other.neg_vol
 
 
 # a quite efficient way to get the indexes of pareto points
 # https://stackoverflow.com/a/40239615
-def is_pareto_efficient(costs, return_mask=True):
+def is_pareto_efficient(costs: np.ndarray, return_mask: bool = True) -> np.ndarray:
     ## reuse code in VLDB2022
     """
     Find the pareto-efficient points
-    :param costs: An (n_points, n_costs) array
-    :param return_mask: True to return a mask
-    :return: An array of indices of pareto-efficient points.
+
+    Parameters
+    ----------
+    costs : np.ndarray
+        An (n_points, n_costs) array
+    return_mask : bool, default=True
+        True to return a mask
+
+    Returns
+    -------
+    np.ndarray
         If return_mask is True, this will be an (n_points, ) boolean array
         Otherwise it will be a (n_efficient_points, ) integer array of indices.
     """
@@ -74,7 +106,23 @@ def is_pareto_efficient(costs, return_mask=True):
         return is_efficient
 
 
-def _summarize_ret(po_obj_list, po_var_list):
+def _summarize_ret(
+    po_obj_list: Sequence, po_var_list: Sequence
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """Return the pareto-optimal objectives and variables
+
+    Parameters
+    ----------
+    po_obj_list: Sequence
+        List of objective values
+    po_var_list : _type_
+        List of variable values
+
+    Returns
+    -------
+    Tuple[Optional[np.ndarray], Optional[np.ndarray]]
+        Pareto-optimal objectives and variables
+    """
     ## reuse code in VLDB2022
     assert len(po_obj_list) == len(po_var_list)
     if len(po_obj_list) == 0:
@@ -91,12 +139,12 @@ def _summarize_ret(po_obj_list, po_var_list):
 
 
 # generate even weights for 2d and 3D
-def even_weights(stepsize, m):
-    ws_pairs = []
+def even_weights(stepsize: float, m: int) -> np.ndarray:
+    ws_pairs = np.array([])
     if m == 2:
         w1 = np.hstack([np.arange(0, 1, stepsize), 1])
         w2 = 1 - w1
-        ws_pairs = [[w1, w2] for w1, w2 in zip(w1, w2)]
+        ws_pairs = np.array([[w1, w2] for w1, w2 in zip(w1, w2)])
 
     elif m == 3:
         w_steps = np.linspace(0, 1, num=int(1 / stepsize) + 1, endpoint=True)
@@ -120,20 +168,24 @@ def even_weights(stepsize, m):
                 ws_pairs = ws
             else:
                 ws_pairs = np.vstack([ws_pairs, ws])
+    else:
+        raise Exception(f"{m} objectives are not supported.")
 
     assert all(np.round(np.sum(ws_pairs, axis=1), 10) == 1)
-    return ws_pairs
+    return np.array(ws_pairs)
 
 
 # common functions used in moo
-def _get_direction(opt_type, obj_index):
+def _get_direction(opt_type: Sequence, obj_index: int) -> int:
+    """Get gradient direction from optimization type"""
     if opt_type[obj_index] == "MIN":
         return 1
     else:
         return -1
 
 
-def plot_po(po, n_obj=2, title="pf_ap"):
+def plot_po(po: np.ndarray, n_obj: int = 2, title: str = "pf_ap") -> None:
+    """Plot pareto-optimal solutions"""
     # po: ndarray (n_solutions * n_objs)
     ## for 2d
     if n_obj == 2:
@@ -175,13 +227,24 @@ def plot_po(po, n_obj=2, title="pf_ap"):
 
 
 # generate training inputs for GPR, reuse code in RandomSampler solver
-def get_training_input(var_types, var_ranges, n_samples):
+def get_training_input(
+    var_types: List[VarTypes], var_ranges: np.ndarray, n_samples: int
+) -> np.ndarray:
     """
-    generate samples of variables (for the unconstrained scenario)
-    :param var_ranges: array (n_vars,), lower and upper var_ranges of variables(non-ENUM), and values of ENUM variables
-    :param var_types: list, type of each variable
-    :param n_samples: int, the number of input samples to train GPR models
-    :return: array, variables (n_samples * n_vars)
+    Generate samples of variables (for the unconstrained scenario)
+    Parameters
+    ----------
+    var_types : List[VarTypes]
+        List of variable types
+    var_ranges : np.ndarray
+        lower and upper bounds of variables(non-ENUM),
+        all available values for ENUM variables
+    n_samples : int
+        Number of input samples to train GPR models
+    Returns
+    -------
+    np.ndarray
+        Variables (n_samples * n_vars)
     """
     n_vars = var_ranges.shape[0]
     x = np.zeros([n_samples, n_vars])
@@ -190,7 +253,8 @@ def get_training_input(var_types, var_ranges, n_samples):
         upper, lower = values[1], values[0]
         if (lower - upper) > 0:
             raise Exception(
-                f"ERROR: the lower bound of variable {i} is greater than its upper bound!"
+                f"ERROR: the lower bound of variable {i} "
+                "is greater than its upper bound!"
             )
 
         # randomly sample n_samples within the range
@@ -206,7 +270,7 @@ def get_training_input(var_types, var_ranges, n_samples):
     return x
 
 
-def rand_float(lower, upper, n_samples):
+def rand_float(lower: float, upper: float, n_samples: int) -> np.ndarray | None:
     """
     generate n_samples random float values within the lower and upper var_ranges
     :param lower: int, lower bound
@@ -222,9 +286,9 @@ def rand_float(lower, upper, n_samples):
         return out
 
 
-def save_results(path, results, wl_id, mode="data"):
-    import os
-
+def save_results(
+    path: str, results: np.ndarray, wl_id: str, mode: str = "data"
+) -> None:
     file_path = path + f"jobId_{wl_id}/"
     if not os.path.exists(file_path):
         os.makedirs(file_path)

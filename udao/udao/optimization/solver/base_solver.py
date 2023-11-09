@@ -9,7 +9,7 @@ from abc import ABCMeta
 
 
 class BaseSolver(object, metaclass=ABCMeta):
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     # @abstractmethod
