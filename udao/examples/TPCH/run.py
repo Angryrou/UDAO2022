@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import lightning as pl
+import lightning.pytorch as pl
 import pandas as pd
 import pytorch_warmup as warmup
 import torch as th
@@ -18,10 +18,10 @@ from udao.data.handler.data_handler import (
 from udao.data.iterators import QueryPlanIterator
 from udao.data.predicate_embedders import Word2VecEmbedder
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
-from udao.model.embedders.graph_averager import GraphAverager, GraphAveragerParams
+from udao.model.embedders.graph_averager import GraphAverager
 from udao.model.model import UdaoModel
 from udao.model.module import UdaoModule
-from udao.model.regressors.mlp import MLP, MLPParams
+from udao.model.regressors.mlp import MLP
 from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     th.set_default_dtype(tensor_dtypes)  # type: ignore
     #### Data definition ####
-    params_getter = create_data_handler_params(QueryPlanIterator, "op_emb")
+    params_getter = create_data_handler_params(QueryPlanIterator, "op_enc")
     params = params_getter(
         index_column="id",
         stratify_on="tid",
@@ -55,7 +55,7 @@ if __name__ == "__main__":
             extractor=(QueryStructureExtractor, []),
             preprocessors=[(NormalizePreprocessor, [MinMaxScaler(), "graph_features"])],
         ),
-        op_emb=FeaturePipeline(
+        op_enc=FeaturePipeline(
             extractor=(PredicateEmbeddingExtractor, [Word2VecEmbedder()]),
         ),
     )
@@ -80,28 +80,18 @@ if __name__ == "__main__":
     # extract some dimensions from the data directly
     # expect a dimension dataclass that iterator should implement
 
-    embedder = GraphAverager(
-        GraphAveragerParams(
-            input_size=2,
-            n_op_types=4,
-            output_size=10,
-            op_groups=["ch1_cbo"],
-            type_embedding_dim=5,
-            embedding_normalizer="BN",
-        )
+    model = UdaoModel.from_config(
+        embedder_cls=GraphAverager,
+        regressor_cls=MLP,
+        iterator_shape=split_iterators["train"].get_iterator_shape(),
+        embedder_params={
+            "output_size": 10,
+            "op_groups": ["cbo", "op_enc"],
+            "type_embedding_dim": 5,
+            "embedding_normalizer": "BN",
+        },
+        regressor_params={"n_layers": 2, "hidden_dim": 2, "dropout": 0},
     )
-    regressor = MLP(
-        MLPParams(
-            input_embedding_dim=10,
-            input_features_dim=12,
-            output_dim=1,
-            n_layers=2,
-            hidden_dim=2,
-            dropout=0,
-        )
-    )
-
-    model = UdaoModel(embedder=embedder, regressor=regressor)
     module = UdaoModule(
         model,
         ["latency"],

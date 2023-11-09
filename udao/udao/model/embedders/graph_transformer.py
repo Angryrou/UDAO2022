@@ -5,44 +5,11 @@ import dgl
 import torch as th
 import torch.nn as nn
 
-from .base_graph_embedder import BaseGraphEmbedder, GraphEmbedderParams
+from .base_graph_embedder import BaseGraphEmbedder
 from .layers.graph_transformer_layer import GraphTransformerLayer
 from .layers.multi_head_attention import AttentionLayerName
 
 ReadoutType = Literal["sum", "max", "mean"]
-
-
-@dataclass
-class GraphTransformerParams(GraphEmbedderParams):
-    pos_encoding_dim: int
-    """Dimension of the position encoding."""
-    n_layers: int
-    """Number of GCN layers."""
-    n_heads: int
-    """Number of attention heads."""
-    hidden_dim: int
-    """Size of the hidden layers outputs."""
-    readout: ReadoutType
-    """Readout type: how the node embeddings are aggregated
-    to form the graph embedding."""
-    max_dist: Optional[int] = None
-    """Maximum distance for QF attention."""
-    non_siblings_map: Optional[Dict[int, Dict[int, List[int]]]] = None
-    """Non-siblings map for RAAL attention.
-    For each type of graph, maps the edge id to
-    all nodes that are not siblings of its source node"""
-    attention_layer_name: AttentionLayerName = "GTN"
-    """Defines which attention layer to use (QF, RAAL, or GTN))"""
-    dropout: float = 0.0
-    """Dropout probability."""
-    residual: bool = True
-    """Whether to make the layer residual. Defaults to True."""
-    use_bias: bool = False
-    """Whether to use bias in the attention layer. Defaults to False."""
-    batch_norm: bool = True
-    """Whether to use batch normalization. Defaults to True."""
-    layer_norm: bool = False
-    """Whether to use layer normalization. Defaults to False."""
 
 
 class GraphTransformer(BaseGraphEmbedder):
@@ -51,7 +18,39 @@ class GraphTransformer(BaseGraphEmbedder):
     (either QF, RAAL, or GTN)
     """
 
-    def __init__(self, net_params: GraphTransformerParams) -> None:
+    @dataclass
+    class Params(BaseGraphEmbedder.Params):
+        pos_encoding_dim: int
+        """Dimension of the position encoding."""
+        n_layers: int
+        """Number of GCN layers."""
+        n_heads: int
+        """Number of attention heads."""
+        hidden_dim: int
+        """Size of the hidden layers outputs."""
+        readout: ReadoutType
+        """Readout type: how the node embeddings are aggregated
+        to form the graph embedding."""
+        max_dist: Optional[int] = None
+        """Maximum distance for QF attention."""
+        non_siblings_map: Optional[Dict[int, Dict[int, List[int]]]] = None
+        """Non-siblings map for RAAL attention.
+        For each type of graph, maps the edge id to
+        all nodes that are not siblings of its source node"""
+        attention_layer_name: AttentionLayerName = "GTN"
+        """Defines which attention layer to use (QF, RAAL, or GTN))"""
+        dropout: float = 0.0
+        """Dropout probability."""
+        residual: bool = True
+        """Whether to make the layer residual. Defaults to True."""
+        use_bias: bool = False
+        """Whether to use bias in the attention layer. Defaults to False."""
+        batch_norm: bool = True
+        """Whether to use batch normalization. Defaults to True."""
+        layer_norm: bool = False
+        """Whether to use layer normalization. Defaults to False."""
+
+    def __init__(self, net_params: Params) -> None:
         super().__init__(net_params=net_params)
         self.attention_layer_name = net_params.attention_layer_name
         self.embedding_lap_pos_enc = nn.Linear(

@@ -3,20 +3,8 @@ from typing import List, Optional
 
 import torch as th
 
-from .base_regressor import BaseRegressor, BaseRegressorParams
+from .base_regressor import BaseRegressor
 from .layers.mlp_readout import MLPReadout
-
-
-@dataclass
-class MLPParams(BaseRegressorParams):
-    n_layers: int
-    """Number of layers in the MLP"""
-    hidden_dim: int
-    """Size of the hidden layers outputs."""
-    dropout: float
-    """Probability of dropout."""
-    agg_dims: Optional[List[int]] = None
-    """Dimensions of the aggregation layers in the MLP."""
 
 
 class MLP(BaseRegressor):
@@ -24,11 +12,22 @@ class MLP(BaseRegressor):
     the embedding and the tabular input features.
     Parameters
     ----------
-    net_params : MLPParams
-        For the parameters, see the MLPParams dataclass.
+    net_params : MLP.Params
+        For the parameters, see the MLP.Params dataclass.
     """
 
-    def __init__(self, net_params: MLPParams) -> None:
+    @dataclass
+    class Params(BaseRegressor.Params):
+        n_layers: int
+        """Number of layers in the MLP"""
+        hidden_dim: int
+        """Size of the hidden layers outputs."""
+        dropout: float
+        """Probability of dropout."""
+        agg_dims: Optional[List[int]] = None
+        """Dimensions of the aggregation layers in the MLP."""
+
+    def __init__(self, net_params: Params) -> None:
         """_summary_"""
         super().__init__(net_params)
 

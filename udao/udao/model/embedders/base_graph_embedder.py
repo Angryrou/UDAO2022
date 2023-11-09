@@ -1,31 +1,16 @@
 from abc import ABC
 from dataclasses import dataclass
-from typing import Literal, Optional, Sequence
+from typing import Any, Dict, Literal, Optional, Sequence
 
 import dgl
 import torch as th
 import torch.nn as nn
+from udao.utils.interfaces import UdaoInputShape
 
 from .base_embedder import BaseEmbedder
 from .layers.iso_bn import IsoBN
 
 NormalizerType = Literal["BN", "LN", "IsoBN"]
-
-
-@dataclass
-class GraphEmbedderParams:
-    input_size: int  # depends on the data
-    """The size of the input features."""
-    n_op_types: int  # depends on the data
-    """The number of operation types."""
-    output_size: int
-    """The size of the output embedding."""
-    op_groups: Sequence[str]
-    """The groups of operation features to be included in the embedding."""
-    type_embedding_dim: int
-    """The dimension of the operation type embedding."""
-    embedding_normalizer: Optional[NormalizerType]
-    """Name of the normalizer to use for the output embedding."""
 
 
 class BaseGraphEmbedder(BaseEmbedder, ABC):
@@ -38,19 +23,70 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
     net_params : EmbedderParams
     """
 
-    def __init__(self, net_params: GraphEmbedderParams) -> None:
-        super().__init__()
+    @dataclass
+    class Params(BaseEmbedder.Params):
+        input_size: int  # depends on the data
+        """The size of the input features, except for the type of operation.
+        If type is provided, the input size is increased at init
+        by the type embedding dimension.
+        """
+        n_op_types: Optional[int]  # depends on the data
+        """The number of operation types."""
+        op_groups: Sequence[str]
+        """The groups of operation features to be included in the embedding."""
+        type_embedding_dim: Optional[int]
+        """The dimension of the operation type embedding."""
+        embedding_normalizer: Optional[NormalizerType]
+        """Name of the normalizer to use for the output embedding."""
+
+    @classmethod
+    def from_iterator_shape(
+        cls,
+        iterator_shape: UdaoInputShape[Dict[str, int]],
+        **kwargs: Any,
+    ) -> "BaseGraphEmbedder":
+        embedding_input_shapes = iterator_shape.embedding_input_shape
+        op_groups = [name for name in embedding_input_shapes.keys()]
+        input_size = sum(
+            [embedding_input_shapes[name] for name in op_groups if name != "type"]
+        )
+        print([embedding_input_shapes])
+        n_op_types = None
+        if "type" in op_groups:
+            n_op_types = iterator_shape.embedding_input_shape["type"]
+        params_dict = {
+            "op_groups": op_groups,
+            "n_op_types": n_op_types,
+            "input_size": input_size,
+            **kwargs,
+        }
+        if any((name not in cls.Params.__dataclass_fields__) for name in params_dict):
+            print(cls.Params.__dataclass_fields__)
+            for name in params_dict:
+                if name not in cls.Params.__dataclass_fields__:
+                    print(f"{name} is not a valid parameter for {cls.__name__}")
+            raise ValueError(f"Some parameters are not valid for {cls.__name__} Params")
+        print(params_dict)
+        return cls(cls.Params(**params_dict))
+
+    def __init__(self, net_params: Params) -> None:
+        super().__init__(net_params)
         self.input_size = net_params.input_size
-        self.embedding_size = net_params.output_size
 
         op_groups = net_params.op_groups
-        self.op_type = "ch1_type" in op_groups
-        self.op_cbo = "ch1_cbo" in op_groups
-        self.op_enc = "ch1_enc" in op_groups
+        self.op_type = "type" in op_groups
+        self.op_cbo = "cbo" in op_groups
+        self.op_enc = "op_enc" in op_groups
         if self.op_type:
+            if net_params.n_op_types is None or net_params.type_embedding_dim is None:
+                raise ValueError(
+                    "n_op_types and type_embedding_dim must be provided "
+                    "if `type` is included in op_groups"
+                )
             self.op_embedder = nn.Embedding(
                 net_params.n_op_types, net_params.type_embedding_dim
             )
+            self.input_size += net_params.type_embedding_dim
         self.out_norm: Optional[nn.Module] = None
         if net_params.embedding_normalizer is None:
             self.out_norm = None
@@ -82,7 +118,7 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
         if self.op_cbo:
             op_list.append(g.ndata["cbo"])
         if self.op_enc:
-            op_list.append(g.ndata["enc"])
+            op_list.append(g.ndata["op_enc"])
         op_tensor = th.cat(op_list, dim=1) if len(op_list) > 1 else op_list[0]
         return op_tensor
 

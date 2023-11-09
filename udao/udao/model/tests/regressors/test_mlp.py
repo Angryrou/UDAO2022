@@ -1,7 +1,7 @@
 import pytest
 import torch as th
 
-from ...regressors.mlp import MLP, MLPParams
+from ...regressors.mlp import MLP
 from ...utils.utils import set_deterministic_torch
 
 
@@ -40,7 +40,7 @@ def test_udao_mlp_forward_shape(
     embed_dim: int, feat_dim: int, expected_output: th.Tensor
 ) -> None:
     set_deterministic_torch(0)
-    sample_mlp_params = MLPParams(
+    sample_mlp_params = MLP.Params(
         input_embedding_dim=embed_dim,
         input_features_dim=feat_dim,
         output_dim=5,

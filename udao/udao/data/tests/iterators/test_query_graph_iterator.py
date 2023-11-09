@@ -50,7 +50,7 @@ def sample_iterator() -> QueryPlanIterator:
         features_container,
         objectives_container,
         structure_container,
-        op_emb=TabularContainer(embeddings_features),
+        op_enc=TabularContainer(embeddings_features),
     )
 
 
@@ -88,12 +88,21 @@ class TestQueryGraphIterator:
             ),
         )
         assert th.equal(
-            graph.ndata["op_emb"],  # type: ignore
+            graph.ndata["op_enc"],  # type: ignore
             th.tensor(
                 np.array([np.linspace(i, i + 1, 10) for i in range(2)]),
                 dtype=th.float32,
             ),
         )
+
+    def test_iterator_shape(self, sample_iterator: QueryPlanIterator) -> None:
+        shape = sample_iterator.get_iterator_shape()
+        assert shape.embedding_input_shape == {
+            "cbo": 2,
+            "op_enc": 10,
+        }
+        assert shape.feature_input_shape == 3
+        assert shape.output_shape == 1
 
     def test_set_tensor_type(self, sample_iterator: QueryPlanIterator) -> None:
         sample_iterator.set_tensors_dtype(th.float64)

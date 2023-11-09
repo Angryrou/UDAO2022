@@ -1,14 +1,16 @@
 from abc import abstractmethod
 from inspect import signature
-from typing import Any, List, Sequence, Type
+from typing import Any, Generic, List, Sequence, Type, TypeVar
 
 import torch as th
 from torch.utils.data import DataLoader, Dataset
 
 from ..containers import BaseContainer
 
+T = TypeVar("T")
 
-class BaseDatasetIterator(Dataset):
+
+class BaseDatasetIterator(Dataset, Generic[T]):
     """Base class for all dataset iterators.
     Inherits from torch.utils.data.Dataset.
     """
@@ -23,7 +25,7 @@ class BaseDatasetIterator(Dataset):
         pass
 
     @abstractmethod
-    def __getitem__(self, idx: int, /) -> Any:
+    def __getitem__(self, idx: int, /) -> T:
         pass
 
     @staticmethod
@@ -69,6 +71,14 @@ class BaseDatasetIterator(Dataset):
             if param not in ["self", "keys", "args", "kwargs"]
         ]
         return params_list
+
+    def _get_sample(self) -> T:
+        """Returns a random sample from the iterator."""
+        return self[0]
+
+    @abstractmethod
+    def get_iterator_shape(self) -> Any:
+        """Returns the shape of the iterator output."""
 
     def set_tensors_dtype(self, dtype: th.dtype) -> None:
         """Sets the dtype of the iterator.

@@ -4,7 +4,7 @@ import dgl
 import pytest
 import torch as th
 
-from ...embedders.graph_transformer import GraphTransformer, GraphTransformerParams
+from ...embedders.graph_transformer import GraphTransformer
 from ...embedders.layers.multi_head_attention import AttentionLayerName
 from ...utils.utils import set_deterministic_torch
 from .conftest import generate_dgl_graph
@@ -12,10 +12,10 @@ from .conftest import generate_dgl_graph
 
 def test_graph_transformer_initialization() -> None:
     for attention_layer in ["QF", "RAAL", "GTN"]:
-        net_params = GraphTransformerParams(
+        net_params = GraphTransformer.Params(
             input_size=3,
             output_size=6,
-            op_groups=["ch1_type", "ch1_cbo"],
+            op_groups=["type", "cbo"],
             type_embedding_dim=3,
             embedding_normalizer="BN",
             n_op_types=4,
@@ -38,10 +38,10 @@ def test_graph_transformer_initialization() -> None:
 
 def test_graph_transformer_initialization_raises_error() -> None:
     with pytest.raises(ValueError):
-        net_params = GraphTransformerParams(
+        net_params = GraphTransformer.Params(
             input_size=3,
             output_size=3,
-            op_groups=["ch1_type", "ch1_cbo"],
+            op_groups=["type", "cbo"],
             type_embedding_dim=3,
             embedding_normalizer="BN",
             n_op_types=4,
@@ -57,10 +57,10 @@ def test_graph_transformer_initialization_raises_error() -> None:
 
 def test_graph_transformer_forward() -> None:
     set_deterministic_torch(0)
-    net_params = GraphTransformerParams(
-        input_size=8,
+    net_params = GraphTransformer.Params(
+        input_size=3,
         output_size=4,
-        op_groups=["ch1_type", "ch1_cbo"],
+        op_groups=["type", "cbo"],
         type_embedding_dim=5,
         embedding_normalizer="BN",
         n_op_types=5,
