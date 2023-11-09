@@ -1,36 +1,27 @@
-from typing import Dict
+from typing import Optional
 
 import numpy as np
+from attr import dataclass
 
 from ..utils.parameters import VarTypes
 from .base_solver import BaseSolver
 
 
 class RandomSampler(BaseSolver):
-    def __init__(self, rs_params: Dict) -> None:
+    @dataclass
+    class Params:
+        n_samples_per_param: int
+        seed: Optional[int] = None
+
+    def __init__(self, params: Params) -> None:
         """
         :param rs_params: int, the number of samples per variable
         """
         super().__init__()
-        self.n_samples_per_param = rs_params["n_samples"]
-        self.seed = rs_params["seed"]
+        self.n_samples_per_param = params.n_samples_per_param
+        self.seed = params.seed
 
-    def _rand_float(self, lower: int, upper: int, n_samples: int) -> np.ndarray | None:
-        """
-        generate n_samples random float values within the lower and upper var_ranges
-        :param lower: int, lower bound
-        :param upper: int upper bound
-        :param n_samples: int, the number of samples
-        :return: ndarray(n_samples, ), n_samples random float
-        """
-        if lower > upper:
-            return None
-        else:
-            scale = upper - lower
-            out = np.random.rand(n_samples) * scale + lower
-            return out
-
-    def _get_input(self, var_ranges: np.ndarray, var_types: list) -> np.ndarray:
+    def _get_input(self, var_ranges: list, var_types: list) -> np.ndarray:
         """
         generate samples of variables
         :param var_ranges: array (n_vars,),
@@ -41,7 +32,7 @@ class RandomSampler(BaseSolver):
         :return: array,
             variables (n_samples * n_vars)
         """
-        n_vars = var_ranges.shape[0]
+        n_vars = len(var_ranges)
         x = np.zeros([self.n_samples_per_param, n_vars])
         np.random.seed(self.seed)
         for i, values in enumerate(var_ranges):
@@ -54,7 +45,7 @@ class RandomSampler(BaseSolver):
 
             # randomly sample n_samples within the range
             if var_types[i] == VarTypes.FLOAT:
-                x[:, i] = self._rand_float(lower, upper, self.n_samples_per_param)
+                x[:, i] = np.random.uniform(lower, upper, self.n_samples_per_param)
             elif var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
                 x[:, i] = np.random.randint(
                     lower, upper + 1, size=self.n_samples_per_param
@@ -65,6 +56,7 @@ class RandomSampler(BaseSolver):
             # TODO: extend to a matrix variable for the assignment problem in the future
             else:
                 raise Exception(
-                    f"Random-Sampler solver does not support variable type {var_types[i]}!"
+                    "Random-Sampler solver does not"
+                    " support variable type {var_types[i]}!"
                 )
         return x
