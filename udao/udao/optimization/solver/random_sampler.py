@@ -26,6 +26,21 @@ class RandomSampler(BaseSolver):
         self.n_samples_per_param = params.n_samples_per_param
         self.seed = params.seed
 
+    def _process_variable(self, var: Variable) -> np.ndarray:
+        if isinstance(var, FloatVariable):
+            return np.random.uniform(var.lower, var.upper, self.n_samples_per_param)
+        elif isinstance(var, IntegerVariable):
+            return np.random.randint(
+                var.lower, var.upper + 1, size=self.n_samples_per_param
+            )
+        elif isinstance(var, EnumVariable):
+            inds = np.random.randint(0, len(var.values), size=self.n_samples_per_param)
+            return np.array(var.values)[inds]
+        else:
+            raise NotImplementedError(
+                f"ERROR: variable type {type(var)} is not supported!"
+            )
+
     def _get_input(self, variables: List[Variable]) -> np.ndarray:
         """
         generate samples of variables
@@ -41,24 +56,5 @@ class RandomSampler(BaseSolver):
         x = np.zeros([self.n_samples_per_param, n_vars])
         np.random.seed(self.seed)
         for i, var in enumerate(variables):
-            # randomly sample n_samples within the range
-            if isinstance(var, FloatVariable):
-                x[:, i] = np.random.uniform(
-                    var.lower, var.upper, self.n_samples_per_param
-                )
-            elif isinstance(var, IntegerVariable):
-                x[:, i] = np.random.randint(
-                    var.lower, var.upper + 1, size=self.n_samples_per_param
-                )
-            elif isinstance(var, EnumVariable):
-                inds = np.random.randint(
-                    0, len(var.values), size=self.n_samples_per_param
-                )
-                x[:, i] = np.array(var.values)[inds]
-            # TODO: extend to a matrix variable for the assignment problem in the future
-            else:
-                raise Exception(
-                    "Random-Sampler solver does not"
-                    f" support variable type {type(var)}!"
-                )
+            x[:, i] = self._process_variable(var)
         return x
