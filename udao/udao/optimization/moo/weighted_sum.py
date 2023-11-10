@@ -159,6 +159,6 @@ class WeightedSum(BaseMOO):
             g_list = [const_func(vars) for const_func in self.const_funcs]
         else:
             g_list = [const_func(wl_id, vars) for const_func in self.const_funcs]
-
+        print("hello sir!")
         # shape (n_samples/grids, n_const)
         return np.array(g_list).T
