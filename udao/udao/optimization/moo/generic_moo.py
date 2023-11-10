@@ -3,11 +3,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ..utils import moo_utils as moo_ut
 from ..utils.parameters import VarTypes
 from .evolutionary import EVO
 from .progressive_frontier import ProgressiveFrontier
-from .weighted_sum import WeightedSum
 
 
 class GenericMOO:
@@ -103,54 +101,11 @@ class GenericMOO:
             time_cost_list: list, each element is the
             time cost of MOO solving for one job.
         """
-        po_objs_list = []
-        po_vars_list = []
-        time_cost_list = []
-        if moo_algo == "weighted_sum":
-            job_ids = self._load_job_ids(add_params[0])
-            n_probes = add_params[1]
-            solver_params = add_params[2]
-            n_objs = len(self.opt_types)
-            ws_steps = 1 / (n_probes - n_objs - 1)
-            ws_pairs = moo_ut.even_weights(ws_steps, n_objs)
-            ws = WeightedSum(
-                ws_pairs,
-                solver,
-                solver_params,
-                n_objs,
-                self.obj_funcs,
-                self.opt_types,
-                self.const_funcs,
-                self.const_types,
-            )
+        po_objs_list: List[np.ndarray | None] = []
+        po_vars_list: List[np.ndarray | None] = []
+        time_cost_list: List[float] = []
 
-            for wl_id in job_ids:
-                # fixme: to be generalized further
-                if self.wl_ranges is not None and wl_id is not None:
-                    vars_max, vars_min = self.wl_ranges[wl_id]
-                    vars_ranges = np.vstack((vars_min, vars_max)).T
-                    # find indices of non_ENUM vars
-                    non_enum_inds = [
-                        i
-                        for i, var_type in enumerate(self.var_types)
-                        if var_type != VarTypes.ENUM
-                    ]
-                    vars_ranges[non_enum_inds] = self.var_ranges[non_enum_inds]
-                    self.var_ranges[non_enum_inds] = list(
-                        vars_ranges[non_enum_inds].tolist()
-                    )
-                else:
-                    pass
-                start_time = time.time()
-                if wl_id is None:
-                    raise Exception("workload id is None.")
-                po_objs, po_vars = ws.solve(wl_id, self.var_ranges, self.var_types)
-                time_cost = time.time() - start_time
-                po_objs_list.append(po_objs)
-                po_vars_list.append(po_vars)
-                time_cost_list.append(time_cost)
-
-        elif moo_algo == "progressive_frontier":
+        if moo_algo == "progressive_frontier":
             precision_list = add_params[0]
             pf_option = add_params[1]
             n_probes = add_params[2]

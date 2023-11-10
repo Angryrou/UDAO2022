@@ -9,7 +9,6 @@ from torch.multiprocessing import Pool
 from ..utils import moo_utils as moo_ut
 from ..utils import solver_utils as solver_ut
 from ..utils.parameters import VarTypes
-from .base_solver import BaseSolver
 
 SEED = 0
 DEFAULT_DEVICE = th.device("cpu")
@@ -18,7 +17,7 @@ NOT_FOUND_ERROR = "no valid configuration found"
 CHECK_FALSE_RET = "-1"
 
 
-class MOGD(BaseSolver):
+class MOGD:
     def __init__(self, mogd_params: dict):
         """
         initialize solver

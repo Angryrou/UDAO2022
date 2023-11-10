@@ -322,7 +322,7 @@ class ProgressiveFrontier(BaseMOO):
         sorted_po_objs_list = np.array(po_objs_list)[sorted_inds].tolist()
         sorted_po_vars_list = np.array(po_vars_list)[sorted_inds].tolist()
 
-        po_objs, po_vars = moo_ut._summarize_ret(
+        po_objs, po_vars = moo_ut.summarize_ret(
             sorted_po_objs_list, sorted_po_vars_list
         )
 
@@ -473,7 +473,7 @@ class ProgressiveFrontier(BaseMOO):
             sorted_po_objs = np.array(all_objs_list)[sorted_inds].tolist()
             sorted_po_vars = np.array(all_vars_list)[sorted_inds].tolist()
 
-            all_objs, all_vars = moo_ut._summarize_ret(sorted_po_objs, sorted_po_vars)
+            all_objs, all_vars = moo_ut.summarize_ret(sorted_po_objs, sorted_po_vars)
             all_objs_list = all_objs.tolist() if all_objs is not None else []
             all_vars_list = all_vars.tolist() if all_vars is not None else []
             iter = iter + 1
