@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-from ..utils.parameters import VarTypes
+from ..concepts.variable import EnumVariable, IntegerVariable, NumericVariable, Variable
 from .base_solver import BaseSolver
 
 
@@ -20,7 +20,7 @@ class GridSearch(BaseSolver):
         super().__init__()
         self.n_grids_per_var = gs_params.n_grids_per_var
 
-    def _get_input(self, var_ranges: list, var_types: list) -> np.ndarray:
+    def _get_input(self, variables: List[Variable]) -> np.ndarray:
         """
         generate grids for each variable
         :param var_ranges: ndarray (n_vars,),
@@ -31,42 +31,29 @@ class GridSearch(BaseSolver):
         """
 
         grids_list = []
-        for i, values in enumerate(var_ranges):
+        for i, var in enumerate(variables):
             # the number of points generated for each variable
             n_grids_per_var = self.n_grids_per_var[i]
 
-            if (
-                (var_types[i] == VarTypes.FLOAT)
-                or (var_types[i] == VarTypes.INTEGER)
-                or (var_types[i] == VarTypes.BOOL)
-            ):
-                upper, lower = values[1], values[0]
-                if (lower - upper) > 0:
-                    raise Exception(
-                        f"ERROR: the lower bound of variable {i}"
-                        " is greater than its upper bound!"
-                    )
-
+            if isinstance(var, NumericVariable):
                 # make sure the grid point is the same with the type
                 # e.g., if int x.min=0, x.max=5, n_grids_per_var=10,
                 # ONLY points[0, 1, 2, 3, 4, 5] are feasible
-                if var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
-                    if n_grids_per_var > (upper - lower + 1):
-                        n_grids_per_var = int(upper - lower + 1)
+                if isinstance(var, IntegerVariable):
+                    if n_grids_per_var > (var.upper - var.lower + 1):
+                        n_grids_per_var = int(var.upper - var.lower + 1)
 
                 grids_per_var = np.linspace(
-                    lower, upper, num=n_grids_per_var, endpoint=True
+                    var.lower, var.upper, num=n_grids_per_var, endpoint=True
                 )
-                if var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
+                if isinstance(var, IntegerVariable):
                     grids_per_var = np.round(grids_per_var).astype(int)
-            elif var_types[i] == VarTypes.ENUM:
-                grids_per_var = values
+            elif isinstance(var, EnumVariable):
+                grids_per_var = np.array(var.values)
             else:
-                raise Exception(
-                    "Grid-Search solver does "
-                    f"not support variable type {var_types[i]}!"
+                raise NotImplementedError(
+                    f"ERROR: variable type {type(var)} is not supported!"
                 )
-
             grids_list.append(grids_per_var)
 
         ## generate cartesian product of grids_list

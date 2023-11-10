@@ -3,31 +3,36 @@ from typing import Dict, Iterable
 import numpy as np
 import pytest
 
+from ...concepts.variable import (
+    BoolVariable,
+    EnumVariable,
+    FloatVariable,
+    IntegerVariable,
+)
 from ...solver.grid_search import GridSearch
-from ...utils.parameters import VarTypes
 
 
 class TestGridSearch:
     @pytest.mark.parametrize(
         "test_data, expected",
         [
-            ({"type": VarTypes.BOOL, "n_grids": 1, "range": [0, 1]}, [0]),
-            ({"type": VarTypes.BOOL, "n_grids": 2, "range": [0, 1]}, [0, 1]),
-            ({"type": VarTypes.BOOL, "n_grids": 3, "range": [0, 1]}, [0, 1]),
+            ({"variable": BoolVariable(), "n_grids": 1}, [0]),
+            ({"variable": BoolVariable(), "n_grids": 2}, [0, 1]),
+            ({"variable": BoolVariable(), "n_grids": 3}, [0, 1]),
             (
-                {"type": VarTypes.INTEGER, "n_grids": 5, "range": [1, 7]},
+                {"variable": IntegerVariable(1, 7), "n_grids": 5},
                 [1, 2, 4, 6, 7],
             ),
             (
-                {"type": VarTypes.INTEGER, "n_grids": 8, "range": [1, 7]},
+                {"variable": IntegerVariable(1, 7), "n_grids": 8},
                 [1, 2, 3, 4, 5, 6, 7],
             ),
             (
-                {"type": VarTypes.FLOAT, "n_grids": 5, "range": [2, 4]},
+                {"variable": FloatVariable(2, 4), "n_grids": 5},
                 [2, 2.5, 3, 3.5, 4],
             ),
             (
-                {"type": VarTypes.ENUM, "n_grids": 2, "range": [0, 4, 7, 10]},
+                {"variable": EnumVariable([0, 4, 7, 10]), "n_grids": 2},
                 [0, 4, 7, 10],
             ),
         ],
@@ -37,16 +42,14 @@ class TestGridSearch:
     ) -> None:
         solver = GridSearch(GridSearch.Params(n_grids_per_var=[test_data["n_grids"]]))
         output = solver._get_input(
-            var_ranges=[test_data["range"]],
-            var_types=[test_data["type"]],
+            variables=[test_data["variable"]],
         )
         np.testing.assert_equal(output, [[e] for e in expected])
 
     def test_grid_search_multiple_variables(self) -> None:
         solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         output = solver._get_input(
-            var_ranges=[[0, 1], [1, 7]],
-            var_types=[VarTypes.BOOL, VarTypes.INTEGER],
+            variables=[BoolVariable(), IntegerVariable(1, 7)],
         )
         np.testing.assert_equal(
             output,
