@@ -57,6 +57,8 @@ class GridSearch(BaseSolver):
                 grids_per_var = np.linspace(
                     lower, upper, num=n_grids_per_var, endpoint=True
                 )
+                if var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
+                    grids_per_var = np.round(grids_per_var).astype(int)
             elif var_types[i] == VarTypes.ENUM:
                 grids_per_var = values
             else:

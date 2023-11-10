@@ -16,7 +16,7 @@ class TestGridSearch:
             ({"type": VarTypes.BOOL, "n_grids": 3, "range": [0, 1]}, [0, 1]),
             (
                 {"type": VarTypes.INTEGER, "n_grids": 5, "range": [1, 7]},
-                np.linspace(1, 7, num=5, endpoint=True),
+                [1, 2, 4, 6, 7],
             ),
             (
                 {"type": VarTypes.INTEGER, "n_grids": 8, "range": [1, 7]},
