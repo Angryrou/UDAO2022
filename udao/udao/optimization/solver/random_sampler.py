@@ -1,9 +1,14 @@
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 from attr import dataclass
+from udao.optimization.concepts.variable import (
+    EnumVariable,
+    FloatVariable,
+    IntegerVariable,
+    Variable,
+)
 
-from ..utils.parameters import VarTypes
 from .base_solver import BaseSolver
 
 
@@ -21,7 +26,7 @@ class RandomSampler(BaseSolver):
         self.n_samples_per_param = params.n_samples_per_param
         self.seed = params.seed
 
-    def _get_input(self, var_ranges: list, var_types: list) -> np.ndarray:
+    def _get_input(self, variables: List[Variable]) -> np.ndarray:
         """
         generate samples of variables
         :param var_ranges: array (n_vars,),
@@ -32,31 +37,28 @@ class RandomSampler(BaseSolver):
         :return: array,
             variables (n_samples * n_vars)
         """
-        n_vars = len(var_ranges)
+        n_vars = len(variables)
         x = np.zeros([self.n_samples_per_param, n_vars])
         np.random.seed(self.seed)
-        for i, values in enumerate(var_ranges):
-            upper, lower = values[1], values[0]
-            if (lower - upper) > 0:
-                raise Exception(
-                    f"ERROR: the lower bound of variable {i}"
-                    " is greater than its upper bound!"
-                )
-
+        for i, var in enumerate(variables):
             # randomly sample n_samples within the range
-            if var_types[i] == VarTypes.FLOAT:
-                x[:, i] = np.random.uniform(lower, upper, self.n_samples_per_param)
-            elif var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
-                x[:, i] = np.random.randint(
-                    lower, upper + 1, size=self.n_samples_per_param
+            if isinstance(var, FloatVariable):
+                x[:, i] = np.random.uniform(
+                    var.lower, var.upper, self.n_samples_per_param
                 )
-            elif var_types[i] == VarTypes.ENUM:
-                inds = np.random.randint(0, len(values), size=self.n_samples_per_param)
-                x[:, i] = np.array(values)[inds]
+            elif isinstance(var, IntegerVariable):
+                x[:, i] = np.random.randint(
+                    var.lower, var.upper + 1, size=self.n_samples_per_param
+                )
+            elif isinstance(var, EnumVariable):
+                inds = np.random.randint(
+                    0, len(var.values), size=self.n_samples_per_param
+                )
+                x[:, i] = np.array(var.values)[inds]
             # TODO: extend to a matrix variable for the assignment problem in the future
             else:
                 raise Exception(
                     "Random-Sampler solver does not"
-                    " support variable type {var_types[i]}!"
+                    f" support variable type {type(var)}!"
                 )
         return x
