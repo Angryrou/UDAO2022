@@ -20,6 +20,26 @@ class GridSearch(BaseSolver):
         super().__init__()
         self.n_grids_per_var = gs_params.n_grids_per_var
 
+    def _process_variable(self, var: Variable, n_grids: int) -> np.ndarray:
+        if isinstance(var, NumericVariable):
+            # make sure the grid point is the same with the type
+            # e.g., if int x.min=0, x.max=5, n_grids_per_var=10,
+            # ONLY points[0, 1, 2, 3, 4, 5] are feasible
+            if isinstance(var, IntegerVariable):
+                if n_grids > (var.upper - var.lower + 1):
+                    n_grids = int(var.upper - var.lower + 1)
+
+            var_grid = np.linspace(var.lower, var.upper, num=n_grids, endpoint=True)
+            if isinstance(var, IntegerVariable):
+                return np.round(var_grid).astype(int)
+            return var_grid
+        elif isinstance(var, EnumVariable):
+            return np.array(var.values)
+        else:
+            raise NotImplementedError(
+                f"ERROR: variable type {type(var)} is not supported!"
+            )
+
     def _get_input(self, variables: List[Variable]) -> np.ndarray:
         """
         generate grids for each variable
@@ -33,28 +53,9 @@ class GridSearch(BaseSolver):
         grids_list = []
         for i, var in enumerate(variables):
             # the number of points generated for each variable
-            n_grids_per_var = self.n_grids_per_var[i]
+            var_n_grids = self.n_grids_per_var[i]
 
-            if isinstance(var, NumericVariable):
-                # make sure the grid point is the same with the type
-                # e.g., if int x.min=0, x.max=5, n_grids_per_var=10,
-                # ONLY points[0, 1, 2, 3, 4, 5] are feasible
-                if isinstance(var, IntegerVariable):
-                    if n_grids_per_var > (var.upper - var.lower + 1):
-                        n_grids_per_var = int(var.upper - var.lower + 1)
-
-                grids_per_var = np.linspace(
-                    var.lower, var.upper, num=n_grids_per_var, endpoint=True
-                )
-                if isinstance(var, IntegerVariable):
-                    grids_per_var = np.round(grids_per_var).astype(int)
-            elif isinstance(var, EnumVariable):
-                grids_per_var = np.array(var.values)
-            else:
-                raise NotImplementedError(
-                    f"ERROR: variable type {type(var)} is not supported!"
-                )
-            grids_list.append(grids_per_var)
+            grids_list.append(self._process_variable(var, var_n_grids))
 
         ## generate cartesian product of grids_list
         x = np.array([list(i) for i in itertools.product(*grids_list)])
