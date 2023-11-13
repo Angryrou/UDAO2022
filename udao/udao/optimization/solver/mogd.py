@@ -1,15 +1,14 @@
 import logging
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import torch as th
 import torch.optim as optim
 from torch.multiprocessing import Pool
 
-from ..utils import moo_utils as moo_ut
+from ..concepts import Constraint, EnumVariable, NumericVariable, Objective, Variable
 from ..utils import solver_utils as solver_ut
-from ..utils.parameters import VarTypes
 
 SEED = 0
 DEFAULT_DEVICE = th.device("cpu")
@@ -50,16 +49,12 @@ class MOGD:
 
     def _problem(
         self,
-        wl_list: List[str],
-        wl_ranges: Callable,
-        vars_constraints: Dict,
-        accurate: bool,
+        variables: List[Variable],
         std_func: Optional[Callable],
-        obj_funcs: List[Callable],
-        obj_names: List[str],
-        opt_types: List[str],
-        const_funcs: List[Callable],
-        const_types: List[str],
+        objectives: List[Objective],
+        constraints: List[Constraint],
+        alpha: float = 0.0,
+        accurate: bool = True,
     ) -> None:
         """
         set up problem in solver
@@ -84,93 +79,18 @@ class MOGD:
             ("<=" "==" or "<", e.g. g1(x1, x2, ...) - c <= 0)
         :return:
         """
-        self.wl_list = wl_list
-        self._get_vars_range_for_wl = wl_ranges
-        self.vars_constraints = vars_constraints
+        self.variables = variables
+        self.objectives = objectives
+        self.constraints = constraints
         self.accurate = accurate
         self.std_func = std_func
-
-        self.obj_funcs = obj_funcs
-        self.obj_names = obj_names
-        self.opt_types = opt_types
-        self.const_funcs = const_funcs
-        self.const_types = const_types
-
-    def _set(
-        self,
-        accurate: bool,
-        alpha: float,
-        vars_constraints: Optional[Dict],
-        vars_max: np.ndarray,
-        vars_min: np.ndarray,
-    ) -> None:
-        self.accurate = accurate
         self.alpha = alpha
-        self.vars_cons_max = (
-            vars_max.copy()
-            if vars_constraints is None
-            else vars_constraints["vars_max"]
-        )
-        self.vars_cons_min = (
-            vars_min.copy()
-            if vars_constraints is None
-            else vars_constraints["vars_min"]
-        )
-        self.vars_cons_max_norm = (self.vars_cons_max - vars_min) / (
-            vars_max - vars_min
-        )
-        self.vars_cons_min_norm = (self.vars_cons_min - vars_min) / (
-            vars_max - vars_min
-        )
-
-    def _reset(self) -> None:
-        self.accurate = True
-        self.alpha = 0.0
-        self.vars_cons_max, self.vars_cons_min = None, None
-        self.vars_cons_max_norm, self.vars_cons_min_norm = None, None
-
-    def predict(
-        self,
-        wl_id: str,
-        vars: np.ndarray,
-        opt_obj_ind: int,
-        var_types: list,
-        var_ranges: np.ndarray,
-    ) -> str:
-        """
-        predict the objective value given a wl_id,
-        variables and the target objective.
-        :param wl_id: str, workload id, e.g. '1-7'
-        :param vars: ndarray(n_vars,), variable values
-        :param opt_obj_ind: int, index of objective to be optimized
-        :param var_ranges: ndarray (n_vars,), the lower and upper
-            var_ranges of non-ENUM variables, and values of ENUM variables
-        :return:
-                f"{obj_predict:.5f}", float, prediction of one objective
-        """
-        if not (
-            self._check_wl(wl_id)
-            and self._check_vars(vars, var_types, var_ranges)
-            and self._check_obj(self.obj_names[opt_obj_ind])
-        ):
-            return CHECK_FALSE_RET
-        vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
-        vars_norm = self.get_normalized_vars(vars, vars_max, vars_min)
-        obj_predict = self._get_tensor_obj_pred(wl_id, vars_norm, opt_obj_ind)[
-            0, 0
-        ].item()
-        logging.info(f"{wl_id}, {vars} -> {self.obj_names[opt_obj_ind]}: {obj_predict}")
-        return f"{obj_predict:.5f}"
 
     def single_objective_opt(
         self,
         wl_id: str,
         obj: str,
-        accurate: bool,
-        alpha: float,
         opt_obj_ind: int,
-        var_types: list,
-        var_ranges: np.ndarray,
         precision_list: list,
         bs: int = 16,
         verbose: bool = False,
@@ -196,20 +116,14 @@ class MOGD:
         """
 
         th.manual_seed(self.seed)
-
-        if not (self._check_wl(wl_id) and self._check_obj(obj)):
+        vars_max, vars_min = self.get_bounds(self.variables)
+        if not self._check_obj(obj):
             raise Exception(f"Workload {wl_id} or objective {obj}" "is not supported!")
         assert self.multistart >= 1
 
-        vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
-        self._reset()
-        self._set(accurate, alpha, self.vars_constraints, vars_max, vars_min)
-
-        meshed_categorical_vars = self.get_meshed_categorical_vars(
-            var_types, var_ranges
-        )
-        numerical_var_inds = self.get_numerical_var_inds(var_types)
-        categorical_var_inds = self.get_categorical_var_inds(var_types)
+        meshed_categorical_vars = self.get_meshed_categorical_vars(self.variables)
+        numerical_var_inds = self.get_numerical_var_inds(self.variables)
+        categorical_var_inds = self.get_categorical_var_inds(self.variables)
 
         if meshed_categorical_vars is None:
             meshed_categorical_vars = np.array([0])
@@ -272,8 +186,6 @@ class MOGD:
                         self._get_tensor_numerical_constrained_vars(
                             numerical_var_list.data,
                             numerical_var_inds,
-                            vars_max,
-                            vars_min,
                             precision_list,
                         )
                     )
@@ -349,7 +261,7 @@ class MOGD:
         vars_cand = vars_list[idx]
 
         if vars_cand is not None:
-            return_vars = vars_cand.reshape([1, len(var_types)])
+            return_vars = vars_cand.reshape([1, len(self.variables)])
         else:
             return_vars = None
         return objs_list[idx], return_vars
@@ -358,16 +270,11 @@ class MOGD:
         self,
         wl_id: str,
         obj: str,
-        accurate: bool,
-        alpha: float,
         opt_obj_ind: int,
-        var_types: list,
-        var_range: np.ndarray,
         obj_bounds_dict: Dict,
         precision_list: list,
         verbose: bool = False,
-        is_parallel: bool = False,
-    ) -> Tuple[Optional[List[float]], Optional[np.ndarray]]:
+    ) -> Tuple[List[float] | None, np.ndarray | None]:
         """
         solve single objective optimization constrained by objective values
         :param wl_id: str, workload id, e.g. '1-7'
@@ -392,22 +299,20 @@ class MOGD:
         """
 
         th.manual_seed(self.seed)
-
-        if not (self._check_wl(wl_id) and self._check_obj(obj)):
-            raise Exception(f"Workload {wl_id} or objective {obj}" "is not supported!")
+        if not self._check_obj(obj):
+            raise Exception(
+                f"Workload {wl_id} or objective {obj}"
+                "was not part of the problem definition."
+            )
         for cst_obj in obj_bounds_dict:
             if not self._check_obj(cst_obj):
-                raise Exception(f"Objective {cst_obj} is not supported!")
-        assert self.multistart >= 1
-
-        vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
-        if not is_parallel:
-            self._reset()
-            self._set(accurate, alpha, self.vars_constraints, vars_max, vars_min)
-
-        meshed_categorical_vars = self.get_meshed_categorical_vars(var_types, var_range)
-        numerical_var_inds = self.get_numerical_var_inds(var_types)
-        categorical_var_inds = self.get_categorical_var_inds(var_types)
+                raise Exception(
+                    f"Objective {cst_obj} was not part of the problem definition."
+                )
+        vars_max, vars_min = self.get_bounds(self.variables)
+        meshed_categorical_vars = self.get_meshed_categorical_vars(self.variables)
+        numerical_var_inds = self.get_numerical_var_inds(self.variables)
+        categorical_var_inds = self.get_categorical_var_inds(self.variables)
 
         if meshed_categorical_vars is None:
             meshed_categorical_vars = np.array([0])
@@ -476,8 +381,6 @@ class MOGD:
                         self._get_tensor_numerical_constrained_vars(
                             numerical_var_list.data,
                             numerical_var_inds,
-                            vars_max,
-                            vars_min,
                             precision_list,
                         )
                     )
@@ -561,7 +464,7 @@ class MOGD:
             if obj_cand is None:
                 raise Exception(f"Unexpected objs_list[{idx}] is None.")
             objs = list(obj_cand.values())
-            return_vars = vars_cand.reshape([1, len(var_types)])
+            return_vars = vars_cand.reshape([1, len(self.variables)])
         else:
             objs, return_vars = None, None
 
@@ -571,11 +474,7 @@ class MOGD:
         self,
         wl_id: str,
         obj: str,
-        accurate: bool,
-        alpha: float,
         opt_obj_ind: int,
-        var_types: list,
-        var_ranges: np.ndarray,
         precision_list: list,
         cell_list: list,
     ) -> List[Tuple[Optional[List[float]], Optional[np.ndarray]]]:
@@ -603,9 +502,7 @@ class MOGD:
                     and variables (tuple[1], ndarray(1, n_vars))
         """
 
-        vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
-        self._reset()
-        self._set(accurate, alpha, self.vars_constraints, vars_max, vars_min)
+        vars_max, vars_min = self.get_bounds(self.variables)
 
         th.manual_seed(self.seed)
 
@@ -614,21 +511,15 @@ class MOGD:
             (
                 wl_id,
                 obj,
-                accurate,
-                alpha,
                 opt_obj_ind,
-                var_types,
-                var_ranges,
                 obj_bounds_dict,
                 precision_list,
                 False,
-                True,
             )
             for obj_bounds_dict in cell_list
         ]
 
         # call self.constraint_so_opt parallely
-        th.multiprocessing.set_start_method("fork", force=True)
         with Pool(processes=self.process) as pool:
             ret_list = pool.starmap(self.constraint_so_opt, arg_list)
 
@@ -651,21 +542,25 @@ class MOGD:
         if vars.ndim == 1:
             vars = vars.reshape([1, vars.shape[0]])
         const_violation = th.tensor(0, device=self.device, dtype=self.dtype)
-        for i, const_func in enumerate(self.const_funcs):
-            if self.const_types[i] == "<=":
-                const_violation = th.relu(const_violation + const_func(vars, wl_id))
-            elif self.const_types[i] == "==":
-                const_violation1 = th.relu(const_violation + const_func(vars, wl_id))
+        for i, constraint in enumerate(self.constraints):
+            if constraint.type == "<=":
+                const_violation = th.relu(
+                    const_violation + constraint.function(vars, wl_id)
+                )
+            elif constraint.type == "==":
+                const_violation1 = th.relu(
+                    const_violation + constraint.function(vars, wl_id)
+                )
                 const_violation2 = th.relu(
-                    const_violation + (const_func(vars, wl_id)) * (-1)
+                    const_violation + (constraint.function(vars, wl_id)) * (-1)
                 )
                 const_violation = const_violation1 + const_violation2
-            elif self.const_types[i] == ">=":
+            elif constraint.type == ">=":
                 const_violation = th.relu(
-                    const_violation + (const_func(vars, wl_id)) * (-1)
+                    const_violation + (constraint.function(vars, wl_id)) * (-1)
                 )
             else:
-                raise Exception(f"{self.const_types[i]} is not supported!")
+                raise Exception(f"{constraint.type} is not supported!")
 
         if const_violation.sum() != 0:
             const_loss = const_violation**2 + 1e5
@@ -689,13 +584,15 @@ class MOGD:
         """
         if not self.accurate:
             if self.std_func is None:
-                raise ValueError()
-            std = self.std_func(wl_id, vars, self.obj_names[obj_ind])
-            loss = ((obj_pred + std * self.alpha) ** 2) * moo_ut._get_direction(
-                self.opt_types, obj_ind
-            )
+                raise ValueError(
+                    "std_func must be provided if accurate is set to False"
+                )
+            std = self.std_func(wl_id, vars, self.objectives[obj_ind].name)
+            loss = ((obj_pred + std * self.alpha) ** 2) * self.objectives[
+                obj_ind
+            ].direction
         else:
-            loss = (obj_pred**2) * moo_ut._get_direction(self.opt_types, obj_ind)
+            loss = (obj_pred**2) * self.objectives[obj_ind].direction
         const_loss = self._get_tensor_loss_const_funcs(wl_id, vars)
         loss = loss + const_loss
         return th.min(loss), th.argmin(loss)
@@ -732,7 +629,9 @@ class MOGD:
             obj_pred_raw = pred_dict[cst_obj].sum()  # (1,1)
             if not self.accurate:
                 if self.std_func is None:
-                    raise ValueError()
+                    raise ValueError(
+                        "std_func must be provided if accurate is set to False"
+                    )
                 std = self.std_func(wl_id, vars, cst_obj)
                 assert std.shape[0] == 1 and std.shape[1] == 1
                 obj_pred = obj_pred_raw + std.sum() * self.alpha
@@ -746,8 +645,9 @@ class MOGD:
                     if norm_cst_obj_pred < 0 or norm_cst_obj_pred > 1:
                         add_loss += (norm_cst_obj_pred - 0.5) ** 2 + self.stress
                     else:
-                        add_loss += norm_cst_obj_pred * moo_ut._get_direction(
-                            self.opt_types, target_obj_ind
+                        add_loss += (
+                            norm_cst_obj_pred
+                            * self.objectives[target_obj_ind].direction
                         )
                 else:
                     if norm_cst_obj_pred < 0 or norm_cst_obj_pred > 1:
@@ -763,8 +663,8 @@ class MOGD:
     ##################
 
     def get_meshed_categorical_vars(
-        self, var_types: list, var_range: np.ndarray
-    ) -> Optional[np.ndarray]:
+        self, variables: List[Variable]
+    ) -> np.ndarray | None:
         """
         get combinations of all categorical (binary, enum) variables
         # reuse code in UDAO
@@ -772,18 +672,18 @@ class MOGD:
         :return: meshed_cv_value: ndarray, categorical(binary, enum) variables
         """
 
-        categorical_var_inds = self.get_categorical_var_inds(var_types)
-        if len(categorical_var_inds) == 0:
+        cv_value_list = [
+            variable.values
+            for variable in variables
+            if isinstance(variable, EnumVariable)
+        ]
+        if not cv_value_list:
             return None
-        else:
-            cv_value_list = [value for value in var_range[categorical_var_inds]]
-            meshed_cv_value_list = [
-                x_.reshape(-1, 1) for x_ in np.meshgrid(*cv_value_list)
-            ]
-            meshed_cv_value = np.concatenate(meshed_cv_value_list, axis=1)
-            return meshed_cv_value
+        meshed_cv_value_list = [x_.reshape(-1, 1) for x_ in np.meshgrid(*cv_value_list)]
+        meshed_cv_value = np.concatenate(meshed_cv_value_list, axis=1)
+        return meshed_cv_value
 
-    def get_categorical_var_inds(self, var_types: list) -> list:
+    def get_categorical_var_inds(self, variables: List[Variable]) -> List[int]:
         """
         get indices of categorical (binary, enum) variables
         :param var_types: list, variable types (float, integer, binary, enum)
@@ -791,13 +691,13 @@ class MOGD:
             categorical (binary, enum) variables
         """
         categorical_var_inds = [
-            ind
-            for ind, v_ in enumerate(var_types)
-            if (v_ == VarTypes.BOOL) or (v_ == VarTypes.ENUM)
+            i
+            for i, variable in enumerate(variables)
+            if isinstance(variable, EnumVariable)
         ]
         return categorical_var_inds
 
-    def get_numerical_var_inds(self, var_types: list) -> list:
+    def get_numerical_var_inds(self, variables: List[Variable]) -> list:
         """
         get indices of numerical (float, integer) variables
         :param var_types: list, variable types (float, integer, binary, enum)
@@ -805,9 +705,7 @@ class MOGD:
             numerical (float, integer) variables
         """
         numerical_var_inds = [
-            ind
-            for ind, v_ in enumerate(var_types)
-            if (v_ == VarTypes.FLOAT) or (v_ == VarTypes.INTEGER)
+            ind for ind, v_ in enumerate(variables) if isinstance(v_, NumericVariable)
         ]
         return numerical_var_inds
 
@@ -871,8 +769,6 @@ class MOGD:
         self,
         numerical_var_list: th.Tensor,
         numerical_var_inds: list,
-        vars_max: np.ndarray,
-        vars_min: np.ndarray,
         precision_list: list,
     ) -> th.Tensor:
         """
@@ -889,23 +785,15 @@ class MOGD:
                 solver_ut._get_tensor(normalized_np): Tensor(n_numerical_inds,),
                     normalized numerical variables
         """
-        if self.vars_cons_max_norm is None or self.vars_cons_min_norm is None:
-            raise Exception("vars_cons_max_norm and vars_cons_min_norm are None.")
-        vars_cons_max_ = self.vars_cons_max_norm[numerical_var_inds]
-        vars_cons_min_ = self.vars_cons_min_norm[numerical_var_inds]
+        vars_max = np.array([self.variables[i].upper for i in numerical_var_inds])
+        vars_min = np.array([self.variables[i].lower for i in numerical_var_inds])
         if numerical_var_list.ndimension() == 1:
             bounded_np = np.array(
-                [
-                    np.clip(k.item(), vars_cons_min_[kid], vars_cons_max_[kid])
-                    for kid, k in enumerate(numerical_var_list)
-                ]
+                [np.clip(k.item(), 0, 1) for kid, k in enumerate(numerical_var_list)]
             )
         else:
             bounded_np = np.array(
-                [
-                    np.clip(k.numpy(), vars_cons_min_, vars_cons_max_)
-                    for k in numerical_var_list
-                ]
+                [np.clip(k.numpy(), 0, 1) for k in numerical_var_list]
             )
         # adjust variable values to its pickable points
         raw_np = self.get_raw_vars(
@@ -975,9 +863,7 @@ class MOGD:
         normalized_vars = (raw_vars - vars_min) / (vars_max - vars_min)
         return normalized_vars
 
-    def get_bounds(
-        self, var_ranges: np.ndarray, var_types: list
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def get_bounds(self, variables: List[Variable]) -> Tuple[np.ndarray, np.ndarray]:
         """
         get min and max values for each variable
         :param var_ranges: ndarray (n_vars,),
@@ -989,19 +875,15 @@ class MOGD:
                 ndarray(n_vars,): the minimum values of all variables
         """
         var_max, var_min = [], []
-        for var_bound, var_type in zip(var_ranges, var_types):
-            if (
-                (var_type == VarTypes.FLOAT)
-                or (var_type == VarTypes.INTEGER)
-                or (var_type == VarTypes.BOOL)
-            ):
-                var_max.append(var_bound[1])
-                var_min.append(var_bound[0])
-            elif var_type == VarTypes.ENUM:
-                var_max.append(max(var_bound))
-                var_min.append(min(var_bound))
+        for variable in variables:
+            if isinstance(variable, NumericVariable):
+                var_max.append(variable.upper)
+                var_min.append(variable.lower)
+            elif isinstance(variable, EnumVariable):
+                var_max.append(max(variable.values))
+                var_min.append(min(variable.values))
             else:
-                Exception(f"Variable type {var_type} is not supported!")
+                Exception(f"Variable type {type(variable)} is not supported!")
 
         return np.array(var_max), np.array(var_min)
 
@@ -1022,10 +904,15 @@ class MOGD:
         if not th.is_tensor(vars):  # type: ignore
             vars = solver_ut.get_tensor(vars)
         if vars.ndim == 1:
-            obj_pred = self.obj_funcs[obj_ind](vars.reshape([1, vars.shape[0]]), wl_id)
+            obj_pred = cast(
+                th.Tensor,
+                self.objectives[obj_ind].function(
+                    vars.reshape([1, vars.shape[0]]), wl_id
+                ),
+            )
         else:
-            obj_pred = self.obj_funcs[obj_ind](vars, wl_id)
-        print(obj_pred)
+            obj_pred = cast(th.Tensor, self.objectives[obj_ind].function(vars, wl_id))
+
         assert obj_pred.ndimension() == 2
         return obj_pred
 
@@ -1044,7 +931,7 @@ class MOGD:
         :return: obj_pred_dict: dict, keys are objective names,
             values are objective values
         """
-        vars_max, vars_min = self._get_vars_range_for_wl(wl_id)
+        vars_max, vars_min = self.get_bounds(self.variables)
         vars_norm = self.get_normalized_vars(best_raw_vars, vars_max, vars_min)
         obj_pred_dict = {
             cst_obj: self._get_tensor_obj_pred(wl_id, vars_norm, obj_i)[0, 0].item()
@@ -1055,15 +942,8 @@ class MOGD:
     ##################
     ## _check       ##
     ##################
-    def _check_wl(self, wl_id: str) -> bool:
-        if wl_id not in self.wl_list:
-            print(f"ERROR: workload {wl_id} is not found")
-            return False
-        return True
 
-    def _check_vars(
-        self, vars_raw: np.ndarray, var_types: List, var_ranges: np.ndarray
-    ) -> bool:
+    def _check_vars(self, vars_raw: np.ndarray) -> bool:
         """
         check whether the variable are available
         (within the range setting of variables in the config.json file)
@@ -1074,21 +954,21 @@ class MOGD:
             var_ranges of non-ENUM variables, and values of ENUM variables
         :return: bool, whether available (True)
         """
-        vars_max, vars_min = self.get_bounds(var_ranges, var_types)
+        vars_max, vars_min = self.get_bounds(self.variables)
         return (
             True
             if np.all(vars_max - vars_raw >= 0) and np.all(vars_min - vars_raw <= 0)
             else False
         )
 
-    def _check_obj(self, obj: str) -> bool:
+    def _check_obj(self, obj_name: str) -> bool:
         """
         check whether the objectives are avaiable
         :param obj: str, objective names
         :return: bool, whether available (True)
         """
-        if obj not in self.obj_names:
-            print(f"ERROR: objective {obj} is not found")
+        if not (any(objective.name == obj_name for objective in self.objectives)):
+            print(f"ERROR: objective {obj_name} is not found")
             return False
         return True
 

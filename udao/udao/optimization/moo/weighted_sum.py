@@ -104,7 +104,7 @@ class WeightedSum(BaseMOO):
         objs: List[np.ndarray] = []
         for objective in self.objectives:
             obj = objective.function(filtered_vars, wl_id=wl_id) * objective.direction
-            objs.append(obj.squeeze())
+            objs.append(obj.numpy().squeeze())
 
         # shape (n_feasible_samples/grids, n_objs)
         objs_array = np.array(objs).T

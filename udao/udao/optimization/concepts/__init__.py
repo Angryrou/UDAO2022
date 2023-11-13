@@ -3,6 +3,7 @@ from .objective import Objective
 from .variable import (
     BoolVariable,
     EnumVariable,
+    FloatVariable,
     IntegerVariable,
     NumericVariable,
     Variable,
@@ -16,4 +17,5 @@ __all__ = [
     "EnumVariable",
     "IntegerVariable",
     "BoolVariable",
+    "FloatVariable",
 ]

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable, Literal, Union
 
-import numpy as np
+import torch as th
 
 ObjectiveType = Union[Literal["MIN"], Literal["MAX"]]
 
@@ -10,7 +10,7 @@ ObjectiveType = Union[Literal["MIN"], Literal["MAX"]]
 class Objective:
     name: str
     type: ObjectiveType
-    function: Callable[..., np.ndarray]
+    function: Callable[..., th.Tensor]
 
     @property
     def direction(self) -> int:
