@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -18,20 +19,31 @@ CHECK_FALSE_RET = "-1"
 
 
 class MOGD:
-    def __init__(self, mogd_params: dict):
+    @dataclass
+    class Params:
+        learning_rate: float
+        weight_decay: float
+        max_iters: int
+        patient: int
+        multistart: int
+        processes: int
+        stress: float
+        seed: int
+
+    def __init__(self, params: Params) -> None:
         """
         initialize solver
         :param mogd_params: dict, parameters used in solver
         """
         super().__init__()
-        self.lr = mogd_params["learning_rate"]
-        self.wd = mogd_params["weight_decay"]
-        self.max_iter = mogd_params["max_iters"]
-        self.patient = mogd_params["patient"]
-        self.multistart = mogd_params["multistart"]
-        self.process = mogd_params["processes"]
-        self.stress = mogd_params["stress"]
-        self.seed = mogd_params["seed"]
+        self.lr = params.learning_rate
+        self.wd = params.weight_decay
+        self.max_iter = params.max_iters
+        self.patient = params.patient
+        self.multistart = params.multistart
+        self.process = params.processes
+        self.stress = params.stress
+        self.seed = params.seed
 
         self.device = th.device("cuda") if th.cuda.is_available() else th.device("cpu")
         self.dtype = th.float32
@@ -42,7 +54,7 @@ class MOGD:
         wl_ranges: Callable,
         vars_constraints: Dict,
         accurate: bool,
-        std_func: Callable,
+        std_func: Optional[Callable],
         obj_funcs: List[Callable],
         obj_names: List[str],
         opt_types: List[str],
@@ -398,12 +410,12 @@ class MOGD:
         categorical_var_inds = self.get_categorical_var_inds(var_types)
 
         if meshed_categorical_vars is None:
-            raise Exception("No categorical variables found.")
+            meshed_categorical_vars = np.array([0])
 
         best_loss_list = []
         objs_list, vars_list = [], []
         target_obj_val = []
-        for si in range(self.multistart):
+        for _ in range(self.multistart):
             best_loss, best_objs, best_vars, iter_num = np.inf, None, None, 0
 
             for bv in meshed_categorical_vars:
@@ -420,15 +432,13 @@ class MOGD:
                     [numerical_var_list], lr=self.lr, weight_decay=self.wd
                 )
 
-                local_best_iter, local_best_loss, local_best_objs, local_best_var = (
-                    0,
-                    np.inf,
-                    None,
-                    None,
-                )
-                iter = 0
+                local_best_iter = 0
+                local_best_loss = np.inf
+                local_best_objs: Dict | None = None
+                local_best_var: np.ndarray | None = None
+                i = 0
 
-                for iter in range(self.max_iter):
+                while i < self.max_iter:
                     vars_kernal = self._get_tensor_vars_cat(
                         numerical_var_inds,
                         numerical_var_list,
@@ -436,10 +446,10 @@ class MOGD:
                         bv_dict,
                     )
                     vars = vars_kernal
-
+                    print(vars)
                     objs_pred_dict = {
-                        cst_obj: self._get_tensor_obj_pred(wl_id, vars, i)
-                        for i, cst_obj in enumerate(obj_bounds_dict)
+                        cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind)
+                        for ob_ind, cst_obj in enumerate(obj_bounds_dict)
                     }
                     loss = self._loss_soo(
                         wl_id,
@@ -450,13 +460,13 @@ class MOGD:
                         target_obj_ind=opt_obj_ind,
                     )
 
-                    if iter > 0 and loss.item() < local_best_loss:
+                    if i > 0 and loss.item() < local_best_loss:
                         local_best_loss = loss.item()
                         local_best_objs = {
                             k: v.item() for k, v in objs_pred_dict.items()
                         }
                         local_best_var = vars.data.numpy().copy()
-                        local_best_iter = iter
+                        local_best_iter = i
 
                     optimizer.zero_grad()
                     loss.backward()  # type: ignore
@@ -473,17 +483,18 @@ class MOGD:
                     )
                     numerical_var_list.data = constrained_numerical_var_list
 
-                    if iter > local_best_iter + self.patient:
+                    if i > local_best_iter + self.patient:
                         # early stop
                         break
 
                     if verbose:
-                        if iter % 10 == 0:
+                        if i % 10 == 0:
                             print(
                                 f"iteration {iter}, {obj}: "
                                 f"{objs_pred_dict[obj].item():.2f}"
                             )
                             print(vars)
+                    i += 1
                 logging.info(
                     f"Local best {local_best_objs} at {local_best_iter} with vars:\n"
                     f"{local_best_var}"
@@ -503,7 +514,7 @@ class MOGD:
                         f" \nwith vars: {displayed_vars}"
                     )
 
-                iter_num += iter + 1
+                iter_num += i + 1
 
                 if self.check_const_func_vio(
                     wl_id, local_best_var
@@ -677,6 +688,8 @@ class MOGD:
         :return: [tensor, tensor], minimum loss and its index
         """
         if not self.accurate:
+            if self.std_func is None:
+                raise ValueError()
             std = self.std_func(wl_id, vars, self.obj_names[obj_ind])
             loss = ((obj_pred + std * self.alpha) ** 2) * moo_ut._get_direction(
                 self.opt_types, obj_ind
@@ -718,6 +731,8 @@ class MOGD:
             assert pred_dict[cst_obj].shape[0] == 1
             obj_pred_raw = pred_dict[cst_obj].sum()  # (1,1)
             if not self.accurate:
+                if self.std_func is None:
+                    raise ValueError()
                 std = self.std_func(wl_id, vars, cst_obj)
                 assert std.shape[0] == 1 and std.shape[1] == 1
                 obj_pred = obj_pred_raw + std.sum() * self.alpha
@@ -931,6 +946,7 @@ class MOGD:
             else np.array(precision_list)[normalized_ids].tolist()
         )
         vars = normalized_vars * (vars_max - vars_min) + vars_min
+        print(vars)
         raw_vars = np.array(
             [c.round(p) for c, p in zip(vars.astype(float).T, precision_list)]
         ).T
@@ -1009,6 +1025,7 @@ class MOGD:
             obj_pred = self.obj_funcs[obj_ind](vars.reshape([1, vars.shape[0]]), wl_id)
         else:
             obj_pred = self.obj_funcs[obj_ind](vars, wl_id)
+        print(obj_pred)
         assert obj_pred.ndimension() == 2
         return obj_pred
 

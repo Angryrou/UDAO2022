@@ -66,7 +66,7 @@ class ProgressiveFrontier(BaseMOO):
         self.wl_ranges = wl_ranges
         self.obj_types = obj_types
         if self.inner_solver == "mogd":
-            self.mogd = MOGD(solver_params)
+            self.mogd = MOGD(MOGD.Params(**solver_params))
             self.mogd._problem(
                 wl_list,
                 wl_ranges,

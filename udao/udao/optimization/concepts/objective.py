@@ -8,6 +8,7 @@ ObjectiveType = Union[Literal["MIN"], Literal["MAX"]]
 
 @dataclass
 class Objective:
+    name: str
     type: ObjectiveType
     function: Callable[..., np.ndarray]
 
