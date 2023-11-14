@@ -164,8 +164,8 @@ class MOGD:
                     obj_pred = self._get_tensor_obj_pred(
                         wl_id, vars, opt_obj_ind
                     )  # Nx1
-                    loss, loss_id = self._loss_soo_minibatch(
-                        wl_id, opt_obj_ind, obj_pred, vars
+                    loss, loss_id = self._unbounded_soo_loss(
+                        wl_id, opt_obj_ind, {obj: obj_pred}, vars
                     )
 
                     if i > 0 and loss.item() < local_best_loss:
@@ -317,8 +317,9 @@ class MOGD:
         if meshed_categorical_vars is None:
             meshed_categorical_vars = np.array([0])
 
-        best_loss_list = []
-        objs_list, vars_list = [], []
+        best_loss_list: List[float] = []
+        objs_list = []
+        vars_list = []
         target_obj_val = []
         for _ in range(self.multistart):
             best_loss, best_objs, best_vars, iter_num = np.inf, None, None, 0
@@ -351,19 +352,24 @@ class MOGD:
                         bv_dict,
                     )
                     vars = vars_kernal
-                    print(vars)
-                    objs_pred_dict = {
-                        cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind)
-                        for ob_ind, cst_obj in enumerate(obj_bounds_dict)
-                    }
-                    loss = self._loss_soo(
-                        wl_id,
-                        vars,
-                        objs_pred_dict,
-                        obj_bounds_dict,
-                        target_obj_name=obj,
-                        target_obj_ind=opt_obj_ind,
-                    )
+                    if obj_bounds_dict:
+                        objs_pred_dict = {
+                            cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind)
+                            for ob_ind, cst_obj in enumerate(obj_bounds_dict)
+                        }
+                        loss, _ = self._soo_loss(
+                            wl_id,
+                            vars,
+                            objs_pred_dict,
+                            obj_bounds_dict,
+                            target_obj_name=obj,
+                            target_obj_ind=opt_obj_ind,
+                        )
+                    else:
+                        objs_pred_dict = {
+                            obj: self._get_tensor_obj_pred(wl_id, vars, opt_obj_ind)
+                        }
+                    print(objs_pred_dict)
 
                     if i > 0 and loss.item() < local_best_loss:
                         local_best_loss = loss.item()
@@ -569,8 +575,8 @@ class MOGD:
 
         return const_loss
 
-    def _loss_soo_minibatch(
-        self, wl_id: str, obj_ind: int, obj_pred: th.Tensor, vars: th.Tensor
+    def _unbounded_soo_loss(
+        self, wl_id: str, obj_ind: int, pred_dict: Dict, vars: th.Tensor
     ) -> Tuple[th.Tensor, th.Tensor]:
         """
         compute loss fixme: double-check for the objective
@@ -582,6 +588,7 @@ class MOGD:
         variables, where bs is batch_size
         :return: [tensor, tensor], minimum loss and its index
         """
+        obj_pred = pred_dict[self.objectives[obj_ind].name]
         if not self.accurate:
             if self.std_func is None:
                 raise ValueError(
@@ -597,7 +604,7 @@ class MOGD:
         loss = loss + const_loss
         return th.min(loss), th.argmin(loss)
 
-    def _loss_soo(
+    def _soo_loss(
         self,
         wl_id: str,
         vars: th.Tensor,
@@ -605,7 +612,7 @@ class MOGD:
         obj_bounds: Dict,
         target_obj_name: str,
         target_obj_ind: int,
-    ) -> th.Tensor:
+    ) -> Tuple[th.Tensor, th.Tensor]:
         """
         compute loss constrained by objective values fixme:
         double-check for the objective with negative values (e.g. throughput)
@@ -622,11 +629,12 @@ class MOGD:
         :return:
                 loss: tensor (Tensor())
         """
-        loss = th.tensor(0, device=self.device, dtype=self.dtype)
+        loss_shape = (1) if vars.ndim == 1 else (vars.shape[0])
+        loss = th.zeros(loss_shape, device=self.device, dtype=self.dtype)
 
         for cst_obj, [lower, upper] in obj_bounds.items():
-            assert pred_dict[cst_obj].shape[0] == 1
-            obj_pred_raw = pred_dict[cst_obj].sum()  # (1,1)
+            # assert pred_dict[cst_obj].shape[0] == 1
+            obj_pred_raw = pred_dict[cst_obj].sum(-1)  # (1,1)
             if not self.accurate:
                 if self.std_func is None:
                     raise ValueError(
@@ -634,29 +642,25 @@ class MOGD:
                     )
                 std = self.std_func(wl_id, vars, cst_obj)
                 assert std.shape[0] == 1 and std.shape[1] == 1
-                obj_pred = obj_pred_raw + std.sum() * self.alpha
+                obj_pred = obj_pred_raw + std.sum(-1) * self.alpha
             else:
                 obj_pred = obj_pred_raw
 
             if upper != lower:
                 norm_cst_obj_pred = (obj_pred - lower) / (upper - lower)  # scaled
-                add_loss = th.tensor(0, device=self.device, dtype=self.dtype)
-                if cst_obj == target_obj_name:
-                    if norm_cst_obj_pred < 0 or norm_cst_obj_pred > 1:
-                        add_loss += (norm_cst_obj_pred - 0.5) ** 2 + self.stress
-                    else:
-                        add_loss += (
-                            norm_cst_obj_pred
-                            * self.objectives[target_obj_ind].direction
-                        )
-                else:
-                    if norm_cst_obj_pred < 0 or norm_cst_obj_pred > 1:
-                        add_loss += (norm_cst_obj_pred - 0.5) ** 2 + self.stress
+                add_loss = th.where(
+                    (norm_cst_obj_pred < 0) | (norm_cst_obj_pred > 1),
+                    (norm_cst_obj_pred - 0.5) ** 2 + self.stress,
+                    norm_cst_obj_pred * self.objectives[target_obj_ind].direction
+                    if cst_obj == target_obj_name
+                    else 0,
+                )
+
             else:
                 add_loss = (obj_pred - upper) ** 2 + self.stress
             loss = loss + add_loss
         loss = loss + self._get_tensor_loss_const_funcs(wl_id, vars)
-        return loss
+        return th.min(loss), th.argmin(loss)
 
     ##################
     ## _get (vars)  ##

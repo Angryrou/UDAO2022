@@ -138,3 +138,39 @@ class TestMOGD:
         np.testing.assert_array_equal(optimal_obj, np.array([2]))
         assert optimal_vars is not None
         np.testing.assert_array_equal(optimal_vars, np.array([[1, 3]]))
+
+    def test__soo_loss_no_batch(self, mogd: MOGD) -> None:
+        vars = th.rand(2)
+        obj_bounds_dict = {"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))}
+        objs_pred_dict = {
+            cst_obj: mogd._get_tensor_obj_pred("1", vars, ob_ind)
+            for ob_ind, cst_obj in enumerate(obj_bounds_dict)
+        }
+        loss, loss_idx = mogd._soo_loss(
+            "1", vars, objs_pred_dict, obj_bounds_dict, "obj1", 0
+        )
+        assert th.allclose(loss, th.tensor(-0.2764), rtol=1e-3)
+        assert th.equal(loss_idx, th.tensor(0))
+
+    def test__soo_loss_with_batch(self, mogd: MOGD) -> None:
+        vars = th.rand(3, 2)
+        obj_bounds_dict = {"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))}
+        objs_pred_dict = {
+            cst_obj: mogd._get_tensor_obj_pred("1", vars, ob_ind)
+            for ob_ind, cst_obj in enumerate(obj_bounds_dict)
+        }
+        loss, loss_idx = mogd._soo_loss(
+            "1", vars, objs_pred_dict, obj_bounds_dict, "obj1", 0
+        )
+        assert th.allclose(loss, th.tensor(-0.2880), rtol=1e-3)
+        assert th.equal(loss_idx, th.tensor(1))
+
+    def test__unbounded_soo_loss(self, mogd: MOGD) -> None:
+        vars = th.rand(3, 2)
+        objs_pred_dict = {
+            cst_obj.name: mogd._get_tensor_obj_pred("1", vars, ob_ind)
+            for ob_ind, cst_obj in enumerate(mogd.objectives)
+        }
+        loss, loss_idx = mogd._unbounded_soo_loss("1", 0, objs_pred_dict, vars)
+        assert th.allclose(loss, th.tensor(-0.3319), rtol=1e-3)
+        assert th.equal(loss_idx, th.tensor(1))
