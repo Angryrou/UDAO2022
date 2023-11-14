@@ -1,10 +1,11 @@
 import heapq
 import itertools
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 import torch as th
 
+from ..concepts import Constraint, Objective, Variable
 from ..solver.mogd import MOGD
 from ..utils import moo_utils as moo_ut
 from ..utils import solver_utils as solver_ut
@@ -19,18 +20,14 @@ class ProgressiveFrontier(BaseMOO):
         pf_option: str,
         inner_solver: str,
         solver_params: dict,
-        obj_names: list,
-        obj_funcs: list,
-        opt_type: list,
-        obj_types: list,
-        const_funcs: list,
-        const_types: list,
+        variables: List[Variable],
+        objectives: List[Objective],
+        constraints: List[Constraint],
         opt_obj_ind: int,
-        wl_list: List[str],
-        wl_ranges: Callable,
-        vars_constraints: Dict,
         accurate: bool,
         std_func: Callable,
+        alpha: float,
+        precision_list: List,
     ) -> None:
         """
         initialize parameters in Progressive Frontier method
@@ -58,26 +55,19 @@ class ProgressiveFrontier(BaseMOO):
         super().__init__()
         self.pf_option = pf_option
         self.inner_solver = inner_solver
-        self.obj_names = obj_names
-        self.obj_funcs = obj_funcs
-        self.opt_type = opt_type
-        self.const_funcs = const_funcs
-        self.const_types = const_types
-        self.wl_ranges = wl_ranges
-        self.obj_types = obj_types
+        self.objectives = objectives
+        self.constraints = constraints
+        self.variables = variables
         if self.inner_solver == "mogd":
             self.mogd = MOGD(MOGD.Params(**solver_params))
-            self.mogd._problem(
-                wl_list,
-                wl_ranges,
-                vars_constraints,
-                accurate,
-                std_func,
-                obj_funcs,
-                obj_names,
-                opt_type,
-                const_funcs,
-                const_types,
+            self.mogd.problem_setup(
+                variables=variables,
+                std_func=std_func,
+                objectives=objectives,
+                constraints=constraints,
+                precision_list=precision_list,
+                accurate=accurate,
+                alpha=alpha,
             )
         else:
             raise Exception(f"Solver {inner_solver} is not supported!")
@@ -87,11 +77,6 @@ class ProgressiveFrontier(BaseMOO):
     def solve(
         self,
         wl_id: str,
-        accurate: bool,
-        alpha: float,
-        var_bounds: np.ndarray,
-        var_types: list,
-        precision_list: list,
         n_probes: int,
         n_grids: Optional[int] = None,
         max_iters: Optional[int] = None,
@@ -119,31 +104,19 @@ class ProgressiveFrontier(BaseMOO):
         """
         if self.pf_option == "pf_as":
             po_objs, po_vars = self.solve_pf_as(
-                wl_id,
-                accurate,
-                alpha,
-                self.obj_names,
-                var_bounds,
-                self.opt_obj_ind,
-                var_types,
-                n_probes,
-                precision_list,
+                wl_id=wl_id,
+                opt_obj_ind=self.opt_obj_ind,
+                n_probes=n_probes,
                 anchor_option=anchor_option,
             )
         elif self.pf_option == "pf_ap":
             if n_grids is None or max_iters is None:
                 raise Exception("n_grids and max_iters should be provided")
             po_objs, po_vars = self.solve_pf_ap(
-                wl_id,
-                accurate,
-                alpha,
-                self.obj_names,
-                var_bounds,
-                self.opt_obj_ind,
-                var_types,
-                precision_list,
-                n_grids,
-                max_iters,
+                wl_id=wl_id,
+                opt_obj_ind=self.opt_obj_ind,
+                n_grids=n_grids,
+                max_iters=max_iters,
                 anchor_option=anchor_option,
             )
         else:
@@ -154,14 +127,8 @@ class ProgressiveFrontier(BaseMOO):
     def solve_pf_as(
         self,
         wl_id: str,
-        accurate: bool,
-        alpha: float,
-        obj_names: List[str],
-        var_bounds: np.ndarray,
         opt_obj_ind: int,
-        var_types: List,
         n_probes: int,
-        precision_list: List,
         anchor_option: str = "2_step",
         verbose: bool = False,
     ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
@@ -198,18 +165,12 @@ class ProgressiveFrontier(BaseMOO):
         ## get initial plans/form a intial hyperrectangle
         plans: List[Points] = []
 
-        n_objs = len(self.opt_type)
+        n_objs = len(self.objectives)
 
         for i in range(n_objs):
             objs, vars = self.get_anchor_points(
-                wl_id,
-                obj_names,
-                i,
-                accurate,
-                alpha,
-                var_types,
-                var_bounds,
-                precision_list,
+                wl_id=wl_id,
+                obj_ind=i,
                 anchor_option=anchor_option,
             )
             if objs is None:
@@ -249,22 +210,16 @@ class ProgressiveFrontier(BaseMOO):
             middle = Points(middle_objs)
 
             obj_bounds_dict = self._form_obj_bounds_dict(
-                current_utopia, middle, obj_names, opt_obj_ind
+                current_utopia, middle, opt_obj_ind
             )
             if verbose:
                 print("obj_bounds are:")
                 print(obj_bounds_dict)
 
-            obj, vars = self.mogd.constraint_so_opt(
-                wl_id,
-                obj=obj_names[opt_obj_ind],
-                accurate=accurate,
-                alpha=alpha,
-                opt_obj_ind=opt_obj_ind,
-                var_types=var_types,
-                var_range=var_bounds,
+            obj, vars = self.mogd.optimize_constrained_so(
+                wl_id=wl_id,
+                objective_name=self.objectives[opt_obj_ind].name,
                 obj_bounds_dict=obj_bounds_dict,
-                precision_list=precision_list,
             )
 
             if (obj is not None) & (vars is not None):
@@ -273,10 +228,8 @@ class ProgressiveFrontier(BaseMOO):
                         n_objs,
                     ]
                 )
-                for j in range(n_objs):
-                    objs_co[j] = self.obj_funcs[j](vars, wl_id) * moo_ut._get_direction(
-                        opt_type=self.opt_type, obj_index=j
-                    )
+                for j, objective in enumerate(self.objectives):
+                    objs_co[j] = objective.function(vars, wl_id) * objective.direction
                 middle = Points(np.array(objs_co), vars)
                 plans.append(middle)
                 rectangles = self.generate_sub_rectangles(
@@ -331,13 +284,7 @@ class ProgressiveFrontier(BaseMOO):
     def solve_pf_ap(
         self,
         wl_id: str,
-        accurate: bool,
-        alpha: float,
-        obj_names: List[str],
-        var_bounds: np.ndarray,
         opt_obj_ind: int,
-        var_types: List,
-        precision_list: List,
         n_grids: int,
         max_iters: int,
         anchor_option: str = "2_step",
@@ -367,20 +314,14 @@ class ProgressiveFrontier(BaseMOO):
         # create initial rectangle
         # get initial plans/form a intial hyperrectangle
         plans: List[Points] = []
-        n_objs = len(obj_names)
+        n_objs = len(self.objectives)
 
         all_objs_list: List[List] = []
         all_vars_list: List[List] = []
         for i in range(n_objs):
             objs, vars = self.get_anchor_points(
-                wl_id,
-                obj_names,
-                i,
-                accurate,
-                alpha,
-                var_types,
-                var_bounds,
-                precision_list,
+                wl_id=wl_id,
+                obj_ind=i,
                 anchor_option=anchor_option,
             )
             if objs is None:
@@ -426,23 +367,18 @@ class ProgressiveFrontier(BaseMOO):
             obj_bound_cells = []
             for cell in grid_cells_list:
                 obj_bound_dict = self._form_obj_bounds_dict(
-                    cell.utopia, cell.nadir, obj_names, opt_obj_ind
+                    cell.utopia, cell.nadir, opt_obj_ind
                 )
                 obj_bound_cells.append(obj_bound_dict)
 
             if verbose:
                 print("the cells are:")
                 print(obj_bound_cells)
-            ret_list = self.mogd.constraint_so_parallel(
-                wl_id,
-                obj=obj_names[opt_obj_ind],
-                opt_obj_ind=opt_obj_ind,
-                accurate=accurate,
-                alpha=alpha,
-                var_types=var_types,
-                var_ranges=var_bounds,
+            ret_list = self.mogd.optimize_constrained_so_parallel(
+                wl_id=wl_id,
+                objective_name=self.objectives[opt_obj_ind].name,
                 cell_list=obj_bound_cells,
-                precision_list=precision_list,
+                batch_size=1,
             )
 
             po_objs_list, po_vars_list = [], []
@@ -488,13 +424,7 @@ class ProgressiveFrontier(BaseMOO):
     def get_anchor_points(
         self,
         wl_id: str,
-        obj_names: List[str],
         obj_ind: int,
-        accurate: bool,
-        alpha: float,
-        var_types: List,
-        var_bounds: np.ndarray,
-        precision_list: List,
         anchor_option: str = "2_step",
         verbose: bool = False,
     ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
@@ -516,18 +446,14 @@ class ProgressiveFrontier(BaseMOO):
                 objs: ndarray(n_objs,), objective values
                 vars: ndarray(1, n_vars), variable values
         """
-        obj, vars = self.mogd.single_objective_opt(
-            wl_id,
-            obj=obj_names[obj_ind],
-            accurate=accurate,
-            alpha=alpha,
-            opt_obj_ind=obj_ind,
-            var_types=var_types,
-            var_ranges=var_bounds,
-            precision_list=precision_list,
+        obj, vars = self.mogd.optimize_constrained_so(
+            wl_id=wl_id,
+            objective_name=self.objectives[obj_ind].name,
+            obj_bounds_dict=None,
+            batch_size=16,
         )
 
-        n_objs = len(obj_names)
+        n_objs = len(self.objectives)
         # uses conf to get predictions
         objs = (
             np.ones(
@@ -538,14 +464,14 @@ class ProgressiveFrontier(BaseMOO):
             * np.inf
         )
         for j in range(n_objs):
-            objs[j] = self.obj_funcs[j](vars, wl_id) * moo_ut._get_direction(
-                opt_type=self.opt_type, obj_index=j
+            objs[j] = (
+                self.objectives[j].function(vars, wl_id) * self.objectives[j].direction
             )
 
         # If the current objective type is Integer,
         # further find the optimal value for other objectives with float type
         if anchor_option == "2_step":
-            if self.obj_types[obj_ind] == VarTypes.INTEGER:
+            if self.objectives[obj_ind].type == VarTypes.INTEGER:
                 utopia_init = np.zeros(
                     [
                         n_objs,
@@ -556,26 +482,20 @@ class ProgressiveFrontier(BaseMOO):
                 # select the first objective with float type
                 float_obj_ind = [
                     i
-                    for i, obj_type in enumerate(self.obj_types)
-                    if obj_type == VarTypes.FLOAT
+                    for i, objective in enumerate(self.objectives)
+                    if objective == VarTypes.FLOAT
                 ][0]
                 obj_bounds_dict_so = self._form_obj_bounds_dict(
-                    utopia_tmp, nadir_tmp, obj_names, float_obj_ind
+                    utopia_tmp, nadir_tmp, float_obj_ind
                 )
                 if verbose:
                     print("obj_bounds are:")
                     print(obj_bounds_dict_so)
 
-                objs_update, vars_update = self.mogd.constraint_so_opt(
+                objs_update, vars_update = self.mogd.optimize_constrained_so(
                     wl_id,
-                    obj=obj_names[float_obj_ind],
-                    accurate=accurate,
-                    alpha=alpha,
-                    opt_obj_ind=float_obj_ind,
-                    var_types=var_types,
-                    var_range=var_bounds,
+                    objective_name=self.objectives[float_obj_ind].name,
                     obj_bounds_dict=obj_bounds_dict_so,
-                    precision_list=precision_list,
                 )
                 return np.array(objs_update), vars_update
             else:
@@ -722,7 +642,7 @@ class ProgressiveFrontier(BaseMOO):
         return grid_cell_list
 
     def _form_obj_bounds_dict(
-        self, utopia: Points, nadir: Points, obj_names: list, opt_obj_ind: int
+        self, utopia: Points, nadir: Points, opt_obj_ind: int
     ) -> dict[str, list]:
         """
         form the dict used in the constrained optimization
@@ -740,12 +660,11 @@ class ProgressiveFrontier(BaseMOO):
                 obj_bounds_dict: dict, the dict includes var_ranges of all objectives
         """
         obj_bounds_dict = {}
-        n_objs = utopia.objs.shape[0]
 
-        for i in range(n_objs):
+        for i, objective in enumerate(self.objectives):
             # lower and upper var_ranges per objective
             tmp = [th.tensor(0)] * 2
-            obj_key = obj_names[i]
+            obj_key = objective.name
 
             if self.pf_option == "pf_as":
                 if i == opt_obj_ind:

@@ -16,11 +16,15 @@ class TestWeightedSum:
         inner_solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
         objectives = [
-            Objective("obj1", function=lambda x, **kw: th.tensor(x[:, 0]), type="MIN"),
+            Objective(
+                "obj1",
+                function=lambda x, **kw: th.tensor(x[:, 0]),
+                direction_type="MIN",
+            ),
             Objective(
                 "obj2",
                 function=lambda x, **kw: th.tensor((x[:, 0] + x[:, 1]) / 10),
-                type="MIN",
+                direction_type="MIN",
             ),
         ]
         constraints = [
@@ -59,9 +63,9 @@ class TestWeightedSum:
             Objective(
                 "obj1",
                 function=obj_func1,
-                type="MIN",
+                direction_type="MIN",
             ),
-            Objective("obj2", function=obj_func2, type="MIN"),
+            Objective("obj2", function=obj_func2, direction_type="MIN"),
         ]
         constraints = [
             Constraint(
@@ -89,9 +93,11 @@ class TestWeightedSum:
         inner_solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
         objectives = [
-            Objective("obj1", function=lambda x, **kw: x[:, 0], type="MIN"),
+            Objective("obj1", function=lambda x, **kw: x[:, 0], direction_type="MIN"),
             Objective(
-                "obj2", function=lambda x, **kw: (x[:, 0] + x[:, 1]) / 10, type="MIN"
+                "obj2",
+                function=lambda x, **kw: (x[:, 0] + x[:, 1]) / 10,
+                direction_type="MIN",
             ),
         ]
         constraints = [
@@ -110,12 +116,20 @@ class TestWeightedSum:
         inner_solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         ws_pairs = np.array([[0.3, 0.5, 0.2], [0.6, 0.3, 0.1]])
         objectives = [
-            Objective("obj1", function=lambda x, **kw: th.tensor(x[:, 0]), type="MIN"),
-            Objective("obj2", function=lambda x, **kw: th.tensor(x[:, 1]), type="MIN"),
+            Objective(
+                "obj1",
+                function=lambda x, **kw: th.tensor(x[:, 0]),
+                direction_type="MIN",
+            ),
+            Objective(
+                "obj2",
+                function=lambda x, **kw: th.tensor(x[:, 1]),
+                direction_type="MIN",
+            ),
             Objective(
                 "obj3",
                 function=lambda x, **kw: th.tensor((x[:, 0] + x[:, 1]) / 10),
-                type="MIN",
+                direction_type="MIN",
             ),
         ]
         constraints = [

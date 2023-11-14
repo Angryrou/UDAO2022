@@ -44,7 +44,7 @@ def mogd() -> MOGD:
     mogd = MOGD(params)
     model_1 = SimpleModel1()
     model_2 = SimpleModel2()
-    mogd._problem(
+    mogd.problem_setup(
         variables=[FloatVariable(0, 1), IntegerVariable(2, 3)],
         accurate=True,
         std_func=None,
@@ -61,6 +61,7 @@ def mogd() -> MOGD:
             ),
         ],
         constraints=[],
+        precision_list=[2, 2],
     )
 
     return mogd
@@ -68,27 +69,22 @@ def mogd() -> MOGD:
 
 class TestMOGD:
     def test_constraint_so_opt(self, mogd: MOGD) -> None:
-        optimal_obj, optimal_vars = mogd.constraint_so_opt(
+        optimal_obj, optimal_vars = mogd.optimize_constrained_so(
             wl_id="1",
-            obj="obj1",
-            opt_obj_ind=0,
+            objective_name="obj1",
             obj_bounds_dict={"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))},
-            precision_list=[2, 2],
-            verbose=False,
         )
         assert optimal_obj is not None
         np.testing.assert_array_almost_equal(
             optimal_obj, np.array([0.7501509189605713, 0.261410653591156])
         )
         assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array([[0.0, 2.21]]))
+        np.testing.assert_array_equal(optimal_vars, np.array([[0, 2.21]]))
 
     def test_constraint_parallel(self, mogd: MOGD) -> None:
-        res_list = mogd.constraint_so_parallel(
+        res_list = mogd.optimize_constrained_so_parallel(
             wl_id="1",
-            obj="obj1",
-            opt_obj_ind=0,
-            precision_list=[2, 2],
+            objective_name="obj1",
             cell_list=[
                 {"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))},
                 {"obj1": th.tensor((0.05, 2.1)), "obj2": th.tensor((0.1, 1))},
@@ -109,35 +105,6 @@ class TestMOGD:
         assert var_optimal_2 is not None
         np.testing.assert_array_equal(var_optimal_2, [[0.0, 2.2]])
 
-    def test_single_objective_opt(self, mogd: MOGD) -> None:
-        mogd.objectives = [
-            Objective(
-                "obj1",
-                "MAX",
-                lambda x, wl_id: th.reshape(x[:, 0] ** 2 + x[:, 1] ** 2, (-1, 1)),  # type: ignore
-            ),
-            Objective(
-                "obj2",
-                "MIN",
-                lambda x, wl_id: th.reshape(
-                    (x[:, 0] - 1) ** 2 + x[:, 1] ** 2, (-1, 1)
-                ),  # type: ignore
-            ),
-        ]
-
-        optimal_obj, optimal_vars = mogd.single_objective_opt(
-            wl_id="1",
-            obj="obj1",
-            opt_obj_ind=0,
-            precision_list=[2, 2],
-            verbose=False,
-        )
-
-        assert optimal_obj is not None
-        np.testing.assert_array_equal(optimal_obj, np.array([2]))
-        assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array([[1, 3]]))
-
     def test_constraint_single_objective_opt(self, mogd: MOGD) -> None:
         mogd.objectives = [
             Objective(
@@ -154,14 +121,11 @@ class TestMOGD:
             ),
         ]
 
-        optimal_obj, optimal_vars = mogd.constraint_so_opt(
+        optimal_obj, optimal_vars = mogd.optimize_constrained_so(
             wl_id="1",
-            obj="obj1",
-            opt_obj_ind=0,
+            objective_name="obj1",
             obj_bounds_dict=None,
-            precision_list=[2, 2],
-            verbose=False,
-            bs=16,
+            batch_size=16,
         )
 
         assert optimal_obj is not None

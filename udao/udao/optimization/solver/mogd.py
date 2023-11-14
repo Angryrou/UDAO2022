@@ -1,12 +1,13 @@
 import logging
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import torch as th
 import torch.optim as optim
 from torch.multiprocessing import Pool
 
+from ...utils.logging import logger
 from ..concepts import Constraint, EnumVariable, NumericVariable, Objective, Variable
 from ..utils import solver_utils as solver_ut
 
@@ -14,7 +15,6 @@ SEED = 0
 DEFAULT_DEVICE = th.device("cpu")
 DEFAULT_DTYPE = th.float32
 NOT_FOUND_ERROR = "no valid configuration found"
-CHECK_FALSE_RET = "-1"
 
 
 class MOGD:
@@ -47,275 +47,205 @@ class MOGD:
         self.device = th.device("cuda") if th.cuda.is_available() else th.device("cpu")
         self.dtype = th.float32
 
-    def _problem(
+    def problem_setup(
         self,
         variables: List[Variable],
         std_func: Optional[Callable],
         objectives: List[Objective],
         constraints: List[Constraint],
+        precision_list: list,
         alpha: float = 0.0,
         accurate: bool = True,
     ) -> None:
         """
         set up problem in solver
-        :param wl_list: list, each element is a string,
-            representing workload id (wl_id), e.g. '1-7'
-        :param wl_ranges: function,
-            provided by users, to return upper and lower bounds of variables
-        :param vars_constraints: dict,
-            key is 'vars_min' and 'vars_max', value is min and max values
-            for all variables of one workload. The purpose is to put
-            variable values into a region where the model performs better.
+
         :param accurate: bool,
             whether the predictive model is accurate (True) or not (False)
         :param std_func: function,
             passed by the user, for loss calculation
             when the predictive model is not accurate
-        :param obj_funcs: list, objective functions
-        :param obj_names: list, objective names
-        :param opt_types: list, objectives to minimize or maximize
-        :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types
-            ("<=" "==" or "<", e.g. g1(x1, x2, ...) - c <= 0)
         :return:
         """
         self.variables = variables
+        self.vars_max, self.vars_min = self.get_bounds(self.variables)
+        self.categorical_variable_ids = [
+            i for i, v in enumerate(variables) if isinstance(v, EnumVariable)
+        ]
+        self.numerical_variable_ids = [
+            i for i, v in enumerate(variables) if isinstance(v, NumericVariable)
+        ]
         self.objectives = objectives
         self.constraints = constraints
         self.accurate = accurate
         self.std_func = std_func
         self.alpha = alpha
+        self.precision_list = precision_list
 
-    def single_objective_opt(
+    def _single_start_opt(
         self,
         wl_id: str,
-        obj: str,
-        opt_obj_ind: int,
-        precision_list: list,
-        bs: int = 16,
-        verbose: bool = False,
-    ) -> Tuple[float, Optional[np.ndarray]]:
-        """
-        solve (constrained) single-objective optimization
-        :param wl_id: str, workload id, e.g. '1-7'
-        :param obj: str, objective name
-        :param accurate: bool, whether the predictive model
-            is accurate (True) or not (False)
-        :param alpha: float, the value used in loss calculation of
-            the inaccurate model
-        :param opt_obj_ind: int, the index of objective to optimize
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :param var_ranges: ndarray (n_vars,), the lower and upper
-            var_ranges of non-ENUM variables, and values of ENUM variables
-        :param precision_list: list, precision of each variable
-        :param bs: int, batch size
-        :param verbose: bool, to print further information if needed
-        :return:
-                objs_list[idx]: float, objective value
-                vars: ndarray(1, n_vars), variable values
-        """
+        meshed_categorical_vars: np.ndarray,
+        batch_size: int,
+        obj_bounds_dict: Optional[Dict],
+        objective_name: str,
+    ) -> Any:
+        best_loss = np.inf
+        best_objs: Optional[Dict] = None
+        best_vars: Optional[np.ndarray] = None
+        iter_num = 0
+        opt_obj_ind = [
+            i for i, obj in enumerate(self.objectives) if obj.name == objective_name
+        ][0]
+        for bv in meshed_categorical_vars:
+            bv_dict = {
+                cind: bv[ind] for ind, cind in enumerate(self.categorical_variable_ids)
+            }
+            numerical_var_list = th.rand(
+                batch_size,
+                len(self.numerical_variable_ids),
+                device=self.device,
+                dtype=self.dtype,
+                requires_grad=True,
+            )
+            optimizer = optim.Adam(
+                [numerical_var_list], lr=self.lr, weight_decay=self.wd
+            )
 
-        th.manual_seed(self.seed)
-        vars_max, vars_min = self.get_bounds(self.variables)
-        if not self._check_obj(obj):
-            raise Exception(f"Workload {wl_id} or objective {obj}" "is not supported!")
-        assert self.multistart >= 1
+            local_best_iter = 0
+            local_best_loss = np.inf
+            local_best_objs: Dict | None = None
+            local_best_var: np.ndarray | None = None
+            i = 0
 
-        meshed_categorical_vars = self.get_meshed_categorical_vars(self.variables)
-        numerical_var_inds = self.get_numerical_var_inds(self.variables)
-        categorical_var_inds = self.get_categorical_var_inds(self.variables)
-
-        if meshed_categorical_vars is None:
-            meshed_categorical_vars = np.array([0])
-
-        best_loss_list: List[float] = []
-        objs_list: List[float] = []
-        vars_list: List[Optional[np.ndarray]] = []
-        for _ in range(self.multistart):
-            best_loss, best_obj, best_vars, iter_num = np.inf, np.inf, None, 0
-            for bv in meshed_categorical_vars:
-                bv_dict = {
-                    cind: bv[ind] for ind, cind in enumerate(categorical_var_inds)
-                }
-                numerical_var_list = th.rand(
-                    bs,
-                    len(numerical_var_inds),
-                    device=self.device,
-                    dtype=self.dtype,
-                    requires_grad=True,
+            while i < self.max_iter:
+                vars_kernal = self._get_tensor_vars_cat(
+                    numerical_var_list,
+                    bv_dict,
                 )
-                optimizer = optim.Adam(
-                    [numerical_var_list], lr=self.lr, weight_decay=self.wd
-                )
-
-                local_best_iter = 0
-                local_best_loss = np.inf
-                local_best_obj: Optional[float] = None
-                local_best_var: Optional[np.ndarray] = None
-                i = 0
-                while i < self.max_iter:
-                    vars_kernal = self._get_tensor_vars_cat(
-                        numerical_var_inds,
-                        numerical_var_list,
-                        categorical_var_inds,
-                        bv_dict,
+                vars = vars_kernal
+                if obj_bounds_dict:
+                    objs_pred_dict = {
+                        cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind)
+                        for ob_ind, cst_obj in enumerate(obj_bounds_dict)
+                    }
+                    loss, loss_id = self._soo_loss(
+                        wl_id,
+                        vars,
+                        objs_pred_dict,
+                        obj_bounds_dict,
+                        target_obj_name=objective_name,
+                        target_obj_ind=opt_obj_ind,
                     )
-                    vars = vars_kernal
-                    obj_pred = self._get_tensor_obj_pred(
-                        wl_id, vars, opt_obj_ind
-                    )  # Nx1
-                    print(obj_pred)
-                    loss, loss_id = self._unbounded_soo_loss(
-                        wl_id, opt_obj_ind, {obj: obj_pred}, vars
-                    )
-
-                    if i > 0 and loss.item() < local_best_loss:
-                        local_best_loss = loss.item()
-
-                        local_best_obj = obj_pred[loss_id].item()
-                        if vars.ndim == 1:
-                            local_best_var = vars.data.numpy()[loss_id].copy()
-                        else:
-                            local_best_var = vars.data.numpy()[loss_id, :].copy()
-                        local_best_iter = i
-
-                    optimizer.zero_grad()
-                    loss.backward()  # type: ignore
-                    optimizer.step()  # update parameters
-
-                    constrained_numerical_var_list = (
-                        self._get_tensor_numerical_constrained_vars(
-                            numerical_var_list.data,
-                            numerical_var_inds,
-                            precision_list,
+                else:
+                    objs_pred_dict = {
+                        objective_name: self._get_tensor_obj_pred(
+                            wl_id, vars, opt_obj_ind
                         )
+                    }
+                    loss, loss_id = self._unbounded_soo_loss(
+                        wl_id, opt_obj_ind, objs_pred_dict, vars
                     )
-                    numerical_var_list.data = constrained_numerical_var_list
 
-                    if i > local_best_iter + self.patient:
-                        # early stop
-                        break
+                if i > 0 and loss.item() < local_best_loss:
+                    local_best_loss = loss.item()
 
-                    if verbose:
-                        if i % 10 == 0:
-                            print(
-                                f"iteration {i}, {obj}: {obj_pred[loss_id].item():.2f}"
-                            )
-                            print(vars)
-                    i += 1
-                logging.info(
-                    f"Local best {obj}: {local_best_obj:.5f} "
-                    f"at {local_best_iter} with vars:\n"
-                    f"{local_best_var}"
+                    local_best_objs = {
+                        k: v[loss_id].item() for k, v in objs_pred_dict.items()
+                    }
+                    local_best_var = vars.data.numpy()[loss_id].copy()
+                    local_best_objs = {
+                        k: v[loss_id].item() for k, v in objs_pred_dict.items()
+                    }
+                    # local_best_var = vars.data.numpy().copy()
+                    local_best_iter = i
+
+                optimizer.zero_grad()
+                loss.backward()  # type: ignore
+                optimizer.step()  # update parameters
+
+                constrained_numerical_var_list = (
+                    self._get_tensor_numerical_constrained_vars(numerical_var_list.data)
                 )
-                if local_best_var is None:
-                    raise Exception("Unexpected local_best_var is None.")
-                if verbose:
-                    denormalized = self.get_raw_vars(
-                        local_best_var, vars_max, vars_min, precision_list
-                    )
-                    print(
-                        f"Finished at iteration {i}, best local "
-                        f"{obj} found as {local_best_obj:.5f}"
-                        f" \nat iteration {local_best_iter},"
-                        f" \nwith vars: {denormalized}"
-                    )
+                numerical_var_list.data = constrained_numerical_var_list
 
-                iter_num += i + 1
+                if i > local_best_iter + self.patient:
+                    break
 
-                if self.check_const_func_vio(wl_id, local_best_var):
-                    if local_best_obj is None:
-                        raise Exception("Unexpected local_best_obj is None.")
-                    if local_best_loss < best_loss:
-                        best_obj = local_best_obj
-                        best_loss = local_best_loss
-                        best_vars = local_best_var
+                i += 1
+            logging.info(
+                f"Local best {local_best_objs} at {local_best_iter} with vars:\n"
+                f"{local_best_var}"
+            )
+            if local_best_objs is None or local_best_var is None:
+                raise Exception("Unexpected local_best_objs or local_best_var is None.")
+            logger.debug(
+                f"Finished at iteration {iter}, best local {objective_name} "
+                f"found {local_best_objs[objective_name]:.5f}"
+                f" \nat iteration {local_best_iter},"
+                f" \nwith vars: {self.get_raw_vars(local_best_var)}"
+            )
 
-            if self.check_const_func_vio(wl_id, best_vars):
-                if best_vars is None:
-                    raise Exception("Unexpected best_vars is None.")
-                best_raw_vars = self.get_raw_vars(
-                    best_vars, vars_max, vars_min, precision_list
-                )
-                logging.info(
-                    f"get best {obj}: {best_obj} at {best_raw_vars} "
-                    f"with {iter_num} iterations, loss = {best_loss}"
-                )
+            iter_num += i + 1
 
-                if verbose:
-                    print()
-                    print("*" * 10)
-                    print(
-                        f"get best {obj}: {best_obj} at {best_raw_vars} "
-                        f"with {iter_num} iterations, loss = {best_loss}"
-                    )
-            else:
-                best_raw_vars = None
-                if verbose:
-                    print("No valid solutions and variables found!")
+            if self.within_constraints(
+                wl_id, local_best_var
+            ) & self.within_objective_bounds(local_best_objs, obj_bounds_dict):
+                if local_best_loss < best_loss:
+                    best_objs = local_best_objs
+                    best_loss = local_best_loss
+                    best_vars = local_best_var
 
-            best_loss_list.append(best_loss)
-            objs_list.append(best_obj)
-            vars_list.append(best_raw_vars)
-
-        idx = np.argmin(best_loss_list)
-        vars_cand = vars_list[idx]
-
-        if vars_cand is not None:
-            return_vars = vars_cand.reshape([1, len(self.variables)])
+        if self.within_constraints(wl_id, best_vars) & self.within_objective_bounds(
+            best_objs, obj_bounds_dict
+        ):
+            if best_vars is None:
+                raise Exception("Unexpected best_vars is None.")
+            best_raw_vars = self.get_raw_vars(best_vars)
+            obj_pred_dict = self._get_obj_pred_dict(wl_id, best_raw_vars)
+            target_obj_val = obj_pred_dict[objective_name]
+            print(f"TARGET OBJ VAL {target_obj_val}")
+            logger.debug(
+                f"get best {objective_name}: {best_objs} at {best_vars}"
+                f" with {iter_num} iterations, loss = {best_loss}"
+            )
         else:
-            return_vars = None
-        return objs_list[idx], return_vars
+            obj_pred_dict = None
+            best_raw_vars = None
+            target_obj_val = np.inf
+            logger.debug("No valid solutions and variables found!")
+        return obj_pred_dict, best_raw_vars, best_loss, target_obj_val
 
-    def constraint_so_opt(
+    def optimize_constrained_so(
         self,
         wl_id: str,
-        obj: str,
-        opt_obj_ind: int,
-        obj_bounds_dict: Dict | None,
-        precision_list: list,
-        verbose: bool = False,
-        bs: int = 1,
-    ) -> Tuple[List[float] | None, np.ndarray | None]:
+        objective_name: str,
+        obj_bounds_dict: Optional[Dict],
+        batch_size: int = 1,
+    ) -> Tuple[Optional[List[float]], Optional[np.ndarray]]:
         """
         solve single objective optimization constrained by objective values
         :param wl_id: str, workload id, e.g. '1-7'
-        :param obj: str, name of objective to be optimized
-        :param accurate: bool,
-            whether the predictive model is accurate (True) or not (False)
-        :param alpha: float,
-            the value used in loss calculation of the inaccurate model
-        :param opt_obj_ind: int, index of objective to be optimized
-        :param var_types: list, variable types
-        :param var_range: ndarray (n_vars,), the lower and upper
-            var_ranges of non-ENUM variables, and values of ENUM variables
+        :param objective_name: str, name of objective to be optimized
         :param obj_bounds_dict: dict, keys are the name of objectives,
             values are the lower and upper var_ranges for each objective value
-        :param precision_list: list, precision of each variable
-        :param verbose: bool, to print further information if needed
-        :param is_parallel: bool,
-            whether it is called parallelly (True) or not (False)
         :return:
                 objs: list, all objective values
                 vars: ndarray(1, n_vars), variable values
         """
 
         th.manual_seed(self.seed)
-        if not self._check_obj(obj):
+        if not self._check_obj(objective_name):
             raise Exception(
-                f"Workload {wl_id} or objective {obj}"
-                "was not part of the problem definition."
+                f"Objective {objective_name}" "was not part of the problem definition."
             )
         if obj_bounds_dict is not None:
             for cst_obj in obj_bounds_dict:
                 if not self._check_obj(cst_obj):
-                    raise Exception(
+                    raise ValueError(
                         f"Objective {cst_obj} was not part of the problem definition."
                     )
-        vars_max, vars_min = self.get_bounds(self.variables)
         meshed_categorical_vars = self.get_meshed_categorical_vars(self.variables)
-        numerical_var_inds = self.get_numerical_var_inds(self.variables)
-        categorical_var_inds = self.get_categorical_var_inds(self.variables)
 
         if meshed_categorical_vars is None:
             meshed_categorical_vars = np.array([0])
@@ -323,161 +253,25 @@ class MOGD:
         best_loss_list: List[float] = []
         objs_list = []
         vars_list = []
-        target_obj_val = []
+        target_obj_values = []
         for _ in range(self.multistart):
-            best_loss, best_objs, best_vars, iter_num = np.inf, None, None, 0
-
-            for bv in meshed_categorical_vars:
-                bv_dict = {
-                    cind: bv[ind] for ind, cind in enumerate(categorical_var_inds)
-                }
-                numerical_var_list = th.rand(
-                    bs,
-                    len(numerical_var_inds),
-                    device=self.device,
-                    dtype=self.dtype,
-                    requires_grad=True,
-                )
-                optimizer = optim.Adam(
-                    [numerical_var_list], lr=self.lr, weight_decay=self.wd
-                )
-
-                local_best_iter = 0
-                local_best_loss = np.inf
-                local_best_objs: Dict | None = None
-                local_best_var: np.ndarray | None = None
-                i = 0
-
-                while i < self.max_iter:
-                    vars_kernal = self._get_tensor_vars_cat(
-                        numerical_var_inds,
-                        numerical_var_list,
-                        categorical_var_inds,
-                        bv_dict,
-                    )
-                    vars = vars_kernal
-                    if obj_bounds_dict:
-                        objs_pred_dict = {
-                            cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind)
-                            for ob_ind, cst_obj in enumerate(obj_bounds_dict)
-                        }
-                        loss, loss_id = self._soo_loss(
-                            wl_id,
-                            vars,
-                            objs_pred_dict,
-                            obj_bounds_dict,
-                            target_obj_name=obj,
-                            target_obj_ind=opt_obj_ind,
-                        )
-                    else:
-                        print("going to unbounded_soo_loss")
-                        objs_pred_dict = {
-                            obj: self._get_tensor_obj_pred(wl_id, vars, opt_obj_ind)
-                        }
-                        loss, loss_id = self._unbounded_soo_loss(
-                            wl_id, opt_obj_ind, objs_pred_dict, vars
-                        )
-                        print(objs_pred_dict)
-
-                    if i > 0 and loss.item() < local_best_loss:
-                        local_best_loss = loss.item()
-
-                        local_best_objs = {
-                            k: v[loss_id].item() for k, v in objs_pred_dict.items()
-                        }
-                        if vars.ndim == 1:
-                            local_best_var = vars.data.numpy()[loss_id].copy()
-                        else:
-                            local_best_var = vars.data.numpy()[loss_id, :].copy()
-                        local_best_objs = {
-                            k: v[loss_id].item() for k, v in objs_pred_dict.items()
-                        }
-                        # local_best_var = vars.data.numpy().copy()
-                        local_best_iter = i
-
-                    optimizer.zero_grad()
-                    loss.backward()  # type: ignore
-                    optimizer.step()  # update parameters
-
-                    constrained_numerical_var_list = (
-                        self._get_tensor_numerical_constrained_vars(
-                            numerical_var_list.data,
-                            numerical_var_inds,
-                            precision_list,
-                        )
-                    )
-                    numerical_var_list.data = constrained_numerical_var_list
-
-                    if i > local_best_iter + self.patient:
-                        # early stop
-                        break
-
-                    if verbose:
-                        if i % 10 == 0:
-                            print(
-                                f"iteration {iter}, {obj}: "
-                                f"{objs_pred_dict[obj].item():.2f}"
-                            )
-                            print(vars)
-                    i += 1
-                logging.info(
-                    f"Local best {local_best_objs} at {local_best_iter} with vars:\n"
-                    f"{local_best_var}"
-                )
-                if local_best_objs is None or local_best_var is None:
-                    raise Exception(
-                        "Unexpected local_best_objs or local_best_var is None."
-                    )
-                if verbose:
-                    displayed_vars = self.get_raw_vars(
-                        local_best_var, vars_max, vars_min, precision_list
-                    )
-                    print(
-                        f"Finished at iteration {iter}, "
-                        f"best local {obj} found as {local_best_objs[obj]:.5f}"
-                        f" \nat iteration {local_best_iter},"
-                        f" \nwith vars: {displayed_vars}"
-                    )
-
-                iter_num += i + 1
-
-                if self.check_const_func_vio(
-                    wl_id, local_best_var
-                ) & self.check_obj_bounds_vio(local_best_objs, obj_bounds_dict):
-                    if local_best_loss < best_loss:
-                        best_objs = local_best_objs
-                        best_loss = local_best_loss
-                        best_vars = local_best_var
-
-            if self.check_const_func_vio(wl_id, best_vars) & self.check_obj_bounds_vio(
-                best_objs, obj_bounds_dict
-            ):
-                if best_vars is None:
-                    raise Exception("Unexpected best_vars is None.")
-                best_raw_vars = self.get_raw_vars(
-                    best_vars, vars_max, vars_min, precision_list
-                )
-                obj_pred_dict = self._get_obj_pred_dict(wl_id, best_raw_vars)
-                target_obj_val.append(obj_pred_dict[obj])
-                if verbose:
-                    print()
-                    print("*" * 10)
-                    print(
-                        f"get best {obj}: {best_objs} at {best_vars}"
-                        f" with {iter_num} iterations, loss = {best_loss}"
-                    )
-            else:
-                obj_pred_dict = None
-                best_raw_vars = None
-                target_obj_val.append(np.inf)
-                if verbose:
-                    print("No valid solutions and variables found!")
-
+            (
+                obj_pred_dict,
+                best_raw_vars,
+                best_loss,
+                target_obj_val,
+            ) = self._single_start_opt(
+                meshed_categorical_vars=meshed_categorical_vars,
+                batch_size=batch_size,
+                obj_bounds_dict=obj_bounds_dict,
+                wl_id=wl_id,
+                objective_name=objective_name,
+            )
             best_loss_list.append(best_loss)
             objs_list.append(obj_pred_dict)
             vars_list.append(best_raw_vars)
-
-        idx = np.argmin(target_obj_val)
+            target_obj_values.append(target_obj_val)
+        idx = np.argmin(target_obj_values)
         vars_cand = vars_list[idx]
         if vars_cand is not None:
             obj_cand = objs_list[idx]
@@ -490,31 +284,20 @@ class MOGD:
 
         return objs, return_vars
 
-    def constraint_so_parallel(
+    def optimize_constrained_so_parallel(
         self,
         wl_id: str,
-        obj: str,
-        opt_obj_ind: int,
-        precision_list: list,
+        objective_name: str,
         cell_list: list,
+        batch_size: int = 1,
     ) -> List[Tuple[Optional[List[float]], Optional[np.ndarray]]]:
         """
         solve the single objective optimization
         constrained by objective values parallelly
         :param wl_id: str, workload id, e.g. '1-7'
         :param obj: str, name of objective to be optimized
-        :param accurate: bool,
-            whether the predictive model is accurate (True) or not (False)
-        :param alpha: float,
-            the value used in loss calculation of the inaccurate model
-        :param opt_obj_ind: int, index of objective to be optimized
-        :param var_types: list, variable types
-        :param var_ranges: ndarray (n_vars,), the lower and upper
-            var_ranges of non-ENUM variables, and values of ENUM variables
-        :param precision_list: list, precision of each variable
         :param cell_list: list, each element is a dict to indicate
             the var_ranges of objective values
-        :param verbose: bool, to print further information if needed
         :return:
                 ret_list: list,
                     each element is a solution
@@ -522,33 +305,28 @@ class MOGD:
                     and variables (tuple[1], ndarray(1, n_vars))
         """
 
-        vars_max, vars_min = self.get_bounds(self.variables)
-
         th.manual_seed(self.seed)
 
         # generate the list of input parameters for constraint_so_opt
         arg_list = [
             (
                 wl_id,
-                obj,
-                opt_obj_ind,
+                objective_name,
                 obj_bounds_dict,
-                precision_list,
-                False,
+                batch_size,
             )
             for obj_bounds_dict in cell_list
         ]
 
         # call self.constraint_so_opt parallely
         with Pool(processes=self.process) as pool:
-            ret_list = pool.starmap(self.constraint_so_opt, arg_list)
-
+            ret_list = pool.starmap(self.optimize_constrained_so, arg_list)
         return ret_list
 
     ##################
     ## _loss        ##
     ##################
-    def _get_tensor_loss_const_funcs(self, wl_id: str, vars: th.Tensor) -> th.Tensor:
+    def _constraints_loss(self, wl_id: str, vars: th.Tensor) -> th.Tensor:
         """
         compute loss of the values of each constraint function fixme: double-check
         :param wl_id: str, workload id, e.g. '1-7'
@@ -614,7 +392,7 @@ class MOGD:
             ].direction
         else:
             loss = (obj_pred**2) * self.objectives[obj_ind].direction
-        const_loss = self._get_tensor_loss_const_funcs(wl_id, vars)
+        const_loss = self._constraints_loss(wl_id, vars)
         loss = loss + const_loss
         return th.min(loss), th.argmin(loss)
 
@@ -673,7 +451,7 @@ class MOGD:
             else:
                 add_loss = (obj_pred - upper) ** 2 + self.stress
             loss = loss + add_loss
-        loss = loss + self._get_tensor_loss_const_funcs(wl_id, vars)
+        loss = loss + self._constraints_loss(wl_id, vars)
         return th.min(loss), th.argmin(loss)
 
     ##################
@@ -682,7 +460,7 @@ class MOGD:
 
     def get_meshed_categorical_vars(
         self, variables: List[Variable]
-    ) -> np.ndarray | None:
+    ) -> Optional[np.ndarray]:
         """
         get combinations of all categorical (binary, enum) variables
         # reuse code in UDAO
@@ -701,47 +479,17 @@ class MOGD:
         meshed_cv_value = np.concatenate(meshed_cv_value_list, axis=1)
         return meshed_cv_value
 
-    def get_categorical_var_inds(self, variables: List[Variable]) -> List[int]:
-        """
-        get indices of categorical (binary, enum) variables
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :return: categorical_var_inds: list, indices of
-            categorical (binary, enum) variables
-        """
-        categorical_var_inds = [
-            i
-            for i, variable in enumerate(variables)
-            if isinstance(variable, EnumVariable)
-        ]
-        return categorical_var_inds
-
-    def get_numerical_var_inds(self, variables: List[Variable]) -> list:
-        """
-        get indices of numerical (float, integer) variables
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :return: numerical_var_inds: list, indices of
-            numerical (float, integer) variables
-        """
-        numerical_var_inds = [
-            ind for ind, v_ in enumerate(variables) if isinstance(v_, NumericVariable)
-        ]
-        return numerical_var_inds
-
     def _get_tensor_vars_cat(
         self,
-        numerical_var_inds: list,
         numerical_var_list: th.Tensor,
-        categorical_var_inds: list,
         cv_dict: Dict,
     ) -> th.Tensor:
         """
         concatenate values of numerical(float, integer)
         and categorical(binary, enum) variables together
         (reuse code in UDAO)
-        :param numerical_var_inds: list, indices of numerical variables
         :param numerical_var_list: tensor((bs, len(numerical_var_inds))
             or (numerical_var_inds,)), values of numercial variables
-        :param categorical_var_inds: list, indices of (binary, enum) variables
         :param cv_dict: dict(key: indices of (binary, enum) variables,
             value: value of (binary, enum) variables),
             indices and values of bianry variables
@@ -750,14 +498,14 @@ class MOGD:
         """
         #
         # vars is the variables
-        target_len = len(numerical_var_inds) + len(categorical_var_inds)
+
         to_concat = []
         ck_ind = 0
         if numerical_var_list.ndimension() == 1:
-            for i in range(target_len):
-                if i in set(numerical_var_inds):
+            for i, variable in enumerate(self.variables):
+                if isinstance(variable, NumericVariable):
                     to_concat.append(numerical_var_list[i - ck_ind : i + 1 - ck_ind])
-                elif i in set(categorical_var_inds):
+                elif isinstance(variable, EnumVariable):
                     to_concat.append(solver_ut.get_tensor([cv_dict[i]]))
                     ck_ind += 1
                 else:
@@ -765,10 +513,10 @@ class MOGD:
             vars = th.cat(to_concat)
         else:
             n_batch = numerical_var_list.shape[0]
-            for i in range(target_len):
-                if i in set(numerical_var_inds):
+            for i, variable in enumerate(self.variables):
+                if isinstance(variable, NumericVariable):
                     to_concat.append(numerical_var_list[:, i - ck_ind : i + 1 - ck_ind])
-                elif i in set(categorical_var_inds):
+                elif isinstance(variable, EnumVariable):
                     to_concat.append(
                         th.ones((n_batch, 1), device=self.device, dtype=self.dtype)
                         * cv_dict[i]
@@ -777,38 +525,28 @@ class MOGD:
                 else:
                     raise Exception(f"unsupported type in var {i}")
             vars = th.cat(to_concat, dim=1)
-            assert (
-                vars.shape[0] == numerical_var_list.shape[0]
-                and vars.shape[1] == target_len
-            )
+            print("shapes", vars.shape, numerical_var_list.shape, len(self.variables))
+            assert vars.shape[0] == numerical_var_list.shape[0] and vars.shape[
+                1
+            ] == len(self.variables)
         return vars
 
     def _get_tensor_numerical_constrained_vars(
         self,
         numerical_var_list: th.Tensor,
-        numerical_var_inds: list,
-        precision_list: list,
     ) -> th.Tensor:
         """
         make the values of numerical variables within their range
         :param numerical_var_list: tensor ((bs, len(numerical_var_inds)
             or (len(numerical_var_ids), ), values of numerical variables
             (FLOAT and INTEGER)
-        :param numerical_var_inds: list, indices of numerical variables
-            (float and integer)
-        :param vars_max: ndarray(n_vars, ), upper var_ranges of each variable
-        :param vars_min: ndarray(n_vars, ), lower var_ranges of each variable
-        :param precision_list: list, precision of each variable
         :return:
                 solver_ut._get_tensor(normalized_np): Tensor(n_numerical_inds,),
                     normalized numerical variables
         """
-        vars_max = np.array([self.variables[i].upper for i in numerical_var_inds])
-        vars_min = np.array([self.variables[i].lower for i in numerical_var_inds])
+
         if numerical_var_list.ndimension() == 1:
-            bounded_np = np.array(
-                [np.clip(k.item(), 0, 1) for kid, k in enumerate(numerical_var_list)]
-            )
+            bounded_np = np.array([np.clip(k.item(), 0, 1) for k in numerical_var_list])
         else:
             bounded_np = np.array(
                 [np.clip(k.numpy(), 0, 1) for k in numerical_var_list]
@@ -816,13 +554,10 @@ class MOGD:
         # adjust variable values to its pickable points
         raw_np = self.get_raw_vars(
             bounded_np,
-            vars_max,
-            vars_min,
-            precision_list,
-            normalized_ids=numerical_var_inds,
+            normalized_ids=self.numerical_variable_ids,
         )
         normalized_np = self.get_normalized_vars(
-            raw_np, vars_max, vars_min, normalized_ids=numerical_var_inds
+            raw_np, normalized_ids=self.numerical_variable_ids
         )
         return solver_ut.get_tensor(normalized_np)
 
@@ -830,29 +565,26 @@ class MOGD:
     def get_raw_vars(
         self,
         normalized_vars: np.ndarray,
-        vars_max: np.ndarray,
-        vars_min: np.ndarray,
-        precision_list: list,
         normalized_ids: Optional[list] = None,
     ) -> np.ndarray:
         """
         denormalize the values of each variable
         :param normalized_vars: ndarray((bs, n_vars) or (n_vars,)), normalized variables
-        :param vars_max: ndarray(n_vars,), maximum value of all variables
-        :param vars_min: ndarray(n_vars,), minimum value of all variables
-        :param precision_list: list, precision for all variables
         :param normalized_ids: list, indices of numerical variables (float and integer)
         :return: raw_vars: ndarray((bs, n_vars) or (n_vars,)), denormalized variables
         """
-        vars_max = vars_max if normalized_ids is None else vars_max[normalized_ids]
-        vars_min = vars_min if normalized_ids is None else vars_min[normalized_ids]
+        vars_max = (
+            self.vars_max if normalized_ids is None else self.vars_max[normalized_ids]
+        )
+        vars_min = (
+            self.vars_min if normalized_ids is None else self.vars_min[normalized_ids]
+        )
         precision_list = (
-            precision_list
+            self.precision_list
             if normalized_ids is None
-            else np.array(precision_list)[normalized_ids].tolist()
+            else np.array(self.precision_list)[normalized_ids].tolist()
         )
         vars = normalized_vars * (vars_max - vars_min) + vars_min
-        print(vars)
         raw_vars = np.array(
             [c.round(p) for c, p in zip(vars.astype(float).T, precision_list)]
         ).T
@@ -862,22 +594,22 @@ class MOGD:
     def get_normalized_vars(
         self,
         raw_vars: np.ndarray,
-        vars_max: np.ndarray,
-        vars_min: np.ndarray,
         normalized_ids: Optional[list] = None,
     ) -> np.ndarray:
         """
         normalize the values of each variable
         :param raw_vars: ndarray((bs, n_vars) or (n_vars, )),
             raw variable values (bounded with original lower and upper var_ranges)
-        :param vars_max: ndarray(n_vars,), maximum value of all variables
-        :param vars_min: ndarray(n_vars,), minimum value of all variables
         :param normalized_ids: list, indices fo numerical variables (float and integer)
         :return: normalized_vars, ndarray((bs, n_vars) or (n_vars, )),
             normalized variable values
         """
-        vars_max = vars_max if normalized_ids is None else vars_max[normalized_ids]
-        vars_min = vars_min if normalized_ids is None else vars_min[normalized_ids]
+        vars_max = (
+            self.vars_max if normalized_ids is None else self.vars_max[normalized_ids]
+        )
+        vars_min = (
+            self.vars_min if normalized_ids is None else self.vars_min[normalized_ids]
+        )
         normalized_vars = (raw_vars - vars_min) / (vars_max - vars_min)
         return normalized_vars
 
@@ -945,8 +677,7 @@ class MOGD:
         :return: obj_pred_dict: dict, keys are objective names,
             values are objective values
         """
-        vars_max, vars_min = self.get_bounds(self.variables)
-        vars_norm = self.get_normalized_vars(best_raw_vars, vars_max, vars_min)
+        vars_norm = self.get_normalized_vars(best_raw_vars)
         obj_pred_dict = {
             objective.name: self._get_tensor_obj_pred(wl_id, vars_norm, obj_i)[
                 0, 0
@@ -959,7 +690,7 @@ class MOGD:
     ## _check       ##
     ##################
 
-    def _check_vars(self, vars_raw: np.ndarray) -> bool:
+    def within_variable_range(self, vars_raw: np.ndarray) -> bool:
         """
         check whether the variable are available
         (within the range setting of variables in the config.json file)
@@ -983,13 +714,10 @@ class MOGD:
         :param obj: str, objective names
         :return: bool, whether available (True)
         """
-        if not (any(objective.name == obj_name for objective in self.objectives)):
-            print(f"ERROR: objective {obj_name} is not found")
-            return False
-        return True
+        return any(objective.name == obj_name for objective in self.objectives)
 
     # check violations of constraint functions
-    def check_const_func_vio(self, wl_id: str, best_var: Optional[np.ndarray]) -> bool:
+    def within_constraints(self, wl_id: str, var_array: Optional[np.ndarray]) -> bool:
         """
         check whether the best variable values resulting
         in violation of constraint functions
@@ -997,14 +725,14 @@ class MOGD:
         :param best_var: ndarray(n_vars, ), best variable values for each variable
         :return: bool, whether it returns feasible solutions (True) or not (False)
         """
-        if best_var is None:
+        if var_array is None:
             return False
 
-        tensor_best_var = solver_ut.get_tensor(best_var)
+        var_tensor = solver_ut.get_tensor(var_array)
 
-        if tensor_best_var.ndim == 1:
-            tensor_best_var = tensor_best_var.reshape([1, best_var.shape[0]])
-        const_loss = self._get_tensor_loss_const_funcs(wl_id, tensor_best_var)
+        if var_tensor.ndim == 1:
+            var_tensor.reshape([1, var_array.shape[0]])
+        const_loss = self._constraints_loss(wl_id, var_tensor)
         if const_loss <= 0:
             return True
         else:
@@ -1012,8 +740,8 @@ class MOGD:
 
     # check violations of objective value var_ranges
     # reuse code in UDAO
-    def check_obj_bounds_vio(
-        self, pred_dict: Dict | None, obj_bounds: Optional[Dict]
+    def within_objective_bounds(
+        self, pred_dict: Optional[Dict], obj_bounds: Optional[Dict]
     ) -> bool:
         """
         check whether violating the objective value var_ranges

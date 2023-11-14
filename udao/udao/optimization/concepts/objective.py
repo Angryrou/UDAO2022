@@ -1,21 +1,23 @@
 from dataclasses import dataclass
-from typing import Callable, Literal, Union
+from typing import Callable, Literal, Union, Optional
 
 import torch as th
+from ..utils.parameters import VarTypes
 
-ObjectiveType = Union[Literal["MIN"], Literal["MAX"]]
+ObjectiveDirection = Union[Literal["MIN"], Literal["MAX"]]
 
 
 @dataclass
 class Objective:
     name: str
-    type: ObjectiveType
+    direction_type: ObjectiveDirection
     function: Callable[..., th.Tensor]
+    type: Optional[VarTypes] = None
 
     @property
     def direction(self) -> int:
         """Get gradient direction from optimization type"""
-        if self.type == "MIN":
+        if self.direction_type == "MIN":
             return 1
         else:
             return -1
