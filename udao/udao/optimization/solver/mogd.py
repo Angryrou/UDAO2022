@@ -164,6 +164,7 @@ class MOGD:
                     obj_pred = self._get_tensor_obj_pred(
                         wl_id, vars, opt_obj_ind
                     )  # Nx1
+                    print(obj_pred)
                     loss, loss_id = self._unbounded_soo_loss(
                         wl_id, opt_obj_ind, {obj: obj_pred}, vars
                     )
@@ -271,9 +272,10 @@ class MOGD:
         wl_id: str,
         obj: str,
         opt_obj_ind: int,
-        obj_bounds_dict: Dict,
+        obj_bounds_dict: Dict | None,
         precision_list: list,
         verbose: bool = False,
+        bs: int = 1,
     ) -> Tuple[List[float] | None, np.ndarray | None]:
         """
         solve single objective optimization constrained by objective values
@@ -304,11 +306,12 @@ class MOGD:
                 f"Workload {wl_id} or objective {obj}"
                 "was not part of the problem definition."
             )
-        for cst_obj in obj_bounds_dict:
-            if not self._check_obj(cst_obj):
-                raise Exception(
-                    f"Objective {cst_obj} was not part of the problem definition."
-                )
+        if obj_bounds_dict is not None:
+            for cst_obj in obj_bounds_dict:
+                if not self._check_obj(cst_obj):
+                    raise Exception(
+                        f"Objective {cst_obj} was not part of the problem definition."
+                    )
         vars_max, vars_min = self.get_bounds(self.variables)
         meshed_categorical_vars = self.get_meshed_categorical_vars(self.variables)
         numerical_var_inds = self.get_numerical_var_inds(self.variables)
@@ -329,6 +332,7 @@ class MOGD:
                     cind: bv[ind] for ind, cind in enumerate(categorical_var_inds)
                 }
                 numerical_var_list = th.rand(
+                    bs,
                     len(numerical_var_inds),
                     device=self.device,
                     dtype=self.dtype,
@@ -357,7 +361,7 @@ class MOGD:
                             cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind)
                             for ob_ind, cst_obj in enumerate(obj_bounds_dict)
                         }
-                        loss, _ = self._soo_loss(
+                        loss, loss_id = self._soo_loss(
                             wl_id,
                             vars,
                             objs_pred_dict,
@@ -366,17 +370,29 @@ class MOGD:
                             target_obj_ind=opt_obj_ind,
                         )
                     else:
+                        print("going to unbounded_soo_loss")
                         objs_pred_dict = {
                             obj: self._get_tensor_obj_pred(wl_id, vars, opt_obj_ind)
                         }
-                    print(objs_pred_dict)
+                        loss, loss_id = self._unbounded_soo_loss(
+                            wl_id, opt_obj_ind, objs_pred_dict, vars
+                        )
+                        print(objs_pred_dict)
 
                     if i > 0 and loss.item() < local_best_loss:
                         local_best_loss = loss.item()
+
                         local_best_objs = {
-                            k: v.item() for k, v in objs_pred_dict.items()
+                            k: v[loss_id].item() for k, v in objs_pred_dict.items()
                         }
-                        local_best_var = vars.data.numpy().copy()
+                        if vars.ndim == 1:
+                            local_best_var = vars.data.numpy()[loss_id].copy()
+                        else:
+                            local_best_var = vars.data.numpy()[loss_id, :].copy()
+                        local_best_objs = {
+                            k: v[loss_id].item() for k, v in objs_pred_dict.items()
+                        }
+                        # local_best_var = vars.data.numpy().copy()
                         local_best_iter = i
 
                     optimizer.zero_grad()
@@ -441,9 +457,7 @@ class MOGD:
                 best_raw_vars = self.get_raw_vars(
                     best_vars, vars_max, vars_min, precision_list
                 )
-                obj_pred_dict = self._get_obj_pred_dict(
-                    wl_id, obj_bounds_dict, best_raw_vars
-                )
+                obj_pred_dict = self._get_obj_pred_dict(wl_id, best_raw_vars)
                 target_obj_val.append(obj_pred_dict[obj])
                 if verbose:
                     print()
@@ -920,14 +934,10 @@ class MOGD:
         assert obj_pred.ndimension() == 2
         return obj_pred
 
-    def _get_obj_pred_dict(
-        self, wl_id: str, cst_dict: Dict, best_raw_vars: np.ndarray
-    ) -> Dict:
+    def _get_obj_pred_dict(self, wl_id: str, best_raw_vars: np.ndarray) -> Dict:
         """
         get objective values
         :param wl_id: str, workload id, e.g. '1-7'
-        :param cst_dict: dict, keys are objective names,
-            values are bounds for each objective
         :param best_obj_dict: dict, keys are objective names,
             values are objective values,
             e.g. {'latency': 12406.1416015625, 'cores': 48.0}
@@ -938,8 +948,10 @@ class MOGD:
         vars_max, vars_min = self.get_bounds(self.variables)
         vars_norm = self.get_normalized_vars(best_raw_vars, vars_max, vars_min)
         obj_pred_dict = {
-            cst_obj: self._get_tensor_obj_pred(wl_id, vars_norm, obj_i)[0, 0].item()
-            for obj_i, cst_obj in enumerate(cst_dict)
+            objective.name: self._get_tensor_obj_pred(wl_id, vars_norm, obj_i)[
+                0, 0
+            ].item()
+            for obj_i, objective in enumerate(self.objectives)
         }
         return obj_pred_dict
 
@@ -1000,7 +1012,9 @@ class MOGD:
 
     # check violations of objective value var_ranges
     # reuse code in UDAO
-    def check_obj_bounds_vio(self, pred_dict: Optional[Dict], obj_bounds: Dict) -> bool:
+    def check_obj_bounds_vio(
+        self, pred_dict: Dict | None, obj_bounds: Optional[Dict]
+    ) -> bool:
         """
         check whether violating the objective value var_ranges
         :param pred_dict: dict, keys are objective names,
@@ -1009,6 +1023,8 @@ class MOGD:
         values are lower and upper var_ranges of each objective value
         :return: True or False
         """
+        if obj_bounds is None:
+            return True
         if pred_dict is None:
             return False
         for obj, obj_pred in pred_dict.items():

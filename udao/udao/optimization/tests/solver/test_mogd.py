@@ -84,7 +84,6 @@ class TestMOGD:
         np.testing.assert_array_equal(optimal_vars, np.array([[0.0, 2.21]]))
 
     def test_constraint_parallel(self, mogd: MOGD) -> None:
-        set_deterministic_torch(42)
         res_list = mogd.constraint_so_parallel(
             wl_id="1",
             obj="obj1",
@@ -136,6 +135,37 @@ class TestMOGD:
 
         assert optimal_obj is not None
         np.testing.assert_array_equal(optimal_obj, np.array([2]))
+        assert optimal_vars is not None
+        np.testing.assert_array_equal(optimal_vars, np.array([[1, 3]]))
+
+    def test_constraint_single_objective_opt(self, mogd: MOGD) -> None:
+        mogd.objectives = [
+            Objective(
+                "obj1",
+                "MAX",
+                lambda x, wl_id: th.reshape(x[:, 0] ** 2 + x[:, 1] ** 2, (-1, 1)),  # type: ignore
+            ),
+            Objective(
+                "obj2",
+                "MIN",
+                lambda x, wl_id: th.reshape(
+                    (x[:, 0] - 1) ** 2 + x[:, 1] ** 2, (-1, 1)
+                ),  # type: ignore
+            ),
+        ]
+
+        optimal_obj, optimal_vars = mogd.constraint_so_opt(
+            wl_id="1",
+            obj="obj1",
+            opt_obj_ind=0,
+            obj_bounds_dict=None,
+            precision_list=[2, 2],
+            verbose=False,
+            bs=16,
+        )
+
+        assert optimal_obj is not None
+        np.testing.assert_array_equal(optimal_obj, np.array([2, 1]))
         assert optimal_vars is not None
         np.testing.assert_array_equal(optimal_vars, np.array([[1, 3]]))
 
