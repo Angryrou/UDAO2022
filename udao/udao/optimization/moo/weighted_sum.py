@@ -1,164 +1,185 @@
-from typing import List
+import time
+from typing import Dict, List, Tuple
 
 import numpy as np
 
-from ..solver.grid_search import GridSearch
-from ..solver.random_sampler import RandomSampler
+from ..concepts import Constraint, NumericVariable, Objective, Variable
+from ..solver.base_solver import BaseSolver
 from ..utils import moo_utils as moo_ut
+from ..utils.exceptions import NoSolutionError
 from .base_moo import BaseMOO
 
 
 class WeightedSum(BaseMOO):
+    """
+    Weighted Sum (WS) algorithm for MOO
+
+    Parameters:
+    ------------
+    ws_pairs: ndarray(n_weights, n_objs),
+        weight settings for all objectives
+    inner_solver: BaseSolver,
+        the solver used in Weighted Sum
+    objectives: List[Objective],
+        objective functions
+    constraints: List[Constraint],
+        constraint functions
+    """
+
     def __init__(
         self,
         ws_pairs: np.ndarray,
-        inner_solver: str,
-        solver_params: dict,
-        n_objs: int,
-        obj_funcs: list,
-        opt_type: list,
-        const_funcs: list,
-        const_types: list,
+        inner_solver: BaseSolver,
+        objectives: List[Objective],
+        constraints: List[Constraint],
     ):
-        """
-        parameters used in Weighted Sum
-        :param ws_pairs: list, even weight settings for all
-            objectives, e.g. for 2d, [[0, 1], [0.1, 0.9], ... [1, 0]]
-        :param inner_solver: str, the name of the solver used in Weighted Sum
-        :param solver_params: dict, parameter used in solver,
-            e.g. in grid-search, it is the number of grids for each variable
-        :param n_objs: int, the number of objectives
-        :param obj_funcs: list, objective functions
-        :param opt_type: list, objectives to minimize or maximize
-        :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types ("<=",
-            "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
-        """
         super().__init__()
         self.inner_solver = inner_solver
         self.ws_pairs = ws_pairs
-        self.n_objs = n_objs
-        self.obj_funcs = obj_funcs
-        self.opt_type = opt_type
-        self.const_funcs = const_funcs
-        self.const_types = const_types
-        if self.inner_solver == "grid_search":
-            self.gs = GridSearch(solver_params)
-        elif self.inner_solver == "random_sampler":
-            self.rs = RandomSampler(solver_params)
-        else:
-            raise Exception(f"WS does not support {self.inner_solver}!")
+        self.objectives = objectives
+        self.constraints = constraints
 
-    def solve(self, wl_id: str, var_ranges: np.ndarray, var_types: List) -> tuple:
-        """
-        solve MOO by Weighted Sum (WS)
-        :param wl_id: str, workload id
-        :param var_ranges: ndarray(n_vars,),
-        lower and upper var_ranges of variables(non-ENUM),
-        and values of ENUM variables
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :return:
-            po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-            po_vars: ndarray(n_solutions, n_vars),
-            corresponding variables of Pareto solutions
+    def _filter_on_constraints(
+        self, wl_id: str | None, input_vars: np.ndarray
+    ) -> np.ndarray:
+        """Keep only input variables that don't violate constraints"""
+        if not self.constraints:
+            return input_vars
+
+        available_indices = np.array(range(len(input_vars)))
+        for constraint in self.constraints:
+            const_values = constraint.function(input_vars, wl_id=wl_id)
+            if constraint.type == "<=":
+                compliant_indices = np.where(const_values <= 0)
+            elif constraint.type == ">=":
+                compliant_indices = np.where(const_values >= 0)
+            else:
+                compliant_indices = np.where(const_values == 0)
+            available_indices = np.intersect1d(compliant_indices, available_indices)
+        filtered_vars = input_vars[available_indices]
+        return filtered_vars
+
+    def _normalize_objective(self, objs_array: np.ndarray) -> np.ndarray:
+        objs_min, objs_max = objs_array.min(0), objs_array.max(0)
+
+        if any((objs_min - objs_max) > 0):
+            raise NoSolutionError(
+                "Cannot do normalization! Lower bounds of "
+                "objective values are higher than their upper bounds."
+            )
+        return (objs_array - objs_min) / (objs_max - objs_min)
+
+    def solve(
+        self, wl_id: str | None, variables: List[Variable]
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """solve MOO problem by Weighted Sum (WS)
+
+        Parameters
+        ----------
+        wl_id : str | None
+            workload id
+        variables : List[Variable]
+            List of the variables to be optimized.
+
+        Returns
+        -------
+        Tuple[np.ndarray | None, np.ndarray | None]
+            Pareto solutions and corresponding variables.
         """
         # TODO: we will compare the current WS implementation with
         # the existing WS numerical solver in the future,
         # and the one with better performance will be kept in the package.
-        if self.inner_solver == "grid_search":
-            vars = self.gs._get_input(var_ranges, var_types)
-        elif self.inner_solver == "random_sampler":
-            vars = self.rs._get_input(var_ranges, var_types)
-        else:
-            raise Exception(f"WS does not support {self.inner_solver}")
+        filtered_vars = self._filter_on_constraints(
+            wl_id, self.inner_solver._get_input(variables)
+        )
 
-        const_violation = self._get_const_violation(wl_id, vars)
+        if filtered_vars.size == 0:
+            raise NoSolutionError(
+                "No feasible solutions found. All candidate points violate constraints."
+            )
 
-        # remove vars who lead to constraint violation
-        if const_violation.size != 0:
-            # if (const_violation.size != 0) & (const_violation.max() > 0):
-            ## find the var index which violate the constraint
-            n_const = const_violation.shape[1]
-            available_indices = np.array(range(const_violation.shape[0]))
-            for i in range(n_const):
-                if self.const_types[i] == "<=":
-                    available_indice = np.where(const_violation[:, i] <= 0)
-                elif self.const_types[i] == ">=":
-                    available_indice = np.where(const_violation[:, i] >= 0)
-                elif self.const_types[i] == "==":
-                    available_indice = np.where(const_violation[:, i] == 0)
-                else:
-                    raise Exception(
-                        "No feasible constraints provided! "
-                        "Please check constraint type settings in configurations. "
-                        "We do not support {self.const_types}."
-                    )
-                available_indices = np.intersect1d(available_indice, available_indices)
-            vars_after_const_check = vars[available_indices]
-        else:
-            vars_after_const_check = vars
+        po_obj_list: List[np.ndarray] = []
+        po_var_list: List[np.ndarray] = []
 
-        if vars_after_const_check.size == 0:
-            print("NO feasible solutions found!")
-            return None, None
-        else:
-            po_obj_list, po_var_list = [], []
+        objs: List[np.ndarray] = []
+        for objective in self.objectives:
+            obj = objective.function(filtered_vars, wl_id=wl_id) * objective.direction
+            objs.append(obj.squeeze())
 
-            # get n_dim objective values
-            objs = []
-            for i, obj_func in enumerate(self.obj_funcs):
-                if wl_id is None:
-                    obj = obj_func(vars_after_const_check) * moo_ut._get_direction(
-                        self.opt_type, i
-                    )
-                else:
-                    obj = obj_func(
-                        wl_id, vars_after_const_check
-                    ) * moo_ut._get_direction(self.opt_type, i)
-                objs.append(obj.squeeze())
+        # shape (n_feasible_samples/grids, n_objs)
+        objs_array = np.array(objs).T
 
-            # transform objs to array: (n_samples/grids * n_objs)
-            objs_array = np.array(objs).T
+        objs_norm = self._normalize_objective(objs_array)
+        for ws in self.ws_pairs:
+            po_ind = self.get_soo_index(objs_norm, ws)
+            po_obj_list.append(objs_array[po_ind])
+            po_var_list.append(filtered_vars[po_ind])
 
-            # normalization
-            objs_min, objs_max = objs_array.min(0), objs_array.max(0)
+        return moo_ut.summarize_ret(po_obj_list, po_var_list)
 
-            if all((objs_min - objs_max) < 0):
-                objs_norm = (objs_array - objs_min) / (objs_max - objs_min)
-                for ws in self.ws_pairs:
-                    po_ind = self.get_soo_index(objs_norm, ws)
-                    po_obj_list.append(objs_array[po_ind])
-                    po_var_list.append(vars_after_const_check[po_ind])
-
-                # only keep non-dominated solutions
-                return moo_ut._summarize_ret(po_obj_list, po_var_list)
-            else:
-                raise Exception(
-                    "Cannot do normalization! Lower bounds of "
-                    "objective values are higher than their upper bounds."
-                )
-
-    def get_soo_index(self, objs: np.ndarray, ws_pairs: list) -> int:
+    def get_soo_index(self, objs: np.ndarray, ws_coeffs: List[float]) -> int:
         """
-        reuse code in VLDB2022
-        :param objs: ndarray(n_feasible_samples/grids, 2)
-        :param ws_pairs: list, one weight setting for all objectives, e.g. [0, 1]
-        :return: int, index of the minimum weighted sum
+        Find argmin of single objective optimization
+        problem corresponding to weighted sum of objectives
+
+        Parameters
+        ----------
+        objs: np.ndarray,
+            Shape(n_sample, n_objectives)
+        ws_coeffs: List[float]
+            One weight per objectives
+
+        Returns
+        -------
+        int
+            Argmin of weighted sum of objectives
         """
-        obj = np.sum(objs * ws_pairs, axis=1)
+        obj = np.sum(objs * ws_coeffs, axis=1)
         return int(np.argmin(obj))
 
-    def _get_const_violation(self, wl_id: str, vars: np.ndarray) -> np.ndarray:
-        """
-        get violation of each constraint
-        :param wl_id: str, workload id
-        :param vars: ndarray(n_grids/n_samples, 2), variables
-        :return: ndarray(n_samples/grids, n_const), constraint violations
-        """
-        if wl_id is None:
-            g_list = [const_func(vars) for const_func in self.const_funcs]
-        else:
-            g_list = [const_func(wl_id, vars) for const_func in self.const_funcs]
 
-        # shape (n_samples/grids, n_const)
-        return np.array(g_list).T
+def solve_ws(
+    job_ids: List[str],
+    solver: BaseSolver,
+    n_probes: int,
+    n_objs: int,
+    objectives: List[Objective],
+    constraints: List[Constraint],
+    variables: List[Variable],
+    wl_ranges: Dict[str, Tuple[np.ndarray, np.ndarray]],
+) -> Tuple[List[np.ndarray | None], List[np.ndarray | None], list[float]]:
+    """Temporary solve function for WS,
+    replacing the call to solve() in GenericMOO"""
+    po_objs_list: List[np.ndarray | None] = []
+    po_vars_list: List[np.ndarray | None] = []
+    time_cost_list: list[float] = []
+
+    ws_steps = 1 / (n_probes - n_objs - 1)
+    ws_pairs = moo_ut.even_weights(ws_steps, n_objs)
+    ws = WeightedSum(
+        ws_pairs=ws_pairs,
+        inner_solver=solver,
+        objectives=objectives,
+        constraints=constraints,
+    )
+
+    for wl_id in job_ids:
+        # fixme: to be generalized further
+        if wl_ranges is not None and wl_id is not None:
+            vars_max, vars_min = wl_ranges[wl_id]
+            for variable, var_max, var_min in zip(variables, vars_max, vars_min):
+                if isinstance(variable, NumericVariable):
+                    variable.lower = var_min
+                    variable.upper = var_max
+        else:
+            pass
+        time0 = time.time()
+        try:
+            po_objs, po_vars = ws.solve(wl_id, variables)
+        except NoSolutionError:
+            po_objs, po_vars = None, None
+        time_cost_list.append(time.time() - time0)
+        po_objs_list.append(po_objs)
+        po_vars_list.append(po_vars)
+
+    return po_objs_list, po_vars_list, time_cost_list

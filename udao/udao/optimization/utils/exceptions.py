@@ -1,0 +1,3 @@
+class NoSolutionError(ValueError):
+    "Raised when no solution is found for an MOO problem"
+    ...

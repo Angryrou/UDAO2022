@@ -4,6 +4,7 @@ from typing import List, Optional, Sequence, Tuple
 import numpy as np
 from matplotlib import pyplot as plt
 
+from .exceptions import NoSolutionError
 from .parameters import VarTypes
 
 
@@ -106,9 +107,9 @@ def is_pareto_efficient(costs: np.ndarray, return_mask: bool = True) -> np.ndarr
         return is_efficient
 
 
-def _summarize_ret(
+def summarize_ret(
     po_obj_list: Sequence, po_var_list: Sequence
-) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Return the pareto-optimal objectives and variables
 
     Parameters
@@ -124,9 +125,8 @@ def _summarize_ret(
         Pareto-optimal objectives and variables
     """
     ## reuse code in VLDB2022
-    assert len(po_obj_list) == len(po_var_list)
     if len(po_obj_list) == 0:
-        return None, None
+        raise NoSolutionError("No feasible solutions found: empty po_obj_list")
     elif len(po_obj_list) == 1:
         return np.array(po_obj_list), np.array(po_var_list)
     else:
@@ -173,15 +173,6 @@ def even_weights(stepsize: float, m: int) -> np.ndarray:
 
     assert all(np.round(np.sum(ws_pairs, axis=1), 10) == 1)
     return np.array(ws_pairs)
-
-
-# common functions used in moo
-def _get_direction(opt_type: Sequence, obj_index: int) -> int:
-    """Get gradient direction from optimization type"""
-    if opt_type[obj_index] == "MIN":
-        return 1
-    else:
-        return -1
 
 
 def plot_po(po: np.ndarray, n_obj: int = 2, title: str = "pf_ap") -> None:
@@ -293,3 +284,12 @@ def save_results(
     if not os.path.exists(file_path):
         os.makedirs(file_path)
     np.savetxt(f"{file_path}/{mode}.txt", results)
+
+
+# common functions used in moo
+def _get_direction(opt_type: Sequence, obj_index: int) -> int:
+    """Get gradient direction from optimization type"""
+    if opt_type[obj_index] == "MIN":
+        return 1
+    else:
+        return -1

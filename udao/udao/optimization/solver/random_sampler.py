@@ -16,6 +16,7 @@ class RandomSampler(BaseSolver):
     @dataclass
     class Params:
         n_samples_per_param: int
+        seed: Optional[int] = None
         "the number of samples per variable"
         seed: Optional[int] = None
         "random seed for generatino of samples"
