@@ -8,7 +8,7 @@ from .exceptions import NoSolutionError
 from .parameters import VarTypes
 
 
-class Points:
+class Point:
     def __init__(self, objs: np.ndarray, vars: Optional[np.ndarray] = None) -> None:
         """
         # Docstring in numpy format
@@ -24,9 +24,12 @@ class Points:
         self.vars = vars
         self.n_objs = objs.shape[0]
 
+    def __repr__(self) -> str:
+        return f"Point(objs={self.objs}, vars={self.vars})"
 
-class Rectangles:
-    def __init__(self, utopia: Points, nadir: Points) -> None:
+
+class Rectangle:
+    def __init__(self, utopia: Point, nadir: Point) -> None:
         """
 
         Parameters
@@ -44,6 +47,9 @@ class Rectangles:
         self.neg_vol = -self.volume
         self.utopia = utopia
         self.nadir = nadir
+
+    def __repr__(self) -> str:
+        return f"Rectangle(utopia={self.utopia}, nadir={self.nadir})"
 
     def cal_volume(self, upper_bounds: np.ndarray, lower_bounds: np.ndarray) -> float:
         """
@@ -66,7 +72,7 @@ class Rectangles:
 
     # Override the `__lt__()` function to make `Rectangles`
     # class work with min-heap (referred from VLDB2022)
-    def __lt__(self, other: "Rectangles") -> bool:
+    def __lt__(self, other: "Rectangle") -> bool:
         return self.neg_vol < other.neg_vol
 
 
