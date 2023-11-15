@@ -17,16 +17,20 @@ class RandomSampler(BaseSolver):
     class Params:
         n_samples_per_param: int
         seed: Optional[int] = None
+        "the number of samples per variable"
+        seed: Optional[int] = None
+        "random seed for generatino of samples"
 
     def __init__(self, params: Params) -> None:
         """
-        :param rs_params: int, the number of samples per variable
+        :param params: RandomSampler.Params
         """
         super().__init__()
         self.n_samples_per_param = params.n_samples_per_param
         self.seed = params.seed
 
     def _process_variable(self, var: Variable) -> np.ndarray:
+        """Generate samples of a variable"""
         if isinstance(var, FloatVariable):
             return np.random.uniform(var.lower, var.upper, self.n_samples_per_param)
         elif isinstance(var, IntegerVariable):
@@ -44,12 +48,14 @@ class RandomSampler(BaseSolver):
     def _get_input(self, variables: List[Variable]) -> np.ndarray:
         """
         generate samples of variables
-        :param var_ranges: array (n_vars,),
+
+        Parameters:
+        -----------
+        variables: List[Variable],
             lower and upper var_ranges of variables(non-ENUM),
             and values of ENUM variables
-        :param var_types: list,
-            type of each variable
-        :return: array,
+        Returns:
+        np.ndarray,
             variables (n_samples * n_vars)
         """
         n_vars = len(variables)
