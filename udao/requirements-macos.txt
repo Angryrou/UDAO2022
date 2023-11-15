@@ -1,0 +1,4 @@
+dgl -f https://data.dgl.ai/wheels/repo.html
+torch==2.0.1
+
+-r requirements.txt
