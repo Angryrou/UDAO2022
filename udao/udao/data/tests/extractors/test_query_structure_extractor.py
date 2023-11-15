@@ -33,7 +33,9 @@ class TestStructureExtractor:
     def test_structures_match_templates(self, df_fixture: pd.DataFrame) -> None:
         extractor = QueryStructureExtractor()
         for row in df_fixture.itertuples():
-            s_dict = extractor._extract_structure_and_features(row.id, row.plan)
+            s_dict = extractor._extract_structure_and_features(
+                row.id, row.plan, "train"
+            )
             assert set(s_dict.keys()) == {
                 "operation_id",
                 *extractor.feature_types.keys(),
@@ -54,8 +56,7 @@ class TestStructureExtractor:
     ) -> None:
         """Graph features and meta features have the correct shape"""
         extractor = QueryStructureExtractor()
-
-        structure_container = extractor.extract_features(df_fixture)
+        structure_container = extractor.extract_features(df_fixture, "train")
 
         multi_index = pd.MultiIndex.from_tuples(
             [
@@ -71,15 +72,20 @@ class TestStructureExtractor:
         )
         assert (multi_index == structure_container.graph_features.index).all()
 
+    def test_extract_structure_from_df_raises(self, df_fixture: pd.DataFrame) -> None:
+        extractor = QueryStructureExtractor()
+        with pytest.raises(KeyError):
+            extractor.extract_features(df_fixture, "val")
+
     def test_extract_structure_from_df_returns_correct_values(
         self, df_fixture: pd.DataFrame
     ) -> None:
         """Values in the graph_features and graph_meta_features dataframes
         match values in the dictionary"""
         extractor = QueryStructureExtractor()
-        structure_container = extractor.extract_features(df_fixture)
+        structure_container = extractor.extract_features(df_fixture, "train")
         for row in df_fixture.itertuples():
-            features_dict = extractor._extract_structure_and_features(row.id, row.plan)
+            features_dict = extractor._extract_structure_and_features(row.id, row.plan, "val")
             for feature in ["rows_count", "size"]:
                 np.testing.assert_array_equal(
                     structure_container.graph_features.loc[row.id][feature].values,

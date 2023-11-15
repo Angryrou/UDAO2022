@@ -8,10 +8,11 @@ from ..utils.query_plan import (
     QueryPlanStructure,
     extract_query_plan_features,
 )
-from .base_extractors import StaticFeatureExtractor
+from ..utils.utils import DatasetType, PandasTypes
+from .base_extractors import TrainedFeatureExtractor
 
 
-class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
+class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
     """
     Extracts the features of the operations in the logical plan,
     and the tree structure of the logical plan.
@@ -25,7 +26,9 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
         ] = QueryPlanOperationFeatures.get_feature_names_and_types()
         self.id_template_dict: Dict[str, int] = {}
 
-    def _extract_structure_and_features(self, idx: str, query_plan: str) -> Dict:
+    def _extract_structure_and_features(
+        self, idx: str, query_plan: str, split: DatasetType
+    ) -> Dict:
         """Extract the features of the operations in the logical plan,
         and the tree structure of the logical plan.
 
@@ -54,8 +57,11 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
                 break
 
         if tid is None:
-            tid = len(self.template_plans) + 1
-            self.template_plans[tid] = structure
+            if split == "train":
+                tid = len(self.template_plans) + 1
+                self.template_plans[tid] = structure
+            else:
+                raise KeyError("Unknown template plan")
         self.id_template_dict[idx] = tid
         return {
             "operation_id": op_features.operation_ids,
@@ -80,7 +86,9 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
         ]
         return filtered_df_op_features, df_meta_features
 
-    def extract_features(self, df: pd.DataFrame) -> QueryStructureContainer:
+    def extract_features(
+        self, df: pd.DataFrame, split: DatasetType
+    ) -> QueryStructureContainer:
         """Extract the features of the operations in the logical plan,
         and the tree structure of the logical plan for each query plan
         in the dataframe.
@@ -97,7 +105,7 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             and one column per feature of the operations.
         """
         df_op_features: pd.DataFrame = df.apply(
-            lambda row: self._extract_structure_and_features(row.id, row.plan),
+            lambda row: self._extract_structure_and_features(row.id, row.plan, split),
             axis=1,
         ).apply(pd.Series)
         df_op_features["plan_id"] = df["id"]
