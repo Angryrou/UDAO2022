@@ -1,12 +1,13 @@
 import json
 from pathlib import Path
-from typing import NamedTuple
+from typing import Dict, NamedTuple
 
 import pytest
 
 from ..utils.query_plan import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,
+    compute_meta_features,
     format_size,
 )
 
@@ -16,6 +17,7 @@ QueryPlanElements = NamedTuple(
         ("query_plan", str),
         ("structure", QueryPlanStructure),
         ("features", QueryPlanOperationFeatures),
+        ("meta_features", Dict[str, float]),
     ],
 )
 
@@ -31,11 +33,11 @@ def get_query_plan_sample(
     names = plan_features["names"]
     row_counts = [float(v) for v in plan_features["row_counts"]]
     sizes = [format_size(s) for s in plan_features["sizes"]]
-
+    structure = QueryPlanStructure(names, incoming_ids, outgoing_ids)
+    operation_features = QueryPlanOperationFeatures(row_counts, sizes)
+    meta_features = compute_meta_features(structure, operation_features)
     return QueryPlanElements(
-        plan_features["query_plan"],
-        QueryPlanStructure(names, incoming_ids, outgoing_ids),
-        QueryPlanOperationFeatures(row_counts, sizes),
+        plan_features["query_plan"], structure, operation_features, meta_features
     )
 
 

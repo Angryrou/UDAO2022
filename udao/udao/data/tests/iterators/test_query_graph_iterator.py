@@ -21,6 +21,11 @@ def sample_iterator() -> QueryPlanIterator:
         index=multi_index,
         columns=["rows_count", "size"],
     )
+    graph_meta_features = pd.DataFrame(
+        data=np.vstack([np.linspace(i * 10, (i + 1) * 10, 2) for i in range(3)]),
+        index=keys,
+        columns=["rows_count", "size"],
+    )
     embeddings_features = pd.DataFrame(
         data=np.vstack([np.linspace(i, i + 1, 10) for i in range(7)]),
         index=multi_index,
@@ -33,7 +38,7 @@ def sample_iterator() -> QueryPlanIterator:
         2: QueryPlanStructure(["node_1", "node_2", "node_3"], [0, 1], [1, 2]),
     }
     structure_container = QueryStructureContainer(
-        graph_features, template_plans, key_to_template
+        graph_features, graph_meta_features, template_plans, key_to_template
     )
 
     df_features = pd.DataFrame.from_dict({"id": ["a", "b", "c"], "feature": [1, 2, 1]})
@@ -78,7 +83,7 @@ class TestQueryGraphIterator:
 
     def test_get_graph(self, sample_iterator: QueryPlanIterator) -> None:
         graph, meta = sample_iterator._get_graph_and_meta("a")
-        assert th.equal(meta, th.tensor([0, 1]))
+        assert th.equal(meta, th.tensor([0, 10]))
         assert isinstance(graph, dgl.DGLGraph)
         assert graph.number_of_nodes() == 2
         assert th.equal(

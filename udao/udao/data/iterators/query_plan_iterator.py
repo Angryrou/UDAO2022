@@ -56,27 +56,18 @@ class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
     def __len__(self) -> int:
         return len(self.keys)
 
-    @staticmethod
-    def _get_meta(g: dgl.DGLGraph) -> th.Tensor:
-        """Returns the meta information of the graph,
-        defined as the sum of the cbo features of the input nodes.
-        """
-        input_nodes_index = th.where(g.in_degrees() == 0)[0]
-        input_meta = g.ndata["cbo"][input_nodes_index].sum(0)
-        return input_meta
-
     def _get_graph_and_meta(self, key: str) -> Tuple[dgl.DGLGraph, th.Tensor]:
         """Returns the graph corresponding to the key,
         associated with features as th.tensor,
         and the meta information.
         """
-        graph, graph_features = self.query_structure_container.get(key)
+        graph, graph_features, meta_features = self.query_structure_container.get(key)
         graph.ndata["cbo"] = th.tensor(graph_features, dtype=self.tensors_dtype)
         for feature, container in self.other_graph_features.items():
             graph.ndata[feature] = th.tensor(
                 container.get(key), dtype=self.tensors_dtype
             )
-        return graph, self._get_meta(graph)
+        return graph, th.tensor(meta_features)
 
     def __getitem__(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
         key = self.keys[idx]

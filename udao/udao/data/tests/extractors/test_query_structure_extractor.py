@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -36,7 +37,13 @@ class TestStructureExtractor:
             assert set(s_dict.keys()) == {
                 "operation_id",
                 *extractor.feature_types.keys(),
+                *[f"meta_{feature}" for feature in extractor.feature_types.keys()],
             }
+            for key, value in s_dict.items():
+                if "meta" in key:
+                    assert isinstance(value, float)
+                else:
+                    assert len(value) == len(row.plan.splitlines())
         for plan in extractor.template_plans.values():
             assert type(plan) == QueryPlanStructure
         assert len(extractor.template_plans) == 2
@@ -55,5 +62,9 @@ class TestStructureExtractor:
                 for i, _ in enumerate(row.plan.splitlines())
             ],
             names=["plan_id", "operation_id"],
+        )
+        assert structure_container.graph_meta_features.shape == (len(df_fixture), 2)
+        np.testing.assert_array_equal(
+            structure_container.graph_meta_features.columns, ["rows_count", "size"]
         )
         assert (multi_index == structure_container.graph_features.index).all()

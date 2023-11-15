@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple
 
 import pandas as pd
 
@@ -44,7 +44,7 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             in the query plan
 
         """
-        structure, op_features = extract_query_plan_features(query_plan)
+        structure, op_features, meta_features = extract_query_plan_features(query_plan)
         tid = None
 
         for template_id, template_structure in self.template_plans.items():
@@ -59,7 +59,22 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
         return {
             "operation_id": op_features.operation_ids,
             **op_features.features_dict,
+            **meta_features,
         }
+
+    def _derive_meta_dataframe(
+        self, df_op_features: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        df_meta_features = df_op_features[
+            ["plan_id"]
+            + [col for col in df_op_features.columns if col.startswith("meta_")]
+        ]
+        df_meta_features.rename(columns=lambda x: x.replace("meta_", ""), inplace=True)
+        df_meta_features.set_index("plan_id", inplace=True)
+        filtered_df_op_features = df_op_features[
+            [col for col in df_op_features.columns if not col.startswith("meta_")]
+        ]
+        return filtered_df_op_features, df_meta_features
 
     def extract_features(self, df: pd.DataFrame) -> QueryStructureContainer:
         """Extract the features of the operations in the logical plan,
@@ -82,7 +97,7 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             axis=1,
         ).apply(pd.Series)
         df_op_features["plan_id"] = df["id"]
-
+        df_op_features, df_meta_features = self._derive_meta_dataframe(df_op_features)
         df_op_features_exploded = df_op_features.explode(
             "operation_id", ignore_index=True
         )
@@ -100,4 +115,5 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             graph_features=df_op_features_exploded,
             template_plans=self.template_plans,
             key_to_template=self.id_template_dict,
+            graph_meta_features=df_meta_features,
         )

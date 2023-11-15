@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple
 
 import dgl
 import networkx as nx
+import torch as th
 from networkx.algorithms import isomorphism
 
 
@@ -257,11 +258,29 @@ def _get_tree_structure(
     return incoming_ids, outgoing_ids
 
 
+def compute_meta_features(
+    structure: QueryPlanStructure, features: QueryPlanOperationFeatures
+) -> Dict[str, float]:
+    """Compute the meta features of the operations in the query plan."""
+    graph = structure.graph
+    input_meta = {}
+    for op_feature, feature_values in features.features_dict.items():
+        graph.ndata[op_feature] = th.tensor(feature_values)
+    input_nodes_index = th.where(graph.in_degrees() == 0)[0]
+    for op_feature in features.features_dict.keys():
+        input_meta[f"meta_{op_feature}"] = (
+            graph.ndata[op_feature][input_nodes_index].sum(0).item()
+        )
+        del graph.ndata[op_feature]
+    return input_meta
+
+
 def extract_query_plan_features(
     logical_plan: str,
-) -> Tuple[QueryPlanStructure, QueryPlanOperationFeatures]:
+) -> Tuple[QueryPlanStructure, QueryPlanOperationFeatures, Dict[str, float]]:
     """Extract:
     - features of the operations in the logical plan
+    - meta features aggregated from operations of the logical plan
     - the tree structure of the logical plan
 
 
@@ -272,9 +291,10 @@ def extract_query_plan_features(
 
     Returns
     -------
-    Tuple[QueryPlanStructure, QueryPlanOperationFeatures]
+    Tuple[QueryPlanStructure, QueryPlanOperationFeatures, Dict[str, float]]
         Query plan structure (dgl graph with node names)
         Query plan features (sizes and rows_counts of the operations)
+        Meta features (aggregated features of the operations)
     """
     operations = [
         _LogicalOperation(id=i, value=step)
@@ -298,4 +318,5 @@ def extract_query_plan_features(
     structure = QueryPlanStructure(
         node_names=node_names, incoming_ids=incoming_ids, outgoing_ids=outgoing_ids
     )
-    return structure, op_features
+    meta_features = compute_meta_features(structure, op_features)
+    return structure, op_features, meta_features
