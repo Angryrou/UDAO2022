@@ -52,7 +52,9 @@ class TestStructureExtractor:
     def test_extract_structure_from_df_returns_correct_shape(
         self, df_fixture: pd.DataFrame
     ) -> None:
+        """Graph features and meta features have the correct shape"""
         extractor = QueryStructureExtractor()
+
         structure_container = extractor.extract_features(df_fixture)
 
         multi_index = pd.MultiIndex.from_tuples(
@@ -68,3 +70,22 @@ class TestStructureExtractor:
             structure_container.graph_meta_features.columns, ["rows_count", "size"]
         )
         assert (multi_index == structure_container.graph_features.index).all()
+
+    def test_extract_structure_from_df_returns_correct_values(
+        self, df_fixture: pd.DataFrame
+    ) -> None:
+        """Values in the graph_features and graph_meta_features dataframes
+        match values in the dictionary"""
+        extractor = QueryStructureExtractor()
+        structure_container = extractor.extract_features(df_fixture)
+        for row in df_fixture.itertuples():
+            features_dict = extractor._extract_structure_and_features(row.id, row.plan)
+            for feature in ["rows_count", "size"]:
+                np.testing.assert_array_equal(
+                    structure_container.graph_features.loc[row.id][feature].values,
+                    features_dict[feature],
+                )
+                np.testing.assert_equal(
+                    structure_container.graph_meta_features.loc[row.id][feature],
+                    features_dict[f"meta_{feature}"],
+                )

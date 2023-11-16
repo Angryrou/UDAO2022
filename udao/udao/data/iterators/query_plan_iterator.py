@@ -67,7 +67,7 @@ class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
             graph.ndata[feature] = th.tensor(
                 container.get(key), dtype=self.tensors_dtype
             )
-        return graph, th.tensor(meta_features)
+        return graph, th.tensor(meta_features, dtype=self.tensors_dtype)
 
     def __getitem__(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
         key = self.keys[idx]
