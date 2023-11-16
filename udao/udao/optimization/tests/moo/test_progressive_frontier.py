@@ -112,7 +112,7 @@ class TestProgressiveFrontier:
             Point(np.array([3, 10]), np.array([0.8, 6])),
             Point(np.array([5, 0.3]), np.array([0.5, 3])),
         ]
-        utopia, nadir = progressive_frontier.get_utopia_and_nadir(points, 2)
+        utopia, nadir = progressive_frontier.get_utopia_and_nadir(points)
         np.testing.assert_array_equal(utopia.objs, np.array([1, 0.3]))
         np.testing.assert_array_equal(nadir.objs, np.array([5, 10]))
 
@@ -124,11 +124,11 @@ class TestProgressiveFrontier:
         np.testing.assert_array_equal(variables, [[1, 1]])
 
     def test_get_anchor_points(self, progressive_frontier: ProgressiveFrontier) -> None:
-        anchor_point = progressive_frontier.get_anchor_points(
+        anchor_point = progressive_frontier.get_anchor_point(
             wl_id="1", obj_ind=0, anchor_option="2_step"
         )
         assert anchor_point == Point(np.array([-1, 0]), np.array([1, 1]))
-        anchor_point = progressive_frontier.get_anchor_points(
+        anchor_point = progressive_frontier.get_anchor_point(
             wl_id="1", obj_ind=1, anchor_option="2_step"
         )
         np.testing.assert_array_almost_equal(

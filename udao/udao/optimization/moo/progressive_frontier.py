@@ -16,6 +16,29 @@ from .base_moo import BaseMOO
 
 
 class ProgressiveFrontier(BaseMOO):
+    """
+    MOO by Progressive Frontier
+
+    Parameters:
+    ----------
+    solver_params : dict
+        parameters used in solver
+    variables : Sequence[Variable]
+        variables
+    objectives : Sequence[Objective]
+        objectives
+    constraints : Sequence[Constraint]
+        constraints
+    accurate : bool
+        whether the predictive model is accurate
+    std_func : Optional[Callable]
+        used in in-accurate predictive models
+    alpha : float
+        the value used in loss calculation of the inaccurate model
+    precision_list : List
+        precision for all variables
+    """
+
     def __init__(
         self,
         solver_params: dict,
@@ -25,31 +48,8 @@ class ProgressiveFrontier(BaseMOO):
         accurate: bool,
         std_func: Optional[Callable],
         alpha: float,
-        precision_list: List,
+        precision_list: List[int],
     ) -> None:
-        """
-        initialize parameters in Progressive Frontier method
-        :param pf_option: str, internal algorithm ("pf_as" or "pf_ap")
-        :param inner_solver: str, solver name
-        :param solver_params: dict, parameters used in solver
-        :param obj_names: list, objective names
-        :param obj_funcs: list, objective functions
-        :param opt_type: list, objectives to minimize or maximize
-        :param const_funcs: list, constraint functions
-        :param const_types: list, constraint types
-            ("<=" "==" or ">=", e.g. g1(x1, x2, ...) - c <= 0)
-        :param opt_obj_ind: int, the index of the objective
-            to be optimized
-        :param wl_list: None/list, each element is a string
-            to indicate workload id
-        :param wl_ranges: function, provided by users, to return upper
-            and lower bounds of variables (used in MOGD)
-        :param vars_constraints: dict, keys are "conf_min" and
-            "conf_max" to indicate the variable range (only used in MOGD)
-        :param accurate: bool, to indicate whether the predictive
-            model is accurate (True) (used in MOGD)
-        :param std_func: function, used in in-accurate predictive models
-        """
         super().__init__()
         self.objectives = objectives
         self.constraints = constraints
@@ -74,37 +74,35 @@ class ProgressiveFrontier(BaseMOO):
         anchor_option: str = "2_step",
     ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """
-        solve MOO by Progressive Frontier
-        :param wl_id: str, workload id, e.g. '1-7'
-        :param accurate: bool, whether the predictive model
-            is accurate (True) or not (False), used in MOGD
-        :param alpha: float, the value used in loss calculation
-            of the inaccurate model
-        :param var_bounds: ndarray (n_vars,),
-            the lower and upper var_ranges of non-ENUM variables,
-            and values of ENUM variables
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :param precision_list: list, precision for all variables
-        :param n_probes: int, the upper bound of number of solutions
-        :param n_grids: int, the number of cells set in pf-ap
-        :param max_iters: int, the number of iterations in pf-ap
-        :return:
-                po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                po_vars: ndarray(n_solutions, n_vars),
-                    corresponding variables of Pareto solutions
+        Solve MOO by Progressive Frontier
+
+        Parameters:
+        ----------
+        wl_id : str
+            workload id
+        n_probes : int
+            number of probes
+        anchor_option : str
+            choice for anchor points calculation
+
+        Returns:
+        -------
+        Tuple[np.ndarray | None, np.ndarray | None]
+            optimal objectives and variables
+            None, None if no solution is found
         """
 
         rectangle_queue: List[Rectangle] = []
         n_objs = len(self.objectives)
         plans = [
-            self.get_anchor_points(
+            self.get_anchor_point(
                 wl_id=wl_id,
                 obj_ind=i,
                 anchor_option=anchor_option,
             )
             for i in range(n_objs)
         ]
-        utopia, nadir = self.get_utopia_and_nadir(plans, n_objs)
+        utopia, nadir = self.get_utopia_and_nadir(plans)
         rectangle = Rectangle(utopia, nadir)
         heapq.heappush(rectangle_queue, rectangle)
         count = 0
@@ -134,7 +132,8 @@ class ProgressiveFrontier(BaseMOO):
     def _find_local_optimum(
         self, rectangle: Rectangle, wl_id: str
     ) -> Tuple[Optional[Point], List[Rectangle]]:
-        """Find the local optimum in the given rectangle and
+        """
+        Find the local optimum in the given rectangle and
         the subrectangles in which to continue the search.
         If no optimum is found for the rectangle,
         return None and the upper subrectangles.
@@ -199,29 +198,29 @@ class ProgressiveFrontier(BaseMOO):
             )
             return None, rectangles
 
-    def get_anchor_points(
+    def get_anchor_point(
         self,
         wl_id: str,
         obj_ind: int,
         anchor_option: str = "2_step",
     ) -> Point:
         """
-        get anchor points
-        :param wl_id: str, workload id, e.g. '1-7'
-        :param obj_names: list, objective names
-        :param obj_ind: int, objective index
-        :param accurate:  bool, whether the predictive model
-        is accurate (True) or not (False), used in MOGD
-        :param alpha: float, the value used in loss calculation of the inaccurate model
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :param var_bounds: ndarray (n_vars,), the lower and upper var_ranges
-        of non-ENUM variables, and values of ENUM variables
-        :param precision_list: list, precision for all variables
-        :param anchor_option: str, a choice for anchor points calculation
-        :param verbose: bool, to indicate whether to print information
-        :return:
-                objs: ndarray(n_objs,), objective values
-                vars: ndarray(1, n_vars), variable values
+        Find the anchor point for the given objective,
+        by unbounded single objective optimization
+
+        Parameters:
+        ----------
+        wl_id : str
+            workload id
+        obj_ind : int
+            index of the objective to be optimized
+        anchor_option : str
+            choice for anchor points calculation
+
+        Returns:
+        -------
+        Point
+            anchor point for the given objective
         """
         obj_, vars = self.mogd.optimize_constrained_so(
             wl_id=wl_id,
@@ -268,19 +267,24 @@ class ProgressiveFrontier(BaseMOO):
                 raise Exception(f"anchor_option {anchor_option} is not valid!")
             return Point(objs, vars)
 
-    def get_utopia_and_nadir(
-        self, plans: list[Point], n_objs: int
-    ) -> Tuple[Point, Point]:
+    def get_utopia_and_nadir(self, points: list[Point]) -> Tuple[Point, Point]:
         """
-        get the utopia and nadir points
-        :param plans: list, each element is a Point (defined class).
-        :param n_objs: int, the number of objectives
-        :return:
-                utopia: Points, utopia point
-                nadir: Points, nadir point
+        get the utopia and nadir points from a list of points
+        Parameters:
+        ----------
+        points: list[Point],
+            each element is a Point (defined class).
+
+        Returns:
+        -------
+        Tuple[Point, Point]
+            utopia and nadir point
         """
-        best_objs = [min([point.objs[i] for point in plans]) for i in range(n_objs)]
-        worst_objs = [max([point.objs[i] for point in plans]) for i in range(n_objs)]
+        n_objs = points[0].n_objs
+        if any([point.n_objs != n_objs for point in points]):
+            raise Exception("The number of objectives is not consistent among points.")
+        best_objs = [min([point.objs[i] for point in points]) for i in range(n_objs)]
+        worst_objs = [max([point.objs[i] for point in points]) for i in range(n_objs)]
 
         utopia = Point(np.array(best_objs))
         nadir = Point(np.array(worst_objs))
@@ -291,31 +295,43 @@ class ProgressiveFrontier(BaseMOO):
         self, utopia: Point, nadir: Point, middle: Point, successful: bool = True
     ) -> List[Rectangle]:
         """
-        generate uncertainty space to be explored
-        :param utopia: Points (defined by class), the utopia point
-        :param nadir: Points (defined by class), the nadir point
-        :param middle: Points (defined by class), the middle point
-            generated by the constrained single objective optimization
-        :param flag: str, to indicate whether
-        :return:
-                rectangles, list, uncertainty space (Rectangles)
-                divided by the middle point
-        """
-        rectangles = []
 
-        n_objs = utopia.n_objs
+        Generate uncertainty space to be explored:
+        - if starting from successful optimum as middle, excludes the dominated
+        space (middle as utopia and nadir as nadir)
+        - if starting from unsuccessful optimum as middle, excludes the space where
+        all constraining objectives are lower than the middle point.
+
+        Parameters:
+        ----------
+        utopia: Point
+            the utopia point
+        nadir: Point
+            the nadir point
+        middle: Point
+            the middle point generated by
+            the constrained single objective optimization
+        successful: bool
+            whether the middle point is from a successful optimization
+
+        Returns:
+        -------
+        List[Rectangle]
+            sub rectangles to be explored
+        """
+
+        rectangles = []
         corner_points = self._get_corner_points(utopia, nadir)
         for point in corner_points:
             # space explored (lower half of constraining objectives)
-            explored_unconclusive = not successful and np.all(
+            is_explored_unconclusive = not successful and np.all(
                 middle.objs[1:] - point.objs[1:] > 0
             )
             # nadir point
-            dominated = successful and np.all(middle.objs - point.objs < 0)
-
-            if dominated or explored_unconclusive:
+            is_dominated = successful and np.all(middle.objs - point.objs < 0)
+            if is_dominated or is_explored_unconclusive:
                 continue
-            sub_rect_u, sub_rect_n = self.get_utopia_and_nadir([point, middle], n_objs)
+            sub_rect_u, sub_rect_n = self.get_utopia_and_nadir([point, middle])
             rectangles.append(Rectangle(sub_rect_u, sub_rect_n))
 
         return rectangles
@@ -323,12 +339,17 @@ class ProgressiveFrontier(BaseMOO):
     def _get_corner_points(self, utopia: Point, nadir: Point) -> List[Point]:
         """
         get the corner points that can form a hyper_rectangle
-        :param utopia: Points (defined by class), the utopia point
-        :param nadir: Points (defined by class), the nadir point
-        :return:
-                corner_points: list, each element is a point
-                (Points class) that can form a hyper_rectangle
-                ## total 2^n_objs corner points
+        from utopia and nadir points.
+
+        Parameters:
+        ----------
+        utopia: Points (defined by class), the utopia point
+        nadir: Points (defined by class), the nadir point
+
+        Returns:
+        -------
+        List[Point]
+            2^n_objs corner points
         """
         n_objs = utopia.n_objs
         u_obj_values, n_obj_values = utopia.objs.reshape(
@@ -353,12 +374,18 @@ class ProgressiveFrontier(BaseMOO):
                       "cores": [solver_ut._get_tensor(0),
                       solver_ut._get_tensor(58)]
                       }
-        :param utopia: Points (defined by class), the utopia point
-        :param nadir: Points (defined by class), the nadir point
-        :param obj_names: list, objective names
-        :param opt_obj_ind: int, the index of objective to be optimized
-        :return:
-                obj_bounds_dict: dict, the dict includes var_ranges of all objectives
+        Parameters:
+        ----------
+        utopia: Point
+            the utopia point
+        nadir: Point
+            the nadir point
+        opt_obj_ind: int
+            the index of objective to be optimized
+
+        Returns:
+        -------
+            dict with upper and lower bound for each objective
         """
         obj_bounds_dict = {}
 
