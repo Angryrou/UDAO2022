@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple
 
 import pandas as pd
 
@@ -8,7 +8,6 @@ from ..utils.query_plan import (
     QueryPlanStructure,
     extract_query_plan_features,
 )
-from ..utils.utils import PandasTypes
 from .base_extractors import StaticFeatureExtractor
 
 
@@ -32,6 +31,8 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
 
         Parameters
         ----------
+        idx: str
+            The id of the query plan.
         query_plan : str
             A query plan string.
 
@@ -44,7 +45,7 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             in the query plan
 
         """
-        structure, op_features = extract_query_plan_features(query_plan)
+        structure, op_features, meta_features = extract_query_plan_features(query_plan)
         tid = None
 
         for template_id, template_structure in self.template_plans.items():
@@ -59,7 +60,25 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
         return {
             "operation_id": op_features.operation_ids,
             **op_features.features_dict,
+            **meta_features,
         }
+
+    def _derive_meta_dataframe(
+        self, df_op_features: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Create meta dataframe from the meta_ columns
+        of the df_op_features dataframe. These features are aggregate
+        of operations and thusgive one line per query plan."""
+        df_meta_features = df_op_features[
+            ["plan_id"]
+            + [col for col in df_op_features.columns if col.startswith("meta_")]
+        ]
+        df_meta_features.rename(columns=lambda x: x.replace("meta_", ""), inplace=True)
+        df_meta_features.set_index("plan_id", inplace=True)
+        filtered_df_op_features = df_op_features[
+            [col for col in df_op_features.columns if not col.startswith("meta_")]
+        ]
+        return filtered_df_op_features, df_meta_features
 
     def extract_features(self, df: pd.DataFrame) -> QueryStructureContainer:
         """Extract the features of the operations in the logical plan,
@@ -83,15 +102,11 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
         ).apply(pd.Series)
         df_op_features["plan_id"] = df["id"]
 
+        df_op_features, df_meta_features = self._derive_meta_dataframe(df_op_features)
         df_op_features_exploded = df_op_features.explode(
-            "operation_id", ignore_index=True
+            ["operation_id"] + list(self.feature_types.keys()), ignore_index=True
         )
-        for feature_name in self.feature_types.keys():
-            df_op_features_exploded[feature_name] = (
-                df_op_features_exploded[feature_name]
-                .explode(ignore_index=True)  # type: ignore
-                .astype(PandasTypes[self.feature_types[feature_name]])
-            )  # convert to pandas type
+
         df_op_features_exploded = df_op_features_exploded.set_index(
             ["plan_id", "operation_id"]
         )
@@ -100,4 +115,5 @@ class QueryStructureExtractor(StaticFeatureExtractor[QueryStructureContainer]):
             graph_features=df_op_features_exploded,
             template_plans=self.template_plans,
             key_to_template=self.id_template_dict,
+            graph_meta_features=df_meta_features,
         )
