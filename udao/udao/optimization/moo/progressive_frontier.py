@@ -1,6 +1,6 @@
 import heapq
 import itertools
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -19,10 +19,9 @@ class ProgressiveFrontier(BaseMOO):
     def __init__(
         self,
         solver_params: dict,
-        variables: List[Variable],
-        objectives: List[Objective],
-        constraints: List[Constraint],
-        opt_obj_ind: int,
+        variables: Sequence[Variable],
+        objectives: Sequence[Objective],
+        constraints: Sequence[Constraint],
         accurate: bool,
         std_func: Optional[Callable],
         alpha: float,
@@ -66,7 +65,7 @@ class ProgressiveFrontier(BaseMOO):
             alpha=alpha,
         )
 
-        self.opt_obj_ind = opt_obj_ind
+        self.opt_obj_ind = 0
 
     def solve(
         self,
@@ -108,9 +107,9 @@ class ProgressiveFrontier(BaseMOO):
         utopia, nadir = self.get_utopia_and_nadir(plans, n_objs)
         rectangle = Rectangle(utopia, nadir)
         heapq.heappush(rectangle_queue, rectangle)
-        count = n_objs
-        while count < n_probes:
-            if len(rectangle_queue) == 0:
+        count = 0
+        for count in range(n_probes - n_objs):
+            if not rectangle_queue:
                 logger.info("No more uncertainty space to explore further!")
                 break
             rectangle = heapq.heappop(rectangle_queue)
@@ -120,7 +119,6 @@ class ProgressiveFrontier(BaseMOO):
             for sub_rect in subrectangles:
                 if sub_rect.volume != 0:
                     heapq.heappush(rectangle_queue, sub_rect)
-
             count += 1
 
         ## filter dominated points
@@ -128,13 +126,8 @@ class ProgressiveFrontier(BaseMOO):
         po_vars_list = [
             point.vars.tolist() if point.vars is not None else [] for point in plans
         ]
-        sorted_inds = np.argsort(np.array(po_objs_list)[:, 0])
-        sorted_po_objs_list = np.array(po_objs_list)[sorted_inds].tolist()
-        sorted_po_vars_list = np.array(po_vars_list)[sorted_inds].tolist()
 
-        po_objs, po_vars = moo_ut.summarize_ret(
-            sorted_po_objs_list, sorted_po_vars_list
-        )
+        po_objs, po_vars = moo_ut.summarize_ret(po_objs_list, po_vars_list)
 
         return po_objs, po_vars
 
@@ -185,8 +178,8 @@ class ProgressiveFrontier(BaseMOO):
         if obj is not None and vars is not None:
             middle_objs = np.array(
                 [
-                    objective.function(vars, wl_id) * objective.direction
-                    for objective in self.objectives
+                    obj[i] * objective.direction
+                    for i, objective in enumerate(self.objectives)
                 ]
             )
             middle_point = Point(middle_objs, vars)
@@ -202,10 +195,8 @@ class ProgressiveFrontier(BaseMOO):
             )
             middle_point = Point((current_utopia.objs + current_nadir.objs) / 2)
             rectangles = self.generate_sub_rectangles(
-                current_utopia, current_nadir, middle_point, flag="bad"
-            )[
-                2:
-            ]  # remove the first two rectangles
+                current_utopia, current_nadir, middle_point, successful=False
+            )
             return None, rectangles
 
     def get_anchor_points(
@@ -232,14 +223,16 @@ class ProgressiveFrontier(BaseMOO):
                 objs: ndarray(n_objs,), objective values
                 vars: ndarray(1, n_vars), variable values
         """
-        _, vars = self.mogd.optimize_constrained_so(
+        obj_, vars = self.mogd.optimize_constrained_so(
             wl_id=wl_id,
             objective_name=self.objectives[obj_ind].name,
             obj_bounds_dict=None,
             batch_size=16,
         )
+        if obj_ is None or vars is None:
+            raise NoSolutionError("Cannot find anchor points.")
         objs = np.array(
-            [obj.function(vars, wl_id) * obj.direction for obj in self.objectives]
+            [obj_[i] * obj.direction for i, obj in enumerate(self.objectives)]
         )
 
         # If the current objective type is Integer,
@@ -251,7 +244,6 @@ class ProgressiveFrontier(BaseMOO):
             utopia_init = np.array(
                 [0 if i != obj_ind else objs[obj_ind] for i in self.objectives]
             )
-            utopia_init[obj_ind] = objs[obj_ind]
             utopia_tmp, nadir_tmp = Point(objs=utopia_init), Point(objs=objs)
             # select the first objective with float type
             float_obj_ind = [
@@ -296,7 +288,7 @@ class ProgressiveFrontier(BaseMOO):
         return utopia, nadir
 
     def generate_sub_rectangles(
-        self, utopia: Point, nadir: Point, middle: Point, flag: str = "good"
+        self, utopia: Point, nadir: Point, middle: Point, successful: bool = True
     ) -> List[Rectangle]:
         """
         generate uncertainty space to be explored
@@ -314,24 +306,17 @@ class ProgressiveFrontier(BaseMOO):
         n_objs = utopia.n_objs
         corner_points = self._get_corner_points(utopia, nadir)
         for point in corner_points:
-            if all((middle.objs - point.objs) > 0):
-                ## the utopia point
-                sub_rect = Rectangle(point, middle)
-            elif all((middle.objs - point.objs) < 0):
-                ## the nadir point
-                ## the rectangle with nadir point will
-                # always be dominated by the middle point
-                if flag == "good":
-                    continue
-                else:
-                    sub_rect = Rectangle(middle, point)
-            else:
-                sub_rect_u, sub_rect_n = self.get_utopia_and_nadir(
-                    [point, middle], n_objs
-                )
-                sub_rect = Rectangle(sub_rect_u, sub_rect_n)
+            # space explored (lower half of constraining objectives)
+            explored_unconclusive = not successful and np.all(
+                middle.objs[1:] - point.objs[1:] > 0
+            )
+            # nadir point
+            dominated = successful and np.all(middle.objs - point.objs < 0)
 
-            rectangles.append(sub_rect)
+            if dominated or explored_unconclusive:
+                continue
+            sub_rect_u, sub_rect_n = self.get_utopia_and_nadir([point, middle], n_objs)
+            rectangles.append(Rectangle(sub_rect_u, sub_rect_n))
 
         return rectangles
 

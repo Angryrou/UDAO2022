@@ -125,7 +125,7 @@ class TestMOGD:
             optimal_obj, np.array([0.7501509189605713, 0.261410653591156])
         )
         assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array([[0, 2.21]]))
+        np.testing.assert_array_equal(optimal_vars, np.array([0, 2.21]))
 
     @pytest.mark.parametrize(
         "variable, expected_variable",
@@ -164,13 +164,13 @@ class TestMOGD:
             obj_optimal_1, [0.7501509189605713, 0.261410653591156]
         )  # type: ignore
         assert var_optimal_1 is not None
-        np.testing.assert_array_equal(var_optimal_1, [[0.0, 2.21]])
+        np.testing.assert_array_equal(var_optimal_1, [0.0, 2.21])
         assert obj_optimal_2 is not None
         np.testing.assert_array_almost_equal(
             obj_optimal_2, [0.7494739890098572, 0.2552645206451416]
         )
         assert var_optimal_2 is not None
-        np.testing.assert_array_equal(var_optimal_2, [[0.0, 2.2]])
+        np.testing.assert_array_equal(var_optimal_2, [0.0, 2.2])
 
     def test_constraint_single_objective_opt(self, mogd: MOGD) -> None:
         mogd.objectives = [
@@ -198,7 +198,7 @@ class TestMOGD:
         assert optimal_obj is not None
         np.testing.assert_array_equal(optimal_obj, np.array([2, 1]))
         assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array([[1, 3]]))
+        np.testing.assert_array_equal(optimal_vars, np.array([1, 3]))
 
     def test__soo_loss_no_batch(self, mogd: MOGD) -> None:
         vars = th.rand(2)

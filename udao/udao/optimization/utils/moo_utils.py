@@ -17,7 +17,7 @@ class Point:
         ----------
         objs : np.ndarray(n_objs,)
             objective values
-        vars :np.ndarray(1, n_vars), default=None
+        vars :np.ndarray(n_vars,), default=None
             variable values, by default None
         """
         self.objs = objs
@@ -26,6 +26,9 @@ class Point:
 
     def __repr__(self) -> str:
         return f"Point(objs={self.objs}, vars={self.vars})"
+
+    def __eq__(self, other: "Point") -> bool:  # type: ignore
+        return bool(np.all(self.objs == other.objs) and np.all(self.vars == other.vars))
 
 
 class Rectangle:

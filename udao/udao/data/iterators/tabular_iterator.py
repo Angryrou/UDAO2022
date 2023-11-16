@@ -4,7 +4,7 @@ from ..containers import TabularContainer
 from .base_iterator import BaseDatasetIterator
 
 
-class TabularIterator(BaseDatasetIterator):
+class TabularIterator(BaseDatasetIterator[TabularContainer]):
     """Iterator on tabular data.
 
     Parameters
@@ -29,3 +29,7 @@ class TabularIterator(BaseDatasetIterator):
     def __getitem__(self, idx: int) -> Any:
         key = self.keys[idx]
         return self.tabular_feature.get(key)
+
+    def get_iterator_shape(self) -> Any:
+        """Returns the shape of the iterator."""
+        return self.tabular_feature.data.shape[-1]
