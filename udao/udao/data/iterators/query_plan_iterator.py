@@ -61,13 +61,15 @@ class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
         associated with features as th.tensor,
         and the meta information.
         """
-        graph, graph_features, meta_features = self.query_structure_container.get(key)
-        graph.ndata["cbo"] = th.tensor(graph_features, dtype=self.tensors_dtype)
+        query = self.query_structure_container.get(key)
+        graph = query.template_graph
+        graph.ndata["cbo"] = th.tensor(query.graph_features, dtype=self.tensors_dtype)
+        graph.ndata["op_gid"] = th.tensor(query.operation_types, dtype=th.int)
         for feature, container in self.other_graph_features.items():
             graph.ndata[feature] = th.tensor(
                 container.get(key), dtype=self.tensors_dtype
             )
-        return graph, th.tensor(meta_features, dtype=self.tensors_dtype)
+        return graph, th.tensor(query.meta_features, dtype=self.tensors_dtype)
 
     def __getitem__(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
         key = self.keys[idx]
@@ -92,6 +94,9 @@ class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
             ].shape[  # type: ignore
                 1
             ]
+        embedding_input_shape["type"] = len(
+            self.query_structure_container.operation_types.operation_gid.unique()
+        )
         return UdaoInputShape(
             embedding_input_shape=embedding_input_shape,
             feature_input_shape=sample_input.feature_input.shape[0],

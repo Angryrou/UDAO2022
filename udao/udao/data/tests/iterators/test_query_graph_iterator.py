@@ -21,6 +21,11 @@ def sample_iterator() -> QueryPlanIterator:
         index=multi_index,
         columns=["rows_count", "size"],
     )
+    operation_types = pd.DataFrame(
+        data=np.vstack([i for i in range(7)]),
+        index=multi_index,
+        columns=["operation_gid"],
+    )
     graph_meta_features = pd.DataFrame(
         data=np.vstack([np.linspace(i * 10, (i + 1) * 10, 2) for i in range(3)]),
         index=keys,
@@ -38,7 +43,11 @@ def sample_iterator() -> QueryPlanIterator:
         2: QueryPlanStructure(["node_1", "node_2", "node_3"], [0, 1], [1, 2]),
     }
     structure_container = QueryStructureContainer(
-        graph_features, graph_meta_features, template_plans, key_to_template
+        graph_features,
+        graph_meta_features,
+        template_plans,
+        key_to_template,
+        operation_types=operation_types,
     )
 
     df_features = pd.DataFrame.from_dict({"id": ["a", "b", "c"], "feature": [1, 2, 1]})
@@ -102,10 +111,7 @@ class TestQueryGraphIterator:
 
     def test_iterator_shape(self, sample_iterator: QueryPlanIterator) -> None:
         shape = sample_iterator.get_iterator_shape()
-        assert shape.embedding_input_shape == {
-            "cbo": 2,
-            "op_enc": 10,
-        }
+        assert shape.embedding_input_shape == {"cbo": 2, "op_enc": 10, "type": 7}
         assert shape.feature_input_shape == 3
         assert shape.output_shape == 1
 
