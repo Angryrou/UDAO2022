@@ -4,8 +4,18 @@ from typing import List
 
 import numpy as np
 
-from ..concepts.variable import EnumVariable, IntegerVariable, NumericVariable, Variable
+from ..concepts import (
+    Constraint,
+    EnumVariable,
+    IntegerVariable,
+    NumericVariable,
+    Objective,
+    Variable,
+)
+from ..utils.exceptions import NoSolutionError
+from ..utils.moo_utils import Point
 from .base_solver import BaseSolver
+from .utils import filter_on_constraints
 
 
 class GridSearch(BaseSolver):
@@ -61,3 +71,22 @@ class GridSearch(BaseSolver):
         x = np.array([list(i) for i in itertools.product(*grids_list)])
 
         return x
+
+    def solve(
+        self,
+        objective: Objective,
+        constraints: List[Constraint],
+        variables: List[Variable],
+        wl_id: str | None,
+    ) -> Point:
+        filtered_vars = filter_on_constraints(
+            wl_id, self._get_input(variables), constraints
+        )
+        if filtered_vars.shape[0] == 0:
+            raise NoSolutionError("No feasible solution found!")
+        objective_value = np.array(
+            objective.function(filtered_vars, wl_id=wl_id)
+        ).reshape(-1, 1)
+        op_ind = int(np.argmin(objective_value))
+
+        return Point(objs=objective_value[op_ind], vars=filtered_vars[op_ind])

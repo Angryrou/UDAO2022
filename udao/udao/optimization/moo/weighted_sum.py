@@ -1,13 +1,71 @@
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+import torch as th
 
 from ..concepts import Constraint, NumericVariable, Objective, Variable
 from ..solver.base_solver import BaseSolver
 from ..utils import moo_utils as moo_ut
 from ..utils.exceptions import NoSolutionError
+from ..utils.moo_utils import Point
 from .base_moo import BaseMOO
+
+
+class WeightedSumObjective(Objective):
+    """Weighted Sum Objective"""
+
+    def __init__(self, objectives: List[Objective], ws: List[float]) -> None:
+        self.objectives = objectives
+        self.ws = ws
+        super().__init__(
+            name="weighted_sum", function=self.function, direction_type="MIN"
+        )
+
+    def _function(self, vars: np.ndarray, *args: Any, **kwargs: Any) -> np.ndarray:
+        objs: List[np.ndarray] = []
+        for objective in self.objectives:
+            obj = objective.function(vars, **kwargs) * objective.direction
+            objs.append(obj.numpy().squeeze())
+
+        # shape (n_feasible_samples/grids, n_objs)
+        objs_array = np.array(objs).T
+        return objs_array
+
+    def function(self, vars: np.ndarray, *args: Any, **kwargs: Any) -> th.Tensor:
+        """Sum of weighted normalized objectives"""
+        objs_array = self._function(vars, *args, **kwargs)
+        objs_norm = self._normalize_objective(objs_array)
+        return th.tensor(np.sum(objs_norm * self.ws, axis=1))
+
+    def _normalize_objective(self, objs_array: np.ndarray) -> np.ndarray:
+        """Normalize objective values to [0, 1]
+
+        Parameters
+        ----------
+        objs_array : np.ndarray
+            shape (n_feasible_samples/grids, n_objs)
+
+        Returns
+        -------
+        np.ndarray
+            shape (n_feasible_samples/grids, n_objs)
+
+        Raises
+        ------
+        NoSolutionError
+            if lower bounds of objective values are
+            higher than their upper bounds
+        """
+        objs_array = objs_array
+        objs_min, objs_max = objs_array.min(0), objs_array.max(0)
+
+        if any((objs_min - objs_max) > 0):
+            raise NoSolutionError(
+                "Cannot do normalization! Lower bounds of "
+                "objective values are higher than their upper bounds."
+            )
+        return (objs_array - objs_min) / (objs_max - objs_min)
 
 
 class WeightedSum(BaseMOO):
@@ -39,36 +97,6 @@ class WeightedSum(BaseMOO):
         self.objectives = objectives
         self.constraints = constraints
 
-    def _filter_on_constraints(
-        self, wl_id: Optional[str], input_vars: np.ndarray
-    ) -> np.ndarray:
-        """Keep only input variables that don't violate constraints"""
-        if not self.constraints:
-            return input_vars
-
-        available_indices = np.array(range(len(input_vars)))
-        for constraint in self.constraints:
-            const_values = constraint.function(input_vars, wl_id=wl_id)
-            if constraint.type == "<=":
-                compliant_indices = np.where(const_values <= 0)
-            elif constraint.type == ">=":
-                compliant_indices = np.where(const_values >= 0)
-            else:
-                compliant_indices = np.where(const_values == 0)
-            available_indices = np.intersect1d(compliant_indices, available_indices)
-        filtered_vars = input_vars[available_indices]
-        return filtered_vars
-
-    def _normalize_objective(self, objs_array: np.ndarray) -> np.ndarray:
-        objs_min, objs_max = objs_array.min(0), objs_array.max(0)
-
-        if any((objs_min - objs_max) > 0):
-            raise NoSolutionError(
-                "Cannot do normalization! Lower bounds of "
-                "objective values are higher than their upper bounds."
-            )
-        return (objs_array - objs_min) / (objs_max - objs_min)
-
     def solve(
         self, wl_id: Optional[str], variables: List[Variable]
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -86,56 +114,20 @@ class WeightedSum(BaseMOO):
         Tuple[Optional[np.ndarray],Optional[np.ndarray]]
             Pareto solutions and corresponding variables.
         """
-        # TODO: we will compare the current WS implementation with
-        # the existing WS numerical solver in the future,
-        # and the one with better performance will be kept in the package.
-        filtered_vars = self._filter_on_constraints(
-            wl_id, self.inner_solver._get_input(variables)
-        )
-
-        if filtered_vars.size == 0:
-            raise NoSolutionError(
-                "No feasible solutions found. All candidate points violate constraints."
-            )
-
-        po_obj_list: List[np.ndarray] = []
-        po_var_list: List[np.ndarray] = []
-
-        objs: List[np.ndarray] = []
-        for objective in self.objectives:
-            obj = objective.function(filtered_vars, wl_id=wl_id) * objective.direction
-            objs.append(obj.numpy().squeeze())
-
-        # shape (n_feasible_samples/grids, n_objs)
-        objs_array = np.array(objs).T
-
-        objs_norm = self._normalize_objective(objs_array)
+        candidate_points: List[Point] = []
         for ws in self.ws_pairs:
-            po_ind = self.get_soo_index(objs_norm, ws)
-            po_obj_list.append(objs_array[po_ind])
-            po_var_list.append(filtered_vars[po_ind])
+            objective = WeightedSumObjective(self.objectives, ws)
+            point = self.inner_solver.solve(
+                objective, self.constraints, variables, wl_id
+            )
+            objective_values = objective._function(np.array([point.vars]), wl_id=wl_id)  # type: ignore
+            point.objs = objective_values
+            candidate_points.append(point)
 
-        return moo_ut.summarize_ret(po_obj_list, po_var_list)
-
-    def get_soo_index(self, objs: np.ndarray, ws_coeffs: List[float]) -> int:
-        """
-        Find argmin of single objective optimization
-        problem corresponding to weighted sum of objectives
-
-        Parameters
-        ----------
-        objs: np.ndarray,
-            Shape(n_sample, n_objectives)
-        ws_coeffs: List[float]
-            One weight per objectives
-
-        Returns
-        -------
-        int
-            Argmin of weighted sum of objectives
-        """
-        obj = np.sum(objs * ws_coeffs, axis=1)
-        return int(np.argmin(obj))
+        return moo_ut.summarize_ret(
+            [point.objs for point in candidate_points],
+            [point.vars for point in candidate_points],
+        )
 
 
 def solve_ws(
