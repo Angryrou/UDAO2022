@@ -1,3 +1,4 @@
+import hashlib
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -15,14 +16,21 @@ from .base_moo import BaseMOO
 class WeightedSumObjective(Objective):
     """Weighted Sum Objective"""
 
-    def __init__(self, objectives: List[Objective], ws: List[float]) -> None:
+    def __init__(
+        self, objectives: List[Objective], ws: List[float], allow_cache: bool = False
+    ) -> None:
         self.objectives = objectives
         self.ws = ws
         super().__init__(
             name="weighted_sum", function=self.function, direction_type="MIN"
         )
+        self._cache: Dict[str, np.ndarray] = {}
+        self.allow_cache = allow_cache
 
     def _function(self, vars: np.ndarray, *args: Any, **kwargs: Any) -> np.ndarray:
+        hash_var = hashlib.sha256(vars.data.tobytes()).hexdigest()
+        if hash_var in self._cache and self.allow_cache:
+            return self._cache[hash_var]
         objs: List[np.ndarray] = []
         for objective in self.objectives:
             obj = objective.function(vars, **kwargs) * objective.direction
@@ -30,6 +38,7 @@ class WeightedSumObjective(Objective):
 
         # shape (n_feasible_samples/grids, n_objs)
         objs_array = np.array(objs).T
+        self._cache[hash_var] = objs_array
         return objs_array
 
     def function(self, vars: np.ndarray, *args: Any, **kwargs: Any) -> th.Tensor:
@@ -90,12 +99,14 @@ class WeightedSum(BaseMOO):
         inner_solver: BaseSolver,
         objectives: List[Objective],
         constraints: List[Constraint],
+        allow_cache: bool = False,
     ):
         super().__init__()
         self.inner_solver = inner_solver
         self.ws_pairs = ws_pairs
         self.objectives = objectives
         self.constraints = constraints
+        self.allow_cache = allow_cache
 
     def solve(
         self, wl_id: Optional[str], variables: List[Variable]
@@ -115,8 +126,11 @@ class WeightedSum(BaseMOO):
             Pareto solutions and corresponding variables.
         """
         candidate_points: List[Point] = []
+        objective = WeightedSumObjective(
+            self.objectives, self.ws_pairs[0], self.allow_cache
+        )
         for ws in self.ws_pairs:
-            objective = WeightedSumObjective(self.objectives, ws)
+            objective.ws = ws
             point = self.inner_solver.solve(
                 objective, self.constraints, variables, wl_id
             )

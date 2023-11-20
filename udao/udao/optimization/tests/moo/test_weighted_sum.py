@@ -38,6 +38,7 @@ class TestWeightedSum:
         constraints = [
             Constraint(function=lambda x, **kw: x[:, 0] + x[:, 1] - 2, type=">=")
         ]
+
         ws_algo = WeightedSum(
             inner_solver=inner_solver,
             ws_pairs=ws_pairs,
