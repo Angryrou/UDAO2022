@@ -36,7 +36,7 @@ jobs:
           . venv/bin/activate
           if [ ! -d "venv/lib/python3.9/site-packages" ]; then
               python -m pip install --upgrade pip
-              pip install -r udao/requirements.txt
+              pip install -r udao/requirements-cpu.txt
           fi
 
       - name: Run Pytest
