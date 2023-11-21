@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Callable, Literal, Union
 
 import numpy as np
 
-ConstraintType = Literal["=="] | Literal["<="] | Literal[">="]
+ConstraintType = Union[Literal["=="], Literal["<="], Literal[">="]]
 
 
 @dataclass

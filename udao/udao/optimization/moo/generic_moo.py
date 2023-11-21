@@ -66,8 +66,8 @@ class GenericMOO:
         self.accurate = accurate
         self.std_func = std_func
 
-    def _load_job_ids(self, file_path: str) -> List[str | None]:
-        job_ids: List[str | None] = []
+    def _load_job_ids(self, file_path: str) -> List[Optional[str]]:
+        job_ids: List[Optional[str]] = []
         loaded_job_ids = np.loadtxt(file_path, dtype="str", delimiter=",").tolist()
         if loaded_job_ids == "None":
             job_ids = [None]
@@ -101,8 +101,8 @@ class GenericMOO:
             time_cost_list: list, each element is the
             time cost of MOO solving for one job.
         """
-        po_objs_list: List[np.ndarray | None] = []
-        po_vars_list: List[np.ndarray | None] = []
+        po_objs_list: List[Optional[np.ndarray]] = []
+        po_vars_list: List[Optional[np.ndarray]] = []
         time_cost_list: List[float] = []
 
         if moo_algo == "progressive_frontier":

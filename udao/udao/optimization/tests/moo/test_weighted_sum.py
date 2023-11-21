@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import pytest
 
@@ -36,13 +38,13 @@ class TestWeightedSum:
         inner_solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
 
-        def obj_func1(x: np.ndarray, wl_id: str | None = None) -> np.ndarray:
+        def obj_func1(x: np.ndarray, wl_id: Optional[str] = None) -> np.ndarray:
             if not wl_id:
                 return x[:, 0]
             else:
                 return x[:, 0] + 1
 
-        def obj_func2(x: np.ndarray, wl_id: str | None = None) -> np.ndarray:
+        def obj_func2(x: np.ndarray, wl_id: Optional[str] = None) -> np.ndarray:
             if not wl_id:
                 return (x[:, 0] + x[:, 1]) / 10
             else:
