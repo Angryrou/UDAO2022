@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 import torch as th
 
@@ -8,8 +8,8 @@ DEFAULT_DTYPE = th.float32
 
 def get_tensor(
     x: Any,
-    dtype: th.dtype | None = None,
-    device: th.device | None = None,
+    dtype: Optional[th.dtype] = None,
+    device: Optional[th.device] = None,
     requires_grad: bool = False,
 ) -> th.Tensor:
     dtype = DEFAULT_DTYPE

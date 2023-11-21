@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch as th
@@ -88,7 +88,7 @@ class MOGD:
         self,
         accurate: bool,
         alpha: float,
-        vars_constraints: Dict | None,
+        vars_constraints: Optional[Dict],
         vars_max: np.ndarray,
         vars_min: np.ndarray,
     ) -> None:
@@ -162,7 +162,7 @@ class MOGD:
         precision_list: list,
         bs: int = 16,
         verbose: bool = False,
-    ) -> Tuple[float, np.ndarray | None]:
+    ) -> Tuple[float, Optional[np.ndarray]]:
         """
         solve (constrained) single-objective optimization
         :param wl_id: str, workload id, e.g. '1-7'
@@ -204,7 +204,7 @@ class MOGD:
 
         best_loss_list: List[float] = []
         objs_list: List[float] = []
-        vars_list: List[np.ndarray | None] = []
+        vars_list: List[Optional[np.ndarray]] = []
         for _ in range(self.multistart):
             best_loss, best_obj, best_vars, iter_num = np.inf, np.inf, None, 0
             for bv in meshed_categorical_vars:
@@ -224,8 +224,8 @@ class MOGD:
 
                 local_best_iter = 0
                 local_best_loss = np.inf
-                local_best_obj: float | None = None
-                local_best_var: np.ndarray | None = None
+                local_best_obj: Optional[float] = None
+                local_best_var: Optional[np.ndarray] = None
                 i = 0
                 while i < self.max_iter:
                     vars_kernal = self._get_tensor_vars_cat(
@@ -355,7 +355,7 @@ class MOGD:
         precision_list: list,
         verbose: bool = False,
         is_parallel: bool = False,
-    ) -> Tuple[List[float] | None, np.ndarray | None]:
+    ) -> Tuple[Optional[List[float]], Optional[np.ndarray]]:
         """
         solve single objective optimization constrained by objective values
         :param wl_id: str, workload id, e.g. '1-7'
@@ -567,7 +567,7 @@ class MOGD:
         var_ranges: np.ndarray,
         precision_list: list,
         cell_list: list,
-    ) -> List[Tuple[List[float] | None, np.ndarray | None]]:
+    ) -> List[Tuple[Optional[List[float]], Optional[np.ndarray]]]:
         """
         solve the single objective optimization
         constrained by objective values parallelly
@@ -749,7 +749,7 @@ class MOGD:
 
     def get_meshed_categorical_vars(
         self, var_types: list, var_range: np.ndarray
-    ) -> np.ndarray | None:
+    ) -> Optional[np.ndarray]:
         """
         get combinations of all categorical (binary, enum) variables
         # reuse code in UDAO
@@ -912,7 +912,7 @@ class MOGD:
         vars_max: np.ndarray,
         vars_min: np.ndarray,
         precision_list: list,
-        normalized_ids: list | None = None,
+        normalized_ids: Optional[list] = None,
     ) -> np.ndarray:
         """
         denormalize the values of each variable
@@ -993,7 +993,7 @@ class MOGD:
     ## _get (objs)  ##
     ##################
     def _get_tensor_obj_pred(
-        self, wl_id: str, vars: np.ndarray | th.Tensor, obj_ind: int
+        self, wl_id: str, vars: Union[np.ndarray, th.Tensor], obj_ind: int
     ) -> th.Tensor:
         """
         get objective values
@@ -1076,7 +1076,7 @@ class MOGD:
         return True
 
     # check violations of constraint functions
-    def check_const_func_vio(self, wl_id: str, best_var: np.ndarray | None) -> bool:
+    def check_const_func_vio(self, wl_id: str, best_var: Optional[np.ndarray]) -> bool:
         """
         check whether the best variable values resulting
         in violation of constraint functions
@@ -1099,7 +1099,7 @@ class MOGD:
 
     # check violations of objective value var_ranges
     # reuse code in UDAO
-    def check_obj_bounds_vio(self, pred_dict: Dict | None, obj_bounds: Dict) -> bool:
+    def check_obj_bounds_vio(self, pred_dict: Optional[Dict], obj_bounds: Dict) -> bool:
         """
         check whether violating the objective value var_ranges
         :param pred_dict: dict, keys are objective names,

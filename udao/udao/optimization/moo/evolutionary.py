@@ -1,5 +1,5 @@
 import random
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import numpy as np
 from platypus import (
@@ -64,8 +64,8 @@ class EVO(BaseMOO):
         self.seed = seed
 
     def solve(
-        self, wl_id: str | None, var_ranges: np.ndarray, var_types: list
-    ) -> Tuple[np.ndarray | None, np.ndarray | None]:  # type: ignore[override]
+        self, wl_id: Optional[str], var_ranges: np.ndarray, var_types: list
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:  # type: ignore[override]
         """
         solve MOO with NSGA-II algorithm
         :param wl_id: str, workload id, e.g. '1-7'
@@ -274,7 +274,7 @@ class EVO(BaseMOO):
         assert len(le_inds) + len(ge_inds) + len(eq_inds) == n_consts
 
     def get_problem_def(
-        self, global_var_range: np.ndarray, global_job: str | None, enum_inds: list
+        self, global_var_range: np.ndarray, global_job: Optional[str], enum_inds: list
     ) -> Callable:
         """
         define the problem with objective and constraints,
@@ -285,7 +285,7 @@ class EVO(BaseMOO):
                 g_list: list, values of constraint functions if any
         """
 
-        def problem_def(vars: Any) -> Tuple[list, list] | list:
+        def problem_def(vars: Any) -> Union[Tuple[list, list], list]:
             if global_var_range is None or enum_inds is None:
                 raise Exception("Global_var_range is not provided")
             # defined_functions need the input variables to be array

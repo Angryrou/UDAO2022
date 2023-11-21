@@ -261,7 +261,7 @@ def get_training_input(
     return x
 
 
-def rand_float(lower: float, upper: float, n_samples: int) -> np.ndarray | None:
+def rand_float(lower: float, upper: float, n_samples: int) -> Optional[np.ndarray]:
     """
     generate n_samples random float values within the lower and upper var_ranges
     :param lower: int, lower bound

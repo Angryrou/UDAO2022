@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -40,7 +40,7 @@ class WeightedSum(BaseMOO):
         self.constraints = constraints
 
     def _filter_on_constraints(
-        self, wl_id: str | None, input_vars: np.ndarray
+        self, wl_id: Optional[str], input_vars: np.ndarray
     ) -> np.ndarray:
         """Keep only input variables that don't violate constraints"""
         if not self.constraints:
@@ -70,20 +70,20 @@ class WeightedSum(BaseMOO):
         return (objs_array - objs_min) / (objs_max - objs_min)
 
     def solve(
-        self, wl_id: str | None, variables: List[Variable]
+        self, wl_id: Optional[str], variables: List[Variable]
     ) -> Tuple[np.ndarray, np.ndarray]:
         """solve MOO problem by Weighted Sum (WS)
 
         Parameters
         ----------
-        wl_id : str | None
+        wl_id : Optional[str]
             workload id
         variables : List[Variable]
             List of the variables to be optimized.
 
         Returns
         -------
-        Tuple[np.ndarray | None, np.ndarray | None]
+        Tuple[Optional[np.ndarray],Optional[np.ndarray]]
             Pareto solutions and corresponding variables.
         """
         # TODO: we will compare the current WS implementation with
@@ -147,11 +147,11 @@ def solve_ws(
     constraints: List[Constraint],
     variables: List[Variable],
     wl_ranges: Dict[str, Tuple[np.ndarray, np.ndarray]],
-) -> Tuple[List[np.ndarray | None], List[np.ndarray | None], list[float]]:
+) -> Tuple[List[Optional[np.ndarray]], List[Optional[np.ndarray]], list[float]]:
     """Temporary solve function for WS,
     replacing the call to solve() in GenericMOO"""
-    po_objs_list: List[np.ndarray | None] = []
-    po_vars_list: List[np.ndarray | None] = []
+    po_objs_list: List[Optional[np.ndarray]] = []
+    po_vars_list: List[Optional[np.ndarray]] = []
     time_cost_list: list[float] = []
 
     ws_steps = 1 / (n_probes - n_objs - 1)

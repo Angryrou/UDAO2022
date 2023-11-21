@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Callable, Literal, Union
 
 import numpy as np
 
-ObjectiveType = Literal["MIN"] | Literal["MAX"]
+ObjectiveType = Union[Literal["MIN"], Literal["MAX"]]
 
 
 @dataclass

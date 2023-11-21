@@ -96,7 +96,7 @@ class ProgressiveFrontier(BaseMOO):
         n_grids: Optional[int] = None,
         max_iters: Optional[int] = None,
         anchor_option: str = "2_step",
-    ) -> Tuple[np.ndarray | None, np.ndarray | None]:
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """
         solve MOO by Progressive Frontier
         :param wl_id: str, workload id, e.g. '1-7'
@@ -164,7 +164,7 @@ class ProgressiveFrontier(BaseMOO):
         precision_list: List,
         anchor_option: str = "2_step",
         verbose: bool = False,
-    ) -> Tuple[np.ndarray | None, np.ndarray | None]:
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """
         Progressive Frontier(PF)-Approximation Sequential
         (AS) algorithm, get MOO solutions sequentially
@@ -342,7 +342,7 @@ class ProgressiveFrontier(BaseMOO):
         max_iters: int,
         anchor_option: str = "2_step",
         verbose: bool = False,
-    ) -> Tuple[np.ndarray | None, np.ndarray | None]:
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """
         Progressive Frontier(PF)-Approximation Parallel (AP) algorithm,
         get MOO solutions parallely
@@ -497,7 +497,7 @@ class ProgressiveFrontier(BaseMOO):
         precision_list: List,
         anchor_option: str = "2_step",
         verbose: bool = False,
-    ) -> Tuple[np.ndarray | None, np.ndarray | None]:
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """
         get anchor points
         :param wl_id: str, workload id, e.g. '1-7'
@@ -587,7 +587,7 @@ class ProgressiveFrontier(BaseMOO):
 
     def get_utopia_and_nadir(
         self, plans: list[Points], n_objs: int
-    ) -> Tuple[Points | None, Points | None]:
+    ) -> Tuple[Optional[Points], Optional[Points]]:
         """
         get the utopia and nadir points
         :param plans: list, each element is a Point (defined class).
