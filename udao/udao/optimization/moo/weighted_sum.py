@@ -16,8 +16,8 @@ class WeightedSum(BaseMOO):
 
     Parameters:
     ------------
-    ws_pairs: ndarray(n_weights, n_objs),
-        weight settings for all objectives
+    ws_pairs: np.ndarray,
+        weight settings for all objectives, of shape (n_weights, n_objs)
     inner_solver: BaseSolver,
         the solver used in Weighted Sum
     objectives: List[Objective],

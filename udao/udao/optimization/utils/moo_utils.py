@@ -11,14 +11,16 @@ from .parameters import VarTypes
 class Point:
     def __init__(self, objs: np.ndarray, vars: Optional[np.ndarray] = None) -> None:
         """
-        # Docstring in numpy format
+        A point in the objective space.
+        Variables are optional, and are not specified for imaginary points
+        (e.g., utopia and nadir)
 
         Parameters
         ----------
-        objs : np.ndarray(n_objs,)
-            objective values
-        vars :np.ndarray(n_vars,), default=None
-            variable values, by default None
+        objs : np.ndarray
+            Array of objective values of shape (n_objs,)
+        vars :np.ndarray, optional
+            Array of variable values of shape (n_vars,), by default None
         """
         self.objs = objs
         self.vars = vars
@@ -60,10 +62,10 @@ class Rectangle:
 
         Parameters
         ----------
-        upper_bounds : np.ndarray(n_objs,)
-            upper bounds of the hyper_rectangle
-        lower_bounds : np.ndarray(n_objs,)
-            lower bounds of the hyper_rectangle
+        upper_bounds : np.ndarray(
+            Array of upper bounds of the hyper_rectangle, of shape (n_objs,)
+        lower_bounds : np.ndarrays
+            Array of lower bounds of the hyper_rectangle of shape (n_objs,)
 
         Returns
         -------

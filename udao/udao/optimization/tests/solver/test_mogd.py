@@ -146,7 +146,7 @@ class TestMOGD:
         assert optimal_obj is not None
         np.testing.assert_array_almost_equal(optimal_obj, np.array([150, 16]))
         assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array([[expected_variable]]))
+        np.testing.assert_array_equal(optimal_vars, np.array([expected_variable]))
 
     def test_constraint_parallel(self, mogd: MOGD) -> None:
         res_list = mogd.optimize_constrained_so_parallel(

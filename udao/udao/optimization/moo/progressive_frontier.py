@@ -105,7 +105,6 @@ class ProgressiveFrontier(BaseMOO):
         utopia, nadir = self.get_utopia_and_nadir(plans)
         rectangle = Rectangle(utopia, nadir)
         heapq.heappush(rectangle_queue, rectangle)
-        count = 0
         for count in range(n_probes - n_objs):
             if not rectangle_queue:
                 logger.info("No more uncertainty space to explore further!")
@@ -117,7 +116,6 @@ class ProgressiveFrontier(BaseMOO):
             for sub_rect in subrectangles:
                 if sub_rect.volume != 0:
                     heapq.heappush(rectangle_queue, sub_rect)
-            count += 1
 
         ## filter dominated points
         po_objs_list = [point.objs.tolist() for point in plans]
