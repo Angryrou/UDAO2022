@@ -38,6 +38,7 @@ class TestStructureExtractor:
             )
             assert set(s_dict.keys()) == {
                 "operation_id",
+                "operation_gid",
                 *extractor.feature_types.keys(),
                 *[f"meta_{feature}" for feature in extractor.feature_types.keys()],
             }
@@ -85,7 +86,9 @@ class TestStructureExtractor:
         extractor = QueryStructureExtractor()
         structure_container = extractor.extract_features(df_fixture, "train")
         for row in df_fixture.itertuples():
-            features_dict = extractor._extract_structure_and_features(row.id, row.plan, "val")
+            features_dict = extractor._extract_structure_and_features(
+                row.id, row.plan, "val"
+            )
             for feature in ["rows_count", "size"]:
                 np.testing.assert_array_equal(
                     structure_container.graph_features.loc[row.id][feature].values,
@@ -95,3 +98,71 @@ class TestStructureExtractor:
                     structure_container.graph_meta_features.loc[row.id][feature],
                     features_dict[f"meta_{feature}"],
                 )
+
+    def test_extract_operation_types(self, df_fixture: pd.DataFrame) -> None:
+        extractor = QueryStructureExtractor()
+        row = df_fixture.iloc[1]
+        # avoid error message for template id.
+        extractor.extract_features(df_fixture, "train")
+        extractor.operation_types = {}
+        features_dict = extractor._extract_structure_and_features(
+            row.id, row.plan, "train"
+        )
+        assert features_dict["operation_gid"] == [0, 1, 2, 3, 4]
+
+        row = df_fixture.iloc[0]
+        features_dict = extractor._extract_structure_and_features(
+            row.id, row.plan, "val"
+        )
+        assert features_dict["operation_gid"] == [
+            -1,
+            -1,
+            0,
+            1,
+            2,
+            -1,
+            2,
+            -1,
+            2,
+            -1,
+            2,
+            3,
+            4,
+            2,
+            3,
+            4,
+            2,
+            3,
+            4,
+            2,
+            3,
+            4,
+        ]
+        features_dict = extractor._extract_structure_and_features(
+            row.id, row.plan, "train"
+        )
+
+        assert features_dict["operation_gid"] == [
+            5,
+            6,
+            0,
+            1,
+            2,
+            7,
+            2,
+            7,
+            2,
+            7,
+            2,
+            3,
+            4,
+            2,
+            3,
+            4,
+            2,
+            3,
+            4,
+            2,
+            3,
+            4,
+        ]

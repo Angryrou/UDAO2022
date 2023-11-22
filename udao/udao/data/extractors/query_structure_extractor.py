@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 import pandas as pd
 
@@ -8,7 +8,7 @@ from ..utils.query_plan import (
     QueryPlanStructure,
     extract_query_plan_features,
 )
-from ..utils.utils import DatasetType, PandasTypes
+from ..utils.utils import DatasetType
 from .base_extractors import TrainedFeatureExtractor
 
 
@@ -25,6 +25,38 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
             str, type
         ] = QueryPlanOperationFeatures.get_feature_names_and_types()
         self.id_template_dict: Dict[str, int] = {}
+        self.operation_types: Dict[str, int] = {}
+
+    def _extract_operation_types(
+        self, structure: QueryPlanStructure, split: DatasetType
+    ) -> List[int]:
+        """Find ids of operation types in the query plan.
+        Add new operation types if train."""
+        operation_gids: List[int] = []
+        for name in structure.node_id2name.values():
+            op_type = name.split()[0]
+            if op_type not in self.operation_types and split == "train":
+                self.operation_types[op_type] = len(self.operation_types)
+            operation_gids.append(self.operation_types.get(op_type, -1))
+        return operation_gids
+
+    def _extract_structure_template(
+        self, structure: QueryPlanStructure, split: DatasetType
+    ) -> int:
+        """Find template id of the query plan, or create a new one (if train)"""
+        tid = None
+        for template_id, template_structure in self.template_plans.items():
+            if structure.graph_match(template_structure):
+                tid = template_id
+                break
+
+        if tid is None:
+            if split == "train":
+                tid = len(self.template_plans) + 1
+                self.template_plans[tid] = structure
+            else:
+                raise KeyError("Unknown template plan")
+        return tid
 
     def _extract_structure_and_features(
         self, idx: str, query_plan: str, split: DatasetType
@@ -49,22 +81,11 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
 
         """
         structure, op_features, meta_features = extract_query_plan_features(query_plan)
-        tid = None
-
-        for template_id, template_structure in self.template_plans.items():
-            if structure.graph_match(template_structure):
-                tid = template_id
-                break
-
-        if tid is None:
-            if split == "train":
-                tid = len(self.template_plans) + 1
-                self.template_plans[tid] = structure
-            else:
-                raise KeyError("Unknown template plan")
-        self.id_template_dict[idx] = tid
+        operation_gids = self._extract_operation_types(structure, split)
+        self.id_template_dict[idx] = self._extract_structure_template(structure, split)
         return {
             "operation_id": op_features.operation_ids,
+            "operation_gid": operation_gids,
             **op_features.features_dict,
             **meta_features,
         }
@@ -109,19 +130,21 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
             axis=1,
         ).apply(pd.Series)
         df_op_features["plan_id"] = df["id"]
-
         df_op_features, df_meta_features = self._derive_meta_dataframe(df_op_features)
         df_op_features_exploded = df_op_features.explode(
-            ["operation_id"] + list(self.feature_types.keys()), ignore_index=True
+            ["operation_id", "operation_gid"] + list(self.feature_types.keys()),
+            ignore_index=True,
         )
-
         df_op_features_exploded = df_op_features_exploded.set_index(
             ["plan_id", "operation_id"]
         )
+        df_operation_types = df_op_features_exploded[["operation_gid"]]
+        del df_op_features_exploded["operation_gid"]
 
         return QueryStructureContainer(
             graph_features=df_op_features_exploded,
             template_plans=self.template_plans,
             key_to_template=self.id_template_dict,
             graph_meta_features=df_meta_features,
+            operation_types=df_operation_types,
         )

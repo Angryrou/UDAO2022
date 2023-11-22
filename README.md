@@ -111,3 +111,15 @@ To generate an html report for visualization of coverage line by line
 ```
 
 
+
+## udao module dependencies
+
+The python virtual environment
+```bash
+# cpu
+conda create -n <name> python=3.11
+pip install -r udao/requirements-cpu.txt
+
+# gpu 
+conda create -n <name> python=3.11
+pip install -r udao/requirements-gpu.txt

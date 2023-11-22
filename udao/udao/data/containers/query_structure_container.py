@@ -1,12 +1,19 @@
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, Iterable
 
 import dgl
-import numpy as np
 import pandas as pd
 
 from ...data.containers.base_container import BaseContainer
 from ..utils.query_plan import QueryPlanStructure
+
+
+@dataclass
+class QueryDescription:
+    template_graph: dgl.DGLGraph
+    graph_features: Iterable
+    meta_features: Iterable
+    operation_types: Iterable
 
 
 @dataclass
@@ -21,11 +28,17 @@ class QueryStructureContainer(BaseContainer):
     """Link a template id to a QueryPlanStructure"""
     key_to_template: Dict[str, int]
     """Link a key to a template id."""
+    operation_types: pd.DataFrame
 
-    def get(self, key: str) -> Tuple[dgl.DGLGraph, np.ndarray, np.ndarray]:
+    def get(self, key: str) -> QueryDescription:
         graph_features = self.graph_features.loc[key].values
         graph_meta_features = self.graph_meta_features.loc[key].values
         template_id = self.key_to_template[key]
         template_graph = self.template_plans[template_id].graph
-
-        return template_graph, graph_features, graph_meta_features  # type: ignore
+        operation_types = self.operation_types.loc[key].values
+        return QueryDescription(
+            template_graph,
+            graph_features,
+            graph_meta_features,
+            operation_types,
+        )
