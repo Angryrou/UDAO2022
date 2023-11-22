@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -6,7 +6,7 @@ from ..concepts import Constraint
 
 
 def filter_on_constraints(
-    wl_id: str | None, input_vars: np.ndarray, constraints: List[Constraint]
+    wl_id: Optional[str], input_vars: np.ndarray, constraints: List[Constraint]
 ) -> np.ndarray:
     """Keep only input variables that don't violate constraints
 

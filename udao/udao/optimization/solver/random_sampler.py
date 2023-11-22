@@ -75,7 +75,7 @@ class RandomSampler(BaseSolver):
         objective: Objective,
         constraints: List[Constraint],
         variables: List[Variable],
-        wl_id: str | None,
+        wl_id: Optional[str],
     ) -> Point:
         filtered_vars = filter_on_constraints(
             wl_id, self._get_input(variables), constraints
