@@ -3,12 +3,12 @@ import pytest
 import torch as th
 
 from ...concepts import FloatVariable, IntegerVariable, Objective
-from ...moo.progressive_frontier import ProgressiveFrontier
+from ...moo.progressive_frontier import SequentialProgressiveFrontier
 from ...utils.moo_utils import Point
 
 
 @pytest.fixture
-def progressive_frontier() -> ProgressiveFrontier:
+def progressive_frontier() -> SequentialProgressiveFrontier:
     objectives = [
         Objective(
             "obj1",
@@ -23,7 +23,7 @@ def progressive_frontier() -> ProgressiveFrontier:
     ]
     variables = [FloatVariable(0, 1), IntegerVariable(1, 7)]
 
-    return ProgressiveFrontier(
+    return SequentialProgressiveFrontier(
         variables=variables,
         objectives=objectives,
         solver_params={
@@ -46,7 +46,7 @@ def progressive_frontier() -> ProgressiveFrontier:
 
 class TestProgressiveFrontier:
     def test__get_corner_points(
-        self, progressive_frontier: ProgressiveFrontier
+        self, progressive_frontier: SequentialProgressiveFrontier
     ) -> None:
         utopia = Point(np.array([1, 0.3]))
         nadir = Point(np.array([5, 10]))
@@ -63,7 +63,7 @@ class TestProgressiveFrontier:
         assert all(c == e for c, e in zip(corner_points, expected_points))
 
     def test__generate_sub_rectangles_bad(
-        self, progressive_frontier: ProgressiveFrontier
+        self, progressive_frontier: SequentialProgressiveFrontier
     ) -> None:
         utopia = Point(np.array([1, 0.3]))
         nadir = Point(np.array([5, 10]))
@@ -84,7 +84,7 @@ class TestProgressiveFrontier:
         assert rectangles[1].nadir == Point(np.array([5.0, 10]))
 
     def test__generate_sub_rectangles_good(
-        self, progressive_frontier: ProgressiveFrontier
+        self, progressive_frontier: SequentialProgressiveFrontier
     ) -> None:
         utopia = Point(np.array([1, 0.3]))
         nadir = Point(np.array([5, 10]))
@@ -105,7 +105,7 @@ class TestProgressiveFrontier:
         assert rectangles[2].nadir == Point(np.array([5.0, 5.15]))
 
     def test_get_utopia_and_nadir(
-        self, progressive_frontier: ProgressiveFrontier
+        self, progressive_frontier: SequentialProgressiveFrontier
     ) -> None:
         points = [
             Point(np.array([1, 5]), np.array([0.2, 1])),
@@ -116,14 +116,34 @@ class TestProgressiveFrontier:
         np.testing.assert_array_equal(utopia.objs, np.array([1, 0.3]))
         np.testing.assert_array_equal(nadir.objs, np.array([5, 10]))
 
-    def test_solve(self, progressive_frontier: ProgressiveFrontier) -> None:
+    def test_solve(self, progressive_frontier: SequentialProgressiveFrontier) -> None:
         objectives, variables = progressive_frontier.solve("1", n_probes=10)
         assert objectives is not None
         np.testing.assert_array_equal(objectives, [[-1, 0]])
         assert variables is not None
         np.testing.assert_array_equal(variables, [[1, 1]])
 
-    def test_get_anchor_points(self, progressive_frontier: ProgressiveFrontier) -> None:
+    def test_get_utopia_and_nadir_raises(
+        self, progressive_frontier: SequentialProgressiveFrontier
+    ) -> None:
+        with pytest.raises(ValueError):
+            progressive_frontier.get_utopia_and_nadir([])
+
+    def test_get_utopia_and_nadir_raises_exception(
+        self, progressive_frontier: SequentialProgressiveFrontier
+    ) -> None:
+        with pytest.raises(Exception):
+            progressive_frontier.get_utopia_and_nadir(
+                [
+                    Point(np.array([1, 5]), np.array([0.2, 1])),
+                    Point(np.array([3]), np.array([0.8, 6])),
+                    Point(np.array([5, 0.3]), np.array([0.5, 3])),
+                ]
+            )
+
+    def test_get_anchor_points(
+        self, progressive_frontier: SequentialProgressiveFrontier
+    ) -> None:
         anchor_point = progressive_frontier.get_anchor_point(
             wl_id="1", obj_ind=0, anchor_option="2_step"
         )
