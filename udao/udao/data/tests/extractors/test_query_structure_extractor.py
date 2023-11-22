@@ -108,7 +108,7 @@ class TestStructureExtractor:
         features_dict = extractor._extract_structure_and_features(
             row.id, row.plan, "train"
         )
-        assert features_dict["operation_gid"] == [1, 2, 3, 4, 5]
+        assert features_dict["operation_gid"] == [0, 1, 2, 3, 4]
 
         row = df_fixture.iloc[0]
         features_dict = extractor._extract_structure_and_features(
@@ -117,52 +117,52 @@ class TestStructureExtractor:
         assert features_dict["operation_gid"] == [
             -1,
             -1,
+            0,
             1,
             2,
-            3,
             -1,
-            3,
+            2,
             -1,
-            3,
+            2,
             -1,
+            2,
             3,
             4,
-            5,
+            2,
             3,
             4,
-            5,
+            2,
             3,
             4,
-            5,
+            2,
             3,
             4,
-            5,
         ]
         features_dict = extractor._extract_structure_and_features(
             row.id, row.plan, "train"
         )
 
         assert features_dict["operation_gid"] == [
+            5,
             6,
-            7,
+            0,
             1,
             2,
-            3,
-            8,
-            3,
-            8,
-            3,
-            8,
-            3,
-            4,
-            5,
+            7,
+            2,
+            7,
+            2,
+            7,
+            2,
             3,
             4,
-            5,
+            2,
             3,
             4,
-            5,
+            2,
             3,
             4,
-            5,
+            2,
+            3,
+            4,
         ]

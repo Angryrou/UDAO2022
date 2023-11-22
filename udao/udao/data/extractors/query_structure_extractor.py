@@ -36,7 +36,7 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
         for name in structure.node_id2name.values():
             op_type = name.split()[0]
             if op_type not in self.operation_types and split == "train":
-                self.operation_types[op_type] = len(self.operation_types) + 1
+                self.operation_types[op_type] = len(self.operation_types)
             operation_gids.append(self.operation_types.get(op_type, -1))
         return operation_gids
 
