@@ -152,6 +152,7 @@ def summarize_ret(
         po_inds = is_pareto_efficient(po_objs_cand)
         po_objs = po_objs_cand[po_inds]
         po_vars = po_vars_cand[po_inds]
+
         return po_objs, po_vars
 
 

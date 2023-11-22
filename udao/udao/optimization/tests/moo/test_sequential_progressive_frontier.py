@@ -123,13 +123,13 @@ class TestProgressiveFrontier:
         assert variables is not None
         np.testing.assert_array_equal(variables, [[1, 1]])
 
-    def test_get_utopia_and_nadir_raises(
+    def test_get_utopia_and_nadir_raises_when_no_points(
         self, progressive_frontier: SequentialProgressiveFrontier
     ) -> None:
         with pytest.raises(ValueError):
             progressive_frontier.get_utopia_and_nadir([])
 
-    def test_get_utopia_and_nadir_raises_exception(
+    def test_get_utopia_and_nadir_raises_when_inconsistent_points(
         self, progressive_frontier: SequentialProgressiveFrontier
     ) -> None:
         with pytest.raises(Exception):

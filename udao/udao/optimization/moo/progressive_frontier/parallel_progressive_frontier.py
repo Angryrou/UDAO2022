@@ -1,43 +1,43 @@
 import itertools
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 
-from ...utils.logging import logger
-from ..utils import moo_utils as moo_ut
-from ..utils import solver_utils as solver_ut
-from ..utils.moo_utils import Point, Rectangle
-from .progressive_frontier import AbstractProgressiveFrontier
+from ....utils.logging import logger
+from ...utils import moo_utils as moo_ut
+from ...utils.exceptions import NoSolutionError
+from ...utils.moo_utils import Point, Rectangle
+from .base_progressive_frontier import BaseProgressiveFrontier
 
 
-class ParallelProgressiveFrontier(AbstractProgressiveFrontier):
+class ParallelProgressiveFrontier(BaseProgressiveFrontier):
     def solve(
         self,
         wl_id: str,
         n_grids: int,
         max_iters: int,
         anchor_option: str = "2_step",
-        verbose: bool = False,
-    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        solve MOO by Progressive Frontier
-        :param wl_id: str, workload id, e.g. '1-7'
-        :param accurate: bool, whether the predictive model
-            is accurate (True) or not (False), used in MOGD
-        :param alpha: float, the value used in loss calculation
-            of the inaccurate model
-        :param var_bounds: ndarray (n_vars,),
-            the lower and upper var_ranges of non-ENUM variables,
-            and values of ENUM variables
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :param precision_list: list, precision for all variables
-        :param n_probes: int, the upper bound of number of solutions
-        :param n_grids: int, the number of cells set in pf-ap
-        :param max_iters: int, the number of iterations in pf-ap
-        :return:
-                po_objs: ndarray(n_solutions, n_objs), Pareto solutions
-                po_vars: ndarray(n_solutions, n_vars),
-                    corresponding variables of Pareto solutions
+        solve MOO by PF-AP (Progressive Frontier - Approximation Parallel)
+        Parameters:
+        ----------
+        wl_id: str
+            workload id, e.g. '1-7'
+        n_grids: int
+            the number of cells set in pf-ap
+        max_iters: int
+            the number of iterations in pf-ap
+        anchor_option: str
+            choice for anchor points calculation
+        Returns:
+        --------
+        po_objs: ndarray
+            Pareto optimal objective values, of shape
+            (n_solutions, n_objs)
+        po_vars: ndarray
+            corresponding variables of Pareto solutions, of shape
+            (n_solutions, n_vars)
         """
 
         # create initial rectangle
@@ -59,14 +59,10 @@ class ParallelProgressiveFrontier(AbstractProgressiveFrontier):
             all_objs_list.append(anchor_point.objs.tolist())
             all_vars_list.append(anchor_point.vars.tolist())
 
-        if n_objs == 2:
-            pass
-        elif n_objs == 3:
-            pass
-        else:
+        if n_objs < 2 or n_objs > 3:
             raise Exception(f"{n_objs} objectives are not supported for now!" f"")
-        iter = 0
-        while iter < max_iters:
+
+        for i in range(max_iters):
             # choose the cell with max volume to explore
             max_volume = -1
             input_ind = -1
@@ -84,16 +80,13 @@ class ParallelProgressiveFrontier(AbstractProgressiveFrontier):
             ]
             utopia, nadir = self.get_utopia_and_nadir(plan)
             if utopia is None or nadir is None:
-                print("Cannot find utopia/nadir points")
-                return None, None
+                raise NoSolutionError("Cannot find utopia/nadir points")
             # create uniform n_grids ^ (n_objs) grid cells based on the rectangle
             grid_cells_list = self._create_grid_cells(utopia, nadir, n_grids, n_objs)
 
             obj_bound_cells = []
             for cell in grid_cells_list:
-                obj_bound_dict = self._form_obj_bounds_dict(
-                    cell.utopia, cell.nadir, self.opt_obj_ind
-                )
+                obj_bound_dict = self._form_obj_bounds_dict(cell.utopia, cell.nadir)
                 obj_bound_cells.append(obj_bound_dict)
 
             logger.debug(f"the cells are: {obj_bound_cells}")
@@ -107,12 +100,9 @@ class ParallelProgressiveFrontier(AbstractProgressiveFrontier):
             po_objs_list, po_vars_list = [], []
             for solution in ret_list:
                 if solution[0] is None:
-                    if verbose:
-                        print("This is an empty area!")
+                    logger.debug("This is an empty area!")
                     continue
                 else:
-                    if verbose:
-                        print(f"the objective values are:{solution[0]} ")
                     po_objs_list.append(solution[0])
                     if solution[1] is None:
                         raise Exception("Unexpected vars None for objective value.")
@@ -125,7 +115,7 @@ class ParallelProgressiveFrontier(AbstractProgressiveFrontier):
             all_objs, all_vars = moo_ut.summarize_ret(all_objs_list, all_vars_list)
             all_objs_list = all_objs.tolist() if all_objs is not None else []
             all_vars_list = all_vars.tolist() if all_vars is not None else []
-            iter = iter + 1
+
         return np.array(all_objs_list), np.array(all_vars_list)
 
     @staticmethod
@@ -133,14 +123,24 @@ class ParallelProgressiveFrontier(AbstractProgressiveFrontier):
         utopia: Point, nadir: Point, n_grids: int, n_objs: int
     ) -> List[Rectangle]:
         """
-        create cells used in Progressive Frontier(PF)-Approximation
+        Create cells used in Progressive Frontier(PF)-Approximation
         Parallel (AP) algorithm
-        :param utopia: Points (defined by class), the utopia point
-        :param nadir: Points (defined by class), the nadir point
-        :param n_grids: int, the number of grids per objective
-        :param n_objs: int, the number of objectives
-        :return:
-                grid_cell_list, each element is a cell (Rectangle class)
+
+        Parameters:
+        ----------
+        utopia: Point
+            the utopia point
+        nadir: Point
+            the nadir point
+        n_grids: int
+            the number of grids per objective
+        n_objs: int
+            the number of objectives
+
+        Returns:
+        -------
+            List[Rectangle]
+            The rectangles in which to perform optimization.
         """
         grids_per_var = np.linspace(
             utopia.objs, nadir.objs, num=n_grids + 1, endpoint=True
@@ -163,19 +163,10 @@ class ParallelProgressiveFrontier(AbstractProgressiveFrontier):
             assert all((sub_nadir_objs - sub_u_objs) >= 0)
             cell = Rectangle(sub_u_point, sub_nadir_point)
             grid_cell_list.append(cell)
-        assert len(grid_cell_list) == (n_grids**n_objs)
+        if len(grid_cell_list) != (n_grids**n_objs):
+            raise Exception(
+                f"Unexpected: the number of grid cells is"
+                f"not equal to {n_grids**n_objs}"
+            )
 
         return grid_cell_list
-
-    def _form_obj_bounds_dict(
-        self, utopia: Point, nadir: Point, opt_obj_ind: int
-    ) -> dict[str, list]:
-        obj_bounds_dict = {}
-
-        for i, objective in enumerate(self.objectives):
-            obj_bounds_dict[objective.name] = [
-                solver_ut.get_tensor(int(utopia.objs[i])),
-                solver_ut.get_tensor(int(nadir.objs[i])),
-            ]
-
-        return obj_bounds_dict
