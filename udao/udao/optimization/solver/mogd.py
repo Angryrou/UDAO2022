@@ -114,8 +114,8 @@ class MOGD:
 
             local_best_iter = 0
             local_best_loss = np.inf
-            local_best_objs: Dict | None = None
-            local_best_var: np.ndarray | None = None
+            local_best_objs: Optional[Dict] = None
+            local_best_var: Optional[np.ndarray] = None
             i = 0
 
             while i < self.max_iter:

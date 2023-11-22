@@ -4,7 +4,7 @@ import torch as th
 import torch.nn as nn
 
 from ....model.utils.utils import set_deterministic_torch
-from ...concepts import FloatVariable, IntegerVariable, Objective
+from ...concepts import FloatVariable, IntegerVariable, Objective, Variable
 from ...solver.mogd import MOGD
 
 
@@ -67,6 +67,52 @@ def mogd() -> MOGD:
     return mogd
 
 
+def paper_f1(x: th.Tensor, wl_id: None = None) -> th.Tensor:
+    return th.reshape(2400 / (24 * x[:]), (-1, 1))
+
+
+def paper_f2(x: th.Tensor, wl_id: None = None) -> th.Tensor:
+    return th.reshape(24 * x[:], (-1, 1))
+
+
+@pytest.fixture()
+def paper_mogd() -> MOGD:
+    set_deterministic_torch(42)
+
+    params = MOGD.Params(
+        learning_rate=0.1,
+        weight_decay=0.1,
+        max_iters=1000,
+        patient=10,
+        seed=0,
+        multistart=10,
+        processes=1,
+        stress=0.1,
+    )
+    mogd = MOGD(params)
+    mogd.problem_setup(
+        variables=[FloatVariable(0, 24)],
+        accurate=True,
+        std_func=None,
+        objectives=[
+            Objective(
+                "obj1",
+                "MIN",
+                paper_f1,  # type: ignore
+            ),
+            Objective(
+                "obj2",
+                "MIN",
+                paper_f2,
+            ),
+        ],
+        constraints=[],
+        precision_list=[0],
+    )
+
+    return mogd
+
+
 class TestMOGD:
     def test_constraint_so_opt(self, mogd: MOGD) -> None:
         optimal_obj, optimal_vars = mogd.optimize_constrained_so(
@@ -80,6 +126,27 @@ class TestMOGD:
         )
         assert optimal_vars is not None
         np.testing.assert_array_equal(optimal_vars, np.array([[0, 2.21]]))
+
+    @pytest.mark.parametrize(
+        "variable, expected_variable",
+        [(FloatVariable(0, 24), 16), (IntegerVariable(0, 24), 16)],
+    )
+    def test_constraint_so_opt_paper(
+        self, paper_mogd: MOGD, variable: Variable, expected_variable: float
+    ) -> None:
+        paper_mogd.variables = [variable]
+        optimal_obj, optimal_vars = paper_mogd.optimize_constrained_so(
+            wl_id="1",
+            objective_name="obj1",
+            obj_bounds_dict={
+                "obj1": th.tensor((100, 200)),
+                "obj2": th.tensor((8, 16)),
+            },
+        )
+        assert optimal_obj is not None
+        np.testing.assert_array_almost_equal(optimal_obj, np.array([150, 16]))
+        assert optimal_vars is not None
+        np.testing.assert_array_equal(optimal_vars, np.array([[expected_variable]]))
 
     def test_constraint_parallel(self, mogd: MOGD) -> None:
         res_list = mogd.optimize_constrained_so_parallel(
