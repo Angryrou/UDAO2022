@@ -33,7 +33,7 @@ class TestUdaoModel:
     def test_from_config(self) -> None:
         iterator_shape = UdaoInputShape(
             embedding_input_shape=1,
-            feature_input_shape=1,
+            feature_input_names=["a"],
             output_shape=1,
         )
         model = UdaoModel.from_config(
@@ -50,7 +50,7 @@ class TestUdaoModel:
     def test_forward(self) -> None:
         iterator_shape = UdaoInputShape(
             embedding_input_shape=1,
-            feature_input_shape=1,
+            feature_input_names=["a"],
             output_shape=1,
         )
         model = UdaoModel.from_config(

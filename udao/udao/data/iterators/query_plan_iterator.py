@@ -7,7 +7,7 @@ import torch as th
 from ...data.containers.tabular_container import TabularContainer
 from ...utils.interfaces import UdaoInput, UdaoInputShape
 from ..containers import QueryStructureContainer
-from .base_iterator import BaseDatasetIterator
+from .base_iterator import UdaoIterator
 
 
 @dataclass
@@ -17,7 +17,7 @@ class QueryPlanInput(UdaoInput[dgl.DGLGraph]):
     pass
 
 
-class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
+class QueryPlanIterator(UdaoIterator[Tuple[QueryPlanInput, th.Tensor], UdaoInputShape]):
     """
     Iterator that returns a dgl.DGLGraph for each key, with associated node features.
     The features are stored in the graph.ndata dictionary.
@@ -97,9 +97,13 @@ class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
         embedding_input_shape["type"] = len(
             self.query_structure_container.operation_types.unique()
         )
+        feature_names = [
+            *self.tabular_features.data.columns,
+            *self.query_structure_container.graph_meta_features.columns,
+        ]
         return UdaoInputShape(
             embedding_input_shape=embedding_input_shape,
-            feature_input_shape=sample_input.feature_input.shape[0],
+            feature_input_names=feature_names,
             output_shape=sample_output.shape[0],
         )
 

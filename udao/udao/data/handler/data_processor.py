@@ -6,7 +6,7 @@ from pandas import DataFrame
 
 from ..containers.base_container import BaseContainer
 from ..extractors import FeatureExtractor
-from ..iterators import BaseDatasetIterator
+from ..iterators import BaseIterator
 from ..preprocessors.base_preprocessor import FeaturePreprocessor
 from ..utils.utils import DatasetType
 
@@ -59,7 +59,7 @@ class DataProcessor:
 
     def __init__(
         self,
-        iterator_cls: Type[BaseDatasetIterator],
+        iterator_cls: Type[BaseIterator],
         feature_extractors: Dict[str, FeatureExtractor],
         feature_preprocessors: Optional[
             Mapping[
@@ -122,12 +122,12 @@ class DataProcessor:
 
     def make_iterator(
         self, data: DataFrame, keys: Sequence, split: DatasetType
-    ) -> BaseDatasetIterator:
+    ) -> BaseIterator:
         return self.iterator_cls(keys, **self.extract_features(data, split=split))
 
 
 def create_data_processor(
-    iterator_cls: Type[BaseDatasetIterator], *args: str
+    iterator_cls: Type[BaseIterator], *args: str
 ) -> Callable[..., DataProcessor]:
     """
     Creates a DataHandlerParams class dynamically based on

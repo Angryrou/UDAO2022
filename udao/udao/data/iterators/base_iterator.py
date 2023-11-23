@@ -1,16 +1,18 @@
 from abc import abstractmethod
 from inspect import signature
-from typing import Any, Generic, List, Sequence, Type, TypeVar
+from typing import Any, Generic, List, Sequence, Tuple, Type, TypeVar
 
 import torch as th
 from torch.utils.data import DataLoader, Dataset
 
+from ...utils.interfaces import UdaoInput, UdaoInputShape
 from ..containers import BaseContainer
 
 T = TypeVar("T")
+ST = TypeVar("ST")
 
 
-class BaseDatasetIterator(Dataset, Generic[T]):
+class BaseIterator(Dataset, Generic[T, ST]):
     """Base class for all dataset iterators.
     Inherits from torch.utils.data.Dataset.
     """
@@ -20,16 +22,15 @@ class BaseDatasetIterator(Dataset, Generic[T]):
         self.tensors_dtype = th.float32
         pass
 
-    @abstractmethod
     def __len__(self) -> int:
-        pass
+        return len(self.keys)
 
     @abstractmethod
     def __getitem__(self, idx: int, /) -> T:
         pass
 
     @abstractmethod
-    def get_iterator_shape(self) -> Any:
+    def get_iterator_shape(self) -> ST:
         """Returns the shape of the iterator output."""
 
     @staticmethod
@@ -85,3 +86,18 @@ class BaseDatasetIterator(Dataset, Generic[T]):
         Useful for mixed precision training.
         """
         self.tensors_dtype = dtype
+
+
+UT = TypeVar("UT", bound=Tuple[UdaoInput, th.Tensor])
+UST = TypeVar("UST", bound=UdaoInputShape)
+
+
+class UdaoIterator(BaseIterator[UT, UST], Generic[UT, UST]):
+    pass
+
+    @staticmethod
+    @abstractmethod
+    def collate(items: List[UT]) -> UT:
+        """Collates the items into a batch.
+        Used in the dataloader."""
+        pass

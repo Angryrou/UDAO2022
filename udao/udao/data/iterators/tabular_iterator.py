@@ -1,12 +1,12 @@
-from typing import Any, Sequence
+from typing import Any, Dict, Sequence
 
 import torch as th
 
 from ..containers import TabularContainer
-from .base_iterator import BaseDatasetIterator
+from .base_iterator import BaseIterator
 
 
-class TabularIterator(BaseDatasetIterator[th.Tensor]):
+class TabularIterator(BaseIterator[th.Tensor, Dict[str, Any]]):
     """Iterator on tabular data.
 
     Parameters

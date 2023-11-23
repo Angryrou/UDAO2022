@@ -30,7 +30,6 @@ def df_fixture() -> Tuple[pd.DataFrame, DataHandlerParams]:
 
     def df_func(df: DataFrame) -> DataFrame:
         df = df.copy()
-        print(df)
         df = df["plan"].apply(lambda x: len(x)).to_frame("feature")
         return df
 

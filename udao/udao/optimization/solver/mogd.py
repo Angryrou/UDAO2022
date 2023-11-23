@@ -521,7 +521,6 @@ class MOGD:
                 else:
                     raise Exception(f"unsupported type in var {i}")
             vars = th.cat(to_concat, dim=1)
-            print("shapes", vars.shape, numerical_var_list.shape, len(self.variables))
             assert vars.shape[0] == numerical_var_list.shape[0] and vars.shape[
                 1
             ] == len(self.variables)
