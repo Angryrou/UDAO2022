@@ -86,7 +86,7 @@ if __name__ == "__main__":
         iterator_shape=split_iterators["train"].get_iterator_shape(),
         embedder_params={
             "output_size": 10,
-            "op_groups": ["cbo", "op_enc"],
+            "op_groups": ["cbo", "op_enc", "type"],
             "type_embedding_dim": 5,
             "embedding_normalizer": "BN",
         },

@@ -25,7 +25,7 @@ def sample_iterator() -> QueryPlanIterator:
         data=np.vstack([i for i in range(7)]),
         index=multi_index,
         columns=["operation_gid"],
-    )
+    )["operation_gid"]
     graph_meta_features = pd.DataFrame(
         data=np.vstack([np.linspace(i * 10, (i + 1) * 10, 2) for i in range(3)]),
         index=keys,

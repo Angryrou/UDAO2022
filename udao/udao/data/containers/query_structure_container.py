@@ -28,7 +28,8 @@ class QueryStructureContainer(BaseContainer):
     """Link a template id to a QueryPlanStructure"""
     key_to_template: Dict[str, int]
     """Link a key to a template id."""
-    operation_types: pd.DataFrame
+    operation_types: pd.Series
+    """Stores the operation types of the operations in the query plan."""
 
     def get(self, key: str) -> QueryDescription:
         graph_features = self.graph_features.loc[key].values
