@@ -154,9 +154,6 @@ class MOGD:
                         k: v[loss_id].item() for k, v in objs_pred_dict.items()
                     }
                     local_best_var = vars.data.numpy()[loss_id].copy()
-                    local_best_objs = {
-                        k: v[loss_id].item() for k, v in objs_pred_dict.items()
-                    }
                     # local_best_var = vars.data.numpy().copy()
                     local_best_iter = i
 
