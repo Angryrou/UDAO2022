@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import lightning.pytorch as pl
 import torch as th
@@ -29,8 +29,8 @@ class UdaoModule(pl.LightningModule):
     ----------
     model : nn.Module
         The model to train.
-    metrics: Optional[List[Metric]], optional
-        A list of metrics - from torchmetrics - to compute,
+    metrics: Optional[List[Type[Metric]]], optional
+        A list of metric classes - from torchmetrics - to compute,
         by default None
     objectives : List[str]
         The list of objectives to train on.
@@ -53,7 +53,7 @@ class UdaoModule(pl.LightningModule):
         model: nn.Module,
         objectives: List[str],
         loss: Optional[_Loss] = None,
-        metrics: Optional[List[Metric]] = None,
+        metrics: Optional[List[Type[Metric]]] = None,
         loss_weights: Optional[Dict[str, float]] = None,
         learning_params: Optional[LearningParams] = None,
     ) -> None:
@@ -81,7 +81,7 @@ class UdaoModule(pl.LightningModule):
             self.loss_weights = loss_weights
         self.metrics: Dict[str, Dict[str, MetricCollection]] = defaultdict(dict)
         if metrics:
-            metric_collection = MetricCollection(metrics)
+            metric_collection = MetricCollection([m() for m in metrics])
             for split in ["train", "val", "test"]:
                 for objective in self.objectives:
                     self.metrics[split][objective] = metric_collection.clone(

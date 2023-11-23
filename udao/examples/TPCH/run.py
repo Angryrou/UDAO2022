@@ -96,7 +96,7 @@ if __name__ == "__main__":
         model,
         ["latency"],
         loss=WMAPELoss(),
-        metrics=[WeightedMeanAbsolutePercentageError()],
+        metrics=[WeightedMeanAbsolutePercentageError],
     )
     tb_logger = TensorBoardLogger("tb_logs")
     checkpoint_callback = ModelCheckpoint(
