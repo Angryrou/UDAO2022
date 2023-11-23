@@ -28,9 +28,11 @@ class WeightedSumObjective(Objective):
         self.allow_cache = allow_cache
 
     def _function(self, vars: np.ndarray, *args: Any, **kwargs: Any) -> np.ndarray:
-        hash_var = hashlib.sha256(vars.data.tobytes()).hexdigest()
-        if hash_var in self._cache and self.allow_cache:
-            return self._cache[hash_var]
+        hash_var = ""
+        if self.allow_cache:
+            hash_var = hashlib.md5(vars.data.tobytes()).hexdigest()
+            if hash_var in self._cache:
+                return self._cache[hash_var]
         objs: List[np.ndarray] = []
         for objective in self.objectives:
             obj = objective.function(vars, **kwargs) * objective.direction
@@ -38,7 +40,8 @@ class WeightedSumObjective(Objective):
 
         # shape (n_feasible_samples/grids, n_objs)
         objs_array = np.array(objs).T
-        self._cache[hash_var] = objs_array
+        if self.allow_cache:
+            self._cache[hash_var] = objs_array
         return objs_array
 
     def function(self, vars: np.ndarray, *args: Any, **kwargs: Any) -> th.Tensor:
