@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pytest
+import torch as th
 
 from ...concepts import BoolVariable, Constraint, IntegerVariable, Objective
 from ...moo.weighted_sum import WeightedSum
@@ -15,8 +16,16 @@ class TestWeightedSum:
         inner_solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
         objectives = [
-            Objective(function=lambda x, **kw: x[:, 0], type="MIN"),
-            Objective(function=lambda x, **kw: (x[:, 0] + x[:, 1]) / 10, type="MIN"),
+            Objective(
+                "obj1",
+                function=lambda x, **kw: th.tensor(x[:, 0]),
+                direction_type="MIN",
+            ),
+            Objective(
+                "obj2",
+                function=lambda x, **kw: th.tensor((x[:, 0] + x[:, 1]) / 10),
+                direction_type="MIN",
+            ),
         ]
         constraints = [
             Constraint(function=lambda x, **kw: x[:, 0] + x[:, 1] - 2, type=">=")
@@ -38,24 +47,25 @@ class TestWeightedSum:
         inner_solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
 
-        def obj_func1(x: np.ndarray, wl_id: Optional[str] = None) -> np.ndarray:
+        def obj_func1(x: Any, wl_id: Optional[str] = None) -> th.Tensor:
             if not wl_id:
-                return x[:, 0]
+                return th.tensor(x[:, 0])
             else:
-                return x[:, 0] + 1
+                return th.tensor(x[:, 0] + 1)
 
-        def obj_func2(x: np.ndarray, wl_id: Optional[str] = None) -> np.ndarray:
+        def obj_func2(x: np.ndarray, wl_id: Optional[str] = None) -> th.Tensor:
             if not wl_id:
-                return (x[:, 0] + x[:, 1]) / 10
+                return th.tensor((x[:, 0] + x[:, 1]) / 10)
             else:
-                return (x[:, 0] + x[:, 1]) / 10 + 1
+                return th.tensor((x[:, 0] + x[:, 1]) / 10 + 1)
 
         objectives = [
             Objective(
+                "obj1",
                 function=obj_func1,
-                type="MIN",
+                direction_type="MIN",
             ),
-            Objective(function=obj_func2, type="MIN"),
+            Objective("obj2", function=obj_func2, direction_type="MIN"),
         ]
         constraints = [
             Constraint(
@@ -83,8 +93,12 @@ class TestWeightedSum:
         inner_solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
         objectives = [
-            Objective(function=lambda x, **kw: x[:, 0], type="MIN"),
-            Objective(function=lambda x, **kw: (x[:, 0] + x[:, 1]) / 10, type="MIN"),
+            Objective("obj1", function=lambda x, **kw: x[:, 0], direction_type="MIN"),
+            Objective(
+                "obj2",
+                function=lambda x, **kw: (x[:, 0] + x[:, 1]) / 10,
+                direction_type="MIN",
+            ),
         ]
         constraints = [
             Constraint(function=lambda x, **kw: x[:, 0] + x[:, 1] - 10, type=">=")
@@ -102,9 +116,21 @@ class TestWeightedSum:
         inner_solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         ws_pairs = np.array([[0.3, 0.5, 0.2], [0.6, 0.3, 0.1]])
         objectives = [
-            Objective(function=lambda x, **kw: x[:, 0], type="MIN"),
-            Objective(function=lambda x, **kw: x[:, 1], type="MIN"),
-            Objective(function=lambda x, **kw: (x[:, 0] + x[:, 1]) / 10, type="MIN"),
+            Objective(
+                "obj1",
+                function=lambda x, **kw: th.tensor(x[:, 0]),
+                direction_type="MIN",
+            ),
+            Objective(
+                "obj2",
+                function=lambda x, **kw: th.tensor(x[:, 1]),
+                direction_type="MIN",
+            ),
+            Objective(
+                "obj3",
+                function=lambda x, **kw: th.tensor((x[:, 0] + x[:, 1]) / 10),
+                direction_type="MIN",
+            ),
         ]
         constraints = [
             Constraint(function=lambda x, **kw: x[:, 0] + x[:, 1] - 3, type=">=")
