@@ -18,11 +18,11 @@ def obj2(x: th.Tensor, wl_id: Optional[str]) -> th.Tensor:
 
 
 def complex_obj1(x: th.Tensor, wl_id: Optional[str]) -> th.Tensor:
-    return th.reshape(x[:, 0] ** 2 + x[:, 1] ** 2, (-1, 1))
+    return th.reshape(x[:, 0] ** 2 - x[:, 1] ** 2, (-1, 1))
 
 
 def complex_obj2(x: th.Tensor, wl_id: Optional[str]) -> th.Tensor:
-    return th.reshape(x[:, 0] ** 2 - x[:, 1] ** 2, (-1, 1))
+    return th.reshape(x[:, 0] ** 2 + x[:, 1] ** 2, (-1, 1))
 
 
 @pytest.fixture
@@ -98,22 +98,25 @@ class TestParallelProgressiveFrontier:
         for i, rect in enumerate(expected):
             assert rect == grid_rectangles[i]
 
-    def test_solve(self, ppf: ParallelProgressiveFrontier) -> None:
+    def test_solve_with_two_objectives(self, ppf: ParallelProgressiveFrontier) -> None:
         objectives, variables = ppf.solve("1", n_grids=2, max_iters=4)
         assert objectives is not None
         np.testing.assert_array_equal(objectives, [[-1, 0]])
         assert variables is not None
         np.testing.assert_array_equal(variables, [[1, 1]])
 
-    def test_solve_complex(self, ppf: ParallelProgressiveFrontier) -> None:
+    def test_solve_with_three_objectives(
+        self, ppf: ParallelProgressiveFrontier
+    ) -> None:
         objectives = [
-            Objective("obj1", "MAX", complex_obj2),  # type: ignore
-            Objective("obj2", "MAX", complex_obj1),  # type: ignore
+            Objective("obj1", "MAX", obj1),
+            Objective("obj2", "MAX", complex_obj1),
+            Objective("obj3", "MAX", complex_obj2),
         ]
         ppf.objectives = objectives
         ppf.mogd.objectives = objectives
         obj_values, var_values = ppf.solve("1", n_grids=2, max_iters=4)
         assert obj_values is not None
-        np.testing.assert_array_equal(obj_values, [[0, -2]])
+        np.testing.assert_array_equal(obj_values, [[-1, -1, -1], [-1, 0, -2]])
         assert var_values is not None
-        np.testing.assert_array_equal(var_values, [[1, 7]])
+        np.testing.assert_array_equal(var_values, [[1, 1], [1, 7]])

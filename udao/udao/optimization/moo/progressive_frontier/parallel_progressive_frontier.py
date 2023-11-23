@@ -60,7 +60,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             all_vars_list.append(anchor_point.vars.tolist())
 
         if n_objs < 2 or n_objs > 3:
-            raise Exception(f"{n_objs} objectives are not supported for now!" f"")
+            raise Exception(f"{n_objs} objectives are not supported for now!")
 
         for i in range(max_iters):
             # choose the cell with max volume to explore
