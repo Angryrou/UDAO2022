@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, Type, TypeVar, Union
+from typing import Generic, TypeVar, Union
 
 import pandas as pd
 
@@ -31,6 +31,4 @@ class StaticFeatureExtractor(ABC, Generic[T]):
         pass
 
 
-FeatureExtractorType = Union[
-    Type[TrainedFeatureExtractor], Type[StaticFeatureExtractor]
-]
+FeatureExtractor = Union[TrainedFeatureExtractor, StaticFeatureExtractor]

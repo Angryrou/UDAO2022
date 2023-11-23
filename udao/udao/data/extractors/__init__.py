@@ -1,5 +1,5 @@
 from .base_extractors import (
-    FeatureExtractorType,
+    FeatureExtractor,
     StaticFeatureExtractor,
     TrainedFeatureExtractor,
 )
@@ -8,7 +8,7 @@ from .query_structure_extractor import QueryStructureExtractor
 from .tabular_extractor import TabularFeatureExtractor
 
 __all__ = [
-    "FeatureExtractorType",
+    "FeatureExtractor",
     "StaticFeatureExtractor",
     "TrainedFeatureExtractor",
     "PredicateEmbeddingExtractor",

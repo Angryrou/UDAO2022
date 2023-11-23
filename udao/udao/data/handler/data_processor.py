@@ -5,22 +5,17 @@ import torch as th
 from pandas import DataFrame
 
 from ..containers.base_container import BaseContainer
-from ..extractors import StaticFeatureExtractor, TrainedFeatureExtractor
+from ..extractors import FeatureExtractor
 from ..iterators import BaseDatasetIterator
-from ..preprocessors.base_preprocessor import (
-    StaticFeaturePreprocessor,
-    TrainedFeaturePreprocessor,
-)
+from ..preprocessors.base_preprocessor import FeaturePreprocessor
 from ..utils.utils import DatasetType
 
 
 @dataclass
 class FeaturePipeline:
-    extractor: Union[TrainedFeatureExtractor, StaticFeatureExtractor]
+    extractor: FeatureExtractor
     """Tuple defining the feature extractor and its initialization arguments."""
-    preprocessors: Optional[
-        List[Union[TrainedFeaturePreprocessor, StaticFeaturePreprocessor]]
-    ] = None
+    preprocessors: Optional[List[FeaturePreprocessor]] = None
     """List of tuples defining feature preprocessors
     and their initialization arguments."""
 
@@ -65,13 +60,11 @@ class DataProcessor:
     def __init__(
         self,
         iterator_cls: Type[BaseDatasetIterator],
-        feature_extractors: Dict[
-            str, Union[TrainedFeatureExtractor, StaticFeatureExtractor]
-        ],
+        feature_extractors: Dict[str, FeatureExtractor],
         feature_preprocessors: Optional[
             Mapping[
                 str,
-                Sequence[Union[TrainedFeaturePreprocessor, StaticFeaturePreprocessor]],
+                Sequence[FeaturePreprocessor],
             ]
         ] = None,
         tensors_dtype: Optional[th.dtype] = None,
@@ -171,12 +164,8 @@ def create_data_processor(
         tensors_dtype: Optional[th.dtype] = None,
         **kwargs: FeaturePipeline,
     ) -> DataProcessor:
-        feature_extractors: Dict[
-            str, Union[TrainedFeatureExtractor, StaticFeatureExtractor]
-        ] = {}
-        feature_preprocessors: Dict[
-            str, Sequence[Union[TrainedFeaturePreprocessor, StaticFeaturePreprocessor]]
-        ] = {}
+        feature_extractors: Dict[str, FeatureExtractor] = {}
+        feature_preprocessors: Dict[str, Sequence[FeaturePreprocessor]] = {}
         for param in params:
             if param in kwargs:
                 feature_extractors[param] = kwargs[param].extractor

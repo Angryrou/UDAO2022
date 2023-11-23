@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, Type, TypeVar, Union
+from typing import Generic, TypeVar, Union
 
 from ..containers.base_container import BaseContainer
 from ..utils.utils import DatasetType
@@ -33,6 +33,4 @@ class StaticFeaturePreprocessor(ABC, Generic[T]):
         pass
 
 
-FeaturePreprocessorType = Union[
-    Type[TrainedFeaturePreprocessor], Type[StaticFeaturePreprocessor]
-]
+FeaturePreprocessor = Union[TrainedFeaturePreprocessor, StaticFeaturePreprocessor]
