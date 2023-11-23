@@ -21,7 +21,7 @@ def sample_module() -> UdaoModule:
         model=model,
         objectives=objectives,
         loss=loss,
-        metrics=[WeightedMeanAbsolutePercentageError()],
+        metrics=[WeightedMeanAbsolutePercentageError],
     )
     return module
 
