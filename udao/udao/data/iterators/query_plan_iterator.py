@@ -76,7 +76,7 @@ class QueryPlanIterator(BaseDatasetIterator[Tuple[QueryPlanInput, th.Tensor]]):
         features = th.tensor(self.tabular_features.get(key), dtype=self.tensors_dtype)
         objectives = th.tensor(self.objectives.get(key), dtype=self.tensors_dtype)
         graph, meta_input = self._get_graph_and_meta(key)
-        features = th.cat([features, meta_input])
+        features = th.cat([meta_input, features])
         input_data = QueryPlanInput(graph, features)
         return input_data, objectives
 
