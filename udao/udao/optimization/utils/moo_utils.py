@@ -80,6 +80,12 @@ class Rectangle:
     def __lt__(self, other: "Rectangle") -> bool:
         return self.neg_vol < other.neg_vol
 
+    def __eq__(self, other: "Rectangle") -> bool:  # type: ignore
+        return bool(
+            np.all(self.upper_bounds == other.upper_bounds)
+            and np.all(self.lower_bounds == other.lower_bounds)
+        )
+
 
 # a quite efficient way to get the indexes of pareto points
 # https://stackoverflow.com/a/40239615
@@ -146,6 +152,7 @@ def summarize_ret(
         po_inds = is_pareto_efficient(po_objs_cand)
         po_objs = po_objs_cand[po_inds]
         po_vars = po_vars_cand[po_inds]
+
         return po_objs, po_vars
 
 

@@ -21,6 +21,12 @@ from ...utils.moo_utils import summarize_ret
             [[1, 1], [0.4, 1.9]],
             [[0.9, 2.5], [0.3, 21.5]],
         ),
+        (
+            [[2, 6], [3, 5]],
+            [[0.5, 0.3], [0.9, 2.5]],
+            [[2, 6], [3, 5]],
+            [[0.5, 0.3], [0.9, 2.5]],
+        ),
     ],
 )
 def test_summarize_ret(
@@ -30,5 +36,6 @@ def test_summarize_ret(
     expected_var: List[List[float]],
 ) -> None:
     po_objs, po_vars = summarize_ret(po_obj_list, po_var_list)
+    print(po_objs)
     np.testing.assert_array_equal(po_objs, expected_obj)
     np.testing.assert_array_equal(po_vars, expected_var)
