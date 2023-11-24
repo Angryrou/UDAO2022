@@ -6,19 +6,21 @@
 
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
-import numpy as np
-
-from ..concepts.variable import Variable
+from ..concepts import Constraint, Objective, Variable
+from ..utils.moo_utils import Point
 
 
 class BaseSolver(ABC):
-    def __init__(self) -> None:
-        pass
-
     @abstractmethod
-    def _get_input(self, variables: List[Variable]) -> np.ndarray:
+    def solve(
+        self,
+        objective: Objective,
+        constraints: List[Constraint],
+        variables: List[Variable],
+        wl_id: Optional[str],
+    ) -> Point:
         pass
 
     # @abstractmethod

@@ -1,15 +1,20 @@
+from dataclasses import dataclass
 from typing import List, Optional
 
 import numpy as np
-from dataclasses import dataclass
-from udao.optimization.concepts.variable import (
+
+from ..concepts import (
+    Constraint,
     EnumVariable,
     FloatVariable,
     IntegerVariable,
+    Objective,
     Variable,
 )
-
+from ..utils.exceptions import NoSolutionError
+from ..utils.moo_utils import Point
 from .base_solver import BaseSolver
+from .utils import filter_on_constraints
 
 
 class RandomSampler(BaseSolver):
@@ -64,3 +69,22 @@ class RandomSampler(BaseSolver):
         for i, var in enumerate(variables):
             x[:, i] = self._process_variable(var)
         return x
+
+    def solve(
+        self,
+        objective: Objective,
+        constraints: List[Constraint],
+        variables: List[Variable],
+        wl_id: Optional[str],
+    ) -> Point:
+        filtered_vars = filter_on_constraints(
+            wl_id, self._get_input(variables), constraints
+        )
+        if not filtered_vars.size:
+            raise NoSolutionError("No feasible solution.")
+
+        objective_value = np.array(
+            objective.function(filtered_vars, wl_id=wl_id)
+        ).reshape(-1, 1)
+        op_ind = int(np.argmin(objective_value))
+        return Point(objs=np.array(objective_value[op_ind]), vars=filtered_vars[op_ind])
