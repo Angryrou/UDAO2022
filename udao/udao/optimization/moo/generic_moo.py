@@ -5,7 +5,6 @@ import numpy as np
 
 from ..utils.parameters import VarTypes
 from .evolutionary import EVO
-from .progressive_frontier import ProgressiveFrontier
 
 
 class GenericMOO:
@@ -105,62 +104,7 @@ class GenericMOO:
         po_vars_list: List[Optional[np.ndarray]] = []
         time_cost_list: List[float] = []
 
-        if moo_algo == "progressive_frontier":
-            precision_list = add_params[0]
-            pf_option = add_params[1]
-            n_probes = add_params[2]
-            n_grids = add_params[3]
-            max_iters = add_params[4]
-            file_path = add_params[5]
-            accurate = add_params[6]
-            alpha = add_params[7]
-            anchor_option = add_params[8]
-            opt_obj_ind = add_params[9]
-            mogd_params = add_params[10]
-            job_ids = self._load_job_ids(file_path)
-            self.wl_list = job_ids
-
-            pf = ProgressiveFrontier(
-                pf_option,
-                solver,
-                mogd_params,
-                self.obj_names,
-                self.obj_funcs,
-                self.opt_types,
-                self.obj_types,  # type: ignore
-                self.const_funcs,
-                self.const_types,
-                opt_obj_ind,
-                self.wl_list,  # type: ignore
-                self.wl_ranges,  # type: ignore
-                self.vars_constraints,  # type: ignore
-                self.accurate,  # type: ignore
-                self.std_func,  # type: ignore
-            )
-
-            for wl_id in job_ids:
-                start_time = time.time()
-                if wl_id is None:
-                    raise Exception("workload id is None.")
-                po_objs, po_vars = pf.solve(
-                    wl_id,
-                    accurate,
-                    alpha,
-                    self.var_ranges,
-                    self.var_types,
-                    precision_list,
-                    n_probes,
-                    n_grids=n_grids,
-                    max_iters=max_iters,
-                    anchor_option=anchor_option,
-                )
-                time_cost = time.time() - start_time
-                po_objs_list.append(po_objs)
-                if po_vars is not None:
-                    po_vars_list.append(po_vars.squeeze())
-                time_cost_list.append(time_cost)
-
-        elif moo_algo == "evolutionary":
+        if moo_algo == "evolutionary":
             file_path = add_params[0]
             job_ids = self._load_job_ids(file_path)
             inner_algo = add_params[1]

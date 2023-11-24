@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch as th
@@ -49,10 +49,10 @@ class MOGD:
 
     def problem_setup(
         self,
-        variables: List[Variable],
+        variables: Sequence[Variable],
         std_func: Optional[Callable],
-        objectives: List[Objective],
-        constraints: List[Constraint],
+        objectives: Sequence[Objective],
+        constraints: Sequence[Constraint],
         precision_list: list,
         alpha: float = 0.0,
         accurate: bool = True,
@@ -201,7 +201,6 @@ class MOGD:
             best_raw_vars = self.get_raw_vars(best_vars)
             obj_pred_dict = self._get_obj_pred_dict(wl_id, best_raw_vars)
             target_obj_val = obj_pred_dict[objective_name]
-            print(f"TARGET OBJ VAL {target_obj_val}")
             logger.debug(
                 f"get best {objective_name}: {best_objs} at {best_vars}"
                 f" with {iter_num} iterations, loss = {best_loss}"
@@ -228,7 +227,7 @@ class MOGD:
             values are the lower and upper var_ranges for each objective value
         :return:
                 objs: list, all objective values
-                vars: ndarray(1, n_vars), variable values
+                vars: list, variable values
         """
 
         th.manual_seed(self.seed)
@@ -275,7 +274,7 @@ class MOGD:
             if obj_cand is None:
                 raise Exception(f"Unexpected objs_list[{idx}] is None.")
             objs = list(obj_cand.values())
-            return_vars = vars_cand.reshape([1, len(self.variables)])
+            return_vars = vars_cand.reshape([len(self.variables)])
         else:
             objs, return_vars = None, None
 
@@ -456,7 +455,7 @@ class MOGD:
     ##################
 
     def get_meshed_categorical_vars(
-        self, variables: List[Variable]
+        self, variables: Sequence[Variable]
     ) -> Optional[np.ndarray]:
         """
         get combinations of all categorical (binary, enum) variables
@@ -610,7 +609,9 @@ class MOGD:
         normalized_vars = (raw_vars - vars_min) / (vars_max - vars_min)
         return normalized_vars
 
-    def get_bounds(self, variables: List[Variable]) -> Tuple[np.ndarray, np.ndarray]:
+    def get_bounds(
+        self, variables: Sequence[Variable]
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         get min and max values for each variable
         :param var_ranges: ndarray (n_vars,),

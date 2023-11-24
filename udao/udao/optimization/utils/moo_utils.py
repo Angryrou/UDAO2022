@@ -8,25 +8,33 @@ from .exceptions import NoSolutionError
 from .parameters import VarTypes
 
 
-class Points:
+class Point:
     def __init__(self, objs: np.ndarray, vars: Optional[np.ndarray] = None) -> None:
         """
-        # Docstring in numpy format
+        A point in the objective space.
+        Variables are optional, and are not specified for imaginary points
+        (e.g., utopia and nadir)
 
         Parameters
         ----------
-        objs : np.ndarray(n_objs,)
-            objective values
-        vars :np.ndarray(1, n_vars), default=None
-            variable values, by default None
+        objs : np.ndarray
+            Array of objective values of shape (n_objs,)
+        vars :np.ndarray, optional
+            Array of variable values of shape (n_vars,), by default None
         """
         self.objs = objs
         self.vars = vars
         self.n_objs = objs.shape[0]
 
+    def __repr__(self) -> str:
+        return f"Point(objs={self.objs}, vars={self.vars})"
 
-class Rectangles:
-    def __init__(self, utopia: Points, nadir: Points) -> None:
+    def __eq__(self, other: "Point") -> bool:  # type: ignore
+        return bool(np.all(self.objs == other.objs) and np.all(self.vars == other.vars))
+
+
+class Rectangle:
+    def __init__(self, utopia: Point, nadir: Point) -> None:
         """
 
         Parameters
@@ -45,16 +53,19 @@ class Rectangles:
         self.utopia = utopia
         self.nadir = nadir
 
+    def __repr__(self) -> str:
+        return f"Rectangle(utopia={self.utopia}, nadir={self.nadir})"
+
     def cal_volume(self, upper_bounds: np.ndarray, lower_bounds: np.ndarray) -> float:
         """
         Calculate the volume of the hyper_rectangle
 
         Parameters
         ----------
-        upper_bounds : np.ndarray(n_objs,)
-            upper bounds of the hyper_rectangle
-        lower_bounds : np.ndarray(n_objs,)
-            lower bounds of the hyper_rectangle
+        upper_bounds : np.ndarray(
+            Array of upper bounds of the hyper_rectangle, of shape (n_objs,)
+        lower_bounds : np.ndarrays
+            Array of lower bounds of the hyper_rectangle of shape (n_objs,)
 
         Returns
         -------
@@ -66,7 +77,7 @@ class Rectangles:
 
     # Override the `__lt__()` function to make `Rectangles`
     # class work with min-heap (referred from VLDB2022)
-    def __lt__(self, other: "Rectangles") -> bool:
+    def __lt__(self, other: "Rectangle") -> bool:
         return self.neg_vol < other.neg_vol
 
 
