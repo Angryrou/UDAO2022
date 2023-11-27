@@ -12,7 +12,6 @@ from typing import (
     Union,
 )
 
-import pandas as pd
 import torch as th
 from pandas import DataFrame
 
@@ -160,7 +159,7 @@ class DataProcessor:
         """
         n_items = len(input_variables[list(input_variables.keys())[0]])
         keys = [f"{i}" for i in range(n_items)]
-        pd_input = pd.DataFrame.from_dict(
+        pd_input = DataFrame.from_dict(
             {
                 **{k: [v] * n_items for k, v in input_non_decision.items()},
                 **input_variables,

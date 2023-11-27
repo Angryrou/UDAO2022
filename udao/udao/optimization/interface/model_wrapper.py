@@ -15,7 +15,7 @@ def gradient_descent(
     loss_function: Callable,
     lr: float = 1,
 ) -> th.Tensor:
-    """Temporary function that mimicks part of what we'll
+    """Temporary function that mimics part of what we'll
     do in MOGD (gradient descent but not clipping)"""
     input_batch, udao_shape = data_processor.derive_batch_input(
         input_non_decision, input_variables
@@ -24,7 +24,6 @@ def gradient_descent(
     input_vars = input_batch.feature_input.clone().detach()
     input_batch.feature_input.requires_grad = True
     optimizer = optim.Adam([input_batch.feature_input], lr=lr)
-    udao_shape.feature_input_names
     output = model(input_batch)
     loss = loss_function(output)
     mask = th.tensor(

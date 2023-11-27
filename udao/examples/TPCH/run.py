@@ -9,7 +9,10 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torchmetrics import WeightedMeanAbsolutePercentageError
 from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
-from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
+from udao.data.extractors.tabular_extractor import (
+    TabularFeatureExtractor,
+    select_columns,
+)
 from udao.data.handler.data_handler import DataHandler, DataHandlerParams
 from udao.data.handler.data_processor import FeaturePipeline, create_data_processor
 from udao.data.iterators import QueryPlanIterator
@@ -33,26 +36,16 @@ if __name__ == "__main__":
     data_processor = processor_getter(
         tensor_dtypes=tensor_dtypes,
         tabular_features=FeaturePipeline(
-            extractor=TabularFeatureExtractor(lambda df: df[
-                        [
-                            "k1",
-                            "k2",
-                            "k3",
-                            "k4",
-                            "k5",
-                            "k6",
-                            "k7",
-                            "k8",
-                            "s1",
-                            "s2",
-                            "s3",
-                            "s4",
-                        ]
-                        + ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]
-                ])
+            extractor=TabularFeatureExtractor(
+                select_columns,
+                columns=["k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8"]
+                + ["s1", "s2", "s3", "s4"]
+                + ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"],
+            ),
+            preprocessors=[NormalizePreprocessor(MinMaxScaler())],
         ),
         objectives=FeaturePipeline(
-            extractor=TabularFeatureExtractor(lambda df: df[["latency"]])
+            extractor=TabularFeatureExtractor(select_columns, columns=["latency"])
         ),
         query_structure=FeaturePipeline(
             extractor=QueryStructureExtractor(),
@@ -62,7 +55,9 @@ if __name__ == "__main__":
             ],
         ),
         op_enc=FeaturePipeline(
-            extractor=PredicateEmbeddingExtractor(Word2VecEmbedder(Word2VecParams(vec_size=32))),
+            extractor=PredicateEmbeddingExtractor(
+                Word2VecEmbedder(Word2VecParams(vec_size=32))
+            ),
         ),
     )
 

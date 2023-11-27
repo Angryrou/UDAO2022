@@ -15,6 +15,9 @@ ST = TypeVar("ST")
 class BaseIterator(Dataset, Generic[T, ST]):
     """Base class for all dataset iterators.
     Inherits from torch.utils.data.Dataset.
+    T is the type of the iterator output.
+    ST is the type of the iterator output shape.
+    See UdaoIterator for an example.
     """
 
     def __init__(self, keys: Sequence[str], *args: Type[BaseContainer]) -> None:
@@ -88,7 +91,11 @@ class BaseIterator(Dataset, Generic[T, ST]):
         self.tensors_dtype = dtype
 
 
+# Type of the iterator output - in the Udao case,
+# restricted to Tuple of UdaoInput and th.Tensor
 UT = TypeVar("UT", bound=Tuple[UdaoInput, th.Tensor])
+# Type of the iterator output shape - in the Udao case,
+# restricted to UdaoInputShape
 UST = TypeVar("UST", bound=UdaoInputShape)
 
 
