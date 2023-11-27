@@ -6,6 +6,7 @@ from ..containers import QueryStructureContainer
 from ..utils.query_plan import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,
+    add_positional_encoding,
     extract_query_plan_features,
 )
 from ..utils.utils import DatasetType
@@ -17,15 +18,21 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
     Extracts the features of the operations in the logical plan,
     and the tree structure of the logical plan.
     Keep track of the different query plans seen so far, and their template id.
+
+    Parameters:
+    -----------
+    with_positional_encoding: bool
+        Whether to add positional encoding to the query plan gaph.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, with_positional_encoding: bool = False) -> None:
         self.template_plans: Dict[int, QueryPlanStructure] = {}
         self.feature_types: Dict[
             str, type
         ] = QueryPlanOperationFeatures.get_feature_names_and_types()
         self.id_template_dict: Dict[str, int] = {}
         self.operation_types: Dict[str, int] = {}
+        self.with_positional_encoding = with_positional_encoding
 
     def _extract_operation_types(
         self, structure: QueryPlanStructure, split: DatasetType
@@ -53,6 +60,8 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
         if tid is None:
             if split == "train":
                 tid = len(self.template_plans) + 1
+                if self.with_positional_encoding:
+                    structure.graph = add_positional_encoding(structure.graph)
                 self.template_plans[tid] = structure
             else:
                 raise KeyError("Unknown template plan")

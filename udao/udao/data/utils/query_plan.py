@@ -2,12 +2,14 @@ import re
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, fields
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import dgl
 import networkx as nx
+import numpy as np
 import torch as th
 from networkx.algorithms import isomorphism
+from scipy import sparse as sp
 
 
 def format_size(size: str) -> float:
@@ -273,6 +275,51 @@ def compute_meta_features(
         )
         del graph.ndata[op_feature]
     return input_meta
+
+
+def get_laplacian_positional_encoding(
+    graph: dgl.DGLGraph, pos_enc_dim: Optional[int] = None
+) -> th.Tensor:
+    """
+    Graph positional encoding v/ Laplacian eigenvectors
+    """
+    if pos_enc_dim is None:
+        pos_enc_dim = graph.number_of_nodes() - 2
+    # Laplacian
+    # A = g.adjacency_matrix_scipy(return_edge_ids=False).astype(float)
+    A = graph.adjacency_matrix().T
+    A_indptr, A_indices, A_val_indices = A.csr()
+    A_values = (
+        A.val.numpy()[A_val_indices] if A_val_indices is not None else A.val.numpy()
+    )
+    A = sp.csr_matrix(
+        tuple(
+            [
+                A_values,  # values
+                A_indices.numpy(),  # indices
+                A_indptr.numpy(),  # indptr
+            ]
+        ),
+        shape=A.shape,
+        dtype=float,
+    )
+    in_degrees = cast(th.Tensor, graph.in_degrees()).numpy().clip(1)
+    N = sp.diags(in_degrees**-0.5, dtype=float, format="csr")
+    L = sp.eye(graph.number_of_nodes()) - N * A * N
+
+    # Eigenvectors with numpy
+    eigen_values, eigen_vectors = np.linalg.eig(L.toarray())
+    idx = eigen_values.argsort()  # increasing order
+    eigen_values, eigen_vectors = eigen_values[idx], np.real(eigen_vectors[:, idx])
+    return th.from_numpy(eigen_vectors[:, 1 : pos_enc_dim + 1]).float()
+
+
+def add_positional_encoding(graph: dgl.DGLGraph) -> dgl.DGLGraph:
+    bidirectional = cast(dgl.DGLGraph, dgl.to_bidirected(graph))
+    graph.ndata["pos_enc"] = get_laplacian_positional_encoding(
+        bidirectional, graph.num_nodes() - 2
+    )
+    return graph
 
 
 def extract_query_plan_features(

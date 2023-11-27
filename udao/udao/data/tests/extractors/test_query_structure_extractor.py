@@ -1,6 +1,9 @@
+from typing import cast
+
 import numpy as np
 import pandas as pd
 import pytest
+import torch as th
 
 from ...extractors import QueryStructureExtractor
 from ...utils.query_plan import QueryPlanStructure
@@ -168,3 +171,22 @@ class TestStructureExtractor:
             3,
             4,
         ]
+
+    def test_extract_structure_with_pe(self, df_fixture: pd.DataFrame) -> None:
+        extractor = QueryStructureExtractor(with_positional_encoding=True)
+        row = df_fixture.iloc[1]
+        extractor._extract_structure_and_features(row.id, row.plan, "train")
+        result = cast(th.Tensor, extractor.template_plans[1].graph.ndata["pos_enc"])
+        print(result)
+        th.allclose(
+            result,
+            th.tensor(
+                [
+                    [-0.4508, 1.0000, 0.4508],
+                    [-0.6977, 0.0000, -0.6977],
+                    [-0.5091, 0.0000, 0.5091],
+                    [0.0563, 0.0000, 0.0563],
+                    [0.2181, 0.0000, -0.2181],
+                ]
+            ),
+        )
