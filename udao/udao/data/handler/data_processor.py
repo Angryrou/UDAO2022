@@ -1,9 +1,22 @@
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
+import pandas as pd
 import torch as th
 from pandas import DataFrame
 
+from ...utils.interfaces import UdaoInputShape
 from ..containers.base_container import BaseContainer
 from ..extractors import FeatureExtractor
 from ..iterators import BaseIterator
@@ -124,6 +137,41 @@ class DataProcessor:
         self, data: DataFrame, keys: Sequence, split: DatasetType
     ) -> BaseIterator:
         return self.iterator_cls(keys, **self.extract_features(data, split=split))
+
+    def derive_batch_input(
+        self,
+        input_non_decision: Dict[str, Any],
+        input_variables: Dict[str, list],
+    ) -> Tuple[Any, UdaoInputShape]:
+        """Derive the batch input from the input dict
+
+        Parameters
+        ----------
+        input_non_decision : Dict[str, Any]
+            The fixed values for the non-decision inputs
+
+        input_variables : Dict[str, list]
+            The values for the variables inputs
+
+        Returns
+        -------
+        Any
+            The batch input for the model
+        """
+        n_items = len(input_variables[list(input_variables.keys())[0]])
+        keys = [f"{i}" for i in range(n_items)]
+        pd_input = pd.DataFrame.from_dict(
+            {
+                **{k: [v] * n_items for k, v in input_non_decision.items()},
+                **input_variables,
+                "id": keys,
+            }
+        )
+        pd_input.set_index("id", inplace=True)
+        iterator = self.make_iterator(pd_input, keys, split="test")
+        dataloader = iterator.get_dataloader(batch_size=n_items)
+        batch_input, _ = next(iter(dataloader))
+        return batch_input, iterator.get_iterator_shape()
 
 
 def create_data_processor(

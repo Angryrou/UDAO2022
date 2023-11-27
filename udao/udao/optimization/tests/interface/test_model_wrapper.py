@@ -10,7 +10,7 @@ from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....model.model import UdaoModel
 from ....model.tests.embedders.dummy_embedder import DummyEmbedder
 from ....model.tests.regressors.dummy_regressor import DummyRegressor
-from ...interface.model_wrapper import ModelWrapper, gradient_descent
+from ...interface.model_wrapper import gradient_descent
 
 
 def test_gradient_descent() -> None:
@@ -48,7 +48,6 @@ def test_gradient_descent() -> None:
         embedder_params={"output_size": 1},
         regressor_params={},
     )
-    model_wrapper = ModelWrapper(data_processor=data_processor, model=model)
     input_non_decision = {
         "embedding_input": 0,
         "objective_input": 0,
@@ -59,14 +58,20 @@ def test_gradient_descent() -> None:
         "feature_input_2": [1.0, 1.1, 1.0, 1.1],
     }
     diff = gradient_descent(
-        model_wrapper, input_non_decision, input_variables, 4, lambda x: th.sum(x**2)
+        data_processor=data_processor,
+        input_non_decision=input_non_decision,
+        input_variables=input_variables,
+        model=model,
+        loss_function=lambda x: th.sum(x**2),
     )
     assert th.allclose(
         diff,
         th.tensor(
             [
-                [-1.0, -1.0, 0],
-                [-1.0, -1.0, 0],
+                [-1.0000, -1.0000, 0.0000],
+                [-1.0000, -1.0000, 0.0000],
+                [-1.0000, -1.0000, 0.0000],
+                [-1.0000, -1.0000, 0.0000],
             ]
         ),
     )
