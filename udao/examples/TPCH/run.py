@@ -16,7 +16,7 @@ from udao.data.handler.data_handler import (
     create_data_handler_params,
 )
 from udao.data.iterators import QueryPlanIterator
-from udao.data.predicate_embedders import Word2VecEmbedder
+from udao.data.predicate_embedders import Word2VecEmbedder, Word2VecParams
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
 from udao.model.embedders.graph_averager import GraphAverager
 from udao.model.model import UdaoModel
@@ -43,20 +43,41 @@ if __name__ == "__main__":
                 TabularFeatureExtractor,
                 [
                     lambda df: df[
-                        ["k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "s1", "s2"]
+                        [
+                            "k1",
+                            "k2",
+                            "k3",
+                            "k4",
+                            "k5",
+                            "k6",
+                            "k7",
+                            "k8",
+                            "s1",
+                            "s2",
+                            "s3",
+                            "s4",
+                        ]
+                        + ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]
                     ]
                 ],
             ),
+            preprocessors=[(NormalizePreprocessor, [MinMaxScaler(), "data"])],
         ),
         objectives=FeaturePipeline(
             extractor=(TabularFeatureExtractor, [lambda df: df[["latency"]]]),
         ),
         query_structure=FeaturePipeline(
             extractor=(QueryStructureExtractor, []),
-            preprocessors=[(NormalizePreprocessor, [MinMaxScaler(), "graph_features"])],
+            preprocessors=[
+                (NormalizePreprocessor, [MinMaxScaler(), "graph_features"]),
+                (NormalizePreprocessor, [MinMaxScaler(), "graph_meta_features"]),
+            ],
         ),
         op_enc=FeaturePipeline(
-            extractor=(PredicateEmbeddingExtractor, [Word2VecEmbedder()]),
+            extractor=(
+                PredicateEmbeddingExtractor,
+                [Word2VecEmbedder(Word2VecParams(vec_size=8))],
+            ),
         ),
     )
 
@@ -85,18 +106,18 @@ if __name__ == "__main__":
         regressor_cls=MLP,
         iterator_shape=split_iterators["train"].get_iterator_shape(),
         embedder_params={
-            "output_size": 10,
-            "op_groups": ["cbo", "op_enc"],
+            "output_size": 16,
+            "op_groups": ["cbo", "op_enc", "type"],
             "type_embedding_dim": 5,
             "embedding_normalizer": "BN",
         },
-        regressor_params={"n_layers": 2, "hidden_dim": 2, "dropout": 0},
+        regressor_params={"n_layers": 2, "hidden_dim": 32, "dropout": 0.1},
     )
     module = UdaoModule(
         model,
         ["latency"],
         loss=WMAPELoss(),
-        metrics=[WeightedMeanAbsolutePercentageError()],
+        metrics=[WeightedMeanAbsolutePercentageError],
     )
     tb_logger = TensorBoardLogger("tb_logs")
     checkpoint_callback = ModelCheckpoint(

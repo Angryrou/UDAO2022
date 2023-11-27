@@ -100,7 +100,9 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
             ["plan_id"]
             + [col for col in df_op_features.columns if col.startswith("meta_")]
         ]
-        df_meta_features.rename(columns=lambda x: x.replace("meta_", ""), inplace=True)
+        df_meta_features = df_meta_features.rename(
+            columns=lambda x: x.replace("meta_", "")
+        )
         df_meta_features.set_index("plan_id", inplace=True)
         filtered_df_op_features = df_op_features[
             [col for col in df_op_features.columns if not col.startswith("meta_")]
@@ -138,7 +140,8 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
         df_op_features_exploded = df_op_features_exploded.set_index(
             ["plan_id", "operation_id"]
         )
-        df_operation_types = df_op_features_exploded[["operation_gid"]]
+        df_operation_types = df_op_features_exploded["operation_gid"]
+        df_operation_types = df_operation_types.astype(int)
         del df_op_features_exploded["operation_gid"]
 
         return QueryStructureContainer(

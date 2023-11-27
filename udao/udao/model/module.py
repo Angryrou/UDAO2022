@@ -1,6 +1,5 @@
-from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type, cast
 
 import lightning.pytorch as pl
 import torch as th
@@ -29,8 +28,8 @@ class UdaoModule(pl.LightningModule):
     ----------
     model : nn.Module
         The model to train.
-    metrics: Optional[List[Metric]], optional
-        A list of metrics - from torchmetrics - to compute,
+    metrics: Optional[List[Type[Metric]]], optional
+        A list of metric classes - from torchmetrics - to compute,
         by default None
     objectives : List[str]
         The list of objectives to train on.
@@ -53,7 +52,7 @@ class UdaoModule(pl.LightningModule):
         model: nn.Module,
         objectives: List[str],
         loss: Optional[_Loss] = None,
-        metrics: Optional[List[Metric]] = None,
+        metrics: Optional[List[Type[Metric]]] = None,
         loss_weights: Optional[Dict[str, float]] = None,
         learning_params: Optional[LearningParams] = None,
     ) -> None:
@@ -79,14 +78,16 @@ class UdaoModule(pl.LightningModule):
             self.loss_weights = {m: 1.0 for m in self.objectives}
         else:
             self.loss_weights = loss_weights
-        self.metrics: Dict[str, Dict[str, MetricCollection]] = defaultdict(dict)
+
         if metrics:
-            metric_collection = MetricCollection(metrics)
-            for split in ["train", "val", "test"]:
-                for objective in self.objectives:
-                    self.metrics[split][objective] = metric_collection.clone(
-                        prefix=f"{split}_{objective}_"
+            self.metrics = nn.ModuleDict(
+                {
+                    objective: MetricCollection(
+                        [m() for m in metrics], prefix=f"{objective}_"
                     )
+                    for objective in self.objectives
+                }
+            )
 
     def compute_loss(
         self,
@@ -120,15 +121,16 @@ class UdaoModule(pl.LightningModule):
         features, y = batch
         y_hat = self.model(features)
         for i, objective in enumerate(self.objectives):
-            self.metrics[split][objective].update(y_hat[:, i], y[:, i])
+            cast(Metric, self.metrics[objective]).update(y_hat[:, i], y[:, i])
         return y_hat, y
 
     def _shared_epoch_end(self, split: str) -> None:
         """Compute and log metrics of all objectives for a given split."""
         for objective in self.objectives:
-            metric = self.metrics[split][objective]
+            metric = cast(Metric, self.metrics[objective])
             output = metric.compute()
-            self.log_dict(output, on_epoch=True, prog_bar=True, logger=True)
+            for k, v in output.items():
+                self.log(f"{split}_{k}", v, on_epoch=True, prog_bar=True, logger=True)
             metric.reset()
 
     def training_step(self, batch: Tuple[Any, th.Tensor], batch_idx: int) -> th.Tensor:
