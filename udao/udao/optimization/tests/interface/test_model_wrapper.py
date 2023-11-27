@@ -1,10 +1,7 @@
 import pandas as pd
 import torch as th
 
-from ....data.extractors.tabular_extractor import (
-    TabularFeatureExtractor,
-    select_columns,
-)
+from ....data.extractors.tabular_extractor import TabularFeatureExtractor
 from ....data.handler.data_processor import DataProcessor
 from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....model.model import UdaoModel
@@ -17,16 +14,11 @@ def test_gradient_descent() -> None:
     data_processor = DataProcessor(
         iterator_cls=DummyUdaoIterator,
         feature_extractors={
-            "embedding": TabularFeatureExtractor(
-                select_columns, columns=["embedding_input"]
-            ),
-            "feature": TabularFeatureExtractor(
-                select_columns,
+            "embedding": TabularFeatureExtractor(columns=["embedding_input"]),
+            "tabular_features": TabularFeatureExtractor(
                 columns=["feature_input_1", "feature_input_2", "feature_input_3"],
             ),
-            "objective": TabularFeatureExtractor(
-                select_columns, columns=["objective_input"]
-            ),
+            "objectives": TabularFeatureExtractor(columns=["objective_input"]),
         },
     )
     df = pd.DataFrame(

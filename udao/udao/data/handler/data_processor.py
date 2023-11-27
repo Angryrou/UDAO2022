@@ -10,14 +10,17 @@ from typing import (
     Tuple,
     Type,
     Union,
+    cast
 )
 
 import torch as th
 from pandas import DataFrame
 
+
+
 from ...utils.interfaces import UdaoInputShape
-from ..containers.base_container import BaseContainer
-from ..extractors import FeatureExtractor
+from ..containers import BaseContainer, TabularContainer
+from ..extractors import FeatureExtractor, TabularFeatureExtractor
 from ..iterators import BaseIterator
 from ..preprocessors.base_preprocessor import FeaturePreprocessor
 from ..utils.utils import DatasetType
@@ -171,6 +174,38 @@ class DataProcessor:
         dataloader = iterator.get_dataloader(batch_size=n_items)
         batch_input, _ = next(iter(dataloader))
         return batch_input, iterator.get_iterator_shape()
+
+    def inverse_transform(self, container: TabularContainer, name: str) -> DataFrame:
+        """Inverse transform the data to the original format.
+
+        Parameters
+        ----------
+        data: BaseContainer
+            Data to be inverse transformed.
+
+        Returns
+        -------
+        DataFrame
+            Inverse transformed data.
+        """
+
+        extractor = self.feature_extractors[name]
+        if not isinstance(extractor, TabularFeatureExtractor):
+            raise ValueError(
+                "Only TabularFeatureExtractor supports"
+                "transforming back to original dataframe."
+            )
+        preprocessors = self.feature_processors.get(name, [])
+
+        for preprocessor in preprocessors[::-1]:
+            if not hasattr(preprocessor, "inverse_transform"):
+                raise ValueError(
+                    f"Feature preprocessor {name} does "
+                    "not have an inverse transform method."
+                )
+            container = preprocessor.inverse_transform(container)  # type: ignore
+        df = cast(TabularContainer, container).data
+        return df
 
 
 def create_data_processor(

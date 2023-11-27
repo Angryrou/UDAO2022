@@ -3,7 +3,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ..utils.parameters import VarTypes
 from .evolutionary import EVO
 
 
@@ -134,7 +133,7 @@ class GenericMOO:
                     non_enum_inds = [
                         i
                         for i, var_type in enumerate(self.var_types)
-                        if var_type != VarTypes.ENUM
+                        if var_type != "category"
                     ]
                     vars_ranges[non_enum_inds] = self.var_ranges[non_enum_inds]
                     self.var_ranges[non_enum_inds] = list(

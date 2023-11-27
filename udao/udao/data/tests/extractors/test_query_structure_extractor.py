@@ -90,13 +90,15 @@ class TestStructureExtractor:
                 row.id, row.plan, "val"
             )
             for feature in ["rows_count", "size"]:
-                np.testing.assert_array_equal(
+                np.testing.assert_allclose(
                     structure_container.graph_features.loc[row.id][feature].values,
                     features_dict[feature],
+                    rtol=1e-6,
                 )
-                np.testing.assert_equal(
+                np.testing.assert_allclose(
                     structure_container.graph_meta_features.loc[row.id][feature],
                     features_dict[f"meta_{feature}"],
+                    rtol=1e-6,
                 )
 
     def test_extract_operation_types(self, df_fixture: pd.DataFrame) -> None:

@@ -1,5 +1,6 @@
 from typing import Sequence, Tuple
 
+import pandas as pd
 import torch as th
 
 from ....data.containers.tabular_container import TabularContainer
@@ -11,35 +12,39 @@ class DummyUdaoIterator(UdaoIterator):
     def __init__(
         self,
         keys: Sequence[str],
-        feature: TabularContainer,
+        tabular_features: TabularContainer,
+        objectives: TabularContainer,
         embedding: TabularContainer,
-        objective: TabularContainer,
     ) -> None:
-        super().__init__(keys)
-
-        self.feature_container = feature
-        self.embedding_container = embedding
-        self.objective_container = objective
+        super().__init__(keys, tabular_features=tabular_features, objectives=objectives)
+        self.embedding_features = embedding
 
     def __getitem__(self, idx: int) -> Tuple[UdaoInput, th.Tensor]:
         key = self.keys[idx]
         return (
             UdaoInput(
                 embedding_input=th.tensor(
-                    self.embedding_container.get(key), dtype=self.tensors_dtype
+                    self.embedding_features.get(key), dtype=self.tensors_dtype
                 ),
                 feature_input=th.tensor(
-                    self.feature_container.get(key), dtype=self.tensors_dtype
+                    self.tabular_features.get(key), dtype=self.tensors_dtype
                 ),
             ),
-            th.tensor(self.objective_container.get(key), dtype=self.tensors_dtype),
+            th.tensor(self.objectives.get(key), dtype=self.tensors_dtype),
         )
+
+    def get_tabular_features_container(self, input: UdaoInput) -> TabularContainer:
+        tabular_features = input.feature_input
+        tabular_df = pd.DataFrame(
+            tabular_features.numpy(), columns=self.tabular_features.data.columns
+        )
+        return TabularContainer(tabular_df)
 
     def get_iterator_shape(self) -> UdaoInputShape:
         return UdaoInputShape(
-            embedding_input_shape=self.embedding_container.data.shape[1],
-            feature_input_names=list(self.feature_container.data.columns),
-            output_shape=self.objective_container.data.shape[1],
+            embedding_input_shape=self.embedding_features.data.shape[1],
+            feature_input_names=list(self.tabular_features.data.columns),
+            output_shape=self.objectives.data.shape[1],
         )
 
     @staticmethod
