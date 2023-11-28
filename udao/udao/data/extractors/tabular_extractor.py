@@ -12,7 +12,7 @@ class TabularFeatureExtractor(StaticFeatureExtractor[TabularContainer]):
         self.func_kwargs = kwargs
 
     def extract_features(self, df: pd.DataFrame) -> TabularContainer:
-        return TabularContainer(self.feature_func(df), **self.func_kwargs)
+        return TabularContainer(self.feature_func(df, **self.func_kwargs))
 
 
 ## Tabular utils functions ##

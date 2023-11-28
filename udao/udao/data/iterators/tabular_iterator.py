@@ -1,10 +1,12 @@
 from typing import Any, Sequence
 
+import torch as th
+
 from ..containers import TabularContainer
 from .base_iterator import BaseDatasetIterator
 
 
-class TabularIterator(BaseDatasetIterator[TabularContainer]):
+class TabularIterator(BaseDatasetIterator[th.Tensor]):
     """Iterator on tabular data.
 
     Parameters
@@ -20,16 +22,16 @@ class TabularIterator(BaseDatasetIterator[TabularContainer]):
         keys: Sequence[str],
         tabular_feature: TabularContainer,
     ):
-        self.keys = keys
+        super().__init__(keys)
         self.tabular_feature = tabular_feature
 
     def __len__(self) -> int:
         return len(self.keys)
 
-    def __getitem__(self, idx: int) -> Any:
+    def __getitem__(self, idx: int) -> th.Tensor:
         key = self.keys[idx]
-        return self.tabular_feature.get(key)
+        return th.tensor(self.tabular_feature.get(key), dtype=self.tensors_dtype)
 
     def get_iterator_shape(self) -> Any:
-        """Returns the shape of the iterator."""
-        return self.tabular_feature.data.shape[-1]
+        sample_input = self._get_sample()
+        return {"input_shape": sample_input.shape}

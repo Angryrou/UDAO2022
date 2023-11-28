@@ -10,11 +10,8 @@ from sklearn.preprocessing import MinMaxScaler
 from torchmetrics import WeightedMeanAbsolutePercentageError
 from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
 from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
-from udao.data.handler.data_handler import (
-    DataHandler,
-    FeaturePipeline,
-    create_data_handler_params,
-)
+from udao.data.handler.data_handler import DataHandler, DataHandlerParams
+from udao.data.handler.data_processor import FeaturePipeline, create_data_processor
 from udao.data.iterators import QueryPlanIterator
 from udao.data.predicate_embedders import Word2VecEmbedder, Word2VecParams
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
@@ -32,17 +29,11 @@ if __name__ == "__main__":
 
     th.set_default_dtype(tensor_dtypes)  # type: ignore
     #### Data definition ####
-    params_getter = create_data_handler_params(QueryPlanIterator, "op_enc")
-    params = params_getter(
-        index_column="id",
-        stratify_on="tid",
-        dryrun=True,
+    processor_getter = create_data_processor(QueryPlanIterator, "op_enc")
+    data_processor = processor_getter(
         tensor_dtypes=tensor_dtypes,
         tabular_features=FeaturePipeline(
-            extractor=(
-                TabularFeatureExtractor,
-                [
-                    lambda df: df[
+            extractor=TabularFeatureExtractor(lambda df: df[
                         [
                             "k1",
                             "k2",
@@ -58,26 +49,20 @@ if __name__ == "__main__":
                             "s4",
                         ]
                         + ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]
-                    ]
-                ],
-            ),
-            preprocessors=[(NormalizePreprocessor, [MinMaxScaler(), "data"])],
+                ])
         ),
         objectives=FeaturePipeline(
-            extractor=(TabularFeatureExtractor, [lambda df: df[["latency"]]]),
+            extractor=TabularFeatureExtractor(lambda df: df[["latency"]])
         ),
         query_structure=FeaturePipeline(
-            extractor=(QueryStructureExtractor, []),
+            extractor=QueryStructureExtractor(),
             preprocessors=[
-                (NormalizePreprocessor, [MinMaxScaler(), "graph_features"]),
-                (NormalizePreprocessor, [MinMaxScaler(), "graph_meta_features"]),
+                NormalizePreprocessor(MinMaxScaler(), "graph_features"),
+                NormalizePreprocessor(MinMaxScaler(), "graph_meta_features"),
             ],
         ),
         op_enc=FeaturePipeline(
-            extractor=(
-                PredicateEmbeddingExtractor,
-                [Word2VecEmbedder(Word2VecParams(vec_size=8))],
-            ),
+            extractor=PredicateEmbeddingExtractor(Word2VecEmbedder(Word2VecParams(vec_size=32))),
         ),
     )
 
@@ -90,16 +75,18 @@ if __name__ == "__main__":
         lqp_df[["id", *cols_to_use]],
         on="id",
     )
-    data_handler = DataHandler(df, params)
+    data_handler = DataHandler(
+        df,
+        DataHandlerParams(
+            index_column="id",
+            stratify_on="tid",
+            dryrun=True,
+            data_processor=data_processor,
+        ),
+    )
 
     split_iterators = data_handler.get_iterators()
-
     #### Model definition ####
-
-    # Todo: make below parameters more automated from data properties
-    # (e.g. dimension of inputs)
-    # extract some dimensions from the data directly
-    # expect a dimension dataclass that iterator should implement
 
     model = UdaoModel.from_config(
         embedder_cls=GraphAverager,

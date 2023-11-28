@@ -28,6 +28,10 @@ class BaseDatasetIterator(Dataset, Generic[T]):
     def __getitem__(self, idx: int, /) -> T:
         pass
 
+    @abstractmethod
+    def get_iterator_shape(self) -> Any:
+        """Returns the shape of the iterator output."""
+
     @staticmethod
     def collate(items: List[Any]) -> Any:
         """Collates the items into a batch.
@@ -75,10 +79,6 @@ class BaseDatasetIterator(Dataset, Generic[T]):
     def _get_sample(self) -> T:
         """Returns a random sample from the iterator."""
         return self[0]
-
-    @abstractmethod
-    def get_iterator_shape(self) -> Any:
-        """Returns the shape of the iterator output."""
 
     def set_tensors_dtype(self, dtype: th.dtype) -> None:
         """Sets the dtype of the iterator.
