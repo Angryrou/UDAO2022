@@ -20,20 +20,23 @@ def gradient_descent(
     input_batch, udao_shape = data_processor.derive_batch_input(
         input_non_decision, input_variables
     )
+    original_input_vars = input_batch.feature_input.clone().detach()
+    mask = th.tensor(
+        [i in input_variables.keys() for i in udao_shape.feature_input_names]
+    )
+    grad_indices = th.nonzero(mask, as_tuple=False).squeeze()
+    input_vars_subvector = input_batch.feature_input[:, grad_indices]
+    input_vars_subvector.requires_grad_(True)
+    input_batch.feature_input[:, grad_indices] = input_vars_subvector
 
-    input_vars = input_batch.feature_input.clone().detach()
-    input_batch.feature_input.requires_grad = True
-    optimizer = optim.Adam([input_batch.feature_input], lr=lr)
+    optimizer = optim.Adam([input_vars_subvector], lr=lr)
     output = model(input_batch)
     loss = loss_function(output)
-    mask = th.tensor(
-        [
-            1 if i in input_variables.keys() else 0
-            for i in udao_shape.feature_input_names
-        ]
-    )
+
     optimizer.zero_grad()
     loss.backward()
-    input_batch.feature_input.grad *= mask.float()
+    # input_batch.feature_input.grad *= mask.float()
     optimizer.step()
-    return input_batch.feature_input - input_vars
+    input_batch.feature_input[:, grad_indices] = input_vars_subvector
+
+    return input_batch.feature_input - original_input_vars
