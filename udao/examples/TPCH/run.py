@@ -55,7 +55,7 @@ if __name__ == "__main__":
         ),
         op_enc=FeaturePipeline(
             extractor=PredicateEmbeddingExtractor(
-                Word2VecEmbedder(Word2VecParams(vec_size=32))
+                Word2VecEmbedder(Word2VecParams(vec_size=8))
             ),
         ),
     )

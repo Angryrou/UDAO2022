@@ -56,11 +56,11 @@ class PredicateEmbeddingExtractor(TrainedFeatureExtractor[TabularContainer]):
         emb_df = emb_series.to_frame("embeddings")
         emb_df["plan_id"] = df["id"]
         emb_df = emb_df.explode("embeddings", ignore_index=True)
-        emb_df[[f"emb_{i}" for i in range(32)]] = pd.DataFrame(
+        embedding_length = len(emb_df["embeddings"].iloc[0])
+        emb_df[[f"emb_{i}" for i in range(embedding_length)]] = pd.DataFrame(
             emb_df.embeddings.tolist(),
             index=emb_df.index,
         )
-
         emb_df = emb_df.drop(columns=["embeddings"])
         emb_df["operation_id"] = emb_df.groupby("plan_id").cumcount()
         emb_df = emb_df.set_index(["plan_id", "operation_id"])
