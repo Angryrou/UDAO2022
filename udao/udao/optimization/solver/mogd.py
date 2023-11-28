@@ -123,10 +123,12 @@ class MOGD:
                     numerical_var_list,
                     bv_dict,
                 )
-                vars = vars_kernal
+                vars = vars_kernal.to(self.device)
                 if obj_bounds_dict:
                     objs_pred_dict = {
-                        cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind)
+                        cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind).to(
+                            self.device
+                        )
                         for ob_ind, cst_obj in enumerate(obj_bounds_dict)
                     }
                     loss, loss_id = self._soo_loss(
@@ -141,7 +143,7 @@ class MOGD:
                     objs_pred_dict = {
                         objective_name: self._get_tensor_obj_pred(
                             wl_id, vars, opt_obj_ind
-                        )
+                        ).to(self.device)
                     }
                     loss, loss_id = self._unbounded_soo_loss(
                         wl_id, opt_obj_ind, objs_pred_dict, vars
@@ -153,7 +155,7 @@ class MOGD:
                     local_best_objs = {
                         k: v[loss_id].item() for k, v in objs_pred_dict.items()
                     }
-                    local_best_var = vars.data.numpy()[loss_id].copy()
+                    local_best_var = vars.data.cpu().numpy()[loss_id].copy()
                     # local_best_var = vars.data.numpy().copy()
                     local_best_iter = i
 
@@ -313,6 +315,8 @@ class MOGD:
             )
             for obj_bounds_dict in cell_list
         ]
+        if th.cuda.is_available():
+            th.multiprocessing.set_start_method("spawn", force=True)
 
         # call self.constraint_so_opt parallely
         with Pool(processes=self.process) as pool:
@@ -388,7 +392,8 @@ class MOGD:
             ].direction
         else:
             loss = (obj_pred**2) * self.objectives[obj_ind].direction
-        const_loss = self._constraints_loss(wl_id, vars)
+        loss = loss.to(self.device)
+        const_loss = self._constraints_loss(wl_id, vars).to(self.device)
         loss = loss + const_loss
         return th.min(loss), th.argmin(loss)
 
@@ -421,6 +426,8 @@ class MOGD:
         loss = th.zeros(loss_shape, device=self.device, dtype=self.dtype)
 
         for cst_obj, [lower, upper] in obj_bounds.items():
+            lower = lower.to(self.device)
+            upper = upper.to(self.device)
             # assert pred_dict[cst_obj].shape[0] == 1
             obj_pred_raw = pred_dict[cst_obj].sum(-1)  # (1,1)
             if not self.accurate:
@@ -428,7 +435,7 @@ class MOGD:
                     raise ValueError(
                         "std_func must be provided if accurate is set to False"
                     )
-                std = self.std_func(wl_id, vars, cst_obj)
+                std = self.std_func(wl_id, vars, cst_obj).to(self.device)  # type: ignore
                 assert std.shape[0] == 1 and std.shape[1] == 1
                 obj_pred = obj_pred_raw + std.sum(-1) * self.alpha
             else:
@@ -446,8 +453,8 @@ class MOGD:
 
             else:
                 add_loss = (obj_pred - upper) ** 2 + self.stress
-            loss = loss + add_loss
-        loss = loss + self._constraints_loss(wl_id, vars)
+            loss = loss + add_loss.to(self.device)
+        loss = loss + self._constraints_loss(wl_id, vars).to(self.device)
         return th.min(loss), th.argmin(loss)
 
     ##################
@@ -541,10 +548,12 @@ class MOGD:
         """
 
         if numerical_var_list.ndimension() == 1:
-            bounded_np = np.array([np.clip(k.item(), 0, 1) for k in numerical_var_list])
+            bounded_np = np.array(
+                [np.clip(k.cpu().item(), 0, 1) for k in numerical_var_list]
+            )
         else:
             bounded_np = np.array(
-                [np.clip(k.numpy(), 0, 1) for k in numerical_var_list]
+                [np.clip(k.cpu().numpy(), 0, 1) for k in numerical_var_list]
             )
         # adjust variable values to its pickable points
         raw_np = self.get_raw_vars(
@@ -554,7 +563,7 @@ class MOGD:
         normalized_np = self.get_normalized_vars(
             raw_np, normalized_ids=self.numerical_variable_ids
         )
-        return solver_ut.get_tensor(normalized_np)
+        return solver_ut.get_tensor(normalized_np, device=self.device)
 
     # reuse code in UDAO
     def get_raw_vars(
@@ -648,17 +657,20 @@ class MOGD:
         :param obj_ind: int, the index of objective to optimize
         :return: obj_pred: tensor(1,1), the objective value
         """
+        obj_function = self.objectives[obj_ind].function
+        isinstance(obj_function, th.nn.Module)
+        if isinstance(obj_function, th.nn.Module):
+            obj_function = obj_function.to(self.device)
         if not th.is_tensor(vars):  # type: ignore
-            vars = solver_ut.get_tensor(vars)
+            vars = solver_ut.get_tensor(vars, device=self.device, dtype=self.dtype)
+        vars = vars.to(self.device)  # type: ignore
         if vars.ndim == 1:
             obj_pred = cast(
                 th.Tensor,
-                self.objectives[obj_ind].function(
-                    vars.reshape([1, vars.shape[0]]), wl_id
-                ),
+                obj_function(vars.reshape([1, vars.shape[0]]), wl_id),
             )
         else:
-            obj_pred = cast(th.Tensor, self.objectives[obj_ind].function(vars, wl_id))
+            obj_pred = cast(th.Tensor, obj_function(vars, wl_id))
 
         assert obj_pred.ndimension() == 2
         return obj_pred

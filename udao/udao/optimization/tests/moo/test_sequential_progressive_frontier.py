@@ -23,7 +23,7 @@ def progressive_frontier() -> SequentialProgressiveFrontier:
     ]
     variables = [FloatVariable(0, 1), IntegerVariable(1, 7)]
 
-    return SequentialProgressiveFrontier(
+    spf = SequentialProgressiveFrontier(
         variables=variables,
         objectives=objectives,
         solver_params={
@@ -42,6 +42,8 @@ def progressive_frontier() -> SequentialProgressiveFrontier:
         alpha=0.1,
         precision_list=[2, 2],
     )
+    spf.mogd.device = th.device("cpu")
+    return spf
 
 
 class TestProgressiveFrontier:
