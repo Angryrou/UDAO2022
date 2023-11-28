@@ -105,7 +105,6 @@ class TestDataHandler:
         df, params = df_fixture
         dh = DataHandler(df, params)
         iterators = dh.split_data().get_iterators()
-        iterators = dh.get_iterators()
         assert len(iterators) == 3
         assert all(
             isinstance(it, params.data_processor.iterator_cls)
