@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
@@ -9,12 +9,15 @@ from torch.multiprocessing import Pool
 
 from ...utils.logging import logger
 from ..concepts import Constraint, EnumVariable, NumericVariable, Objective, Variable
-from ..utils import solver_utils as solver_ut
 
 SEED = 0
 DEFAULT_DEVICE = th.device("cpu")
 DEFAULT_DTYPE = th.float32
 NOT_FOUND_ERROR = "no valid configuration found"
+
+
+def get_default_device() -> th.device:
+    return th.device("cuda") if th.cuda.is_available() else th.device("cpu")
 
 
 class MOGD:
@@ -28,6 +31,8 @@ class MOGD:
         processes: int
         stress: float
         seed: int
+        device: Optional[th.device] = field(default_factory=get_default_device)
+        dtype: th.dtype = th.float32
 
     def __init__(self, params: Params) -> None:
         """
@@ -43,9 +48,8 @@ class MOGD:
         self.process = params.processes
         self.stress = params.stress
         self.seed = params.seed
-
-        self.device = th.device("cuda") if th.cuda.is_available() else th.device("cpu")
-        self.dtype = th.float32
+        self.device = params.device
+        self.dtype = params.dtype
 
     def problem_setup(
         self,
@@ -339,8 +343,11 @@ class MOGD:
         # get loss for constraint functions defined in the problem setting
         if vars.ndim == 1:
             vars = vars.reshape([1, vars.shape[0]])
-        const_violation = th.tensor(0, device=self.device, dtype=self.dtype)
+        const_violation = self.get_tensor(0)
         for i, constraint in enumerate(self.constraints):
+            constraint_func = constraint.function
+            if isinstance(constraint_func, th.nn.Module):
+                constraint_func = constraint_func.to(self.device)
             if constraint.type == "<=":
                 const_violation = th.relu(
                     const_violation + constraint.function(vars, wl_id)
@@ -363,7 +370,7 @@ class MOGD:
         if const_violation.sum() != 0:
             const_loss = const_violation**2 + 1e5
         else:
-            const_loss = th.tensor(0, device=self.device, dtype=self.dtype)
+            const_loss = self.get_tensor(0)
 
         return const_loss
 
@@ -499,8 +506,6 @@ class MOGD:
         :return: vars: tensor((bs, len(numerical_var_inds))
             or (numerical_var_inds,)), values of all variables
         """
-        #
-        # vars is the variables
 
         to_concat = []
         ck_ind = 0
@@ -509,7 +514,7 @@ class MOGD:
                 if isinstance(variable, NumericVariable):
                     to_concat.append(numerical_var_list[i - ck_ind : i + 1 - ck_ind])
                 elif isinstance(variable, EnumVariable):
-                    to_concat.append(solver_ut.get_tensor([cv_dict[i]]))
+                    to_concat.append(self.get_tensor([cv_dict[i]]))
                     ck_ind += 1
                 else:
                     raise Exception(f"unsupported type in var {i}")
@@ -535,7 +540,7 @@ class MOGD:
 
     def _get_tensor_numerical_constrained_vars(
         self,
-        numerical_var_list: th.Tensor,
+        numerical_vars: th.Tensor,
     ) -> th.Tensor:
         """
         make the values of numerical variables within their range
@@ -543,18 +548,12 @@ class MOGD:
             or (len(numerical_var_ids), ), values of numerical variables
             (FLOAT and INTEGER)
         :return:
-                solver_ut._get_tensor(normalized_np): Tensor(n_numerical_inds,),
+               Tensor(n_numerical_inds,),
                     normalized numerical variables
         """
 
-        if numerical_var_list.ndimension() == 1:
-            bounded_np = np.array(
-                [np.clip(k.cpu().item(), 0, 1) for k in numerical_var_list]
-            )
-        else:
-            bounded_np = np.array(
-                [np.clip(k.cpu().numpy(), 0, 1) for k in numerical_var_list]
-            )
+        bounded_np = th.clip(numerical_vars, 0, 1).cpu().numpy()
+
         # adjust variable values to its pickable points
         raw_np = self.get_raw_vars(
             bounded_np,
@@ -563,7 +562,7 @@ class MOGD:
         normalized_np = self.get_normalized_vars(
             raw_np, normalized_ids=self.numerical_variable_ids
         )
-        return solver_ut.get_tensor(normalized_np, device=self.device)
+        return self.get_tensor(normalized_np)
 
     # reuse code in UDAO
     def get_raw_vars(
@@ -662,7 +661,7 @@ class MOGD:
         if isinstance(obj_function, th.nn.Module):
             obj_function = obj_function.to(self.device)
         if not th.is_tensor(vars):  # type: ignore
-            vars = solver_ut.get_tensor(vars, device=self.device, dtype=self.dtype)
+            vars = self.get_tensor(vars)
         vars = vars.to(self.device)  # type: ignore
         if vars.ndim == 1:
             obj_pred = cast(
@@ -737,7 +736,7 @@ class MOGD:
         if var_array is None:
             return False
 
-        var_tensor = solver_ut.get_tensor(var_array)
+        var_tensor = self.get_tensor(var_array)
 
         if var_tensor.ndim == 1:
             var_tensor.reshape([1, var_array.shape[0]])
@@ -771,3 +770,13 @@ class MOGD:
             else:
                 return False
         return True
+
+    def get_tensor(self, var: Any, requires_grad: bool = False) -> th.Tensor:
+        """
+        convert numpy array to tensor
+        :param var: ndarray, variable values
+        :return: tensor, variable values
+        """
+        return th.tensor(
+            var, device=self.device, dtype=self.dtype, requires_grad=requires_grad
+        )
