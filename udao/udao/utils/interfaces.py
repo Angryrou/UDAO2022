@@ -17,5 +17,5 @@ class UdaoInput(Generic[T]):
 @dataclass
 class UdaoInputShape(Generic[ST]):
     embedding_input_shape: ST
-    feature_input_shape: int
+    feature_input_names: list[str]
     output_shape: int

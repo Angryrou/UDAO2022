@@ -1,12 +1,24 @@
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
 import torch as th
 from pandas import DataFrame
 
+from ...utils.interfaces import UdaoInputShape
 from ..containers.base_container import BaseContainer
 from ..extractors import FeatureExtractor
-from ..iterators import BaseDatasetIterator
+from ..iterators import BaseIterator
 from ..preprocessors.base_preprocessor import FeaturePreprocessor
 from ..utils.utils import DatasetType
 
@@ -59,7 +71,7 @@ class DataProcessor:
 
     def __init__(
         self,
-        iterator_cls: Type[BaseDatasetIterator],
+        iterator_cls: Type[BaseIterator],
         feature_extractors: Dict[str, FeatureExtractor],
         feature_preprocessors: Optional[
             Mapping[
@@ -122,12 +134,47 @@ class DataProcessor:
 
     def make_iterator(
         self, data: DataFrame, keys: Sequence, split: DatasetType
-    ) -> BaseDatasetIterator:
+    ) -> BaseIterator:
         return self.iterator_cls(keys, **self.extract_features(data, split=split))
+
+    def derive_batch_input(
+        self,
+        input_non_decision: Dict[str, Any],
+        input_variables: Dict[str, list],
+    ) -> Tuple[Any, UdaoInputShape]:
+        """Derive the batch input from the input dict
+
+        Parameters
+        ----------
+        input_non_decision : Dict[str, Any]
+            The fixed values for the non-decision inputs
+
+        input_variables : Dict[str, list]
+            The values for the variables inputs
+
+        Returns
+        -------
+        Any
+            The batch input for the model
+        """
+        n_items = len(input_variables[list(input_variables.keys())[0]])
+        keys = [f"{i}" for i in range(n_items)]
+        pd_input = DataFrame.from_dict(
+            {
+                **{k: [v] * n_items for k, v in input_non_decision.items()},
+                **input_variables,
+                "id": keys,
+            }
+        )
+        pd_input.set_index("id", inplace=True)
+        iterator = self.make_iterator(pd_input, keys, split="test")
+        dataloader = iterator.get_dataloader(batch_size=n_items)
+        batch_input, _ = next(iter(dataloader))
+        return batch_input, iterator.get_iterator_shape()
 
 
 def create_data_processor(
-    iterator_cls: Type[BaseDatasetIterator], *args: str
+    iterator_cls: Type[BaseIterator], *args: str
 ) -> Callable[..., DataProcessor]:
     """
     Creates a DataHandlerParams class dynamically based on

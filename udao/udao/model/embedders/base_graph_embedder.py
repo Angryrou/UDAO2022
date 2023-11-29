@@ -50,7 +50,6 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
         input_size = sum(
             [embedding_input_shapes[name] for name in op_groups if name != "type"]
         )
-        print([embedding_input_shapes])
         n_op_types = None
         if "type" in op_groups:
             n_op_types = iterator_shape.embedding_input_shape["type"]
@@ -66,7 +65,6 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
                 if name not in cls.Params.__dataclass_fields__:
                     print(f"{name} is not a valid parameter for {cls.__name__}")
             raise ValueError(f"Some parameters are not valid for {cls.__name__} Params")
-        print(params_dict)
         return cls(cls.Params(**params_dict))
 
     def __init__(self, net_params: Params) -> None:

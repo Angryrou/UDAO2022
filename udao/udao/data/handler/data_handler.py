@@ -7,7 +7,7 @@ import torch as th
 
 from ...utils.logging import logger
 from ..containers import BaseContainer
-from ..iterators import BaseDatasetIterator
+from ..iterators import BaseIterator
 from ..utils.utils import DatasetType, train_test_val_split_on_column
 from .data_processor import DataProcessor
 
@@ -127,14 +127,14 @@ class DataHandler:
         }
         return self
 
-    def _get_split_iterator(self, split: DatasetType) -> BaseDatasetIterator:
+    def _get_split_iterator(self, split: DatasetType) -> BaseIterator:
         keys = self.index_splits[split]
         iterator = self.data_processor.make_iterator(
             keys=self.index_splits[split], data=self.full_df.loc[keys], split=split
         )
         return iterator
 
-    def get_iterators(self) -> Dict[DatasetType, BaseDatasetIterator]:
+    def get_iterators(self) -> Dict[DatasetType, BaseIterator]:
         """Return a dictionary of iterators for the different splits of the data.
 
         Returns

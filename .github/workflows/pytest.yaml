@@ -3,12 +3,12 @@ name: PyTest
 on:
   pull_request:
     branches:
-      - '*' 
+      - "*"
   push:
     branches:
-      - 'main'
-      - 'trace-parsing-and-modeling-spark'
-      - 'dev'
+      - "main"
+      - "trace-parsing-and-modeling-spark"
+      - "dev"
 
 jobs:
   test:
@@ -21,25 +21,21 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: "3.9"
-      
-      - name: Cache Python virtual environment
+
+      # Cache the pip directory instead of the virtual environment
+      - name: Cache pip
         uses: actions/cache@v3
         with:
-          path: venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('udao/requirements.txt') }}
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('udao/requirements-cpu.txt') }}-${{ hashFiles('udao/requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-venv-
+            ${{ runner.os }}-pip-
 
-      - name: Install dependencies (if cache miss)
+      - name: Install dependencies
         run: |
-          python -m venv venv
-          . venv/bin/activate
-          if [ ! -d "venv/lib/python3.9/site-packages" ]; then
-              python -m pip install --upgrade pip
-              pip install -r udao/requirements-cpu.txt
-          fi
+          python -m pip install --upgrade pip
+          pip install -r udao/requirements-cpu.txt
 
       - name: Run Pytest
         run: |
-          . venv/bin/activate
           pytest udao

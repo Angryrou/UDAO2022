@@ -112,7 +112,7 @@ class TestQueryGraphIterator:
     def test_iterator_shape(self, sample_iterator: QueryPlanIterator) -> None:
         shape = sample_iterator.get_iterator_shape()
         assert shape.embedding_input_shape == {"cbo": 2, "op_enc": 10, "type": 7}
-        assert shape.feature_input_shape == 3
+        assert shape.feature_input_names == ["feature", "rows_count", "size"]
         assert shape.output_shape == 1
 
     def test_set_tensor_type(self, sample_iterator: QueryPlanIterator) -> None:
