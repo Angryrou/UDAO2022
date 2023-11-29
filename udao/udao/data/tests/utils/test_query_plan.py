@@ -1,12 +1,16 @@
-from typing import Any
+from typing import Any, cast
 
+import dgl
 import pytest
+import torch as th
 
 from ...utils.query_plan import (
     QueryPlanOperationFeatures,
     QueryPlanStructure,
+    add_positional_encoding,
     compute_meta_features,
     extract_query_plan_features,
+    get_laplacian_positional_encoding,
 )
 from ..conftest import QueryPlanElements
 
@@ -65,3 +69,18 @@ def test_compute_meta_features_two_nodes() -> None:
     meta_features = compute_meta_features(structure, features)
     assert meta_features["meta_size"] == 50
     assert meta_features["meta_rows_count"] == 5
+
+
+def test_get_laplacian_positional_encoding() -> None:
+    graph = dgl.graph(([0, 1], [1, 2]))
+    encoding = get_laplacian_positional_encoding(graph, 1)
+    assert encoding.shape == (3, 1)
+    assert th.allclose(encoding, th.tensor([[0.0], [0.0], [1.0]]))
+
+
+def test_add_positional_encoding() -> None:
+    graph = dgl.graph(([0, 1], [1, 2]))
+    graph = add_positional_encoding(graph)
+    result = cast(th.Tensor, graph.ndata["pos_enc"])
+    assert result.shape == (3, 1)
+    assert th.allclose(result, th.tensor([[-7.0711e-01], [0.0], [7.0711e-01]]))

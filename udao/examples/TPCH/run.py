@@ -9,10 +9,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torchmetrics import WeightedMeanAbsolutePercentageError
 from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
-from udao.data.extractors.tabular_extractor import (
-    TabularFeatureExtractor,
-    select_columns,
-)
+from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
 from udao.data.handler.data_handler import DataHandler, DataHandlerParams
 from udao.data.handler.data_processor import FeaturePipeline, create_data_processor
 from udao.data.iterators import QueryPlanIterator
