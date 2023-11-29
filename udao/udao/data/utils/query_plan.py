@@ -283,6 +283,14 @@ def get_laplacian_positional_encoding(
 ) -> th.Tensor:
     """
     Graph positional encoding v/ Laplacian eigenvectors
+
+    Parameters
+    ----------
+    graph : dgl.DGLGraph
+        graph to encode
+    pos_enc_dim : Optional[int], optional
+        number of eigenvectors to use,
+        by default set to the number of nodes in the graph - 2
     """
     if pos_enc_dim is None:
         pos_enc_dim = graph.number_of_nodes() - 2
@@ -302,6 +310,21 @@ def get_laplacian_positional_encoding(
 
 
 def add_positional_encoding(graph: dgl.DGLGraph, size: int) -> dgl.DGLGraph:
+    """Add positional encoding to the graph.
+
+    Parameters
+    ----------
+    graph : dgl.DGLGraph
+        graph to encode
+    size : int
+        size of the positional encoding
+        (truncated if the graph has less nodes or padded with 0 otherwise)
+
+    Returns
+    -------
+    dgl.DGLGraph
+        graph with positional encoding as "pos_enc" node feature
+    """
     bidirectional = cast(dgl.DGLGraph, dgl.to_bidirected(graph))
     graph.ndata["pos_enc"] = resize_tensor(
         get_laplacian_positional_encoding(bidirectional, graph.num_nodes() - 2), size
@@ -310,7 +333,8 @@ def add_positional_encoding(graph: dgl.DGLGraph, size: int) -> dgl.DGLGraph:
 
 
 def resize_tensor(tensor: th.Tensor, new_size: int) -> th.Tensor:
-    current_size = tensor.shape[1]
+    """Pad or truncate the last dimension of a tensor to a given size."""
+    current_size = tensor.shape[-1]
     if current_size < new_size:
         tensor = F.pad(
             tensor,
@@ -319,11 +343,14 @@ def resize_tensor(tensor: th.Tensor, new_size: int) -> th.Tensor:
             value=0,
         )
     else:
-        tensor = tensor[:, :new_size]
+        # truncate last dimension
+        tensor = tensor[..., :new_size]
+
     return tensor
 
 
 def random_flip_positional_encoding(graph: dgl.DGLGraph) -> dgl.DGLGraph:
+    """Add same random sign flip to all nodes positional encodings of the graph."""
     pos_enc = cast(th.Tensor, graph.ndata["pos_enc"])
     sign_flip = th.rand(pos_enc.size(1))
     sign_flip[sign_flip >= 0.5] = 1.0

@@ -88,12 +88,16 @@ def test_add_positional_encoding() -> None:
 
 
 def test_random_flip_positional_encoding() -> None:
-    graph = dgl.graph((range(10), range(1, 11)))
+    graph = dgl.graph(([0, 1], [1, 2]))
     th.manual_seed(0)
-    positional_encoding = th.randn(11, 5)
-    original_encoding = positional_encoding.clone()
+    positional_encoding = th.tensor(
+        [[1, 1, 1], [-1, -1, 1], [-1, 1, 1]], dtype=th.float32
+    )
     graph.ndata["pos_enc"] = positional_encoding
     return_graph = random_flip_positional_encoding(graph)
     return_encoding = cast(th.Tensor, return_graph.ndata["pos_enc"])
-    assert not th.equal(return_encoding, original_encoding)
-    assert th.equal(th.abs(return_encoding), th.abs(original_encoding))
+    # same flipping for each node
+    assert th.equal(
+        return_encoding,
+        th.tensor([[-1.0, 1.0, -1.0], [1, -1, -1], [1, 1, -1]]),
+    )
