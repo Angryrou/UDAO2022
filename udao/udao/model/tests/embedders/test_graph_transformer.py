@@ -85,10 +85,12 @@ def test_graph_transformer_forward() -> None:
         4,
         features,
     )
+
     g_batch = dgl.batch([g1, g2])
     h_lap_pos_enc = th.randn(10 + 5, 5)
+    g_batch.ndata["pos_enc"] = h_lap_pos_enc
     transformer.eval()
-    output = transformer.forward(g_batch, h_lap_pos_enc)
+    output = transformer.forward(g_batch)
     expected = th.tensor(
         [
             [4.184283, -2.093954, 11.841289, 16.731495],

@@ -28,7 +28,7 @@ class TabularIterator(BaseIterator[th.Tensor, Dict[str, Any]]):
     def __len__(self) -> int:
         return len(self.keys)
 
-    def __getitem__(self, idx: int) -> th.Tensor:
+    def _getitem(self, idx: int) -> th.Tensor:
         key = self.keys[idx]
         return th.tensor(self.tabular_feature.get(key), dtype=self.tensors_dtype)
 

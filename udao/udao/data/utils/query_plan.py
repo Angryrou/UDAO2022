@@ -8,6 +8,7 @@ import dgl
 import networkx as nx
 import numpy as np
 import torch as th
+import torch.nn.functional as F
 from networkx.algorithms import isomorphism
 from scipy import sparse as sp
 
@@ -300,11 +301,35 @@ def get_laplacian_positional_encoding(
     return th.from_numpy(eigen_vectors[:, 1 : pos_enc_dim + 1]).float()
 
 
-def add_positional_encoding(graph: dgl.DGLGraph) -> dgl.DGLGraph:
+def add_positional_encoding(graph: dgl.DGLGraph, size: int) -> dgl.DGLGraph:
     bidirectional = cast(dgl.DGLGraph, dgl.to_bidirected(graph))
-    graph.ndata["pos_enc"] = get_laplacian_positional_encoding(
-        bidirectional, graph.num_nodes() - 2
+    graph.ndata["pos_enc"] = resize_tensor(
+        get_laplacian_positional_encoding(bidirectional, graph.num_nodes() - 2), size
     )
+    return graph
+
+
+def resize_tensor(tensor: th.Tensor, new_size: int) -> th.Tensor:
+    current_size = tensor.shape[1]
+    if current_size < new_size:
+        tensor = F.pad(
+            tensor,
+            pad=(0, new_size - current_size),
+            mode="constant",
+            value=0,
+        )
+    else:
+        tensor = tensor[:, :new_size]
+    return tensor
+
+
+def random_flip_positional_encoding(graph: dgl.DGLGraph) -> dgl.DGLGraph:
+    pos_enc = cast(th.Tensor, graph.ndata["pos_enc"])
+    sign_flip = th.rand(pos_enc.size(1))
+    sign_flip[sign_flip >= 0.5] = 1.0
+    sign_flip[sign_flip < 0.5] = -1.0
+    pos_enc *= sign_flip.unsqueeze(0)
+    graph.ndata["pos_enc"] = pos_enc
     return graph
 
 

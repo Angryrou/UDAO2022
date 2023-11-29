@@ -172,12 +172,16 @@ class TestStructureExtractor:
             4,
         ]
 
-    def test_extract_structure_with_pe(self, df_fixture: pd.DataFrame) -> None:
-        extractor = QueryStructureExtractor(with_positional_encoding=True)
+    @pytest.mark.parametrize("positional_encoding_size", [2, 3])
+    def test_extract_structure_with_pe(
+        self, df_fixture: pd.DataFrame, positional_encoding_size: int
+    ) -> None:
+        extractor = QueryStructureExtractor(
+            positional_encoding_size=positional_encoding_size
+        )
         row = df_fixture.iloc[1]
         extractor._extract_structure_and_features(row.id, row.plan, "train")
         result = cast(th.Tensor, extractor.template_plans[1].graph.ndata["pos_enc"])
-        print(result)
         th.allclose(
             result,
             th.tensor(
@@ -188,5 +192,11 @@ class TestStructureExtractor:
                     [0.0563, 0.0000, 0.0563],
                     [0.2181, 0.0000, -0.2181],
                 ]
-            ),
+            )[:, :positional_encoding_size],
         )
+
+    def test_extract_structure_with_pe_at_0(self, df_fixture: pd.DataFrame) -> None:
+        extractor = QueryStructureExtractor(positional_encoding_size=0)
+        row = df_fixture.iloc[1]
+        extractor._extract_structure_and_features(row.id, row.plan, "train")
+        assert "pos_enc" not in extractor.template_plans[1].graph.ndata
