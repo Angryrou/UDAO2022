@@ -140,8 +140,10 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
         df_op_features_exploded = df_op_features_exploded.set_index(
             ["plan_id", "operation_id"]
         )
-        df_operation_types = df_op_features_exploded["operation_gid"]
-        df_operation_types = df_operation_types.astype(int)
+        df_op_features_exploded[
+            list(self.feature_types.keys())
+        ] = df_op_features_exploded[list(self.feature_types.keys())].astype("float32")
+        df_operation_types = df_op_features_exploded["operation_gid"].astype("int32")
         del df_op_features_exploded["operation_gid"]
 
         return QueryStructureContainer(

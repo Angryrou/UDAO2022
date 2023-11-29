@@ -1,11 +1,10 @@
 import os
-from typing import List, Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
 import numpy as np
 from matplotlib import pyplot as plt
 
 from .exceptions import NoSolutionError
-from .parameters import VarTypes
 
 
 class Point:
@@ -233,50 +232,6 @@ def plot_po(po: np.ndarray, n_obj: int = 2, title: str = "pf_ap") -> None:
 
     plt.tight_layout()
     plt.show()
-
-
-# generate training inputs for GPR, reuse code in RandomSampler solver
-def get_training_input(
-    var_types: List[VarTypes], var_ranges: np.ndarray, n_samples: int
-) -> np.ndarray:
-    """
-    Generate samples of variables (for the unconstrained scenario)
-    Parameters
-    ----------
-    var_types : List[VarTypes]
-        List of variable types
-    var_ranges : np.ndarray
-        lower and upper bounds of variables(non-ENUM),
-        all available values for ENUM variables
-    n_samples : int
-        Number of input samples to train GPR models
-    Returns
-    -------
-    np.ndarray
-        Variables (n_samples * n_vars)
-    """
-    n_vars = var_ranges.shape[0]
-    x = np.zeros([n_samples, n_vars])
-    np.random.seed(0)
-    for i, values in enumerate(var_ranges):
-        upper, lower = values[1], values[0]
-        if (lower - upper) > 0:
-            raise Exception(
-                f"ERROR: the lower bound of variable {i} "
-                "is greater than its upper bound!"
-            )
-
-        # randomly sample n_samples within the range
-        if var_types[i] == VarTypes.FLOAT:
-            x[:, i] = rand_float(lower, upper, n_samples)
-        elif var_types[i] == VarTypes.INTEGER or var_types[i] == VarTypes.BOOL:
-            x[:, i] = np.random.randint(lower, upper + 1, size=n_samples)
-        elif var_types[i] == VarTypes.ENUM:
-            inds = np.random.randint(0, len(values), size=n_samples)
-            x[:, i] = np.array(values)[inds]
-        else:
-            raise Exception(f"Variable type {var_types[i]} is not supported!")
-    return x
 
 
 def rand_float(lower: float, upper: float, n_samples: int) -> Optional[np.ndarray]:

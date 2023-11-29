@@ -3,13 +3,13 @@ from typing import Callable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+from ....utils.interfaces import VarTypes
 from ....utils.logging import logger
 from ...concepts import Constraint, Objective, Variable
 from ...solver.mogd import MOGD
 from ...utils import solver_utils as solver_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point
-from ...utils.parameters import VarTypes
 from ..base_moo import BaseMOO
 
 
@@ -80,10 +80,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
 
         # If the current objective type is Integer,
         # further find the optimal value for other objectives with float type
-        if (
-            anchor_option == "2_step"
-            and self.objectives[obj_ind].type == VarTypes.INTEGER
-        ):
+        if anchor_option == "2_step" and self.objectives[obj_ind].type == "int":
             utopia_init = np.array(
                 [0 if i != obj_ind else objs[obj_ind] for i in self.objectives]
             )
@@ -92,7 +89,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
             float_obj_ind = [
                 i
                 for i, objective in enumerate(self.objectives)
-                if objective == VarTypes.FLOAT
+                if objective.type == VarTypes.FLOAT
             ][0]
             obj_bounds_dict_so = self._form_obj_bounds_dict(utopia_tmp, nadir_tmp)
             logger.debug(f"obj_bounds are: {obj_bounds_dict_so}")

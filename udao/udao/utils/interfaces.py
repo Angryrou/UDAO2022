@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Generic, TypeVar
 
 import torch as th
@@ -19,3 +20,10 @@ class UdaoInputShape(Generic[ST]):
     embedding_input_shape: ST
     feature_input_names: list[str]
     output_shape: int
+
+
+class VarTypes(Enum):
+    INT = "int"
+    BOOL = "bool"
+    CATEGORY = "category"
+    FLOAT = "float"

@@ -14,7 +14,7 @@ from platypus import (
     nondominated,
 )
 
-from ..utils.parameters import VarTypes
+from ...utils.interfaces import VarTypes
 from .base_moo import BaseMOO
 
 
@@ -195,12 +195,12 @@ class EVO(BaseMOO):
         n_vars = len(var_types)
         # find list of indices for different variable types
         float_inds = [i for i, x in enumerate(var_types) if x == VarTypes.FLOAT]
-        int_inds = [i for i, x in enumerate(var_types) if x == VarTypes.INTEGER]
+        int_inds = [i for i, x in enumerate(var_types) if x == VarTypes.INT]
         binary_inds = [i for i, x in enumerate(var_types) if x == VarTypes.BOOL]
         # make it global as it will be used to decode
         # the solutions in the method self.solve
 
-        enum_inds = [i for i, x in enumerate(var_types) if x == VarTypes.ENUM]
+        enum_inds = [i for i, x in enumerate(var_types) if x == VarTypes.CATEGORY]
 
         # set variable types for the problem
         if len(float_inds) > 0:

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
 
 import dgl
+import pandas as pd
 import torch as th
 
 from ...data.containers.tabular_container import TabularContainer
@@ -17,7 +18,7 @@ class QueryPlanInput(UdaoInput[dgl.DGLGraph]):
     pass
 
 
-class QueryPlanIterator(UdaoIterator[Tuple[QueryPlanInput, th.Tensor], UdaoInputShape]):
+class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
     """
     Iterator that returns a dgl.DGLGraph for each key, with associated node features.
     The features are stored in the graph.ndata dictionary.
@@ -46,9 +47,9 @@ class QueryPlanIterator(UdaoIterator[Tuple[QueryPlanInput, th.Tensor], UdaoInput
         query_structure: QueryStructureContainer,
         **kwargs: TabularContainer,
     ):
-        super().__init__(keys)
-        self.tabular_features = tabular_features
-        self.objectives = objectives
+        super().__init__(
+            keys=keys, tabular_features=tabular_features, objectives=objectives
+        )
         self.query_structure_container = query_structure
         self.base_graph_features = ["cbo"]
         self.other_graph_features = kwargs
@@ -80,15 +81,24 @@ class QueryPlanIterator(UdaoIterator[Tuple[QueryPlanInput, th.Tensor], UdaoInput
         input_data = QueryPlanInput(graph, features)
         return input_data, objectives
 
+    def get_tabular_features_container(self, input: QueryPlanInput) -> TabularContainer:
+        tabular_features = input.feature_input[
+            : len(self.tabular_features.data.columns)
+        ]
+        tabular_df = pd.DataFrame(
+            tabular_features.numpy(), columns=self.tabular_features.data.columns
+        )
+        return TabularContainer(tabular_df)
+
     def get_iterator_shape(self) -> UdaoInputShape[Dict[str, int]]:
         """Returns the dimensions of the iterator inputs and outputs."""
 
         sample_input, sample_output = self._get_sample()
         embedding_input_shape = {}
-        feature_names = self.base_graph_features + list(
+        graph_feature_names = self.base_graph_features + list(
             self.other_graph_features.keys()
         )
-        for feature_name in feature_names:
+        for feature_name in graph_feature_names:
             embedding_input_shape[feature_name] = sample_input.embedding_input.ndata[
                 feature_name
             ].shape[  # type: ignore

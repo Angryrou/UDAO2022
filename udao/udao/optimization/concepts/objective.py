@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from typing import Callable, Literal, Union, Optional
+from typing import Callable, Literal, Optional, Union
 
 import torch as th
-from ..utils.parameters import VarTypes
+
+from ...utils.interfaces import VarTypes
 
 ObjectiveDirection = Union[Literal["MIN"], Literal["MAX"]]
 

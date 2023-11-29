@@ -37,7 +37,6 @@ if __name__ == "__main__":
         tensor_dtypes=tensor_dtypes,
         tabular_features=FeaturePipeline(
             extractor=TabularFeatureExtractor(
-                select_columns,
                 columns=["k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8"]
                 + ["s1", "s2", "s3", "s4"]
                 + ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"],
@@ -45,7 +44,7 @@ if __name__ == "__main__":
             preprocessors=[NormalizePreprocessor(MinMaxScaler())],
         ),
         objectives=FeaturePipeline(
-            extractor=TabularFeatureExtractor(select_columns, columns=["latency"])
+            extractor=TabularFeatureExtractor(["latency"]),
         ),
         query_structure=FeaturePipeline(
             extractor=QueryStructureExtractor(),

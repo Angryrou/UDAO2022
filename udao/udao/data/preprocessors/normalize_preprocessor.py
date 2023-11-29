@@ -1,4 +1,4 @@
-from typing import Any, Protocol, TypeVar
+from typing import Any, List, Protocol, TypeVar
 
 import pandas as pd
 
@@ -13,6 +13,9 @@ class FitTransformProtocol(Protocol):
         ...
 
     def transform(self, X: Any) -> Any:
+        ...
+
+    def inverse_transform(self, X: Any) -> Any:
         ...
 
 
@@ -37,6 +40,7 @@ class NormalizePreprocessor(TrainedFeaturePreprocessor[T]):
     ) -> None:
         self.normalizer = normalizer
         self.df_key = data_key
+        self.numeric_columns: List[str] = []
 
     def preprocess(self, container: T, split: DatasetType) -> T:
         """Normalize the data in the container.
@@ -54,12 +58,44 @@ class NormalizePreprocessor(TrainedFeaturePreprocessor[T]):
         """
         container = container.copy()
         df: pd.DataFrame = container.__getattribute__(self.df_key)
+        numeric_df = df.select_dtypes(include=["number"])
+        self.numeric_columns = numeric_df.columns.tolist()
         if split == "train":
-            self.normalizer.fit(df)
-        # assumes the normalizer returns an array.
-        transformed_data = self.normalizer.transform(df)
-        container.__setattr__(
-            self.df_key,
-            pd.DataFrame(transformed_data, index=df.index, columns=df.columns),
+            self.normalizer.fit(numeric_df)
+
+        transformed_data = self.normalizer.transform(numeric_df)
+        transformed_df = pd.DataFrame(
+            transformed_data, index=numeric_df.index, columns=self.numeric_columns
         )
+
+        df.update(transformed_df)
+
+        container.__setattr__(self.df_key, df)
+        return container
+
+    def inverse_transform(self, container: T) -> T:
+        """Reverse the normalization process on the container's data.
+
+        Parameters
+        ----------
+        container : T
+            Child of BaseContainer with the normalized data.
+
+        Returns
+        -------
+        T
+            Child of BaseContainer with the data in original scale.
+        """
+        container = container.copy()
+        df: pd.DataFrame = container.__getattribute__(self.df_key)
+        numeric_df = df[self.numeric_columns]
+
+        original_data = self.normalizer.inverse_transform(numeric_df.values)
+        original_numeric_df = pd.DataFrame(
+            original_data, index=numeric_df.index, columns=self.numeric_columns
+        )
+
+        df.update(original_numeric_df)
+
+        container.__setattr__(self.df_key, df)
         return container

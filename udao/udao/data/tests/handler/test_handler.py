@@ -3,10 +3,10 @@ import string
 from typing import Tuple
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 import pytest
 import torch as th
-from pandas import DataFrame
 
 from ...extractors import TabularFeatureExtractor
 from ...handler import DataHandler
@@ -24,18 +24,13 @@ def df_fixture() -> Tuple[pd.DataFrame, DataHandlerParams]:
     n = 1000
     ids = list(range(1, n + 1))
     tids = [1 for _ in range(n - 10)] + [2 for _ in range(10)]
-    random_strings = [random_string(5) for _ in range(n)]
+    length = [5 for i in range(n)]
 
-    df = pd.DataFrame.from_dict({"id": ids, "tid": tids, "plan": random_strings})
-
-    def df_func(df: DataFrame) -> DataFrame:
-        df = df.copy()
-        df = df["plan"].apply(lambda x: len(x)).to_frame("feature")
-        return df
+    df = pd.DataFrame.from_dict({"id": ids, "tid": tids, "feature": length})
 
     data_processor = DataProcessor(
         iterator_cls=TabularIterator,
-        feature_extractors={"tabular_feature": TabularFeatureExtractor(df_func)},
+        feature_extractors={"tabular_feature": TabularFeatureExtractor(["feature"])},
     )
     params = DataHandlerParams(
         index_column="id",
@@ -101,6 +96,7 @@ class TestDataHandler:
     def test_get_iterators(
         self, df_fixture: Tuple[pd.DataFrame, DataHandlerParams]
     ) -> None:
+        np.random.seed(1)
         df, params = df_fixture
         dh = DataHandler(df, params)
         iterators = dh.split_data().get_iterators()
