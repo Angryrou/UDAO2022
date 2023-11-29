@@ -139,32 +139,35 @@ class DataProcessor:
     ) -> BaseIterator:
         return self.iterator_cls(keys, **self.extract_features(data, split=split))
 
-    def inverse_transform(self, container: TabularContainer, name: str) -> DataFrame:
+    def inverse_transform(
+        self, container: TabularContainer, pipeline_name: str
+    ) -> DataFrame:
         """Inverse transform the data to the original format.
 
         Parameters
         ----------
-        data: BaseContainer
+        container: TabularContainer
             Data to be inverse transformed.
-
+        pipeline_name: str
+            Name of the feature pipeline to be inverse transformed.
         Returns
         -------
         DataFrame
             Inverse transformed data.
         """
 
-        extractor = self.feature_extractors[name]
+        extractor = self.feature_extractors[pipeline_name]
         if not isinstance(extractor, TabularFeatureExtractor):
             raise ValueError(
                 "Only TabularFeatureExtractor supports"
                 "transforming back to original dataframe."
             )
-        preprocessors = self.feature_processors.get(name, [])
+        preprocessors = self.feature_processors.get(pipeline_name, [])
 
         for preprocessor in preprocessors[::-1]:
             if not hasattr(preprocessor, "inverse_transform"):
                 raise ValueError(
-                    f"Feature preprocessor {name} does "
+                    f"Feature preprocessor {pipeline_name} does "
                     "not have an inverse transform method."
                 )
             container = preprocessor.inverse_transform(container)  # type: ignore

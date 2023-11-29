@@ -103,7 +103,7 @@ class TestDataProcessor:
         features = data_processor.extract_features(sample_df, "train")
         assert isinstance(features["tabular_feature"], TabularContainer)
         df_inverse = data_processor.inverse_transform(
-            container=features["tabular_feature"], name="tabular_feature"
+            container=features["tabular_feature"], pipeline_name="tabular_feature"
         )
         np.testing.assert_array_almost_equal(
             df_inverse[["value"]].values, sample_df[["value"]].values

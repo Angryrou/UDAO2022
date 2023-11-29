@@ -69,7 +69,7 @@ class TestNormalizePreprocessor:
         val_container_result_inverse = processor.inverse_transform(val_container_result)
         assert val_container_result_inverse.data["col"].values.tolist() == [5.0, 6.0]
 
-        # Test that categoriccal column remains unchanged
+        # Test that categorical column remains unchanged
         pd.testing.assert_series_equal(
             val_container_result_inverse.data["col2"], val_container_result.data["col2"]
         )
