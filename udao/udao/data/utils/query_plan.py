@@ -287,22 +287,8 @@ def get_laplacian_positional_encoding(
         pos_enc_dim = graph.number_of_nodes() - 2
     # Laplacian
     # A = g.adjacency_matrix_scipy(return_edge_ids=False).astype(float)
-    A = graph.adjacency_matrix().T
-    A_indptr, A_indices, A_val_indices = A.csr()
-    A_values = (
-        A.val.numpy()[A_val_indices] if A_val_indices is not None else A.val.numpy()
-    )
-    A = sp.csr_matrix(
-        tuple(
-            [
-                A_values,  # values
-                A_indices.numpy(),  # indices
-                A_indptr.numpy(),  # indptr
-            ]
-        ),
-        shape=A.shape,
-        dtype=float,
-    )
+    A = graph.adj_external(scipy_fmt="csr").T  # adjacency matrix
+
     in_degrees = cast(th.Tensor, graph.in_degrees()).numpy().clip(1)
     N = sp.diags(in_degrees**-0.5, dtype=float, format="csr")
     L = sp.eye(graph.number_of_nodes()) - N * A * N
