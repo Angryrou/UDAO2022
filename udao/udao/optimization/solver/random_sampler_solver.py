@@ -1,23 +1,13 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, Mapping, Optional
 
 import numpy as np
 
-from ..concepts import (
-    Constraint,
-    EnumVariable,
-    FloatVariable,
-    IntegerVariable,
-    Objective,
-    Variable,
-)
-from ..utils.exceptions import NoSolutionError
-from ..utils.moo_utils import Point
-from .base_solver import BaseSolver
-from .utils import filter_on_constraints
+from ..concepts import EnumVariable, FloatVariable, IntegerVariable, Variable
+from .sampler_solver import SamplerSolver
 
 
-class RandomSampler(BaseSolver):
+class RandomSampler(SamplerSolver):
     @dataclass
     class Params:
         n_samples_per_param: int
@@ -50,7 +40,7 @@ class RandomSampler(BaseSolver):
                 f"ERROR: variable type {type(var)} is not supported!"
             )
 
-    def _get_input(self, variables: List[Variable]) -> np.ndarray:
+    def _get_input(self, variables: Mapping[str, Variable]) -> Dict[str, np.ndarray]:
         """
         generate samples of variables
 
@@ -63,28 +53,10 @@ class RandomSampler(BaseSolver):
         np.ndarray,
             variables (n_samples * n_vars)
         """
-        n_vars = len(variables)
-        x = np.zeros([self.n_samples_per_param, n_vars])
+        result_dict = {}
+
         np.random.seed(self.seed)
-        for i, var in enumerate(variables):
-            x[:, i] = self._process_variable(var)
-        return x
+        for name, var in variables.items():
+            result_dict[name] = self._process_variable(var)
 
-    def solve(
-        self,
-        objective: Objective,
-        constraints: List[Constraint],
-        variables: List[Variable],
-        wl_id: Optional[str],
-    ) -> Point:
-        filtered_vars = filter_on_constraints(
-            wl_id, self._get_input(variables), constraints
-        )
-        if not filtered_vars.size:
-            raise NoSolutionError("No feasible solution.")
-
-        objective_value = np.array(
-            objective.function(filtered_vars, wl_id=wl_id)
-        ).reshape(-1, 1)
-        op_ind = int(np.argmin(objective_value))
-        return Point(objs=np.array(objective_value[op_ind]), vars=filtered_vars[op_ind])
+        return result_dict

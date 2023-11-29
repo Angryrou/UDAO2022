@@ -1,11 +1,10 @@
-import hashlib
-import time
+import json
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch as th
 
-from ..concepts import Constraint, NumericVariable, Objective, Variable
+from ..concepts import Constraint, Objective, Variable
 from ..solver.base_solver import BaseSolver
 from ..utils import moo_utils as moo_ut
 from ..utils.exceptions import NoSolutionError
@@ -27,10 +26,12 @@ class WeightedSumObjective(Objective):
         self._cache: Dict[str, np.ndarray] = {}
         self.allow_cache = allow_cache
 
-    def _function(self, vars: np.ndarray, *args: Any, **kwargs: Any) -> np.ndarray:
+    def _function(
+        self, vars: Dict[str, np.ndarray], *args: Any, **kwargs: Any
+    ) -> np.ndarray:
         hash_var = ""
         if self.allow_cache:
-            hash_var = hashlib.md5(vars.data.tobytes()).hexdigest()
+            hash_var = json.dumps(vars)
             if hash_var in self._cache:
                 return self._cache[hash_var]
         objs: List[np.ndarray] = []
@@ -44,7 +45,9 @@ class WeightedSumObjective(Objective):
             self._cache[hash_var] = objs_array
         return objs_array
 
-    def function(self, vars: np.ndarray, *args: Any, **kwargs: Any) -> th.Tensor:
+    def function(
+        self, vars: Dict[str, np.ndarray], *args: Any, **kwargs: Any
+    ) -> th.Tensor:
         """Sum of weighted normalized objectives"""
         objs_array = self._function(vars, *args, **kwargs)
         objs_norm = self._normalize_objective(objs_array)
@@ -112,7 +115,9 @@ class WeightedSum(BaseMOO):
         self.allow_cache = allow_cache
 
     def solve(
-        self, wl_id: Optional[str], variables: List[Variable]
+        self,
+        variables: Dict[str, Variable],
+        input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """solve MOO problem by Weighted Sum (WS)
 
@@ -135,9 +140,15 @@ class WeightedSum(BaseMOO):
         for ws in self.ws_pairs:
             objective.ws = ws
             point = self.inner_solver.solve(
-                objective, self.constraints, variables, wl_id
+                objective,
+                constraints=self.constraints,
+                variables=variables,
+                input_parameters=input_parameters,
             )
-            objective_values = objective._function(np.array([point.vars]), wl_id=wl_id)  # type: ignore
+
+            objective_values = objective._function(
+                point.vars, input_parameters=input_parameters  # type: ignore
+            )
             point.objs = objective_values
             candidate_points.append(point)
 
@@ -145,50 +156,3 @@ class WeightedSum(BaseMOO):
             [point.objs for point in candidate_points],
             [point.vars for point in candidate_points],
         )
-
-
-def solve_ws(
-    job_ids: List[str],
-    solver: BaseSolver,
-    n_probes: int,
-    n_objs: int,
-    objectives: List[Objective],
-    constraints: List[Constraint],
-    variables: List[Variable],
-    wl_ranges: Dict[str, Tuple[np.ndarray, np.ndarray]],
-) -> Tuple[List[Optional[np.ndarray]], List[Optional[np.ndarray]], list[float]]:
-    """Temporary solve function for WS,
-    replacing the call to solve() in GenericMOO"""
-    po_objs_list: List[Optional[np.ndarray]] = []
-    po_vars_list: List[Optional[np.ndarray]] = []
-    time_cost_list: list[float] = []
-
-    ws_steps = 1 / (n_probes - n_objs - 1)
-    ws_pairs = moo_ut.even_weights(ws_steps, n_objs)
-    ws = WeightedSum(
-        ws_pairs=ws_pairs,
-        inner_solver=solver,
-        objectives=objectives,
-        constraints=constraints,
-    )
-
-    for wl_id in job_ids:
-        # fixme: to be generalized further
-        if wl_ranges is not None and wl_id is not None:
-            vars_max, vars_min = wl_ranges[wl_id]
-            for variable, var_max, var_min in zip(variables, vars_max, vars_min):
-                if isinstance(variable, NumericVariable):
-                    variable.lower = var_min
-                    variable.upper = var_max
-        else:
-            pass
-        time0 = time.time()
-        try:
-            po_objs, po_vars = ws.solve(wl_id, variables)
-        except NoSolutionError:
-            po_objs, po_vars = None, None
-        time_cost_list.append(time.time() - time0)
-        po_objs_list.append(po_objs)
-        po_vars_list.append(po_vars)
-
-    return po_objs_list, po_vars_list, time_cost_list

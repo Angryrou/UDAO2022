@@ -1,12 +1,5 @@
-# Author(s): chenghao Lyu <chenghao at cs dot umass dot edu>
-#
-# Description: TODO
-#
-# Created at 9/14/22
-
-
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from ..concepts import Constraint, Objective, Variable
 from ..utils.moo_utils import Point
@@ -17,12 +10,8 @@ class BaseSolver(ABC):
     def solve(
         self,
         objective: Objective,
-        constraints: List[Constraint],
-        variables: List[Variable],
-        wl_id: Optional[str],
+        variables: Dict[str, Variable],
+        constraints: Optional[List[Constraint]] = None,
+        input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Point:
-        pass
-
-    # @abstractmethod
-    # def solve(self, ):
-    #     ...
+        ...
