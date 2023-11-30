@@ -143,6 +143,7 @@ class MOGD:
                         target_obj_name=objective_name,
                         target_obj_ind=opt_obj_ind,
                     )
+
                 else:
                     objs_pred_dict = {
                         objective_name: self._get_tensor_obj_pred(
@@ -162,7 +163,6 @@ class MOGD:
                     local_best_var = vars.data.cpu().numpy()[loss_id].copy()
                     # local_best_var = vars.data.numpy().copy()
                     local_best_iter = i
-
                 optimizer.zero_grad()
                 loss.backward()  # type: ignore
                 optimizer.step()  # update parameters
@@ -366,12 +366,10 @@ class MOGD:
                 )
             else:
                 raise Exception(f"{constraint.type} is not supported!")
-
         if const_violation.sum() != 0:
-            const_loss = const_violation**2 + 1e5
+            const_loss = const_violation**2 + th.where(const_violation > 0, 1e5, 0)
         else:
             const_loss = self.get_tensor(0)
-
         return const_loss
 
     def _unbounded_soo_loss(
@@ -402,7 +400,7 @@ class MOGD:
         loss = loss.to(self.device)
         const_loss = self._constraints_loss(wl_id, vars).to(self.device)
         loss = loss + const_loss
-        return th.min(loss), th.argmin(loss)
+        return th.sum(loss), th.argmin(loss)
 
     def _soo_loss(
         self,
@@ -462,7 +460,7 @@ class MOGD:
                 add_loss = (obj_pred - upper) ** 2 + self.stress
             loss = loss + add_loss.to(self.device)
         loss = loss + self._constraints_loss(wl_id, vars).to(self.device)
-        return th.min(loss), th.argmin(loss)
+        return th.sum(loss), th.argmin(loss)
 
     ##################
     ## _get (vars)  ##
