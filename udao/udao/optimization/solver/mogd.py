@@ -3,9 +3,15 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
+from sympy import total_degree
 import torch as th
 import torch.optim as optim
 from torch.multiprocessing import Pool
+from udao.udao.optimization.concepts.constraint import ModelConstraint
+
+from udao.udao.optimization.concepts.objective import ModelObjective
+
+from .base_solver import BaseSolver
 
 from ...utils.logging import logger
 from ..concepts import Constraint, EnumVariable, NumericVariable, Objective, Variable
@@ -20,7 +26,7 @@ def get_default_device() -> th.device:
     return th.device("cuda") if th.cuda.is_available() else th.device("cpu")
 
 
-class MOGD:
+class MOGD(BaseSolver):
     @dataclass
     class Params:
         learning_rate: float
@@ -31,6 +37,7 @@ class MOGD:
         processes: int
         stress: float
         seed: int
+        batch_size: int = 1
         device: Optional[th.device] = field(default_factory=get_default_device)
         dtype: th.dtype = th.float32
 
@@ -50,63 +57,28 @@ class MOGD:
         self.seed = params.seed
         self.device = params.device
         self.dtype = params.dtype
-
-    def problem_setup(
-        self,
-        variables: Sequence[Variable],
-        std_func: Optional[Callable],
-        objectives: Sequence[Objective],
-        constraints: Sequence[Constraint],
-        precision_list: list,
-        alpha: float = 0.0,
-        accurate: bool = True,
-    ) -> None:
-        """
-        set up problem in solver
-
-        :param accurate: bool,
-            whether the predictive model is accurate (True) or not (False)
-        :param std_func: function,
-            passed by the user, for loss calculation
-            when the predictive model is not accurate
-        :return:
-        """
-        self.variables = variables
-        self.vars_max, self.vars_min = self.get_bounds(self.variables)
-        self.categorical_variable_ids = [
-            i for i, v in enumerate(variables) if isinstance(v, EnumVariable)
-        ]
-        self.numerical_variable_ids = [
-            i for i, v in enumerate(variables) if isinstance(v, NumericVariable)
-        ]
-        self.objectives = objectives
-        self.constraints = constraints
-        self.accurate = accurate
-        self.std_func = std_func
-        self.alpha = alpha
-        self.precision_list = precision_list
+        self.batch_size = params.batch_size
 
     def _single_start_opt(
         self,
-        wl_id: str,
-        meshed_categorical_vars: np.ndarray,
-        batch_size: int,
-        obj_bounds_dict: Optional[Dict],
-        objective_name: str,
+        variables: Dict[str, Variable],
+        meshed_categorical_vars: List[Dict],
+        objective: ModelObjective,
+        constraints: Optional[Sequence[ModelConstraint]] = None,
+        input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Any:
         best_loss = np.inf
-        best_objs: Optional[Dict] = None
+        best_obj: Optional[Dict] = None
         best_vars: Optional[np.ndarray] = None
         iter_num = 0
-        opt_obj_ind = [
-            i for i, obj in enumerate(self.objectives) if obj.name == objective_name
-        ][0]
+
         for bv in meshed_categorical_vars:
             bv_dict = {
                 cind: bv[ind] for ind, cind in enumerate(self.categorical_variable_ids)
             }
+
             numerical_var_list = th.rand(
-                batch_size,
+                self.batch_size,
                 len(self.numerical_variable_ids),
                 device=self.device,
                 dtype=self.dtype,
@@ -218,36 +190,15 @@ class MOGD:
             logger.debug("No valid solutions and variables found!")
         return obj_pred_dict, best_raw_vars, best_loss, target_obj_val
 
-    def optimize_constrained_so(
+    def solve(
         self,
-        wl_id: str,
-        objective_name: str,
-        obj_bounds_dict: Optional[Dict],
-        batch_size: int = 1,
+        objective: ModelObjective,
+        variables: Dict[str, Variable],
+        constraints: Optional[Sequence[ModelConstraint]] = None,
+        input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Optional[List[float]], Optional[np.ndarray]]:
-        """
-        solve single objective optimization constrained by objective values
-        :param wl_id: str, workload id, e.g. '1-7'
-        :param objective_name: str, name of objective to be optimized
-        :param obj_bounds_dict: dict, keys are the name of objectives,
-            values are the lower and upper var_ranges for each objective value
-        :return:
-                objs: list, all objective values
-                vars: list, variable values
-        """
-
         th.manual_seed(self.seed)
-        if not self._check_obj(objective_name):
-            raise Exception(
-                f"Objective {objective_name}" "was not part of the problem definition."
-            )
-        if obj_bounds_dict is not None:
-            for cst_obj in obj_bounds_dict:
-                if not self._check_obj(cst_obj):
-                    raise ValueError(
-                        f"Objective {cst_obj} was not part of the problem definition."
-                    )
-        meshed_categorical_vars = self.get_meshed_categorical_vars(self.variables)
+        meshed_categorical_vars = self.get_meshed_categorical_vars(variables)
 
         if meshed_categorical_vars is None:
             meshed_categorical_vars = np.array([0])
@@ -263,11 +214,11 @@ class MOGD:
                 best_loss,
                 target_obj_val,
             ) = self._single_start_opt(
+                variables=variables,
                 meshed_categorical_vars=meshed_categorical_vars,
-                batch_size=batch_size,
-                obj_bounds_dict=obj_bounds_dict,
-                wl_id=wl_id,
-                objective_name=objective_name,
+                input_parameters=input_parameters,
+                objective=objective,
+                constraints=constraints,
             )
             best_loss_list.append(best_loss)
             objs_list.append(obj_pred_dict)
@@ -280,7 +231,7 @@ class MOGD:
             if obj_cand is None:
                 raise Exception(f"Unexpected objs_list[{idx}] is None.")
             objs = list(obj_cand.values())
-            return_vars = vars_cand.reshape([len(self.variables)])
+            return_vars = vars_cand.reshape([len(variables)])
         else:
             objs, return_vars = None, None
 
@@ -324,7 +275,7 @@ class MOGD:
 
         # call self.constraint_so_opt parallely
         with Pool(processes=self.process) as pool:
-            ret_list = pool.starmap(self.optimize_constrained_so, arg_list)
+            ret_list = pool.starmap(self.solve, arg_list)
         return ret_list
 
     ##################
@@ -343,36 +294,24 @@ class MOGD:
         # get loss for constraint functions defined in the problem setting
         if vars.ndim == 1:
             vars = vars.reshape([1, vars.shape[0]])
-        const_violation = self.get_tensor(0)
+        total_loss = self.get_tensor(0)
         for i, constraint in enumerate(self.constraints):
             constraint_func = constraint.function
             if isinstance(constraint_func, th.nn.Module):
                 constraint_func = constraint_func.to(self.device)
-            if constraint.type == "<=":
-                const_violation = th.relu(
-                    const_violation + constraint.function(vars, wl_id)
-                )
-            elif constraint.type == "==":
-                const_violation1 = th.relu(
-                    const_violation + constraint.function(vars, wl_id)
-                )
-                const_violation2 = th.relu(
-                    const_violation + (constraint.function(vars, wl_id)) * (-1)
-                )
-                const_violation = const_violation1 + const_violation2
-            elif constraint.type == ">=":
-                const_violation = th.relu(
-                    const_violation + (constraint.function(vars, wl_id)) * (-1)
-                )
-            else:
-                raise Exception(f"{constraint.type} is not supported!")
+            constraint_value = constraint_func(vars, wl_id)
+            constraint_violation = self.get_tensor(0)
 
-        if const_violation.sum() != 0:
-            const_loss = const_violation**2 + 1e5
-        else:
-            const_loss = self.get_tensor(0)
+            if constraint.lower is not None:
+                constraint_violation += th.relu(constraint.lower - constraint_value)
+            if constraint.upper is not None:
+                constraint_violation += th.relu(constraint_value - constraint.upper)
+            total_loss += (
+                constraint_violation**2
+                + constraint.stress * (constraint_violation > 0).float()
+            )
 
-        return const_loss
+        return total_loss
 
     def _unbounded_soo_loss(
         self, wl_id: str, obj_ind: int, pred_dict: Dict, vars: th.Tensor
@@ -469,7 +408,7 @@ class MOGD:
     ##################
 
     def get_meshed_categorical_vars(
-        self, variables: Sequence[Variable]
+        self, variables: Dict[str, Variable]
     ) -> Optional[np.ndarray]:
         """
         get combinations of all categorical (binary, enum) variables
@@ -477,10 +416,9 @@ class MOGD:
         :param var_types: list, variable types (float, integer, binary, enum)
         :return: meshed_cv_value: ndarray, categorical(binary, enum) variables
         """
-
         cv_value_list = [
             variable.values
-            for variable in variables
+            for variable in variables.values()
             if isinstance(variable, EnumVariable)
         ]
         if not cv_value_list:

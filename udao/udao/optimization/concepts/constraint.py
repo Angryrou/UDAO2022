@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Union
+from typing import Any, Callable, Literal, Union, Optional
 
 import torch as th
 
@@ -11,9 +11,9 @@ ConstraintType = Union[Literal["=="], Literal["<="], Literal[">="]]
 
 @dataclass
 class Constraint:
-    lower: float
-    upper: float
     function: Callable[..., th.Tensor]
+    lower: Optional[float] = None
+    upper: Optional[float] = None
     stress: float = 0.0
 
     def __call__(self, *args: Any, **kwargs: Any) -> th.Tensor:

@@ -36,7 +36,7 @@ class TestWeightedSum:
             ),
         ]
         constraints = [
-            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 2, type=">=")
+            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 2, lower=0)
         ]
 
         ws_algo = WeightedSum(
@@ -89,7 +89,7 @@ class TestWeightedSum:
                 function=lambda x, input_parameters: x["v1"] + x["v2"] - 3
                 if input_parameters
                 else x[:, 0] + x[:, 1] - 2,
-                type=">=",
+                lower=0,
             )
         ]
 
@@ -129,7 +129,7 @@ class TestWeightedSum:
             ),
         ]
         constraints = [
-            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 10, type=">=")
+            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 10, lower=0)
         ]
         ws_algo = WeightedSum(
             inner_solver=inner_solver,
@@ -167,7 +167,7 @@ class TestWeightedSum:
             ),
         ]
         constraints = [
-            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 3, type=">=")
+            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 3, lower=0)
         ]
         ws_algo = WeightedSum(
             inner_solver=inner_solver,
