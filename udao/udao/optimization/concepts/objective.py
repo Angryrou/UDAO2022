@@ -15,6 +15,8 @@ class Objective:
     name: str
     direction_type: ObjectiveDirection
     function: Callable[..., th.Tensor]
+    upper: Optional[float] = None
+    lower: Optional[float] = None
     type: Optional[VarTypes] = None
 
     @property

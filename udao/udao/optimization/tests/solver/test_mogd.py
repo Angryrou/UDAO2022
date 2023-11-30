@@ -4,7 +4,13 @@ import torch as th
 import torch.nn as nn
 
 from ....model.utils.utils import set_deterministic_torch
-from ...concepts import FloatVariable, IntegerVariable, Objective, Variable
+from ...concepts import (
+    FloatVariable,
+    IntegerVariable,
+    Objective,
+    Variable,
+    EnumVariable,
+)
 from ...solver.mogd import MOGD
 
 
@@ -280,3 +286,15 @@ class TestMOGD:
         loss, loss_idx = mogd._unbounded_soo_loss("1", 0, objs_pred_dict, vars)
         assert th.allclose(loss.cpu(), th.tensor(-0.3319), rtol=1e-3)
         assert th.equal(loss_idx.cpu(), th.tensor(1))
+
+    def test_get_meshed_categorical_variables(self, mogd: MOGD) -> None:
+        variables = {
+            "v1": IntegerVariable(2, 3),
+            "v2": EnumVariable([4, 5]),
+            "v3": EnumVariable([10, 20]),
+        }
+        meshed_variables = mogd.get_meshed_categorical_vars(variables=variables)
+        assert meshed_variables is not None
+        np.testing.assert_array_equal(
+            meshed_variables, [[4, 10], [5, 10], [4, 20], [5, 20]]
+        )

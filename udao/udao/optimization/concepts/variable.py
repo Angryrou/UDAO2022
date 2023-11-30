@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Union
+import numpy as np
 
 
 @dataclass
@@ -41,3 +42,15 @@ class BoolVariable(IntegerVariable):
 @dataclass
 class EnumVariable(Variable):
     values: list
+
+
+def random_variable(var: Variable, n_samples: int) -> np.ndarray:
+    if isinstance(var, FloatVariable):
+        return np.random.uniform(var.lower, var.upper, n_samples)
+    elif isinstance(var, IntegerVariable):
+        return np.random.randint(var.lower, var.upper + 1, size=n_samples)
+    elif isinstance(var, EnumVariable):
+        inds = np.random.randint(0, len(var.values), size=n_samples)
+        return np.array(var.values)[inds]
+    else:
+        raise NotImplementedError(f"ERROR: variable type {type(var)} is not supported!")

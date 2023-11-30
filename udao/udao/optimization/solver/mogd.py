@@ -1,20 +1,20 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
-from sympy import total_degree
 import torch as th
 import torch.optim as optim
 from torch.multiprocessing import Pool
-from udao.udao.optimization.concepts.constraint import ModelConstraint
 
-from udao.udao.optimization.concepts.objective import ModelObjective
+from udao.udao.optimization.concepts.variable import random_variable
+from ..concepts.constraint import ModelConstraint
+from ..concepts.objective import ModelObjective
 
 from .base_solver import BaseSolver
 
 from ...utils.logging import logger
-from ..concepts import Constraint, EnumVariable, NumericVariable, Objective, Variable
+from ..concepts import EnumVariable, NumericVariable, Variable
 
 SEED = 0
 DEFAULT_DEVICE = th.device("cpu")
@@ -64,29 +64,44 @@ class MOGD(BaseSolver):
         variables: Dict[str, Variable],
         meshed_categorical_vars: List[Dict],
         objective: ModelObjective,
-        constraints: Optional[Sequence[ModelConstraint]] = None,
+        constraints: Sequence[ModelConstraint],
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Any:
         best_loss = np.inf
         best_obj: Optional[Dict] = None
         best_vars: Optional[np.ndarray] = None
         iter_num = 0
+        categorical_variables = [
+            name
+            for name, variable in variables.items()
+            if isinstance(variable, EnumVariable)
+        ]
+        numeric_variables = [
+            name
+            for name, variable in variables.items()
+            if isinstance(variable, NumericVariable)
+        ]
 
-        for bv in meshed_categorical_vars:
-            bv_dict = {
-                cind: bv[ind] for ind, cind in enumerate(self.categorical_variable_ids)
-            }
+        for bv in meshed_categorical_vars:  # To do: get this out of this function
+            categorical_values = {
+                name: bv[ind] for ind, name in enumerate(categorical_variables)
+            }  # from {id: value} to {name: value}
+            fixed_values = {**categorical_values, **(input_parameters or {})}
+            numeric_values: Dict[str, np.ndarray] = {}
+            for name in numeric_variables:
+                numeric_values[name] = random_variable(variables[name], self.batch_size)
+            input_data, input_data_shape = objective.process_data(
+                input_parameters=fixed_values, input_variables=numeric_variables
+            )
+            mask = th.tensor(
+                [i in numeric_variables for i in input_data_shape.feature_input_names]
+            )
+            grad_indices = th.nonzero(mask, as_tuple=False).squeeze()
+            input_vars_subvector = input_data.feature_input[:, grad_indices]
+            input_vars_subvector.requires_grad_(True)
+            input_data.feature_input[:, grad_indices] = input_vars_subvector
 
-            numerical_var_list = th.rand(
-                self.batch_size,
-                len(self.numerical_variable_ids),
-                device=self.device,
-                dtype=self.dtype,
-                requires_grad=True,
-            )
-            optimizer = optim.Adam(
-                [numerical_var_list], lr=self.lr, weight_decay=self.wd
-            )
+            optimizer = optim.Adam([input_vars_subvector], lr=self.lr)
 
             local_best_iter = 0
             local_best_loss = np.inf
@@ -95,11 +110,14 @@ class MOGD(BaseSolver):
             i = 0
 
             while i < self.max_iter:
-                vars_kernal = self._get_tensor_vars_cat(
-                    numerical_var_list,
-                    bv_dict,
-                )
-                vars = vars_kernal.to(self.device)
+                obj_output = objective.apply_model(input_data)
+                const_outputs = [
+                    constraint.apply_model(input_data) for constraint in constraints
+                ]
+                objective_loss = self.objective_loss(obj_output, objective)
+                constraint_loss = self.constraints_loss(const_outputs, constraints)
+                input_data.feature_input[:, grad_indices] = input_vars_subvector
+
                 if obj_bounds_dict:
                     objs_pred_dict = {
                         cst_obj: self._get_tensor_obj_pred(wl_id, vars, ob_ind).to(
@@ -281,7 +299,9 @@ class MOGD(BaseSolver):
     ##################
     ## _loss        ##
     ##################
-    def _constraints_loss(self, wl_id: str, vars: th.Tensor) -> th.Tensor:
+    def constraints_loss(
+        self, constraint_values: List[th.Tensor], constraints: Sequence[ModelConstraint]
+    ) -> th.Tensor:
         """
         compute loss of the values of each constraint function fixme: double-check
         :param wl_id: str, workload id, e.g. '1-7'
@@ -292,26 +312,47 @@ class MOGD(BaseSolver):
         """
         # vars: a tensor
         # get loss for constraint functions defined in the problem setting
-        if vars.ndim == 1:
-            vars = vars.reshape([1, vars.shape[0]])
         total_loss = self.get_tensor(0)
-        for i, constraint in enumerate(self.constraints):
-            constraint_func = constraint.function
-            if isinstance(constraint_func, th.nn.Module):
-                constraint_func = constraint_func.to(self.device)
-            constraint_value = constraint_func(vars, wl_id)
+        for i, (constraint_value, constraint) in enumerate(
+            zip(constraint_values, constraints)
+        ):
             constraint_violation = self.get_tensor(0)
-
-            if constraint.lower is not None:
-                constraint_violation += th.relu(constraint.lower - constraint_value)
-            if constraint.upper is not None:
-                constraint_violation += th.relu(constraint_value - constraint.upper)
+            if constraint.upper is not None and constraint.lower is not None:
+                normed_constraint = (constraint_value - constraint.lower) / (
+                    constraint.upper - constraint.lower
+                )
+                constraint_violation = th.where(
+                    (normed_constraint < 0) | (normed_constraint > 1),
+                    (normed_constraint - 0.5) ** 2 + self.stress,
+                    0,
+                )
+            elif constraint.lower is not None:
+                constraint_violation = th.relu(constraint.lower - constraint_value)
+            elif constraint.upper is not None:
+                constraint_violation = th.relu(constraint_value - constraint.upper)
             total_loss += (
                 constraint_violation**2
                 + constraint.stress * (constraint_violation > 0).float()
             )
 
         return total_loss
+
+    def objective_loss(self, objective_value: th.Tensor, objective: ModelObjective):
+        loss = th.zeros_like(objective_value)  # size of objective_value ((bs, 1) ?)
+        if objective.upper is None and objective.lower is None:
+            loss = (objective_value**2) * objective.direction
+        elif objective.upper is not None and objective.lower is not None:
+            norm_cst_obj_pred = (objective_value - objective.lower) / (
+                objective.upper - objective.lower
+            )  # scaled
+            loss = th.where(
+                (norm_cst_obj_pred < 0) | (norm_cst_obj_pred > 1),
+                (norm_cst_obj_pred - 0.5) ** 2 + self.stress,
+                norm_cst_obj_pred * objective.direction,
+            )
+        else:
+            raise NotImplementedError("Objective with only one bound is not supported")
+        return loss
 
     def _unbounded_soo_loss(
         self, wl_id: str, obj_ind: int, pred_dict: Dict, vars: th.Tensor

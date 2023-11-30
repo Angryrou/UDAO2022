@@ -33,4 +33,4 @@ class ModelConstraint(ModelComponent, Constraint):
         def function(*args: Any, **kwargs: Any) -> th.Tensor:
             return self.apply_model(*args, **kwargs)
 
-        Constraint.__init__(self, lower, upper, function)
+        Constraint.__init__(self, function=function, lower, upper)
