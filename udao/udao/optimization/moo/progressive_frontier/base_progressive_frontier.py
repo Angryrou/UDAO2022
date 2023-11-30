@@ -128,13 +128,20 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         -------
             dict with upper and lower bound for each objective
         """
-        return {
-            objective.name: [
-                solver_ut.get_tensor(int(utopia.objs[i])),
-                solver_ut.get_tensor(int(nadir.objs[i])),
-            ]
-            for i, objective in enumerate(self.objectives)
-        }
+        bounds = {}
+        for i, objective in enumerate(self.objectives):
+            if objective.direction < 0:
+                bounds[objective.name] = [
+                    solver_ut.get_tensor(nadir.objs[i] * objective.direction),
+                    solver_ut.get_tensor(utopia.objs[i] * objective.direction),
+                ]
+            else:
+                bounds[objective.name] = [
+                    solver_ut.get_tensor(utopia.objs[i] * objective.direction),
+                    solver_ut.get_tensor(nadir.objs[i] * objective.direction),
+                ]
+
+        return bounds
 
     @staticmethod
     def get_utopia_and_nadir(points: list[Point]) -> Tuple[Point, Point]:

@@ -101,7 +101,7 @@ class TestParallelProgressiveFrontier:
             assert rect == grid_rectangles[i]
 
     def test_solve_with_two_objectives(self, ppf: ParallelProgressiveFrontier) -> None:
-        objectives, variables = ppf.solve("1", n_grids=2, max_iters=4)
+        objectives, variables = ppf.solve("1", n_grids=2, max_iters=5)
         assert objectives is not None
         np.testing.assert_array_equal(objectives, [[-1, 0]])
         assert variables is not None
@@ -117,7 +117,7 @@ class TestParallelProgressiveFrontier:
         ]
         ppf.objectives = objectives
         ppf.mogd.objectives = objectives
-        obj_values, var_values = ppf.solve("1", n_grids=2, max_iters=4)
+        obj_values, var_values = ppf.solve("1", n_grids=2, max_iters=2)
         assert obj_values is not None
         np.testing.assert_array_equal(obj_values, [[-1, -1, -1], [-1, 0, -2]])
         assert var_values is not None

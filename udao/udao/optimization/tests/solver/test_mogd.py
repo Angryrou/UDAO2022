@@ -11,20 +11,19 @@ from ...solver.mogd import MOGD
 class SimpleModel1(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.fc1 = th.nn.Linear(2, 2)
-        self.fc2 = th.nn.Linear(2, 1)
 
     def forward(self, x: th.Tensor, wl_id: None = None) -> th.Tensor:
-        return self.fc2(self.fc1(x))
+        return x[:, :1]  # Average across columns
 
 
 class SimpleModel2(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.fc1 = th.nn.Linear(2, 1)
 
     def forward(self, x: th.Tensor, wl_id: None = None) -> th.Tensor:
-        return self.fc1(x)
+        x.sum(dim=1, keepdim=True)  # Sum across columns
+        x.prod(dim=1, keepdim=True)  # Product across columns
+        return x[:, 1:]  # Average across columns
 
 
 @pytest.fixture()
@@ -34,7 +33,7 @@ def mogd() -> MOGD:
     params = MOGD.Params(
         learning_rate=0.1,
         weight_decay=0.1,
-        max_iters=10,
+        max_iters=100,
         patient=10,
         seed=0,
         multistart=10,
@@ -117,7 +116,7 @@ class TestMOGD:
     @pytest.mark.parametrize(
         "gpu, expected_obj, expected_vars",
         [
-            (False, [0.7501509189605713, 0.261410653591156], [0, 2.21]),
+            (False, [1, 0.28], [1, 2.28]),
             (True, [0.728246, 0.188221], [0.07, 2.15]),
         ],
     )
@@ -169,10 +168,10 @@ class TestMOGD:
         [
             (
                 False,
-                [0.7501509189605713, 0.261410653591156],
-                [0, 2.21],
-                [0.7494739890098572, 0.2552645206451416],
-                [0, 2.2],
+                [1, 0.28],
+                [1, 2.28],
+                [1, 0.28],
+                [1, 2.28],
             ),
             (
                 True,

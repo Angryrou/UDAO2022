@@ -71,6 +71,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         ]
         utopia, nadir = self.get_utopia_and_nadir(plans)
         rectangle = Rectangle(utopia, nadir)
+        logger.debug(f"initial rectangle is: {rectangle}")
         heapq.heappush(rectangle_queue, rectangle)
         for _ in range(n_probes - n_objs):
             if not rectangle_queue:
@@ -89,7 +90,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         po_vars_list = [
             point.vars.tolist() if point.vars is not None else [] for point in plans
         ]
-
+        print("po_objs_list", po_objs_list)
         po_objs, po_vars = moo_ut.summarize_ret(po_objs_list, po_vars_list)
 
         return po_objs, po_vars
@@ -144,6 +145,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
                     for i, objective in enumerate(self.objectives)
                 ]
             )
+            logger.debug(f"local optimym found with: {middle_objs}")
             middle_point = Point(middle_objs, vars)
             return middle_point, self.generate_sub_rectangles(
                 current_utopia, current_nadir, middle_point

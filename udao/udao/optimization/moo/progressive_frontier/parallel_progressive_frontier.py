@@ -42,7 +42,6 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
 
         # create initial rectangle
         # get initial plans/form a intial hyperrectangle
-        plans: List[Point] = []
         n_objs = len(self.objectives)
 
         all_objs_list: List[List] = []
@@ -55,10 +54,9 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             )
             if anchor_point.vars is None:
                 raise Exception("This should not happen.")
-            plans.append(anchor_point)
             all_objs_list.append(anchor_point.objs.tolist())
             all_vars_list.append(anchor_point.vars.tolist())
-
+        print("ANCHOR OBJECTIVES", all_objs_list)
         if n_objs < 2 or n_objs > 3:
             raise Exception(f"{n_objs} objectives are not supported for now!")
 
@@ -79,6 +77,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                 Point(objs=np.array(all_objs_list)[input_ind + 1]),
             ]
             utopia, nadir = self.get_utopia_and_nadir(plan)
+            print("utopia and nadir", utopia, nadir)
             if utopia is None or nadir is None:
                 raise NoSolutionError("Cannot find utopia/nadir points")
             # create uniform n_grids ^ (n_objs) grid cells based on the rectangle
@@ -97,13 +96,17 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                 batch_size=1,
             )
 
+            print("ret_list", ret_list)
+            directions = [obj.direction for obj in self.objectives]
             po_objs_list, po_vars_list = [], []
             for solution in ret_list:
                 if solution[0] is None:
                     logger.debug("This is an empty area!")
                     continue
                 else:
-                    po_objs_list.append(solution[0])
+                    po_objs_list.append(
+                        [solution[0][i] * dir for i, dir in enumerate(directions)]
+                    )
                     if solution[1] is None:
                         raise Exception("Unexpected vars None for objective value.")
                     po_vars_list.append(solution[1].tolist())
@@ -115,12 +118,11 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             all_objs, all_vars = moo_ut.summarize_ret(all_objs_list, all_vars_list)
             all_objs_list = all_objs.tolist() if all_objs is not None else []
             all_vars_list = all_vars.tolist() if all_vars is not None else []
-
+            logger.debug(f"the all_objs_list is: {all_objs_list}")
         return np.array(all_objs_list), np.array(all_vars_list)
 
-    @staticmethod
     def _create_grid_cells(
-        utopia: Point, nadir: Point, n_grids: int, n_objs: int
+        self, utopia: Point, nadir: Point, n_grids: int, n_objs: int
     ) -> List[Rectangle]:
         """
         Create cells used in Progressive Frontier(PF)-Approximation
