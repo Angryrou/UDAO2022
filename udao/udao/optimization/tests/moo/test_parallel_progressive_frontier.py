@@ -33,7 +33,7 @@ def ppf() -> ParallelProgressiveFrontier:
     ]
     variables = [FloatVariable(0, 1), IntegerVariable(1, 7)]
 
-    return ParallelProgressiveFrontier(
+    ppf = ParallelProgressiveFrontier(
         variables=variables,
         objectives=objectives,
         solver_params={
@@ -52,6 +52,8 @@ def ppf() -> ParallelProgressiveFrontier:
         alpha=0.1,
         precision_list=[2, 2],
     )
+    ppf.mogd.device = th.device("cpu")
+    return ppf
 
 
 class TestParallelProgressiveFrontier:

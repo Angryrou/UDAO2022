@@ -114,7 +114,23 @@ def paper_mogd() -> MOGD:
 
 
 class TestMOGD:
-    def test_constraint_so_opt(self, mogd: MOGD) -> None:
+    @pytest.mark.parametrize(
+        "gpu, expected_obj, expected_vars",
+        [
+            (False, [0.7501509189605713, 0.261410653591156], [0, 2.21]),
+            (True, [0.728246, 0.188221], [0.07, 2.15]),
+        ],
+    )
+    def test_constraint_so_opt(
+        self,
+        mogd: MOGD,
+        gpu: bool,
+        expected_obj: list,
+        expected_vars: list,
+    ) -> None:
+        if gpu and not th.cuda.is_available():
+            pytest.skip("Skip GPU test")
+        mogd.device = th.device("cuda") if gpu else th.device("cpu")
         optimal_obj, optimal_vars = mogd.optimize_constrained_so(
             wl_id="1",
             objective_name="obj1",
@@ -122,10 +138,10 @@ class TestMOGD:
         )
         assert optimal_obj is not None
         np.testing.assert_array_almost_equal(
-            optimal_obj, np.array([0.7501509189605713, 0.261410653591156])
+            optimal_obj, np.array(expected_obj), decimal=5
         )
         assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array([0, 2.21]))
+        np.testing.assert_array_equal(optimal_vars, np.array(expected_vars))
 
     @pytest.mark.parametrize(
         "variable, expected_variable",
@@ -148,7 +164,37 @@ class TestMOGD:
         assert optimal_vars is not None
         np.testing.assert_array_equal(optimal_vars, np.array([expected_variable]))
 
-    def test_constraint_parallel(self, mogd: MOGD) -> None:
+    @pytest.mark.parametrize(
+        "gpu, expected_obj1, expected_vars1, expected_obj2, expected_vars2",
+        [
+            (
+                False,
+                [0.7501509189605713, 0.261410653591156],
+                [0, 2.21],
+                [0.7494739890098572, 0.2552645206451416],
+                [0, 2.2],
+            ),
+            (
+                True,
+                [0.728246, 0.188221],
+                [0.07, 2.15],
+                [0.733336, 0.503761],
+                [0.22, 2.79],
+            ),
+        ],
+    )
+    def test_constraint_parallel(
+        self,
+        mogd: MOGD,
+        gpu: bool,
+        expected_obj1: list,
+        expected_vars1: list,
+        expected_obj2: list,
+        expected_vars2: list,
+    ) -> None:
+        if gpu and not th.cuda.is_available():
+            pytest.skip("Skip GPU test")
+        mogd.device = th.device("cuda") if gpu else th.device("cpu")
         res_list = mogd.optimize_constrained_so_parallel(
             wl_id="1",
             objective_name="obj1",
@@ -160,17 +206,16 @@ class TestMOGD:
         obj_optimal_1, var_optimal_1 = res_list[0]
         obj_optimal_2, var_optimal_2 = res_list[1]
         assert obj_optimal_1 is not None
+
         np.testing.assert_array_almost_equal(
-            obj_optimal_1, [0.7501509189605713, 0.261410653591156]
+            obj_optimal_1, expected_obj1
         )  # type: ignore
         assert var_optimal_1 is not None
-        np.testing.assert_array_equal(var_optimal_1, [0.0, 2.21])
+        np.testing.assert_array_equal(var_optimal_1, expected_vars1)
         assert obj_optimal_2 is not None
-        np.testing.assert_array_almost_equal(
-            obj_optimal_2, [0.7494739890098572, 0.2552645206451416]
-        )
+        np.testing.assert_array_almost_equal(obj_optimal_2, expected_obj2)
         assert var_optimal_2 is not None
-        np.testing.assert_array_equal(var_optimal_2, [0.0, 2.2])
+        np.testing.assert_array_equal(var_optimal_2, expected_vars2)
 
     def test_constraint_single_objective_opt(self, mogd: MOGD) -> None:
         mogd.objectives = [
@@ -210,8 +255,8 @@ class TestMOGD:
         loss, loss_idx = mogd._soo_loss(
             "1", vars, objs_pred_dict, obj_bounds_dict, "obj1", 0
         )
-        assert th.allclose(loss, th.tensor(-0.2764), rtol=1e-3)
-        assert th.equal(loss_idx, th.tensor(0))
+        assert th.allclose(loss.cpu(), th.tensor(-0.2764), rtol=1e-3)
+        assert th.equal(loss_idx.cpu(), th.tensor(0))
 
     def test__soo_loss_with_batch(self, mogd: MOGD) -> None:
         vars = th.rand(3, 2)
@@ -223,8 +268,8 @@ class TestMOGD:
         loss, loss_idx = mogd._soo_loss(
             "1", vars, objs_pred_dict, obj_bounds_dict, "obj1", 0
         )
-        assert th.allclose(loss, th.tensor(-0.2880), rtol=1e-3)
-        assert th.equal(loss_idx, th.tensor(1))
+        assert th.allclose(loss.cpu(), th.tensor(-0.2880), rtol=1e-3)
+        assert th.equal(loss_idx.cpu(), th.tensor(1))
 
     def test__unbounded_soo_loss(self, mogd: MOGD) -> None:
         vars = th.rand(3, 2)
@@ -233,5 +278,5 @@ class TestMOGD:
             for ob_ind, cst_obj in enumerate(mogd.objectives)
         }
         loss, loss_idx = mogd._unbounded_soo_loss("1", 0, objs_pred_dict, vars)
-        assert th.allclose(loss, th.tensor(-0.3319), rtol=1e-3)
-        assert th.equal(loss_idx, th.tensor(1))
+        assert th.allclose(loss.cpu(), th.tensor(-0.3319), rtol=1e-3)
+        assert th.equal(loss_idx.cpu(), th.tensor(1))
