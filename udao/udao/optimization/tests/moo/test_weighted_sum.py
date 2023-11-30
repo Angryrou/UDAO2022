@@ -20,7 +20,7 @@ class TestWeightedSum:
             RandomSampler(RandomSampler.Params(n_samples_per_param=30, seed=0)),
         ],
     )
-    def test_solve_without_wl_id(self, inner_solver: BaseSolver) -> None:
+    def test_solve_without_input_parameters(self, inner_solver: BaseSolver) -> None:
         """solve a dummy minimization problem with 2 objectives and 1 constraint"""
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
         objectives = [
@@ -58,7 +58,7 @@ class TestWeightedSum:
             RandomSampler(RandomSampler.Params(n_samples_per_param=30, seed=0)),
         ],
     )
-    def test_solve_with_wl_id(self, inner_solver: BaseSolver) -> None:
+    def test_solve_with_input_parameters(self, inner_solver: BaseSolver) -> None:
         """solve a dummy minimization problem with 2 objectives and 1 constraint"""
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
 

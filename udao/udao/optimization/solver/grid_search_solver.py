@@ -12,6 +12,7 @@ class GridSearch(SamplerSolver):
     @dataclass
     class Params:
         n_grids_per_var: List[int]
+        """List of grid sizes for each variable"""
 
     def __init__(self, gs_params: Params) -> None:
         """
@@ -21,6 +22,7 @@ class GridSearch(SamplerSolver):
         self.n_grids_per_var = gs_params.n_grids_per_var
 
     def _process_variable(self, var: Variable, n_grids: int) -> np.ndarray:
+        """Define grid point in fonction of the variable type"""
         if isinstance(var, NumericVariable):
             # make sure the grid point is the same with the type
             # e.g., if int x.min=0, x.max=5, n_grids_per_var=10,
@@ -42,12 +44,17 @@ class GridSearch(SamplerSolver):
 
     def _get_input(self, variables: Mapping[str, Variable]) -> Dict[str, np.ndarray]:
         """
-        generate grids for each variable
-        :param var_ranges: ndarray (n_vars,),
-            the lower and upper var_ranges of non-ENUM variables,
-            and values of ENUM variables
-        :param var_types: list, type of each variable
-        :return: array, variables (n_grids * n_vars)
+        Generate grids for each variable
+
+        Parameters
+        ----------
+        variables: Mapping[str, Variable]
+            variables to generate
+
+        Returns
+        -------
+        Dict[str, np.ndarray]
+            Dict with array of values for each variable
         """
         grids_list = []
         variable_names = list(variables.keys())

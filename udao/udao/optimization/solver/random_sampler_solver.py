@@ -17,9 +17,6 @@ class RandomSampler(SamplerSolver):
         "random seed for generatino of samples"
 
     def __init__(self, params: Params) -> None:
-        """
-        :param params: RandomSampler.Params
-        """
         super().__init__()
         self.n_samples_per_param = params.n_samples_per_param
         self.seed = params.seed
@@ -50,8 +47,9 @@ class RandomSampler(SamplerSolver):
             lower and upper var_ranges of variables(non-ENUM),
             and values of ENUM variables
         Returns:
-        np.ndarray,
-            variables (n_samples * n_vars)
+        --------
+        Dict[str, np.ndarray]
+            Dict with array of values for each variable
         """
         result_dict = {}
 

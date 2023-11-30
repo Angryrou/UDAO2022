@@ -123,10 +123,11 @@ class WeightedSum(BaseMOO):
 
         Parameters
         ----------
-        wl_id : Optional[str]
-            workload id
         variables : List[Variable]
             List of the variables to be optimized.
+        input_parameters : Optional[Dict[str, Any]]
+            Fixed input parameters expected by
+            the objective functions.
 
         Returns
         -------
