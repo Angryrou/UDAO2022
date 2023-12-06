@@ -121,9 +121,8 @@ class TestProgressiveFrontier:
     def test_solve(self, progressive_frontier: SequentialProgressiveFrontier) -> None:
         objectives, variables = progressive_frontier.solve("1", n_probes=10)
         assert objectives is not None
-        print(objectives, variables)
         np.testing.assert_array_equal(objectives, [[-1, 0]])
-        assert variables is None
+        assert variables is not None
         np.testing.assert_array_equal(variables, [[1, 1]])
 
     def test_get_utopia_and_nadir_raises_when_no_points(

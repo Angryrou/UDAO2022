@@ -56,7 +56,6 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                 raise Exception("This should not happen.")
             all_objs_list.append(anchor_point.objs.tolist())
             all_vars_list.append(anchor_point.vars.tolist())
-        print("ANCHOR OBJECTIVES", all_objs_list)
         if n_objs < 2 or n_objs > 3:
             raise Exception(f"{n_objs} objectives are not supported for now!")
 
@@ -77,7 +76,6 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                 Point(objs=np.array(all_objs_list)[input_ind + 1]),
             ]
             utopia, nadir = self.get_utopia_and_nadir(plan)
-            print("utopia and nadir", utopia, nadir)
             if utopia is None or nadir is None:
                 raise NoSolutionError("Cannot find utopia/nadir points")
             # create uniform n_grids ^ (n_objs) grid cells based on the rectangle
@@ -96,7 +94,6 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                 batch_size=1,
             )
 
-            print("ret_list", ret_list)
             directions = [obj.direction for obj in self.objectives]
             po_objs_list, po_vars_list = [], []
             for solution in ret_list:

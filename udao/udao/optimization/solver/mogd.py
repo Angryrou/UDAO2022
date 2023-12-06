@@ -143,7 +143,6 @@ class MOGD:
                         target_obj_name=objective_name,
                         target_obj_ind=opt_obj_ind,
                     )
-                    # print("bounded mogd", objs_pred_dict, loss, obj_bounds_dict)
 
                 else:
                     objs_pred_dict = {
@@ -432,7 +431,6 @@ class MOGD:
         """
         loss_shape = (1) if vars.ndim == 1 else (vars.shape[0])
         loss = th.zeros(loss_shape, device=self.device, dtype=self.dtype)
-        # print(f"obj bounds {obj_bounds}")
         for cst_obj, [lower, upper] in obj_bounds.items():
             lower = lower.to(self.device)
             upper = upper.to(self.device)
@@ -451,10 +449,7 @@ class MOGD:
 
             if upper != lower:
                 norm_cst_obj_pred = (obj_pred - lower) / (upper - lower)  # scaled
-                # print(
-                #    f"norm of object {cst_obj}",
-                #    norm_cst_obj_pred,
-                # )
+
                 add_loss = th.where(
                     (norm_cst_obj_pred < 0) | (norm_cst_obj_pred > 1),
                     (norm_cst_obj_pred - 0.5) ** 2 + self.stress,
@@ -462,10 +457,7 @@ class MOGD:
                     if cst_obj == target_obj_name
                     else 0,
                 )
-                # print(
-                #    f"obj loss for {cst_obj} with norm value {norm_cst_obj_pred}",
-                #    add_loss,
-                # )
+
             else:
                 add_loss = (obj_pred - upper) ** 2 + self.stress
 

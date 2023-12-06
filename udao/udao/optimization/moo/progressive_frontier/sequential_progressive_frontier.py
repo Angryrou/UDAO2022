@@ -90,7 +90,6 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         po_vars_list = [
             point.vars.tolist() if point.vars is not None else [] for point in plans
         ]
-        print("po_objs_list", po_objs_list)
         po_objs, po_vars = moo_ut.summarize_ret(po_objs_list, po_vars_list)
 
         return po_objs, po_vars
