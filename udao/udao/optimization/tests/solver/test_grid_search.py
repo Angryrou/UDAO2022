@@ -2,14 +2,17 @@ from typing import Dict, Iterable
 
 import numpy as np
 import pytest
+import torch as th
 
+from ...concepts.objective import Objective
 from ...concepts.variable import (
     BoolVariable,
     EnumVariable,
     FloatVariable,
     IntegerVariable,
 )
-from ...solver.grid_search import GridSearch
+from ...solver.grid_search_solver import GridSearch
+from ...utils.moo_utils import Point
 
 
 class TestGridSearch:
@@ -37,22 +40,21 @@ class TestGridSearch:
             ),
         ],
     )
-    def test_grid_search_single_variable(
+    def test_grid_search_get_single_variable(
         self, test_data: Dict, expected: Iterable
     ) -> None:
         solver = GridSearch(GridSearch.Params(n_grids_per_var=[test_data["n_grids"]]))
         output = solver._get_input(
-            variables=[test_data["variable"]],
+            variables={"variable": test_data["variable"]},
         )
-        np.testing.assert_equal(output, [[e] for e in expected])
+        np.testing.assert_equal(output, {"variable": np.array([e for e in expected])})
 
-    def test_grid_search_multiple_variables(self) -> None:
+    def test_grid_search_get_multiple_variables(self) -> None:
         solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         output = solver._get_input(
-            variables=[BoolVariable(), IntegerVariable(1, 7)],
+            variables={"v1": BoolVariable(), "v2": IntegerVariable(1, 7)},
         )
-        np.testing.assert_equal(
-            output,
+        expected_array = np.array(
             [
                 [0, 1],
                 [0, 2],
@@ -68,5 +70,19 @@ class TestGridSearch:
                 [1, 5],
                 [1, 6],
                 [1, 7],
-            ],
+            ]
+        ).T
+        np.testing.assert_equal(
+            output, {"v1": expected_array[0], "v2": expected_array[1]}
         )
+
+    def test_solve(self) -> None:
+        solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
+
+        def obj1_func(x: Dict, input_parameters: Dict) -> th.Tensor:
+            return th.tensor(x["v1"] + x["v2"])
+
+        objective = Objective("obj1", "MAX", obj1_func)
+        variables = {"v1": BoolVariable(), "v2": IntegerVariable(1, 7)}
+        point = solver.solve(objective=objective, variables=variables)
+        assert point == Point(np.array([8]), {"v1": 1, "v2": 7})
