@@ -165,8 +165,8 @@ class MOGD:
                     local_best_iter = i
                 optimizer.zero_grad()
                 loss.backward()  # type: ignore
-                optimizer.step()  # update parameters
 
+                optimizer.step()  # update parameters
                 constrained_numerical_var_list = (
                     self._get_tensor_numerical_constrained_vars(numerical_var_list.data)
                 )
@@ -449,7 +449,6 @@ class MOGD:
 
             if upper != lower:
                 norm_cst_obj_pred = (obj_pred - lower) / (upper - lower)  # scaled
-
                 add_loss = th.where(
                     (norm_cst_obj_pred < 0) | (norm_cst_obj_pred > 1),
                     (norm_cst_obj_pred - 0.5) ** 2 + self.stress,
@@ -457,7 +456,6 @@ class MOGD:
                     if cst_obj == target_obj_name
                     else 0,
                 )
-
             else:
                 add_loss = (obj_pred - upper) ** 2 + self.stress
 

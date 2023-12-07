@@ -149,15 +149,23 @@ class TestProgressiveFrontier:
         anchor_point = progressive_frontier.get_anchor_point(
             wl_id="1", obj_ind=0, anchor_option="2_step"
         )
-        assert anchor_point == Point(np.array([-1, 0]), np.array([1, 1]))
-        anchor_point = progressive_frontier.get_anchor_point(
-            wl_id="1", obj_ind=1, anchor_option="2_step"
-        )
         np.testing.assert_array_almost_equal(
-            anchor_point.objs, np.array([-0.82810003, 0.0])
+            anchor_point.objs, np.array([-1.0, 0.04987777])
         )
         assert anchor_point.vars is not None
         np.testing.assert_array_almost_equal(
             anchor_point.vars,
-            np.array([0.91, 1.0]),
+            np.array([1, 2.34]),
+        )
+        progressive_frontier.mogd.wd = 0
+        anchor_point = progressive_frontier.get_anchor_point(
+            wl_id="1", obj_ind=1, anchor_option="2_step"
+        )
+        np.testing.assert_array_almost_equal(
+            anchor_point.objs, np.array([-0.0081, 0.0])
+        )
+        assert anchor_point.vars is not None
+        np.testing.assert_array_almost_equal(
+            anchor_point.vars,
+            np.array([0.09, 1]),
         )

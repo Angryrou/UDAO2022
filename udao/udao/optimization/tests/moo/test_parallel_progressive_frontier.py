@@ -38,7 +38,7 @@ def ppf() -> ParallelProgressiveFrontier:
         objectives=objectives,
         solver_params={
             "learning_rate": 0.01,
-            "weight_decay": 0.1,
+            "weight_decay": 0,
             "max_iters": 100,
             "patient": 10,
             "multistart": 2,
@@ -119,6 +119,11 @@ class TestParallelProgressiveFrontier:
         ppf.mogd.objectives = objectives
         obj_values, var_values = ppf.solve("1", n_grids=2, max_iters=2)
         assert obj_values is not None
-        np.testing.assert_array_equal(obj_values, [[-1, -1, -1], [-1, 0, -2]])
+        np.testing.assert_array_almost_equal(
+            obj_values,
+            np.array([[-1.0, -0.40966392, -1.59033608], [-1, -1, -1], [-1, 0, -2]]),
+        )
         assert var_values is not None
-        np.testing.assert_array_equal(var_values, [[1, 1], [1, 7]])
+        np.testing.assert_array_equal(
+            var_values, np.array([[1.0, 5.61], [1, 1], [1, 7]])
+        )

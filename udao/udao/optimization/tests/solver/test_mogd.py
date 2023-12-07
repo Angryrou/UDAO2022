@@ -13,7 +13,7 @@ class SimpleModel1(nn.Module):
         super().__init__()
 
     def forward(self, x: th.Tensor, wl_id: None = None) -> th.Tensor:
-        return x[:, :1]  # Average across columns
+        return x[:, :1]
 
 
 class SimpleModel2(nn.Module):
@@ -21,9 +21,7 @@ class SimpleModel2(nn.Module):
         super().__init__()
 
     def forward(self, x: th.Tensor, wl_id: None = None) -> th.Tensor:
-        x.sum(dim=1, keepdim=True)  # Sum across columns
-        x.prod(dim=1, keepdim=True)  # Product across columns
-        return x[:, 1:]  # Average across columns
+        return x[:, 1:]
 
 
 @pytest.fixture()
@@ -217,7 +215,7 @@ class TestMOGD:
         np.testing.assert_array_equal(var_optimal_2, expected_vars2)
 
     def test__soo_loss_no_batch(self, mogd: MOGD) -> None:
-        vars = th.rand(2)
+        vars = th.tensor([[0.5, 0.6]])
         obj_bounds_dict = {"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))}
         objs_pred_dict = {
             cst_obj: mogd._get_tensor_obj_pred("1", vars, ob_ind)
@@ -226,12 +224,13 @@ class TestMOGD:
         loss, loss_idx = mogd._soo_loss(
             "1", vars, objs_pred_dict, obj_bounds_dict, "obj1", 0
         )
-        assert th.allclose(loss.cpu(), th.tensor(-0.2764), rtol=1e-3)
+        # 0.5 ** 2
+        assert th.allclose(loss.cpu(), th.tensor(-0.25), rtol=1e-3)
         assert th.equal(loss_idx.cpu(), th.tensor(0))
 
     def test__soo_loss_with_batch(self, mogd: MOGD) -> None:
-        vars = th.rand(3, 2)
-        obj_bounds_dict = {"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))}
+        vars = th.tensor([[0.5, 0.6], [0.3, 0.4], [0.2, -0.1]])
+        obj_bounds_dict = {"obj1": th.tensor((0, 1)), "obj2": th.tensor((0, 1))}
         objs_pred_dict = {
             cst_obj: mogd._get_tensor_obj_pred("1", vars, ob_ind)
             for ob_ind, cst_obj in enumerate(obj_bounds_dict)
@@ -239,18 +238,20 @@ class TestMOGD:
         loss, loss_idx = mogd._soo_loss(
             "1", vars, objs_pred_dict, obj_bounds_dict, "obj1", 0
         )
-        assert th.allclose(loss.cpu(), th.tensor(-0.8390), rtol=1e-3)
-        assert th.equal(loss_idx.cpu(), th.tensor(1))
+        # -0.5 -0.3 - 0.2 + (-0.1 -0.5)**2 +0.1
+        assert th.allclose(loss.cpu(), th.tensor(-0.54), rtol=1e-3)
+        assert th.equal(loss_idx.cpu(), th.tensor(0))
 
     def test__unbounded_soo_loss(self, mogd: MOGD) -> None:
-        vars = th.rand(3, 2)
+        vars = th.tensor([[0.5, 0.6], [0.3, 0.4], [0.2, 0.1]])
         objs_pred_dict = {
             cst_obj.name: mogd._get_tensor_obj_pred("1", vars, ob_ind)
             for ob_ind, cst_obj in enumerate(mogd.objectives)
         }
         loss, loss_idx = mogd._unbounded_soo_loss("1", 0, objs_pred_dict, vars)
-        assert th.allclose(loss.cpu(), th.tensor(-0.9389), rtol=1e-3)
-        assert th.equal(loss_idx.cpu(), th.tensor(1))
+        # -0.5**2 - 0.3**2 - 0.2**2
+        assert th.allclose(loss.cpu(), th.tensor(-0.38), rtol=1e-3)
+        assert th.equal(loss_idx.cpu(), th.tensor(0))
 
     def test_constraint_single_objective_opt(self, mogd: MOGD) -> None:
         mogd.objectives = [

@@ -144,7 +144,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
                     for i, objective in enumerate(self.objectives)
                 ]
             )
-            logger.debug(f"local optimym found with: {middle_objs}")
+            logger.debug(f"local optimum found with: {middle_objs}")
             middle_point = Point(middle_objs, vars)
             return middle_point, self.generate_sub_rectangles(
                 current_utopia, current_nadir, middle_point

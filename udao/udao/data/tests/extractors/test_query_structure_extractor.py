@@ -177,7 +177,6 @@ class TestStructureExtractor:
         row = df_fixture.iloc[1]
         extractor._extract_structure_and_features(row.id, row.plan, "train")
         result = cast(th.Tensor, extractor.template_plans[1].graph.ndata["pos_enc"])
-        print(result)
         th.allclose(
             result,
             th.tensor(
