@@ -38,7 +38,6 @@ def ppf() -> ParallelProgressiveFrontier:
         objectives=objectives,
         solver_params={
             "learning_rate": 0.01,
-            "weight_decay": 0,
             "max_iters": 100,
             "patient": 10,
             "multistart": 2,

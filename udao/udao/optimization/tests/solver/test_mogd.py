@@ -30,7 +30,6 @@ def mogd() -> MOGD:
 
     params = MOGD.Params(
         learning_rate=0.1,
-        weight_decay=0.1,
         max_iters=100,
         patient=10,
         seed=0,
@@ -78,7 +77,6 @@ def paper_mogd() -> MOGD:
 
     params = MOGD.Params(
         learning_rate=0.1,
-        weight_decay=0.1,
         max_iters=1000,
         patient=10,
         seed=0,
@@ -114,7 +112,7 @@ class TestMOGD:
     @pytest.mark.parametrize(
         "gpu, expected_obj, expected_vars",
         [
-            (False, [1, 0.28], [1, 2.28]),
+            (False, [1.0, 0.77], [1, 2.77]),
             (True, [0.728246, 0.188221], [0.07, 2.15]),
         ],
     )
@@ -166,10 +164,10 @@ class TestMOGD:
         [
             (
                 False,
-                [1, 0.28],
-                [1, 2.28],
-                [1, 0.28],
-                [1, 2.28],
+                [1, 0.77],
+                [1, 2.77],
+                [1, 0.77],
+                [1, 2.77],
             ),
             (
                 True,

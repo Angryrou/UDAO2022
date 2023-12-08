@@ -28,7 +28,6 @@ def progressive_frontier() -> SequentialProgressiveFrontier:
         objectives=objectives,
         solver_params={
             "learning_rate": 0.01,
-            "weight_decay": 0.1,
             "max_iters": 100,
             "patient": 10,
             "multistart": 2,
@@ -150,14 +149,14 @@ class TestProgressiveFrontier:
             wl_id="1", obj_ind=0, anchor_option="2_step"
         )
         np.testing.assert_array_almost_equal(
-            anchor_point.objs, np.array([-1.0, 0.04987777])
+            anchor_point.objs, np.array([-1.0, 0.590336])
         )
         assert anchor_point.vars is not None
         np.testing.assert_array_almost_equal(
             anchor_point.vars,
-            np.array([1, 2.34]),
+            np.array([1, 5.61]),
         )
-        progressive_frontier.mogd.wd = 0
+
         anchor_point = progressive_frontier.get_anchor_point(
             wl_id="1", obj_ind=1, anchor_option="2_step"
         )

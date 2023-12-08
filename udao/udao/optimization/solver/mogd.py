@@ -24,7 +24,6 @@ class MOGD:
     @dataclass
     class Params:
         learning_rate: float
-        weight_decay: float
         max_iters: int
         patient: int
         multistart: int
@@ -41,7 +40,6 @@ class MOGD:
         """
         super().__init__()
         self.lr = params.learning_rate
-        self.wd = params.weight_decay
         self.max_iter = params.max_iters
         self.patient = params.patient
         self.multistart = params.multistart
@@ -112,9 +110,7 @@ class MOGD:
                 dtype=self.dtype,
                 requires_grad=True,
             )
-            optimizer = optim.Adam(
-                [numerical_var_list], lr=self.lr, weight_decay=self.wd
-            )
+            optimizer = optim.Adam([numerical_var_list], lr=self.lr)
 
             local_best_iter = 0
             local_best_loss = np.inf
