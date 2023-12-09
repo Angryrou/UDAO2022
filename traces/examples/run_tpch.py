@@ -1,21 +1,40 @@
-from pathlib import Path
-import numpy as np
+import argparse
 
-import udao_trace.utils as utils
-from udao_trace import SparkProxy
+from udao_trace.collector.SparkCollector import SparkCollector
+from udao_trace.utils import BenchmarkType, ClusterName
 
-base_dir = Path(__file__).parent
-knob_meta_file = str(base_dir / "assets/spark_configuration_aqe_on.json")
-spark_proxy = SparkProxy(knob_meta_file)
-# for k, v in spark_proxy.get_default_conf().items():
-#     print(k, v)
 
-conf_norm = [0.] * len(spark_proxy.knob_list)
-conf_denorm = spark_proxy.denormalize(conf_norm)
-conf = spark_proxy.construct_configuration(conf_denorm)
-print(conf_denorm)
-print(conf)
-print(spark_proxy.get_default_conf(to_dict=False))
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Spark Trace Collection Script')
+    parser.add_argument('--knob_meta_file', type=str, default='assets/spark_configuration_aqe_on.json',
+                        help='Path to the knob metadata file')
+    parser.add_argument('--n_data_per_template', type=int, default=2273,
+                        help='Number of data points per template')
+    parser.add_argument('--n_processes', type=int, default=4,
+                        help='Number of processes for parallel execution')
+    parser.add_argument('--cluster_cores', type=int, default=150,
+                        help='Total available cluster cores')
+    parser.add_argument('--seed', type=int, default=42,
+                        help='Seed for randomization')
+    parser.add_argument('--benchmark_type', type=str, default='TPCH',
+                        help='Type of benchmark (e.g., TPCH)')
+    parser.add_argument('--cluster_name', type=str, default='HEX1',
+                        help='Name of the cluster')
+    parser.add_argument('--debug', action='store_true',
+                        help='Enable debug mode')
 
-conf_denorm = [2, 1, 20, 2, 2, 0, 1, 60] + [2, 2, 0, 1, 25, 2, 50, 2, 2, 20, 2]
-print(spark_proxy.construct_configuration(conf_denorm))
+    args = parser.parse_args()
+
+    spark_collector = SparkCollector(
+        knob_meta_file=args.knob_meta_file,
+        benchmark_type=BenchmarkType[args.benchmark_type],
+        cluster_name=ClusterName[args.cluster_name],
+        header="spark_collector",
+        debug=args.debug
+    )
+    spark_collector.start_lhs(
+        n_data_per_template=args.n_data_per_template,
+        n_processes=args.n_processes,
+        cluster_cores=args.cluster_cores,
+        seed=args.seed
+    )
