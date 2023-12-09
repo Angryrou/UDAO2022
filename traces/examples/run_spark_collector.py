@@ -14,6 +14,8 @@ if __name__ == '__main__':
                         help='Scale factor of the benchmark')
     parser.add_argument('--cluster_name', type=str, default='HEX1',
                         help='Name of the cluster')
+    parser.add_argument('--parametric_bash_file', type=str, default='assets/run_spark_collect.sh',
+                        help='Path to the parametric bash file')
     parser.add_argument('--debug', action='store_true',
                         help='Enable debug mode')
     parser.add_argument('--n_data_per_template', type=int, default=10,
@@ -32,6 +34,7 @@ if __name__ == '__main__':
         benchmark_type=BenchmarkType[args.benchmark_type],
         scale_factor=args.scale_factor,
         cluster_name=ClusterName[args.cluster_name],
+        parametric_bash_file=args.parametric_bash_file,
         header="spark_collector",
         debug=args.debug
     )

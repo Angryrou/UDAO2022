@@ -17,7 +17,7 @@ class SparkCollector:
         benchmark_type: BenchmarkType,
         scale_factor: int,
         cluster_name: ClusterName,
-        parametric_bash_file: str = "assets/run-spark-tpc.sh",
+        parametric_bash_file: str = "assets/run_spark_tpc.sh",
         header: str = "spark_collector",
         debug: bool = False
     ):
