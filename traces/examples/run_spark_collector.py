@@ -8,6 +8,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Spark Trace Collection Script')
     parser.add_argument('--knob_meta_file', type=str, default='assets/spark_configuration_aqe_on.json',
                         help='Path to the knob metadata file')
+    parser.add_argument('--benchmark_type', type=str, default='TPCH',
+                        help='Type of benchmark (e.g., TPCH)')
+    parser.add_argument('--scale_factor', type=int, default=100,
+                        help='Scale factor of the benchmark')
+    parser.add_argument('--cluster_name', type=str, default='HEX1',
+                        help='Name of the cluster')
+    parser.add_argument('--debug', action='store_true',
+                        help='Enable debug mode')
     parser.add_argument('--n_data_per_template', type=int, default=10,
                         help='Number of data points per template, 2273 for TPCH, 490 for TPCDS')
     parser.add_argument('--n_processes', type=int, default=16,
@@ -16,18 +24,13 @@ if __name__ == '__main__':
                         help='Total available cluster cores')
     parser.add_argument('--seed', type=int, default=42,
                         help='Seed for randomization')
-    parser.add_argument('--benchmark_type', type=str, default='TPCH',
-                        help='Type of benchmark (e.g., TPCH)')
-    parser.add_argument('--cluster_name', type=str, default='HEX1',
-                        help='Name of the cluster')
-    parser.add_argument('--debug', action='store_true',
-                        help='Enable debug mode')
 
     args = parser.parse_args()
 
     spark_collector = SparkCollector(
         knob_meta_file=args.knob_meta_file,
         benchmark_type=BenchmarkType[args.benchmark_type],
+        scale_factor=args.scale_factor,
         cluster_name=ClusterName[args.cluster_name],
         header="spark_collector",
         debug=args.debug
