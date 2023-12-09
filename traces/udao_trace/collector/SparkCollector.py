@@ -27,9 +27,8 @@ class SparkCollector:
         self.spark_conf = spark_conf
         self.benchmark = benchmark
         self.cluster = cluster
-        self.cache_header = f"{header}/{benchmark.get_prefix()}/cache"
-        self.log_header = f"{header}/{benchmark.get_prefix()}/log"
-        self.trace_header = f"{header}/{benchmark.get_prefix()}/trace"
+        self.header = f"{header}/{benchmark.get_prefix()}"
+        os.makedirs(self.header, exist_ok=True)
 
         assert (os.path.exists(parametric_bash_file)), FileNotFoundError(parametric_bash_file)
         self.parametric_bash_file = parametric_bash_file
@@ -40,13 +39,12 @@ class SparkCollector:
         self.query_matrix = None
 
     def _get_lhs_conf_dict(self, n_data_per_template: int) -> None:
-        cache_header = self.cache_header
+        cache_header = f"{self.header}/cache/template_to_conf_dict"
         spark_conf = self.spark_conf
         benchmark = self.benchmark
         templates = benchmark.templates
         try:
-            template_to_conf_dict = PickleHandler.load(f"{cache_header}/template_to_conf_dict",
-                                                       f"{len(templates)}x{n_data_per_template}.pkl")
+            template_to_conf_dict = PickleHandler.load(cache_header, f"{len(templates)}x{n_data_per_template}.pkl")
             logger.debug("template_to_conf_dict loaded")
         except:
             logger.debug("template_to_conf_dict not found, generating...")
@@ -54,8 +52,7 @@ class SparkCollector:
                 template: spark_conf.get_lhs_configurations(n_data_per_template, benchmark.template2id[template])
                 for template in templates
             }
-            PickleHandler.save(template_to_conf_dict, f"{cache_header}/template_to_conf_dict",
-                               f"{len(templates)}x{n_data_per_template}.pkl")
+            PickleHandler.save(template_to_conf_dict, cache_header, f"{len(templates)}x{n_data_per_template}.pkl")
             logger.debug("template_to_conf_dict saved")
         self.template_to_conf_dict = template_to_conf_dict
 
@@ -66,7 +63,12 @@ class SparkCollector:
         cores = int(conf_df["spark.executor.cores"]) * (int(conf_df["spark.executor.instances"]) + 1)
         return template, qid, knob_sign, cores
 
-    def _submit(self, template, qid, knob_sign, cores, trace_header, log_header):
+    def _submit(self, template, qid, knob_sign, cores, header):
+        trace_header = f"{header}/trace"
+        log_header = f"{header}/log"
+        os.makedirs(trace_header, exist_ok=True)
+        os.makedirs(log_header, exist_ok=True)
+
         app_name = self.benchmark.get_prefix() + f"_{template}-{qid}-{knob_sign}"
         logger.info(f"-[{template}-{qid}]: start running")
         start = time.time()
@@ -81,11 +83,11 @@ class SparkCollector:
         else:
             os.system(exec_str)
         dt = time.time() - start
-        logger.debug(f"[{template}-{qid}]: finished, took {dt}s")
+        logger.debug(f"[{template}-{qid}]: finished, took {dt:0f}s")
 
         with self.lock:
             self.current_cores.value -= cores
-            logger.info(f"-[{template}-{qid}]: finished, took {dt}s, current_cores={self.current_cores.value}")
+            logger.info(f"-[{template}-{qid}]: finished, took {dt:0f}s, current_cores={self.current_cores.value}")
 
     def start_lhs(
         self,
@@ -104,8 +106,7 @@ class SparkCollector:
         self.query_matrix = QueryMatrix(templates=templates, n_data_per_template=n_data_per_template, seed=seed)
         total = self.query_matrix.total
 
-        trace_prefix = f"{self.trace_header}/lhs_{n_data_per_template}x{len(templates)}"
-        log_prefix = f"{self.log_header}/lhs_{n_data_per_template}x{len(templates)}"
+        lhs_header = f"{self.header}/lhs_{n_data_per_template}x{len(templates)}"
         submit_index = 0
 
         pool = Pool(processes=n_processes)
@@ -121,8 +122,7 @@ class SparkCollector:
                     if_submit = False
             if if_submit:
                 pool.apply_async(func=self._submit,
-                                 args=(template, qid, knob_sign, cores,
-                                       f"{trace_prefix}/{template}", f"{log_prefix}/{template}"),
+                                 args=(template, qid, knob_sign, cores, lhs_header),
                                  error_callback=error_handler)
                 submit_index += 1
             time.sleep(1)

@@ -8,9 +8,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Spark Trace Collection Script')
     parser.add_argument('--knob_meta_file', type=str, default='assets/spark_configuration_aqe_on.json',
                         help='Path to the knob metadata file')
-    parser.add_argument('--n_data_per_template', type=int, default=2273,
-                        help='Number of data points per template')
-    parser.add_argument('--n_processes', type=int, default=4,
+    parser.add_argument('--n_data_per_template', type=int, default=10,
+                        help='Number of data points per template, 2273 for TPCH, 490 for TPCDS')
+    parser.add_argument('--n_processes', type=int, default=16,
                         help='Number of processes for parallel execution')
     parser.add_argument('--cluster_cores', type=int, default=150,
                         help='Total available cluster cores')
