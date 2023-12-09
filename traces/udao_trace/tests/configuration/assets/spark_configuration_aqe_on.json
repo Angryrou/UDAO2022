@@ -6,14 +6,13 @@
     "construction_type": "int",
     "unit": "g",
     "min": 2,
-    "max": 16,
+    "max": 12,
     "scale": "linear",
     "factor": 1,
     "base": null,
     "categories": null,
-    "bools": null,
     "default": "2g",
-    "desc": "set among 2g-32g. Default: 2g when k1=2"
+    "desc": "set among 2g-12g. Default: 2g when k1=2"
   },
   {
     "id": "k2",
@@ -27,7 +26,6 @@
     "factor": 1,
     "base": null,
     "categories": null,
-    "bools": null,
     "default": "1",
     "desc": "set among 1-5. Default: 1 for Yarn when k2=1"
   },
@@ -37,14 +35,14 @@
     "type": "int",
     "construction_type": "int",
     "unit": null,
-    "min": 8,
-    "max": 20,
+    "min": 4,
+    "max": 12,
     "scale": "linear",
     "factor": 1,
     "base": null,
     "categories": null,
-    "default": "20",
-    "desc": "set among 8-20, provide a total of 8-100 cores in executors. Default: 14 when k3=20"
+    "default": "12",
+    "desc": "set among 4-12, provide a total of 4-60 cores and 8-144G memory in executors. Default: 12 when k3=12, with 12 cores, and 24G memory"
   },
   {
     "id": "k4",
@@ -58,8 +56,8 @@
     "factor": 1,
     "base": null,
     "categories": null,
-    "default": "40",
-    "desc": "spark.default.parallelism = k2 * k3 * k4, set among 8-400. Default: k4 = 2, parallel = 1 * 20 * 2 = 40"
+    "default": "24",
+    "desc": "spark.default.parallelism = k2 * k3 * k4, set among 4-240. Default: k4 = 2, parallel = 1 * 12 * 2 = 24"
   },
   {
     "id": "k5",
@@ -89,7 +87,7 @@
     "base": null,
     "categories": null,
     "default": "200",
-    "desc": "set spark.shuffle.sort.bypassMergeThreshold < (k2 * k3 * k4) when True, > (k2 * k3 * k4) when False"
+    "desc": "set spark.shuffle.sort.bypassMergeThreshold < DOP when True, > DOP when False"
   },
   {
     "id": "k7",
