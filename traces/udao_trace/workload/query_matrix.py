@@ -7,7 +7,7 @@ class QueryMatrix:
         np.random.seed(seed)
         queries = np.tile(templates, [n_data_per_template, 1])
         self.queries = np.apply_along_axis(np.random.permutation, axis=1, arr=queries).flatten()
-        self.total = len(queries)
+        self.total = len(self.queries)
         self.n_templates = len(templates)
         self.n_data_per_template = n_data_per_template
 
