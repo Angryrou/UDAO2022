@@ -36,13 +36,13 @@
     "construction_type": "int",
     "unit": null,
     "min": 4,
-    "max": 12,
+    "max": 16,
     "scale": "linear",
     "factor": 1,
     "base": null,
     "categories": null,
-    "default": "12",
-    "desc": "set among 4-12, provide a total of 4-60 cores and 8-144G memory in executors. Default: 12 when k3=12, with 12 cores, and 24G memory"
+    "default": "16",
+    "desc": "set among 4-16, provide a total of 4-80 cores and 8-192G memory in executors. Default: 16 when k3=16, with 16 cores, and 32G memory"
   },
   {
     "id": "k4",
@@ -56,8 +56,8 @@
     "factor": 1,
     "base": null,
     "categories": null,
-    "default": "24",
-    "desc": "spark.default.parallelism = k2 * k3 * k4, set among 4-240. Default: k4 = 2, parallel = 1 * 12 * 2 = 24"
+    "default": "32",
+    "desc": "spark.default.parallelism = k2 * k3 * k4, set among 4-320. Default: k4 = 2, parallel = 1 * 16 * 2 = 32"
   },
   {
     "id": "k5",
