@@ -70,7 +70,7 @@ class SparkCollector:
         os.makedirs(trace_header, exist_ok=True)
         os.makedirs(log_header, exist_ok=True)
 
-        app_name = self.benchmark.get_prefix() + f"_{template}-{qid}-{knob_sign}"
+        app_name = self.benchmark.get_prefix() + f"_{template}-{qid}_{knob_sign}"
         logger.info(f"-[{template}-{qid}]: start running")
         start = time.time()
         conf_str = knob_sign.replace(",", " ")
