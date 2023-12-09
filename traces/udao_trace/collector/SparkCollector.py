@@ -137,7 +137,7 @@ class SparkCollector:
         self.query_matrix = QueryMatrix(templates=templates, n_data_per_template=n_data_per_template, seed=seed)
         total = self.query_matrix.total
 
-        lhs_header = f"{self.header}/lhs_{n_data_per_template}x{len(templates)}"
+        lhs_header = f"{self.header}/lhs_{len(templates)}x{n_data_per_template}"
         submit_index = 0
 
         pool = Pool(processes=n_processes)
