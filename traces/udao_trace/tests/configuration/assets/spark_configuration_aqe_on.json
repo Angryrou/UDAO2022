@@ -275,15 +275,15 @@
     "id": "s11",
     "name": "spark.sql.adaptive.coalescePartitions.minPartitionSize",
     "type": "int",
-    "construction_type": "float",
-    "unit": "MB",
+    "construction_type": "int",
+    "unit": "KB",
     "min": 1,
     "max": 6,
     "scale": "linear",
-    "factor": 0.5,
+    "factor": 512,
     "base": null,
     "categories": null,
-    "default": "1MB",
-    "desc": "set among 0.5MB-3MB, default: 1MB when s11=2"
+    "default": "1024KB",
+    "desc": "set among 0.5-3 *1024KB, default: 1024KB(1MB) when s11=2"
   }
 ]
