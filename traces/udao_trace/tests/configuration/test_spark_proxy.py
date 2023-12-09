@@ -1,19 +1,18 @@
-import json
 from pathlib import Path
-from typing import Union, List, Iterable, Optional
+from typing import Union, List, Iterable
 import numpy as np
 import pandas as pd
 
 import pytest
 
-from .. import SparkProxy
+from udao_trace.configuration import SparkConf
 
 
 @pytest.fixture()
-def sp() -> SparkProxy:
+def sp() -> SparkConf:
     base_dir = Path(__file__).parent
     knob_meta_file = str(base_dir / "assets/spark_configuration_aqe_on.json")
-    return SparkProxy(knob_meta_file)
+    return SparkConf(knob_meta_file)
 
 
 CONG_NORM1 = [0.0] * 19
@@ -53,7 +52,7 @@ class TestSparkProxy:
     )
     def test_denormalize(
         self,
-        sp: SparkProxy,
+        sp: SparkConf,
         conf_norm: Union[List, Iterable],
         expected_conf_denorm: Union[List, Iterable]
     ) -> None:
@@ -85,7 +84,7 @@ class TestSparkProxy:
     )
     def test_construct_configuration(
         self,
-        sp: SparkProxy,
+        sp: SparkConf,
         conf_denorm: Union[List, pd.DataFrame],
         expected_conf: Union[List, pd.DataFrame]
     ) -> None:
