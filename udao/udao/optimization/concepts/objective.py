@@ -15,8 +15,8 @@ class Objective:
     name: str
     direction_type: ObjectiveDirection
     function: Callable[..., th.Tensor]
-    upper: Optional[float] = None
     lower: Optional[float] = None
+    upper: Optional[float] = None
     type: Optional[VarTypes] = None
 
     @property
@@ -38,6 +38,8 @@ class ModelObjective(ModelComponent, Objective):
         direction_type: ObjectiveDirection,
         data_processor: DataProcessor,
         model: th.nn.Module,
+        lower: Optional[float] = None,
+        upper: Optional[float] = None,
         type: Optional[VarTypes] = None,
     ) -> None:
         ModelComponent.__init__(self, data_processor, model)
@@ -45,4 +47,4 @@ class ModelObjective(ModelComponent, Objective):
         def function(*args: Any, **kwargs: Any) -> th.Tensor:
             return self.apply_model(*args, **kwargs)
 
-        Objective.__init__(self, name, direction_type, function, type)
+        Objective.__init__(self, name, direction_type, function, lower, upper, type)

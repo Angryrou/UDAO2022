@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -17,7 +17,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
     def __init__(
         self,
         solver_params: dict,
-        variables: Sequence[Variable],
+        variables: Dict[str, Variable],
         objectives: Sequence[Objective],
         constraints: Sequence[Constraint],
         accurate: bool,
@@ -30,7 +30,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         self.constraints = constraints
         self.variables = variables
         self.mogd = MOGD(MOGD.Params(**solver_params))
-        self.mogd.problem_setup(
+        """self.mogd.problem_setup(
             variables=variables,
             std_func=std_func,
             objectives=objectives,
@@ -39,7 +39,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
             accurate=accurate,
             alpha=alpha,
         )
-
+        """
         self.opt_obj_ind = 0
 
     def get_anchor_point(
@@ -66,11 +66,15 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         Point
             anchor point for the given objective
         """
-        obj_, vars = self.mogd.optimize_constrained_so(
-            wl_id=wl_id,
-            objective_name=self.objectives[obj_ind].name,
-            obj_bounds_dict=None,
-            batch_size=16,
+        constraints = self.constraints
+        for objective in self.objectives:
+            # add the constraint for the current objective
+            pass
+
+        obj_, vars = self.mogd.solve(
+            variables=self.variables,
+            objective=self.objectives[obj_ind],
+            constraints=constraints,
         )
         if obj_ is None or vars is None:
             raise NoSolutionError("Cannot find anchor points.")

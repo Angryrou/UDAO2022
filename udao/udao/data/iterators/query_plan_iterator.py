@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Callable, Dict, List, Sequence, Tuple
 
 import dgl
-import pandas as pd
 import torch as th
 
 from ...data.containers.tabular_container import TabularContainer
@@ -79,20 +78,12 @@ class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
         features = th.tensor(self.tabular_features.get(key), dtype=self.tensors_dtype)
         objectives = th.tensor(self.objectives.get(key), dtype=self.tensors_dtype)
         graph, meta_input = self._get_graph_and_meta(key)
-        features = th.cat([meta_input, features])
+        features = th.cat([features, meta_input])
         input_data = QueryPlanInput(graph, features)
         return input_data, objectives
 
-    def get_tabular_features_container(self, input: QueryPlanInput) -> TabularContainer:
-        tabular_features = input.feature_input[
-            : len(self.tabular_features.data.columns)
-        ]
-        tabular_df = pd.DataFrame(
-            tabular_features.numpy(), columns=self.tabular_features.data.columns
-        )
-        return TabularContainer(tabular_df)
-
-    def get_iterator_shape(self) -> UdaoInputShape[Dict[str, int]]:
+    @property
+    def shape(self) -> UdaoInputShape[Dict[str, int]]:
         """Returns the dimensions of the iterator inputs and outputs."""
 
         sample_input, sample_output = self._get_sample()

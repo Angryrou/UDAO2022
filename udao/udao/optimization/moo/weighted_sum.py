@@ -140,7 +140,7 @@ class WeightedSum(BaseMOO):
         )
         for ws in self.ws_pairs:
             objective.ws = ws
-            point = self.inner_solver.solve(
+            _, soo_vars = self.inner_solver.solve(
                 objective,
                 constraints=self.constraints,
                 variables=variables,
@@ -148,10 +148,10 @@ class WeightedSum(BaseMOO):
             )
 
             objective_values = objective._function(
-                point.vars, input_parameters=input_parameters  # type: ignore
+                soo_vars, input_parameters=input_parameters  # type: ignore
             )
-            point.objs = objective_values
-            candidate_points.append(point)
+
+            candidate_points.append(Point(objective_values, soo_vars))
 
         return moo_ut.summarize_ret(
             [point.objs for point in candidate_points],

@@ -4,7 +4,7 @@ from typing import Any, List, Tuple
 
 import numpy as np
 
-from .parameters import VarTypes
+from utils.parameters import VarTypes
 
 
 class ConfigsParser:

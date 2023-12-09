@@ -17,10 +17,9 @@ import pandas as pd
 import torch as th
 from pandas import DataFrame
 
-from ...utils.interfaces import UdaoInputShape
 from ..containers import BaseContainer, TabularContainer
 from ..extractors import FeatureExtractor, TabularFeatureExtractor
-from ..iterators import BaseIterator
+from ..iterators.base_iterator import BaseIterator
 from ..preprocessors.base_preprocessor import FeaturePreprocessor
 from ..utils.utils import DatasetType
 
@@ -178,7 +177,7 @@ class DataProcessor:
         self,
         input_non_decision: Dict[str, Any],
         input_variables: Dict[str, list],
-    ) -> Tuple[Any, UdaoInputShape]:
+    ) -> Tuple[Any, BaseIterator]:
         """Derive the batch input from the input dict
 
         Parameters
@@ -207,7 +206,7 @@ class DataProcessor:
         iterator = self.make_iterator(pd_input, keys, split="test")
         dataloader = iterator.get_dataloader(batch_size=n_items)
         batch_input, _ = next(iter(dataloader))
-        return batch_input, iterator.get_iterator_shape()
+        return batch_input, iterator
 
 
 def create_data_processor(

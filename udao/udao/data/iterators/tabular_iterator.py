@@ -32,6 +32,7 @@ class TabularIterator(BaseIterator[th.Tensor, Dict[str, Any]]):
         key = self.keys[idx]
         return th.tensor(self.tabular_feature.get(key), dtype=self.tensors_dtype)
 
-    def get_iterator_shape(self) -> Any:
+    @property
+    def shape(self) -> Any:
         sample_input = self._get_sample()
         return {"input_shape": sample_input.shape}

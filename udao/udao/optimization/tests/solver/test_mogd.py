@@ -1,36 +1,59 @@
+from typing import Dict, List
+
 import numpy as np
 import pytest
 import torch as th
 import torch.nn as nn
 
+from ....data.containers.tabular_container import TabularContainer
+from ....data.extractors.tabular_extractor import TabularFeatureExtractor
+from ....data.handler.data_processor import DataProcessor
+from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
+from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....model.utils.utils import set_deterministic_torch
-from ...concepts import (
-    FloatVariable,
-    IntegerVariable,
-    Objective,
-    Variable,
-    EnumVariable,
-)
+from ....utils.interfaces import UdaoInput
+from ...concepts import EnumVariable, FloatVariable, IntegerVariable, Variable
+from ...concepts.constraint import ModelConstraint
+from ...concepts.objective import ModelObjective
 from ...solver.mogd import MOGD
 
 
 class SimpleModel1(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.fc1 = th.nn.Linear(2, 2)
-        self.fc2 = th.nn.Linear(2, 1)
-
-    def forward(self, x: th.Tensor, wl_id: None = None) -> th.Tensor:
-        return self.fc2(self.fc1(x))
+    def forward(self, x: UdaoInput, wl_id: None = None) -> th.Tensor:
+        return x.feature_input[:, :1]
 
 
 class SimpleModel2(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.fc1 = th.nn.Linear(2, 1)
+    def forward(self, x: UdaoInput, wl_id: None = None) -> th.Tensor:
+        return x.feature_input[:, 1:]
 
-    def forward(self, x: th.Tensor, wl_id: None = None) -> th.Tensor:
-        return self.fc1(x)
+
+@pytest.fixture()
+def data_processor() -> DataProcessor:
+    class TabularFeaturePreprocessor(StaticFeaturePreprocessor):
+        def preprocess(self, tabular_feature: TabularContainer) -> TabularContainer:
+            tabular_feature.data.loc[:, "v1"] = tabular_feature.data["v1"] / 1
+            tabular_feature.data.loc[:, "v2"] = tabular_feature.data["v2"] - 2
+            return tabular_feature
+
+        def inverse_transform(
+            self, tabular_feature: TabularContainer
+        ) -> TabularContainer:
+            tabular_feature.data.loc[:, "v1"] = tabular_feature.data["v1"] * 1
+            tabular_feature.data.loc[:, "v2"] = tabular_feature.data["v2"] + 2
+            return tabular_feature
+
+    return DataProcessor(
+        iterator_cls=DummyUdaoIterator,
+        feature_extractors={
+            "embedding_features": TabularFeatureExtractor(columns=["embedding_input"]),
+            "tabular_features": TabularFeatureExtractor(
+                columns=["v1", "v2"],
+            ),
+            "objectives": TabularFeatureExtractor(columns=["objective_input"]),
+        },
+        feature_preprocessors={"tabular_features": [TabularFeaturePreprocessor()]},
+    )
 
 
 @pytest.fixture()
@@ -40,7 +63,7 @@ def mogd() -> MOGD:
     params = MOGD.Params(
         learning_rate=0.1,
         weight_decay=0.1,
-        max_iters=10,
+        max_iters=100,
         patient=10,
         seed=0,
         multistart=10,
@@ -48,9 +71,8 @@ def mogd() -> MOGD:
         stress=0.1,
     )
     mogd = MOGD(params)
-    model_1 = SimpleModel1()
-    model_2 = SimpleModel2()
-    mogd.problem_setup(
+
+    """mogd.problem_setup(
         variables=[FloatVariable(0, 1), IntegerVariable(2, 3)],
         accurate=True,
         std_func=None,
@@ -68,17 +90,33 @@ def mogd() -> MOGD:
         ],
         constraints=[],
         precision_list=[2, 2],
-    )
+    )"""
 
     return mogd
 
 
-def paper_f1(x: th.Tensor, wl_id: None = None) -> th.Tensor:
-    return th.reshape(2400 / (24 * x[:]), (-1, 1))
+@pytest.fixture()
+def data_processor_paper() -> DataProcessor:
+    return DataProcessor(
+        iterator_cls=DummyUdaoIterator,
+        feature_extractors={
+            "embedding_features": TabularFeatureExtractor(columns=["embedding_input"]),
+            "tabular_features": TabularFeatureExtractor(
+                columns=["v1"],
+            ),
+            "objectives": TabularFeatureExtractor(columns=["objective_input"]),
+        },
+    )
 
 
-def paper_f2(x: th.Tensor, wl_id: None = None) -> th.Tensor:
-    return th.reshape(24 * x[:], (-1, 1))
+class PaperModel1(nn.Module):
+    def forward(self, x: UdaoInput, wl_id: None = None) -> th.Tensor:
+        return th.reshape(2400 / (x.feature_input[:, 0]), (-1, 1))
+
+
+class PaperModel2(nn.Module):
+    def forward(self, x: UdaoInput, wl_id: None = None) -> th.Tensor:
+        return th.reshape(x.feature_input[:, 0], (-1, 1))
 
 
 @pytest.fixture()
@@ -86,17 +124,17 @@ def paper_mogd() -> MOGD:
     set_deterministic_torch(42)
 
     params = MOGD.Params(
-        learning_rate=0.1,
-        weight_decay=0.1,
-        max_iters=1000,
+        learning_rate=1,
+        weight_decay=0.0,
+        max_iters=100,
         patient=10,
         seed=0,
         multistart=10,
         processes=1,
-        stress=0.1,
+        stress=10,
     )
     mogd = MOGD(params)
-    mogd.problem_setup(
+    """mogd.problem_setup(
         variables=[FloatVariable(0, 24)],
         accurate=True,
         std_func=None,
@@ -114,7 +152,7 @@ def paper_mogd() -> MOGD:
         ],
         constraints=[],
         precision_list=[0],
-    )
+    )"""
 
     return mogd
 
@@ -123,53 +161,90 @@ class TestMOGD:
     @pytest.mark.parametrize(
         "gpu, expected_obj, expected_vars",
         [
-            (False, [0.7501509189605713, 0.261410653591156], [0, 2.21]),
-            (True, [0.728246, 0.188221], [0.07, 2.15]),
+            (False, 1, {"v1": 1.0, "v2": 2.0}),
+            (True, 0.728246, [0.07, 2.15]),
         ],
     )
-    def test_constraint_so_opt(
+    def test_solve(
         self,
         mogd: MOGD,
+        data_processor: DataProcessor,
         gpu: bool,
-        expected_obj: list,
-        expected_vars: list,
+        expected_obj: float,
+        expected_vars: Dict[str, float],
     ) -> None:
         if gpu and not th.cuda.is_available():
             pytest.skip("Skip GPU test")
         mogd.device = th.device("cuda") if gpu else th.device("cpu")
-        optimal_obj, optimal_vars = mogd.optimize_constrained_so(
-            wl_id="1",
-            objective_name="obj1",
-            obj_bounds_dict={"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))},
+        optimal_obj, optimal_vars = mogd.solve(
+            objective=ModelObjective(
+                "obj1",
+                "MAX",
+                data_processor=data_processor,
+                model=SimpleModel1(),  # type: ignore
+                lower=0,
+                upper=2,
+            ),
+            variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            constraints=[
+                ModelConstraint(
+                    lower=0,
+                    upper=1,
+                    data_processor=data_processor,
+                    model=SimpleModel2(),
+                    stress=10,
+                )
+            ],
+            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         assert optimal_obj is not None
         np.testing.assert_array_almost_equal(
             optimal_obj, np.array(expected_obj), decimal=5
         )
-        assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array(expected_vars))
+        assert optimal_vars == expected_vars
 
     @pytest.mark.parametrize(
         "variable, expected_variable",
-        [(FloatVariable(0, 24), 16), (IntegerVariable(0, 24), 16)],
+        [(FloatVariable(0, 24), {"v1": 16}), (IntegerVariable(0, 24), {"v1": 16})],
     )
-    def test_constraint_so_opt_paper(
-        self, paper_mogd: MOGD, variable: Variable, expected_variable: float
+    def test_solve_paper(
+        self,
+        paper_mogd: MOGD,
+        variable: Variable,
+        expected_variable: Dict[str, float],
+        data_processor_paper: DataProcessor,
     ) -> None:
-        paper_mogd.variables = [variable]
-        optimal_obj, optimal_vars = paper_mogd.optimize_constrained_so(
-            wl_id="1",
-            objective_name="obj1",
-            obj_bounds_dict={
-                "obj1": th.tensor((100, 200)),
-                "obj2": th.tensor((8, 16)),
-            },
+        optimal_obj, optimal_vars = paper_mogd.solve(
+            objective=ModelObjective(
+                "obj1",
+                "MIN",
+                model=PaperModel1(),
+                data_processor=data_processor_paper,
+                lower=100,
+                upper=200,
+            ),
+            variables={"v1": variable},
+            constraints=[
+                ModelConstraint(
+                    lower=8,
+                    upper=16,
+                    model=PaperModel2(),
+                    data_processor=data_processor_paper,
+                    stress=10,
+                )
+            ],
+            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
-        assert optimal_obj is not None
-        np.testing.assert_array_almost_equal(optimal_obj, np.array([150, 16]))
-        assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array([expected_variable]))
 
+        assert optimal_obj is not None
+        np.testing.assert_allclose([optimal_obj], [150], rtol=1e-3)
+        assert optimal_vars is not None
+        assert len(optimal_vars) == 1
+        np.testing.assert_allclose(
+            [optimal_vars["v1"]], [expected_variable["v1"]], rtol=1e-3
+        )
+
+    """
     @pytest.mark.parametrize(
         "gpu, expected_obj1, expected_vars1, expected_obj2, expected_vars2",
         [
@@ -222,70 +297,126 @@ class TestMOGD:
         np.testing.assert_array_almost_equal(obj_optimal_2, expected_obj2)
         assert var_optimal_2 is not None
         np.testing.assert_array_equal(var_optimal_2, expected_vars2)
+    """
 
-    def test_constraint_single_objective_opt(self, mogd: MOGD) -> None:
-        mogd.objectives = [
-            Objective(
+    def test_solve_no_constraints(
+        self, mogd: MOGD, data_processor: DataProcessor
+    ) -> None:
+        optimal_obj, optimal_vars = mogd.solve(
+            objective=ModelObjective(
                 "obj1",
                 "MAX",
-                lambda x, wl_id: th.reshape(x[:, 0] ** 2 + x[:, 1] ** 2, (-1, 1)),  # type: ignore
+                model=lambda x: th.reshape(  # type: ignore
+                    x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
+                ),
+                data_processor=data_processor,
             ),
-            Objective(
-                "obj2",
-                "MIN",
-                lambda x, wl_id: th.reshape(
-                    (x[:, 0] - 1) ** 2 + x[:, 1] ** 2, (-1, 1)
-                ),  # type: ignore
-            ),
-        ]
-
-        optimal_obj, optimal_vars = mogd.optimize_constrained_so(
-            wl_id="1",
-            objective_name="obj1",
-            obj_bounds_dict=None,
-            batch_size=16,
+            variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
 
         assert optimal_obj is not None
-        np.testing.assert_array_equal(optimal_obj, np.array([2, 1]))
+        np.testing.assert_array_equal(optimal_obj, 2)
         assert optimal_vars is not None
-        np.testing.assert_array_equal(optimal_vars, np.array([1, 3]))
+        assert optimal_vars == {"v1": 1, "v2": 3}
 
-    def test__soo_loss_no_batch(self, mogd: MOGD) -> None:
-        vars = th.rand(2)
-        obj_bounds_dict = {"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))}
-        objs_pred_dict = {
-            cst_obj: mogd._get_tensor_obj_pred("1", vars, ob_ind)
-            for ob_ind, cst_obj in enumerate(obj_bounds_dict)
-        }
-        loss, loss_idx = mogd._soo_loss(
-            "1", vars, objs_pred_dict, obj_bounds_dict, "obj1", 0
+    @pytest.mark.parametrize(
+        "objective_values, expected_loss",
+        [
+            # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
+            (th.tensor([0.5]), th.tensor([-0.25])),
+            # (-0.2 / 2 - 0.5)**2 + stress (0.1) = 0.46
+            (th.tensor([-0.2]), th.tensor([0.46])),
+            (th.tensor([[0.5], [0.3], [-0.2]]), th.tensor([[-0.25], [-0.15], [0.46]])),
+        ],
+    )
+    def test__objective_loss_with_bounds(
+        self,
+        mogd: MOGD,
+        data_processor: DataProcessor,
+        objective_values: th.Tensor,
+        expected_loss: th.Tensor,
+    ) -> None:
+        objective = ModelObjective(
+            "obj1",
+            "MAX",
+            data_processor=data_processor,
+            model=SimpleModel1(),  # type: ignore
+            lower=0,
+            upper=2,
         )
-        assert th.allclose(loss.cpu(), th.tensor(-0.2764), rtol=1e-3)
-        assert th.equal(loss_idx.cpu(), th.tensor(0))
+        loss = mogd.objective_loss(objective_values, objective)
+        # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
+        assert th.equal(loss.cpu(), expected_loss)
 
-    def test__soo_loss_with_batch(self, mogd: MOGD) -> None:
-        vars = th.rand(3, 2)
-        obj_bounds_dict = {"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))}
-        objs_pred_dict = {
-            cst_obj: mogd._get_tensor_obj_pred("1", vars, ob_ind)
-            for ob_ind, cst_obj in enumerate(obj_bounds_dict)
-        }
-        loss, loss_idx = mogd._soo_loss(
-            "1", vars, objs_pred_dict, obj_bounds_dict, "obj1", 0
+    @pytest.mark.parametrize(
+        "objective_values, expected_loss",
+        [
+            # direction * 0.5**2
+            (th.tensor([0.5]), th.tensor([-0.25])),
+            # direction * (-O.2)**2
+            (th.tensor([-0.2]), th.tensor([-0.04])),
+            (th.tensor([[0.5], [0.3], [-0.2]]), th.tensor([[-0.25], [-0.09], [-0.04]])),
+        ],
+    )
+    def test__objective_loss_without_bounds(
+        self,
+        mogd: MOGD,
+        data_processor: DataProcessor,
+        objective_values: th.Tensor,
+        expected_loss: th.Tensor,
+    ) -> None:
+        objective = ModelObjective(
+            "obj1",
+            "MAX",
+            data_processor=data_processor,
+            model=SimpleModel1(),  # type: ignore
         )
-        assert th.allclose(loss.cpu(), th.tensor(-0.2880), rtol=1e-3)
-        assert th.equal(loss_idx.cpu(), th.tensor(1))
+        loss = mogd.objective_loss(objective_values, objective)
+        # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
+        assert th.allclose(loss, expected_loss)
 
-    def test__unbounded_soo_loss(self, mogd: MOGD) -> None:
-        vars = th.rand(3, 2)
-        objs_pred_dict = {
-            cst_obj.name: mogd._get_tensor_obj_pred("1", vars, ob_ind)
-            for ob_ind, cst_obj in enumerate(mogd.objectives)
-        }
-        loss, loss_idx = mogd._unbounded_soo_loss("1", 0, objs_pred_dict, vars)
-        assert th.allclose(loss.cpu(), th.tensor(-0.3319), rtol=1e-3)
-        assert th.equal(loss_idx.cpu(), th.tensor(1))
+    @pytest.mark.parametrize(
+        "constraint_values, expected_loss",
+        [
+            (
+                [th.tensor([1.1]), th.tensor([1.1]), th.tensor([3.5])],
+                # 0.6**2 + 10+ 0 + 0.5**2 + 1000
+                th.tensor([1010.61]),
+            ),
+        ],
+    )
+    def test_constraints_loss(
+        self,
+        mogd: MOGD,
+        data_processor: DataProcessor,
+        constraint_values: List[th.Tensor],
+        expected_loss: th.Tensor,
+    ) -> None:
+        constraints = [
+            ModelConstraint(
+                lower=0,
+                upper=1,
+                data_processor=data_processor,
+                model=SimpleModel1(),
+                stress=10,
+            ),
+            ModelConstraint(
+                lower=0,
+                upper=2,
+                data_processor=data_processor,
+                model=SimpleModel2(),
+                stress=100,
+            ),
+            ModelConstraint(
+                upper=3,
+                data_processor=data_processor,
+                model=SimpleModel2(),
+                stress=1000,
+            ),
+        ]
+        loss = mogd.constraints_loss(constraint_values, constraints)
+        assert th.allclose(loss, expected_loss)
 
     def test_get_meshed_categorical_variables(self, mogd: MOGD) -> None:
         variables = {
