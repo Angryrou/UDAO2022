@@ -1,12 +1,16 @@
-import time, os, random
+import os
+import random
+import subprocess
+import sys
+import time
 from multiprocessing import Pool, Manager
 
 from udao_trace.configuration import SparkConf
 from udao_trace.environment.cluster import Cluster
-from udao_trace.workload import QueryMatrix, Benchmark
 from udao_trace.utils import BenchmarkType, ClusterName, PickleHandler
 from udao_trace.utils.handler import error_handler
 from udao_trace.utils.logging import logger
+from udao_trace.workload import QueryMatrix, Benchmark
 
 
 class SparkCollector:
@@ -64,6 +68,28 @@ class SparkCollector:
         cores = int(conf_df["spark.executor.cores"]) * (int(conf_df["spark.executor.instances"]) + 1)
         return template, qid, knob_sign, cores
 
+    @staticmethod
+    def _exec_cmd(template, qid, cmd: str) -> bool:
+        logger.debug(f"[{template}-{qid}]: {cmd}")
+        try:
+            # Run the command and capture both stdout and stderr
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
+
+            # Check the return code
+            if result.returncode == 0:
+                logger.debug(f"[{template}-{qid}]: success")
+                return True
+            else:
+                print(f"Error executing command. Return code: {result.returncode}")
+                print("Error message:")
+                print(result.stderr)
+                logger.error(
+                    f"[{template}-{qid}]: failed, return code: {result.returncode}, error message: {result.stderr}")
+                return False
+        except Exception as e:
+            print(f"Exception: {e}")
+            sys.exit(1)
+
     def _submit(self, template, qid, knob_sign, cores, header):
         trace_header = f"{header}/trace"
         log_header = f"{header}/log"
@@ -81,13 +107,16 @@ class SparkCollector:
         logger.debug(f"[{template}-{qid}]: {exec_str}")
         if self.debug:
             time.sleep(random.randint(1, 5))
+            success = True
         else:
-            os.system(exec_str)
+            success = self._exec_cmd(template, qid, exec_str)
         dt = time.time() - start
         logger.debug(f"[{template}-{qid}]: finished, took {dt:0f}s")
 
         with self.lock:
             self.current_cores.value -= cores
+            if not success:
+                self.shared_failure_list.append((template, qid, knob_sign))
             logger.info(f"-[{template}-{qid}]: finished, took {dt:0f}s, current_cores={self.current_cores.value}")
 
     def start_lhs(
@@ -101,6 +130,7 @@ class SparkCollector:
         m = Manager()
         self.lock = m.RLock()
         self.current_cores = m.Value("i", 0)
+        self.shared_failure_list = m.list()
 
         templates = self.benchmark.templates
         self._get_lhs_conf_dict(n_data_per_template)
@@ -129,3 +159,6 @@ class SparkCollector:
             time.sleep(1)
         pool.close()
         pool.join()
+
+        print(f"Total {total} queries submitted, {len(self.shared_failure_list)} failed:")
+        print(self.shared_failure_list)
