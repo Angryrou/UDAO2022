@@ -1,8 +1,12 @@
-from .interface import VarTypes, ScaleTypes
-from .json_handler import JsonHandler
+from .interface import VarTypes, ScaleTypes, BenchmarkType, ClusterName
+from .handler import JsonHandler, PickleHandler, FileHandler
 
 __all__ = [
     "VarTypes",
     "ScaleTypes",
-    "JsonHandler"
+    "BenchmarkType",
+    "ClusterName",
+    "JsonHandler",
+    "PickleHandler",
+    "FileHandler"
 ]

@@ -11,3 +11,15 @@ class VarTypes(Enum):
 class ScaleTypes(Enum):
     LOG = "log"
     LINEAR = "linear"
+
+
+class BenchmarkType(Enum):
+    TPCH = "tpch"
+    TPCDS = "tpcds"
+    TPCXBB = "tpcxbb"
+
+
+class ClusterName(Enum):
+    HEX1 = "hex1"
+    HEX2 = "hex2"
+    HEX3 = "hex3"

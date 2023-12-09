@@ -2,8 +2,10 @@ from typing import Union, List, Iterable
 
 import numpy as np
 import pandas as pd
+from pyDOE import lhs
 
 from . import Conf
+from ..utils.logging import logger
 
 
 class SparkConf(Conf):
@@ -55,3 +57,13 @@ class SparkConf(Conf):
 
     def deconstruct_configuration(self, conf: Union[pd.DataFrame, List]) -> Union[pd.DataFrame, List]:
         raise NotImplementedError
+
+    def get_lhs_configurations(self, n_samples: int, seed: int) -> pd.DataFrame:
+        assert n_samples > 1
+        np.random.seed(seed)
+        conf_norm = lhs(self.knob_num, samples=n_samples, criterion="maximin")
+        conf = self.construct_configuration_from_norm(conf_norm)
+        conf_df = pd.DataFrame(conf, columns=self.knob_names)
+        conf_df.index = conf_df.apply(lambda x: self.conf2sign(x), axis=1)
+        logger.debug(f"finished generated {len(conf_df)} configurations via LHS")
+        return conf_df

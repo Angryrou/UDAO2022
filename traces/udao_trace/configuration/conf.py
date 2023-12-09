@@ -34,6 +34,10 @@ class Conf(ABC):
         ]
         self.knob_dict_by_id = {k.id: k for k in self.knob_list}
         self.knob_dict_by_name = {k.name: k for k in self.knob_list}
+        self.knob_ids = [k.id for k in self.knob_list]
+        self.knob_names = [k.name for k in self.knob_list]
+        self.knob_num = len(self.knob_list)
+
 
     @staticmethod
     def _denormalize_knob(k_norm: Union[float, Iterable[float]], k_meta: KnobMeta) -> Union[float, Iterable[float]]:
@@ -110,3 +114,12 @@ class Conf(ABC):
     def construct_configuration_from_norm(self, conf_norm: Union[Iterable, List[float]]) -> Union[Iterable, List[str]]:
         conf_denorm = self.denormalize(conf_norm)
         return self.construct_configuration(conf_denorm)
+
+    @staticmethod
+    def conf2sign(conf: Iterable[str]):
+        """
+        serialize a sequence of knob values into a string
+        :param conf: a sequence of knob values (e.g., a list of knobs)
+        :return: the sign of the knob values
+        """
+        return ",".join([c for c in conf])
