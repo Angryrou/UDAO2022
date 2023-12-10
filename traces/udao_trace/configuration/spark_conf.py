@@ -91,6 +91,8 @@ class SparkConf(Conf):
             logger.warn("Duplicated Rows:", duplicated_rows)
         else:
             logger.debug("No duplicated rows.")
+        np.random.seed(seed)
+        np.random.shuffle(unique_rows)
         conf_df = pd.DataFrame(unique_rows, columns=self.knob_names)
         conf_df.index = conf_df.apply(lambda x: self.conf2sign(x), axis=1)
         logger.debug(f"finished generated {len(conf_df)} configurations via LHS")

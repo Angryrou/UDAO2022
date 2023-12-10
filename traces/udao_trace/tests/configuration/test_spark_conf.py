@@ -14,10 +14,10 @@ def sc() -> SparkConf:
     knob_meta_file = str(base_dir / "assets/spark_configuration_aqe_on.json")
     return SparkConf(knob_meta_file)
 
-
+EPS=1e-6
 CONG_NORM1 = [0.0] * 19
-CONG_NORM2 = [1.0] * 19
-CONG_NORM3 = [0.0, 0.0, 1., 0.0, 0.4, 0., 1., 0.4, 0.4, 0.2, 0., 1 / 32, 23 / 48, 0.5, 0.5, 0.5, 0.5, 0.5, 0.2]
+CONG_NORM2 = [1.0 - EPS] * 19
+CONG_NORM3 = [0.0, 0.0, 1. - EPS, 0.0, 0.4, 0., 1. - EPS, 0.4, 0.4, 0.2, 0., 1 / 32, 23 / 48, 0.5, 0.5, 0.5, 0.5, 0.5, 0.2]
 
 CONF_DENORM1 = [1, 1, 4, 1, 0, 0, 0, 50, 0, 1, 0, 0, 2, 0, 20, 0, 0, 5, 1]
 CONF_DENORM2 = [5, 4, 16, 4, 5, 1, 1, 75, 5, 6, 32, 32, 50, 4, 80, 4, 4, 35, 6]

@@ -73,27 +73,39 @@ class Conf(ABC):
     def denormalize(self, conf_norm: Union[Iterable, List[float]]) -> Union[Iterable, List[float]]:
         knob_list, knob_min, knob_max = self.knob_list, np.array(self.knob_min), np.array(self.knob_max)
         ktype_int_mask = np.array([k.ktype in (VarTypes.INT, VarTypes.CATEGORY, VarTypes.BOOL) for k in knob_list])
+        ktpye_float_mask = np.array([k.ktype == VarTypes.FLOAT for k in knob_list])
         if isinstance(conf_norm, List):
             if isinstance(conf_norm, list):
                 assert (len(conf_norm) == len(self.knob_list)), "length of conf_norm as a List should match knob_list"
             else:
                 raise Exception(f"unsupported type {type(conf_norm)}")
-            conf_norm = np.array(conf_norm)
-            conf_denorm = knob_min + conf_norm * (knob_max - knob_min)
-            conf_denorm[ktype_int_mask] = np.round(conf_denorm[ktype_int_mask])
-            return conf_denorm.tolist()
+            x = np.array(conf_norm)
+            x[ktpye_float_mask] = knob_min[ktpye_float_mask] + x[ktpye_float_mask] * \
+                                            (knob_max[ktpye_float_mask] - knob_min[ktpye_float_mask])
+            x[ktype_int_mask] = knob_min[ktype_int_mask] + x[ktype_int_mask] * \
+                                (knob_max[ktype_int_mask] - knob_min[ktype_int_mask] + 1)
+            x[ktype_int_mask] = np.floor(x[ktype_int_mask])
+            return x.tolist()
         elif isinstance(conf_norm, np.ndarray):
             assert ((len(conf_norm) > 0) and (len(conf_norm[0]) == len(self.knob_list))), \
                 "number of columns of conf_norm as a np.ndarray should match knob_list"
-            conf_denorm = knob_min + conf_norm * (knob_max - knob_min)
-            conf_denorm[:, ktype_int_mask] = np.round(conf_denorm[:, ktype_int_mask])
-            return conf_denorm
+            x = conf_norm
+            x[:, ktpye_float_mask] = knob_min[ktpye_float_mask] + x[:, ktpye_float_mask] * \
+                                            (knob_max[ktpye_float_mask] - knob_min[ktpye_float_mask])
+            x[:, ktype_int_mask] = knob_min[ktype_int_mask] + x[:, ktype_int_mask] * \
+                                (knob_max[ktype_int_mask] - knob_min[ktype_int_mask] + 1)
+            x[:, ktype_int_mask] = np.floor(x[:, ktype_int_mask])
+            return x
         elif isinstance(conf_norm, pd.DataFrame):
             assert (conf_norm.shape[1] == len(self.knob_list)), \
                 "number of columns of conf_norm as a DataFrame should match knob_list"
-            conf_denorm = knob_min + conf_norm * (knob_max - knob_min)
-            conf_denorm.iloc[:, ktype_int_mask] = np.round(conf_denorm.iloc[:, ktype_int_mask])
-            return conf_denorm
+            x = conf_norm.values
+            x[:, ktpye_float_mask] = knob_min[ktpye_float_mask] + x[:, ktpye_float_mask] * \
+                                            (knob_max[ktpye_float_mask] - knob_min[ktpye_float_mask])
+            x[:, ktype_int_mask] = knob_min[ktype_int_mask] + x[:, ktype_int_mask] * \
+                                (knob_max[ktype_int_mask] - knob_min[ktype_int_mask] + 1)
+            x[:, ktype_int_mask] = np.floor(x[:, ktype_int_mask])
+            return pd.DataFrame(x, columns=conf_norm.columns)
         else:
             raise Exception(f"unsupported type {type(conf_norm)}")
 

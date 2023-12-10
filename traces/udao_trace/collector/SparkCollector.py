@@ -115,7 +115,7 @@ class SparkCollector:
                     self.current_cores.value += cores
                     if_submit = True
                     logger.info(f"Main Process: submit {template}-{qid} for {knob_sign}, "
-                                 f"current_cores = {self.current_cores.value}")
+                                f"current_cores = {self.current_cores.value}")
                 else:
                     if_submit = False
             if if_submit:
@@ -129,7 +129,6 @@ class SparkCollector:
 
         logger.info(f"Total {total} queries submitted, {len(self.shared_failure_list)} failed:")
         logger.info(self.shared_failure_list)
-
 
     def _get_lhs_conf_dict(self, n_data_per_template: int) -> dict:
         cache_header = f"{self.header}/cache/template_to_conf_dict"
