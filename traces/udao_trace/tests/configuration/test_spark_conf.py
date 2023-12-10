@@ -9,7 +9,7 @@ from udao_trace.configuration import SparkConf
 
 
 @pytest.fixture()
-def sp() -> SparkConf:
+def sc() -> SparkConf:
     base_dir = Path(__file__).parent
     knob_meta_file = str(base_dir / "assets/spark_configuration_aqe_on.json")
     return SparkConf(knob_meta_file)
@@ -52,16 +52,16 @@ class TestSparkProxy:
     )
     def test_denormalize(
         self,
-        sp: SparkConf,
+        sc,
         conf_norm: Union[List, Iterable],
         expected_conf_denorm: Union[List, Iterable]
     ) -> None:
         if isinstance(conf_norm, List):
-            assert (sp.denormalize(conf_norm) == expected_conf_denorm)
+            assert (sc.denormalize(conf_norm) == expected_conf_denorm)
         elif isinstance(conf_norm, np.ndarray):
-            assert (np.array_equal(sp.denormalize(conf_norm), expected_conf_denorm))
+            assert (np.array_equal(sc.denormalize(conf_norm), expected_conf_denorm))
         elif isinstance(conf_norm, pd.DataFrame):
-            conf_denorm = sp.denormalize(conf_norm)
+            conf_denorm = sc.denormalize(conf_norm)
             pd.testing.assert_frame_equal(conf_denorm, expected_conf_denorm)
         else:
             raise Exception(f"unsupported type {type(conf_norm)}")
@@ -84,16 +84,20 @@ class TestSparkProxy:
     )
     def test_construct_configuration(
         self,
-        sp: SparkConf,
+        sc,
         conf_denorm: Union[List, pd.DataFrame],
         expected_conf: Union[List, pd.DataFrame]
     ) -> None:
         if isinstance(conf_denorm, List):
-            assert(sp.construct_configuration(conf_denorm) == expected_conf)
+            assert(sc.construct_configuration(conf_denorm) == expected_conf)
         elif isinstance(conf_denorm, np.ndarray):
-            assert (np.array_equal(sp.construct_configuration(conf_denorm), expected_conf))
+            assert (np.array_equal(sc.construct_configuration(conf_denorm), expected_conf))
         elif isinstance(conf_denorm, pd.DataFrame):
-            conf = sp.construct_configuration(conf_denorm)
+            conf = sc.construct_configuration(conf_denorm)
             pd.testing.assert_frame_equal(conf, expected_conf)
         else:
             raise Exception(f"unsupported type {type(conf_denorm)}")
+
+    def test_knob_sign_with_default(self, sc) -> None:
+        knob_sign_default = ",".join([str(k.default) for k in sc.knob_list])
+        assert (",".join(CONF3) == knob_sign_default)

@@ -221,8 +221,8 @@
     "factor": 0.1,
     "base": null,
     "categories": null,
-    "default": "5.0",
-    "desc": "set among 2.0-8.0, default: 5.0 when s7=50"
+    "default": "5",
+    "desc": "set among 2.0-8.0, default: 5 when s7=50"
   },
   {
     "id": "s8",
