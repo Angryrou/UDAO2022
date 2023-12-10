@@ -100,7 +100,7 @@ python examples/trace/spark/5.generate_scripts_for_lhs.py -b TPCH -q resources/t
 python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --script-header resources/scripts/tpch-lhs --num-processes 22 --num-templates 22 --num-queries-per-template-to-run 3637 
 # 10% in BO-latency and 10% in BO-cost
 python examples/trace/spark/7.dump_lhs_results.py -b TPCH --script-header resources/scripts/tpch-lhs --num-templates 22 --num-queries-per-template-to-run 3637 --url-header http://10.0.0.1:18088/api/v1/applications/application_1663600377480 --url-suffix-start 3827 --url-suffix-end 83840
-python examples/trace/spark/8.run_all_pressure_bo.py -b TPCH --workload-header "resources/tpch-kit/spark-sqls" --num-templates 22 --num-queries-per-template-to-run-lhs 3637 --num-queries-per-template-to-run-bo 454 --num-processes 22 
+python examples/trace/spark/8.run_all_pressure_bo.py -b TPCH --query-header "resources/tpch-kit/spark-sqls" --num-templates 22 --num-queries-per-template-to-run-lhs 3637 --num-queries-per-template-to-run-bo 454 --num-processes 22 
 ```
 
 #### Spark-TPCDS
@@ -116,5 +116,5 @@ python examples/trace/spark/5.generate_scripts_for_lhs.py -b TPCDS -q resources/
 python examples/trace/spark/6.run_all_pressure_test.py -b TPCH --script-header resources/scripts/tpcds-lhs --num-processes 22 --num-templates 22 --num-queries-per-template-to-run 777 
 # 10% in BO-latency and 10% in BO-cost
 python examples/trace/spark/7.dump_lhs_results.py -b TPCDS --script-header resources/scripts/tpcds-lhs --num-templates 103 --num-queries-per-template-to-run 777 --url-header http://10.0.0.7:18088/api/v1/applications/application_1663600383047 --url-suffix-start 73995 --url-suffix-end 154025
-python examples/trace/spark/8.run_all_pressure_bo.py -b TPCDS --workload-header "resources/tpcds-kit/spark-sqls" --num-templates 103 --num-queries-per-template-to-run-lhs 777 --num-queries-per-template-to-run-bo 94 --num-processes 22 
+python examples/trace/spark/8.run_all_pressure_bo.py -b TPCDS --query-header "resources/tpcds-kit/spark-sqls" --num-templates 103 --num-queries-per-template-to-run-lhs 777 --num-queries-per-template-to-run-bo 94 --num-processes 22 
 ```
