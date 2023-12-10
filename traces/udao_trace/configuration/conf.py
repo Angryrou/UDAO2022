@@ -37,22 +37,8 @@ class Conf(ABC):
         self.knob_ids = [k.id for k in self.knob_list]
         self.knob_names = [k.name for k in self.knob_list]
         self.knob_num = len(self.knob_list)
-
-
-    @staticmethod
-    def _denormalize_knob(k_norm: Union[float, Iterable[float]], k_meta: KnobMeta) -> Union[float, Iterable[float]]:
-        if isinstance(k_norm, float):
-            assert 0 <= k_norm <= 1, f"normalized value {k_norm} is not in [0, 1]"
-        elif isinstance(k_norm, Iterable):
-            assert all(0 <= k_norm_ <= 1 for k_norm_ in k_norm), f"normalized value {k_norm} is not in [0, 1]"
-        else:
-            raise Exception(f"unsupported type {type(k_norm)}")
-
-        k_value = k_meta.min + k_norm * (k_meta.max - k_meta.min)
-        if k_meta.ktype in (VarTypes.INT, VarTypes.CATEGORY, VarTypes.BOOL):
-            k_value = int(round(k_value))
-
-        return k_value
+        self.knob_min = [k.min for k in self.knob_list]
+        self.knob_max = [k.max for k in self.knob_list]
 
     @staticmethod
     def _construct_knob(k_denorm: float, k_meta: KnobMeta) -> Union[int, float]:
@@ -85,21 +71,29 @@ class Conf(ABC):
         ...
 
     def denormalize(self, conf_norm: Union[Iterable, List[float]]) -> Union[Iterable, List[float]]:
+        knob_list, knob_min, knob_max = self.knob_list, np.array(self.knob_min), np.array(self.knob_max)
+        ktype_int_mask = np.array([k.ktype in (VarTypes.INT, VarTypes.CATEGORY, VarTypes.BOOL) for k in knob_list])
         if isinstance(conf_norm, List):
             if isinstance(conf_norm, list):
                 assert (len(conf_norm) == len(self.knob_list)), "length of conf_norm as a List should match knob_list"
             else:
                 raise Exception(f"unsupported type {type(conf_norm)}")
-            return [self._denormalize_knob(k_norm, k_meta) for k_norm, k_meta in zip(conf_norm, self.knob_list)]
+            conf_norm = np.array(conf_norm)
+            conf_denorm = knob_min + conf_norm * (knob_max - knob_min)
+            conf_denorm[ktype_int_mask] = np.round(conf_denorm[ktype_int_mask])
+            return conf_denorm.tolist()
         elif isinstance(conf_norm, np.ndarray):
             assert ((len(conf_norm) > 0) and (len(conf_norm[0]) == len(self.knob_list))), \
                 "number of columns of conf_norm as a np.ndarray should match knob_list"
-            return np.vectorize(lambda c, k: self._denormalize_knob(c, k))(conf_norm, self.knob_list)
+            conf_denorm = knob_min + conf_norm * (knob_max - knob_min)
+            conf_denorm[:, ktype_int_mask] = np.round(conf_denorm[:, ktype_int_mask])
+            return conf_denorm
         elif isinstance(conf_norm, pd.DataFrame):
             assert (conf_norm.shape[1] == len(self.knob_list)), \
                 "number of columns of conf_norm as a DataFrame should match knob_list"
-            conf_norm[:] = np.vectorize(lambda c, k: self._denormalize_knob(c, k))(conf_norm, self.knob_list)
-            return conf_norm
+            conf_denorm = knob_min + conf_norm * (knob_max - knob_min)
+            conf_denorm.iloc[:, ktype_int_mask] = np.round(conf_denorm.iloc[:, ktype_int_mask])
+            return conf_denorm
         else:
             raise Exception(f"unsupported type {type(conf_norm)}")
 
