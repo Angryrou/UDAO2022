@@ -3,7 +3,10 @@ import logging
 import sys
 
 
-def _get_logger(name: str = "udao_trace", level: int = logging.INFO, log_file_path: str = None) -> logging.Logger:
+def _get_logger(name: str = "udao_trace",
+                std_level: int = logging.INFO,
+                file_level: int = logging.DEBUG,
+                log_file_path: str = None) -> logging.Logger:
     """Generates a logger object for the UDAO library.
 
     Parameters
@@ -19,10 +22,10 @@ def _get_logger(name: str = "udao_trace", level: int = logging.INFO, log_file_pa
         logger object to call for logging
     """
     _logger = logging.getLogger(name)
-    _logger.setLevel(level)
+    _logger.setLevel(min(std_level, file_level))
     if not _logger.handlers:
         handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(level)
+        handler.setLevel(std_level)
         log_format = (
             "%(asctime)s - [%(levelname)s] - %(name)s - "
             "(%(filename)s:%(lineno)d) - "
@@ -36,7 +39,7 @@ def _get_logger(name: str = "udao_trace", level: int = logging.INFO, log_file_pa
     # FileHandler to log to a file if log_file_path is provided
     if log_file_path and not any(isinstance(handler, logging.FileHandler) for handler in _logger.handlers):
         file_handler = logging.FileHandler(log_file_path)
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(file_level)
         file_handler.setFormatter(formatter)
         _logger.addHandler(file_handler)
 
