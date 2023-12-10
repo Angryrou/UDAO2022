@@ -18,6 +18,8 @@ if __name__ == '__main__':
                         help='Path to the parametric bash file')
     parser.add_argument('--debug', action='store_true',
                         help='Enable debug mode')
+    parser.add_argument('--default', action='store_true',
+                        help='Run default configurations')
     parser.add_argument('--n_data_per_template', type=int, default=10,
                         help='Number of data points per template, 2273 for TPCH, 490 for TPCDS')
     parser.add_argument('--n_processes', type=int, default=16,
@@ -38,9 +40,16 @@ if __name__ == '__main__':
         header="spark_collector",
         debug=args.debug
     )
-    spark_collector.start_lhs(
-        n_data_per_template=args.n_data_per_template,
-        n_processes=args.n_processes,
-        cluster_cores=args.cluster_cores,
-        seed=args.seed
-    )
+
+    if args.default:
+        spark_collector.start_default(
+            n_processes=args.n_processes,
+            cluster_cores=args.cluster_cores
+        )
+    else:
+        spark_collector.start_lhs(
+            n_data_per_template=args.n_data_per_template,
+            n_processes=args.n_processes,
+            cluster_cores=args.cluster_cores,
+            seed=args.seed
+        )

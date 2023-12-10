@@ -149,25 +149,20 @@ class SparkCollector:
             logger.debug("template_to_conf_dict saved")
         return template_to_conf_dict
 
-    def start_default(self, n_processes: int = 6):
+    def start_default(self, n_processes: int = 6, cluster_cores: int = 120):
         knob_sign = ",".join([str(k.default) for k in self.spark_conf.knob_list])
         cores = int(self.spark_conf.knob_dict_by_name["spark.executor.cores"].default) * \
                 (int(self.spark_conf.knob_dict_by_name["spark.executor.instances"].default) + 1)
+        default_header = f"{self.header}/default_conf"
         self._start(
             total=len(self.benchmark.templates),
-            header=self.header,
+            header=default_header,
             get_next=lambda index: (self.benchmark.templates[index], 1, knob_sign, cores),
-            cluster_cores=120,
+            cluster_cores=cluster_cores,
             n_processes=n_processes
         )
 
-    def start_lhs(
-        self,
-        n_data_per_template: int,
-        cluster_cores: int = 120,
-        seed: int = 42,
-        n_processes: int = 6
-    ):
+    def start_lhs(self, n_data_per_template: int, cluster_cores: int = 120, seed: int = 42, n_processes: int = 6):
         templates = self.benchmark.templates
         template_to_conf_dict = self._get_lhs_conf_dict(n_data_per_template)
         query_matrix = QueryMatrix(templates=templates, n_data_per_template=n_data_per_template, seed=seed)
