@@ -1,21 +1,6 @@
 [
   {
     "id": "k1",
-    "name": "spark.executor.memory",
-    "type": "int",
-    "construction_type": "int",
-    "unit": "g",
-    "min": 2,
-    "max": 12,
-    "scale": "linear",
-    "factor": 1,
-    "base": null,
-    "categories": null,
-    "default": "2g",
-    "desc": "set among 2g-12g. Default: 2g when k1=2"
-  },
-  {
-    "id": "k2",
     "name": "spark.executor.cores",
     "type": "int",
     "construction_type": "int",
@@ -30,6 +15,21 @@
     "desc": "set among 1-5. Default: 1 for Yarn when k2=1"
   },
   {
+    "id": "k2",
+    "name": "spark.executor.memory",
+    "type": "int",
+    "construction_type": "int",
+    "unit": "g",
+    "min": 1,
+    "max": 4,
+    "scale": "linear",
+    "factor": 1,
+    "base": null,
+    "categories": null,
+    "default": "1g",
+    "desc": "spark.executor.memory = k1 * k2, set memory among 1g-20g. Default: 1g when k1=1"
+  },
+  {
     "id": "k3",
     "name": "spark.executor.instances",
     "type": "int",
@@ -42,7 +42,7 @@
     "base": null,
     "categories": null,
     "default": "16",
-    "desc": "set among 4-16, provide a total of 4-80 cores and 8-192G memory in executors. Default: 16 when k3=16, with 16 cores, and 32G memory"
+    "desc": "set among 4-16, provide a total of 4-80 cores and 4-320g memory in executors. Default: 16 when k3=16, with 16 cores, and 16g memory"
   },
   {
     "id": "k4",
@@ -56,8 +56,8 @@
     "factor": 1,
     "base": null,
     "categories": null,
-    "default": "32",
-    "desc": "spark.default.parallelism = k2 * k3 * k4, set among 4-320. Default: k4 = 2, parallel = 1 * 16 * 2 = 32"
+    "default": "16",
+    "desc": "spark.default.parallelism = k1 * k3 * k4, set among 4-320. Default: k4 = 1, parallel = 1 * 16 * 1 = 16"
   },
   {
     "id": "k5",

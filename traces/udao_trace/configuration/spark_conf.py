@@ -20,9 +20,11 @@ class SparkConf(Conf):
         if isinstance(conf_denorm, List):
             conf = [self._construct_knob(k_denorm, k_meta) for k_denorm, k_meta in zip(conf_denorm, self.knob_list)]
             assert (len(conf) == len(self.knob_list)), "length of conf as a List should match knob_list"
+            # a special transformation for k2
+            conf[1] = conf[0] * conf[1]
             # a special transformation for k4 and k6
             # k6: set spark.shuffle.sort.bypassMergeThreshold <= (k2 * k3 * k4) when True, > (k2 * k3 * k4) when False"
-            dop = conf[1] * conf[2] * conf[3]
+            dop = conf[0] * conf[2] * conf[3]
             conf[5] = self._compute_k5(dop, conf[5])
             conf[3] = dop
             return [self._add_unit(k_with_type, k_meta) for k_with_type, k_meta in zip(conf, self.knob_list)]
@@ -32,11 +34,13 @@ class SparkConf(Conf):
                 "number of columns of conf_denorm as a np.ndarray should match knob_list"
             conf = np.vectorize(
                 pyfunc=lambda c, k: self._construct_knob(c, k), otypes="f")(conf_denorm, self.knob_list)
+            # a special transformation for k2
+            conf[:, 1] = conf[:, 0] * conf[:, 1]
             # a special transformation for k4 and k6
             # k6: set spark.shuffle.sort.bypassMergeThreshold <= (k2 * k3 * k4) when True, > (k2 * k3 * k4) when False"
             conf[:, 5] = np.apply_along_axis(
-                lambda c: self._compute_k5(dop=c[1] * c[2] * c[3], k5=c[5]), axis=1, arr=conf)
-            conf[:, 3] = conf[:, 1] * conf[:, 2] * conf[:, 3]
+                lambda c: self._compute_k5(dop=c[0] * c[2] * c[3], k5=c[5]), axis=1, arr=conf)
+            conf[:, 3] = conf[:, 0] * conf[:, 2] * conf[:, 3]
             return np.vectorize(lambda c, k: self._add_unit(c, k))(conf, self.knob_list)
 
         elif isinstance(conf_denorm, pd.DataFrame):
@@ -45,10 +49,12 @@ class SparkConf(Conf):
             conf_denorm[:] = np.vectorize(
                 lambda c, k: self._construct_knob(c, k), otypes="f")(conf_denorm, self.knob_list)
             conf = conf_denorm.copy()
+            # a special transformation for k2
+            conf.iloc[:, 1] = conf.iloc[:, 0] * conf.iloc[:, 1]
             # a special transformation for k4 and k6
             # k6: set spark.shuffle.sort.bypassMergeThreshold <= (k2 * k3 * k4) when True, > (k2 * k3 * k4) when False"
-            conf.iloc[:, 5] = conf.apply(lambda c: self._compute_k5(dop=c[1] * c[2] * c[3], k5=c[5]), axis=1)
-            conf.iloc[:, 3] = conf.iloc[:, 1] * conf.iloc[:, 2] * conf.iloc[:, 3]
+            conf.iloc[:, 5] = conf.apply(lambda c: self._compute_k5(dop=c[0] * c[2] * c[3], k5=c[5]), axis=1)
+            conf.iloc[:, 3] = conf.iloc[:, 0] * conf.iloc[:, 2] * conf.iloc[:, 3]
             conf[:] = np.vectorize(lambda c, k: self._add_unit(c, k))(conf, self.knob_list)
             return conf
 
