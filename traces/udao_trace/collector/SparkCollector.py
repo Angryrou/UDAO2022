@@ -114,7 +114,7 @@ class SparkCollector:
                 if cores + self.current_cores.value < cluster_cores:
                     self.current_cores.value += cores
                     if_submit = True
-                    logger.debug(f"Main Process: submit {template}-{qid} for {knob_sign}, "
+                    logger.info(f"Main Process: submit {template}-{qid} for {knob_sign}, "
                                  f"current_cores = {self.current_cores.value}")
                 else:
                     if_submit = False
@@ -127,8 +127,8 @@ class SparkCollector:
         pool.close()
         pool.join()
 
-        print(f"Total {total} queries submitted, {len(self.shared_failure_list)} failed:")
-        print(self.shared_failure_list)
+        logger.info(f"Total {total} queries submitted, {len(self.shared_failure_list)} failed:")
+        logger.info(self.shared_failure_list)
 
 
     def _get_lhs_conf_dict(self, n_data_per_template: int) -> dict:

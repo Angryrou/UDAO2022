@@ -3,7 +3,7 @@ import logging
 import sys
 
 
-def _get_logger(name: str = "udao_trace", level: int = logging.DEBUG, log_file_path: str = None) -> logging.Logger:
+def _get_logger(name: str = "udao_trace", level: int = logging.INFO, log_file_path: str = None) -> logging.Logger:
     """Generates a logger object for the UDAO library.
 
     Parameters
@@ -36,7 +36,7 @@ def _get_logger(name: str = "udao_trace", level: int = logging.DEBUG, log_file_p
     # FileHandler to log to a file if log_file_path is provided
     if log_file_path and not any(isinstance(handler, logging.FileHandler) for handler in _logger.handlers):
         file_handler = logging.FileHandler(log_file_path)
-        file_handler.setLevel(level)
+        file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         _logger.addHandler(file_handler)
 
