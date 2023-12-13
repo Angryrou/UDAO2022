@@ -24,10 +24,12 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         variables: Dict[str, Variable],
         objectives: Sequence[Objective],
         constraints: Sequence[Constraint],
+        constraint_stress: float = 1e5,
+        objective_stress: float = 10.0,
     ) -> None:
         super().__init__()
         self.objectives = objectives
-        self.constraint_stress = 1e5
+        self.constraint_stress = constraint_stress
 
         self.constraints = [
             Constraint(
@@ -42,7 +44,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         self.variables = variables
         self.mogd = MOGD(MOGD.Params(**solver_params))
 
-        self.objective_stress = 10.0
+        self.objective_stress = objective_stress
         self.opt_obj_ind = 0
 
     def get_anchor_point(

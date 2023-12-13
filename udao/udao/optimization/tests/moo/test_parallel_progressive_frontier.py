@@ -99,6 +99,7 @@ class TestParallelProgressiveFrontier:
                 "objective_input": 1,
             },
         )
+        ppf.mogd.patience = 100
         assert objectives is not None
         np.testing.assert_array_equal(objectives, [[0, 0]])
         assert variables is not None

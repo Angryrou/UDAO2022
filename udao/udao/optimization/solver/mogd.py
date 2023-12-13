@@ -59,7 +59,7 @@ class MOGD(BaseSolver):
         self.lr = params.learning_rate
         self.wd = params.weight_decay
         self.max_iter = params.max_iters
-        self.patient = params.patience
+        self.patience = params.patience
         self.multistart = params.multistart
         self.objective_stress = params.objective_stress
         self.seed = params.seed
@@ -181,11 +181,9 @@ class MOGD(BaseSolver):
         Raises
         ------
         Exception
-            _description_
-        Exception
-            _description_
+            Either objective or constraints are not ModelComponents
         NoSolutionError
-            _description_
+            No valid solution is found
         """
         best_iter = 0
         best_loss = np.inf
@@ -264,7 +262,7 @@ class MOGD(BaseSolver):
                 lower_input.feature_input[0, grad_indices],
                 upper_input.feature_input[0, grad_indices],
             )
-            if i > best_iter + self.patient:
+            if i > best_iter + self.patience:
                 break
 
         if best_obj is not None:

@@ -20,9 +20,18 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         variables: Dict[str, Variable],
         objectives: Sequence[Objective],
         constraints: Sequence[Constraint],
+        constraint_stress: float = 1e5,
+        objective_stress: float = 10.0,
         processes: int = 1,
     ) -> None:
-        super().__init__(solver_params, variables, objectives, constraints)
+        super().__init__(
+            solver_params,
+            variables,
+            objectives,
+            constraints,
+            constraint_stress,
+            objective_stress,
+        )
         self.processes = processes
 
     def solve(

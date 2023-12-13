@@ -16,8 +16,8 @@ InputParameters = Optional[Dict[str, Any]]
 class UdaoFunction(Protocol):
     def __call__(
         self,
-        input_variables: Union[Dict[str, np.ndarray], Dict[str, Any]],
-        input_parameters: Optional[Dict[str, Any]] = None,
+        input_variables: InputVariables,
+        input_parameters: InputParameters = None,
     ) -> th.Tensor:
         ...
 
