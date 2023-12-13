@@ -86,7 +86,7 @@ class TestQueryGraphIterator:
             )
         assert th.equal(
             first_sample.feature_input,
-            th.tensor(np.concatenate([expected_meta, [1]])),
+            th.tensor(np.concatenate([[1], expected_meta])),
         )
         assert np.equal(objectives, [0])
 

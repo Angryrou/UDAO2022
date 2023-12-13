@@ -4,16 +4,12 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 import numpy as np
 import torch as th
 import torch.optim as optim
-from torch.multiprocessing import Pool
 
 from ...data.containers.tabular_container import TabularContainer
 from ...data.iterators.base_iterator import UdaoIterator
 from ...utils.interfaces import UdaoInput, UdaoInputShape
 from ...utils.logging import logger
-from ..concepts import EnumVariable, NumericVariable, Variable
-from ..concepts.constraint import Constraint, ModelConstraint
-from ..concepts.objective import ModelObjective, Objective
-from ..concepts.variable import get_random_variable_values
+from .. import concepts as co
 from ..utils.exceptions import NoSolutionError
 from .base_solver import BaseSolver
 
@@ -35,7 +31,6 @@ class MOGD(BaseSolver):
         max_iters: int
         patient: int
         multistart: int
-        processes: int
         stress: float
         seed: int
         batch_size: int = 1
@@ -53,7 +48,6 @@ class MOGD(BaseSolver):
         self.max_iter = params.max_iters
         self.patient = params.patient
         self.multistart = params.multistart
-        self.process = params.processes
         self.objective_stress = params.stress
         self.seed = params.seed
         self.device = params.device
@@ -62,17 +56,19 @@ class MOGD(BaseSolver):
 
     def _get_input_values(
         self,
-        numeric_variables: Dict[str, NumericVariable],
-        objective: ModelObjective,
+        numeric_variables: Dict[str, co.NumericVariable],
+        objective_function: co.ModelComponent,
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[UdaoInput, UdaoInputShape, Callable[[th.Tensor], TabularContainer]]:
         numeric_values: Dict[str, np.ndarray] = {}
 
         for name, variable in numeric_variables.items():
-            numeric_values[name] = get_random_variable_values(variable, self.batch_size)
+            numeric_values[name] = co.variable.get_random_variable_values(
+                variable, self.batch_size
+            )
 
-        input_data, iterator = objective.process_data(
-            input_non_decision=input_parameters, input_variables=numeric_values
+        input_data, iterator = objective_function.process_data(
+            input_parameters=input_parameters or {}, input_variables=numeric_values
         )
         make_tabular_container = cast(
             UdaoIterator, iterator
@@ -84,43 +80,52 @@ class MOGD(BaseSolver):
 
     def _get_input_bounds(
         self,
-        numeric_variables: Dict[str, NumericVariable],
-        objective: ModelObjective,
+        numeric_variables: Dict[str, co.NumericVariable],
+        objective_function: co.ModelComponent,
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[UdaoInput, UdaoInput]:
         lower_numeric_values = {
-            name: [variable.lower] for name, variable in numeric_variables.items()
+            name: variable.lower for name, variable in numeric_variables.items()
         }
         upper_numeric_values = {
-            name: [variable.upper] for name, variable in numeric_variables.items()
+            name: variable.upper for name, variable in numeric_variables.items()
         }
-        lower_input, _ = objective.process_data(
-            input_non_decision=input_parameters, input_variables=lower_numeric_values
+        lower_input, _ = objective_function.process_data(
+            input_parameters=input_parameters,
+            input_variables=lower_numeric_values,
         )
-        upper_input, _ = objective.process_data(
-            input_non_decision=input_parameters, input_variables=upper_numeric_values
+        upper_input, _ = objective_function.process_data(
+            input_parameters=input_parameters,
+            input_variables=upper_numeric_values,
         )
         return lower_input, upper_input
 
     def _single_start_opt(
         self,
-        numeric_variables: Dict[str, NumericVariable],
-        objective: ModelObjective,
-        constraints: Sequence[ModelConstraint],
+        numeric_variables: Dict[str, co.NumericVariable],
+        objective: co.Objective,
+        constraints: Sequence[co.Constraint],
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[float, Dict[str, float], float]:
         best_iter = 0
         best_loss = np.inf
         best_obj: Optional[float] = None
         best_feature_input: Optional[th.Tensor] = None
-
+        if not isinstance(objective.function, co.ModelComponent):
+            raise Exception("Objective function must be a ModelComponent to use MOGD")
+        for constraint in constraints:
+            if not isinstance(constraint.function, co.ModelComponent):
+                raise Exception(
+                    "Constraint functions must be instances of"
+                    " ModelComponent to use MOGD"
+                )
         # Random numeric variables and their characteristics
         input_data, input_data_shape, make_tabular_container = self._get_input_values(
-            numeric_variables, objective, input_parameters=input_parameters
+            numeric_variables, objective.function, input_parameters=input_parameters
         )
         # Bounds of numeric variables
         lower_input, upper_input = self._get_input_bounds(
-            numeric_variables, objective, input_parameters=input_parameters
+            numeric_variables, objective.function, input_parameters=input_parameters
         )
         # Indices of numeric variables on which to apply gradients
         mask = th.tensor(
@@ -137,12 +142,13 @@ class MOGD(BaseSolver):
         for i in range(self.max_iter):
             input_data.feature_input[:, grad_indices] = input_vars_subvector
             # Compute objective, constraints and corresponding losses
-            obj_output = objective.model(input_data)
+            obj_output = objective.function.model(input_data)
             objective_loss = self.objective_loss(obj_output, objective)
             constraint_loss = th.zeros_like(objective_loss)
             if constraints:
                 const_outputs = [
-                    constraint.model(input_data) for constraint in constraints
+                    cast(co.ModelComponent, constraint.function).model(input_data)
+                    for constraint in constraints
                 ]
                 constraint_loss = self.constraints_loss(const_outputs, constraints)
             loss = objective_loss + constraint_loss
@@ -186,12 +192,13 @@ class MOGD(BaseSolver):
                 f"Finished at iteration {iter}, best local {objective.name} "
                 f"found {best_obj:.5f}"
                 f" \nat iteration {best_iter},"
-                f" \nwith vars: {best_feature_input}"
+                f" \nwith vars: {best_feature_input}, for "
+                f"objective {objective} and constraints {constraints}"
             )
 
             best_feature_input = cast(th.Tensor, best_feature_input)
             feature_container = make_tabular_container(best_feature_input)
-            best_raw_df = objective.inverse_process_data(
+            best_raw_df = objective.function.inverse_process_data(
                 feature_container, "tabular_features"
             )
             best_raw_vars = {
@@ -204,34 +211,28 @@ class MOGD(BaseSolver):
         else:
             logger.debug(
                 f"Finished at iteration {iter}, no valid {objective.name}"
-                f" found for input parameters {input_parameters}"
+                f" found for input parameters {input_parameters} with "
+                f"objective {objective} and constraints {constraints}"
             )
             raise NoSolutionError
 
     def solve(
         self,
-        objective: Objective,
-        variables: Dict[str, Variable],
-        constraints: Optional[Sequence[Constraint]] = None,
+        objective: co.Objective,
+        variables: Dict[str, co.Variable],
+        constraints: Optional[Sequence[co.Constraint]] = None,
         input_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[Optional[float], Optional[Dict[str, float]]]:
-        if not isinstance(objective, ModelObjective):
-            raise Exception("Objective must be a ModelObjective to use MOGD")
-        if not isinstance(constraints, Sequence[ModelConstraint]):
-            raise Exception(
-                "Constraints must be instances of ModelConstraint to use MOGD"
-            )
-
+    ) -> Tuple[float, Dict[str, float]]:
         th.manual_seed(self.seed)
         categorical_variables = [
             name
             for name, variable in variables.items()
-            if isinstance(variable, EnumVariable)
+            if isinstance(variable, co.EnumVariable)
         ]
         numeric_variables = {
             name: variable
             for name, variable in variables.items()
-            if isinstance(variable, NumericVariable)
+            if isinstance(variable, co.NumericVariable)
         }
         meshed_categorical_vars = self.get_meshed_categorical_vars(variables)
 
@@ -266,7 +267,7 @@ class MOGD(BaseSolver):
                     obj_list.append(obj_pred)
                     vars_list.append(best_raw_vars)
         if not obj_list:
-            raise Exception("No valid solutions and variables found!")
+            raise NoSolutionError("No valid solutions and variables found!")
         idx = np.argmin(best_loss_list)
         vars_cand = vars_list[idx]
         if vars_cand is not None:
@@ -274,55 +275,15 @@ class MOGD(BaseSolver):
             if obj_cand is None:
                 raise Exception(f"Unexpected objs_list[{idx}] is None.")
         else:
-            obj_cand, vars_cand = None, None
+            raise NoSolutionError("No valid solutions and variables found!")
 
         return obj_cand, vars_cand
-
-    def optimize_constrained_so_parallel(
-        self,
-        wl_id: str,
-        objective_name: str,
-        cell_list: list,
-        batch_size: int = 1,
-    ) -> List[Tuple[Optional[float], Optional[Dict[str, float]]]]:
-        """
-        solve the single objective optimization
-        constrained by objective values parallelly
-        :param wl_id: str, workload id, e.g. '1-7'
-        :param obj: str, name of objective to be optimized
-        :param cell_list: list, each element is a dict to indicate
-            the var_ranges of objective values
-        :return:
-                ret_list: list,
-                    each element is a solution
-                    tuple with size 2) with objective values (tuple[0], list)
-                    and variables (tuple[1], ndarray(1, n_vars))
-        """
-        th.manual_seed(self.seed)
-
-        # generate the list of input parameters for constraint_so_opt
-        arg_list = [
-            (
-                wl_id,
-                objective_name,
-                obj_bounds_dict,
-                batch_size,
-            )
-            for obj_bounds_dict in cell_list
-        ]
-        if th.cuda.is_available():
-            th.multiprocessing.set_start_method("spawn", force=True)
-
-        # call self.constraint_so_opt parallely
-        with Pool(processes=self.process) as pool:
-            ret_list = pool.starmap(self.solve, arg_list)
-        return ret_list
 
     ##################
     ## _loss        ##
     ##################
     def constraints_loss(
-        self, constraint_values: List[th.Tensor], constraints: Sequence[ModelConstraint]
+        self, constraint_values: List[th.Tensor], constraints: Sequence[co.Constraint]
     ) -> th.Tensor:
         """
         compute loss of the values of each constraint function fixme: double-check
@@ -361,7 +322,7 @@ class MOGD(BaseSolver):
         return total_loss
 
     def objective_loss(
-        self, objective_value: th.Tensor, objective: ModelObjective
+        self, objective_value: th.Tensor, objective: co.Objective
     ) -> th.Tensor:
         loss = th.zeros_like(objective_value)  # size of objective_value ((bs, 1) ?)
         if objective.upper is None and objective.lower is None:
@@ -384,7 +345,7 @@ class MOGD(BaseSolver):
     ##################
 
     def get_meshed_categorical_vars(
-        self, variables: Dict[str, Variable]
+        self, variables: Dict[str, co.Variable]
     ) -> Optional[np.ndarray]:
         """
         get combinations of all categorical (binary, enum) variables
@@ -395,7 +356,7 @@ class MOGD(BaseSolver):
         cv_value_list = [
             variable.values
             for variable in variables.values()
-            if isinstance(variable, EnumVariable)
+            if isinstance(variable, co.EnumVariable)
         ]
         if not cv_value_list:
             return None
@@ -410,7 +371,7 @@ class MOGD(BaseSolver):
     # check violations of objective value var_ranges
     # reuse code in UDAO
     @staticmethod
-    def within_objective_bounds(obj_value: float, objective: Objective) -> bool:
+    def within_objective_bounds(obj_value: float, objective: co.Objective) -> bool:
         """
         check whether violating the objective value var_ranges
         :param pred_dict: dict, keys are objective names,

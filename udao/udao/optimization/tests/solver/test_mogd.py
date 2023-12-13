@@ -13,8 +13,9 @@ from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....model.utils.utils import set_deterministic_torch
 from ....utils.interfaces import UdaoInput
 from ...concepts import EnumVariable, FloatVariable, IntegerVariable, Variable
-from ...concepts.constraint import ModelConstraint
-from ...concepts.objective import ModelObjective
+from ...concepts.constraint import Constraint
+from ...concepts.objective import Objective
+from ...concepts.utils import ModelComponent
 from ...solver.mogd import MOGD
 
 
@@ -67,30 +68,9 @@ def mogd() -> MOGD:
         patient=10,
         seed=0,
         multistart=10,
-        processes=1,
         stress=0.1,
     )
     mogd = MOGD(params)
-
-    """mogd.problem_setup(
-        variables=[FloatVariable(0, 1), IntegerVariable(2, 3)],
-        accurate=True,
-        std_func=None,
-        objectives=[
-            Objective(
-                "obj1",
-                "MAX",
-                model_1,  # type: ignore
-            ),
-            Objective(
-                "obj2",
-                "MIN",
-                model_2,
-            ),
-        ],
-        constraints=[],
-        precision_list=[2, 2],
-    )"""
 
     return mogd
 
@@ -130,29 +110,9 @@ def paper_mogd() -> MOGD:
         patient=10,
         seed=0,
         multistart=10,
-        processes=1,
         stress=10,
     )
     mogd = MOGD(params)
-    """mogd.problem_setup(
-        variables=[FloatVariable(0, 24)],
-        accurate=True,
-        std_func=None,
-        objectives=[
-            Objective(
-                "obj1",
-                "MIN",
-                paper_f1,  # type: ignore
-            ),
-            Objective(
-                "obj2",
-                "MIN",
-                paper_f2,
-            ),
-        ],
-        constraints=[],
-        precision_list=[0],
-    )"""
 
     return mogd
 
@@ -176,22 +136,26 @@ class TestMOGD:
         if gpu and not th.cuda.is_available():
             pytest.skip("Skip GPU test")
         mogd.device = th.device("cuda") if gpu else th.device("cpu")
+        objective_function = ModelComponent(
+            data_processor=data_processor,
+            model=SimpleModel1(),  # type: ignore
+        )
         optimal_obj, optimal_vars = mogd.solve(
-            objective=ModelObjective(
+            objective=Objective(
                 "obj1",
-                "MAX",
-                data_processor=data_processor,
-                model=SimpleModel1(),  # type: ignore
+                direction_type="MAX",
+                function=objective_function,
                 lower=0,
                 upper=2,
             ),
             variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
             constraints=[
-                ModelConstraint(
+                Constraint(
                     lower=0,
                     upper=1,
-                    data_processor=data_processor,
-                    model=SimpleModel2(),
+                    function=ModelComponent(
+                        data_processor=data_processor, model=SimpleModel2()
+                    ),
                     stress=10,
                 )
             ],
@@ -215,21 +179,23 @@ class TestMOGD:
         data_processor_paper: DataProcessor,
     ) -> None:
         optimal_obj, optimal_vars = paper_mogd.solve(
-            objective=ModelObjective(
+            objective=Objective(
                 "obj1",
                 "MIN",
-                model=PaperModel1(),
-                data_processor=data_processor_paper,
+                function=ModelComponent(
+                    model=PaperModel1(), data_processor=data_processor_paper
+                ),
                 lower=100,
                 upper=200,
             ),
             variables={"v1": variable},
             constraints=[
-                ModelConstraint(
+                Constraint(
                     lower=8,
                     upper=16,
-                    model=PaperModel2(),
-                    data_processor=data_processor_paper,
+                    function=ModelComponent(
+                        model=PaperModel2(), data_processor=data_processor_paper
+                    ),
                     stress=10,
                 )
             ],
@@ -244,72 +210,20 @@ class TestMOGD:
             [optimal_vars["v1"]], [expected_variable["v1"]], rtol=1e-3
         )
 
-    """
-    @pytest.mark.parametrize(
-        "gpu, expected_obj1, expected_vars1, expected_obj2, expected_vars2",
-        [
-            (
-                False,
-                [0.7501509189605713, 0.261410653591156],
-                [0, 2.21],
-                [0.7494739890098572, 0.2552645206451416],
-                [0, 2.2],
-            ),
-            (
-                True,
-                [0.728246, 0.188221],
-                [0.07, 2.15],
-                [0.733336, 0.503761],
-                [0.22, 2.79],
-            ),
-        ],
-    )
-    def test_constraint_parallel(
-        self,
-        mogd: MOGD,
-        gpu: bool,
-        expected_obj1: list,
-        expected_vars1: list,
-        expected_obj2: list,
-        expected_vars2: list,
-    ) -> None:
-        if gpu and not th.cuda.is_available():
-            pytest.skip("Skip GPU test")
-        mogd.device = th.device("cuda") if gpu else th.device("cpu")
-        res_list = mogd.optimize_constrained_so_parallel(
-            wl_id="1",
-            objective_name="obj1",
-            cell_list=[
-                {"obj1": th.tensor((0, 2)), "obj2": th.tensor((0, 1))},
-                {"obj1": th.tensor((0.05, 2.1)), "obj2": th.tensor((0.1, 1))},
-            ],
-        )
-        obj_optimal_1, var_optimal_1 = res_list[0]
-        obj_optimal_2, var_optimal_2 = res_list[1]
-        assert obj_optimal_1 is not None
-
-        np.testing.assert_array_almost_equal(
-            obj_optimal_1, expected_obj1
-        )  # type: ignore
-        assert var_optimal_1 is not None
-        np.testing.assert_array_equal(var_optimal_1, expected_vars1)
-        assert obj_optimal_2 is not None
-        np.testing.assert_array_almost_equal(obj_optimal_2, expected_obj2)
-        assert var_optimal_2 is not None
-        np.testing.assert_array_equal(var_optimal_2, expected_vars2)
-    """
-
     def test_solve_no_constraints(
         self, mogd: MOGD, data_processor: DataProcessor
     ) -> None:
+        objective_function = ModelComponent(
+            model=lambda x: th.reshape(  # type: ignore
+                x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
+            ),
+            data_processor=data_processor,
+        )
         optimal_obj, optimal_vars = mogd.solve(
-            objective=ModelObjective(
-                "obj1",
-                "MAX",
-                model=lambda x: th.reshape(  # type: ignore
-                    x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
-                ),
-                data_processor=data_processor,
+            objective=Objective(
+                name="obj1",
+                direction_type="MAX",
+                function=objective_function,
             ),
             variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
             input_parameters={"embedding_input": 0, "objective_input": 0},
@@ -337,11 +251,12 @@ class TestMOGD:
         objective_values: th.Tensor,
         expected_loss: th.Tensor,
     ) -> None:
-        objective = ModelObjective(
+        objective = Objective(
             "obj1",
             "MAX",
-            data_processor=data_processor,
-            model=SimpleModel1(),  # type: ignore
+            function=ModelComponent(
+                data_processor=data_processor, model=SimpleModel1()
+            ),
             lower=0,
             upper=2,
         )
@@ -366,11 +281,12 @@ class TestMOGD:
         objective_values: th.Tensor,
         expected_loss: th.Tensor,
     ) -> None:
-        objective = ModelObjective(
+        objective = Objective(
             "obj1",
             "MAX",
-            data_processor=data_processor,
-            model=SimpleModel1(),  # type: ignore
+            function=ModelComponent(
+                data_processor=data_processor, model=SimpleModel1()
+            ),
         )
         loss = mogd.objective_loss(objective_values, objective)
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
@@ -394,24 +310,27 @@ class TestMOGD:
         expected_loss: th.Tensor,
     ) -> None:
         constraints = [
-            ModelConstraint(
+            Constraint(
                 lower=0,
                 upper=1,
-                data_processor=data_processor,
-                model=SimpleModel1(),
+                function=ModelComponent(
+                    data_processor=data_processor, model=SimpleModel1()
+                ),
                 stress=10,
             ),
-            ModelConstraint(
+            Constraint(
                 lower=0,
                 upper=2,
-                data_processor=data_processor,
-                model=SimpleModel2(),
+                function=ModelComponent(
+                    data_processor=data_processor, model=SimpleModel2()
+                ),
                 stress=100,
             ),
-            ModelConstraint(
+            Constraint(
                 upper=3,
-                data_processor=data_processor,
-                model=SimpleModel2(),
+                function=ModelComponent(
+                    data_processor=data_processor, model=SimpleModel2()
+                ),
                 stress=1000,
             ),
         ]

@@ -67,9 +67,10 @@ class SamplerSolver(BaseSolver, ABC):
         )
         if any([len(v) == 0 for v in filtered_vars.values()]):
             raise NoSolutionError("No feasible solution found!")
-        objective_value = np.array(
-            objective.function(filtered_vars, input_parameters=input_parameters)
-        ).reshape(-1, 1)
+        th_value = objective.function(
+            input_variables=filtered_vars, input_parameters=input_parameters
+        )
+        objective_value = th_value.numpy().reshape(-1, 1)
         op_ind = int(np.argmin(objective_value * objective.direction))
 
         return (
@@ -100,7 +101,7 @@ class SamplerSolver(BaseSolver, ABC):
         available_indices = np.arange(len(next(iter(input_vars.values()))))
         for constraint in constraints:
             const_values = constraint.function(
-                input_vars, input_parameters=input_parameters
+                input_variables=input_vars, input_parameters=input_parameters
             )
             if constraint.upper is not None:
                 available_indices = np.intersect1d(

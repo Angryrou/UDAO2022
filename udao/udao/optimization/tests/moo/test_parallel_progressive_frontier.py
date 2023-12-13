@@ -1,56 +1,43 @@
-from typing import Optional
+from typing import Dict
 
 import numpy as np
 import pytest
 import torch as th
 
-from ...concepts import FloatVariable, IntegerVariable, Objective
+from ....data.handler.data_processor import DataProcessor
+from ....model.utils.utils import set_deterministic_torch
+from ...concepts import FloatVariable, IntegerVariable, Objective, Variable
+from ...concepts.utils import ModelComponent
 from ...moo.progressive_frontier import ParallelProgressiveFrontier
 from ...utils.moo_utils import Point, Rectangle
-
-
-def obj1(x: th.Tensor, wl_id: Optional[str]) -> th.Tensor:
-    return th.reshape(x[:, 0] ** 2, (-1, 1))
-
-
-def obj2(x: th.Tensor, wl_id: Optional[str]) -> th.Tensor:
-    return th.reshape(x[:, 1] ** 2, (-1, 1))
-
-
-def complex_obj1(x: th.Tensor, wl_id: Optional[str]) -> th.Tensor:
-    return th.reshape(x[:, 0] ** 2 - x[:, 1] ** 2, (-1, 1))
-
-
-def complex_obj2(x: th.Tensor, wl_id: Optional[str]) -> th.Tensor:
-    return th.reshape(x[:, 0] ** 2 + x[:, 1] ** 2, (-1, 1))
+from .conftest import ComplexObj2, ObjModel1, ObjModel2
 
 
 @pytest.fixture
-def ppf() -> ParallelProgressiveFrontier:
+def ppf(data_processor: DataProcessor) -> ParallelProgressiveFrontier:
     objectives = [
-        Objective("obj1", "MAX", obj1),  # type: ignore
-        Objective("obj2", "MIN", obj2),  # type: ignore
+        Objective("obj1", "MIN", ModelComponent(data_processor, ObjModel1())),
+        Objective("obj2", "MIN", ModelComponent(data_processor, ObjModel2())),
     ]
-    variables = [FloatVariable(0, 1), IntegerVariable(1, 7)]
+    variables: Dict[str, Variable] = {
+        "v1": FloatVariable(0, 1),
+        "v2": IntegerVariable(1, 7),
+    }
 
     ppf = ParallelProgressiveFrontier(
         variables=variables,
         objectives=objectives,
         solver_params={
-            "learning_rate": 0.01,
-            "weight_decay": 0.1,
+            "learning_rate": 0.1,
+            "weight_decay": 0,
             "max_iters": 100,
             "patient": 10,
-            "multistart": 2,
-            "processes": 1,
-            "stress": 0.5,
+            "multistart": 5,
+            "stress": 10,
             "seed": 0,
         },
+        processes=1,
         constraints=[],
-        accurate=True,
-        std_func=None,
-        alpha=0.1,
-        precision_list=[2, 2],
     )
     ppf.mogd.device = th.device("cpu")
     return ppf
@@ -100,25 +87,41 @@ class TestParallelProgressiveFrontier:
         for i, rect in enumerate(expected):
             assert rect == grid_rectangles[i]
 
-    def test_solve_with_two_objectives(self, ppf: ParallelProgressiveFrontier) -> None:
-        objectives, variables = ppf.solve("1", n_grids=2, max_iters=4)
+    def test_solve_with_two_objectives(
+        self, ppf: ParallelProgressiveFrontier, data_processor: DataProcessor
+    ) -> None:
+        set_deterministic_torch()
+        objectives, variables = ppf.solve(
+            n_grids=2,
+            max_iters=4,
+            input_parameters={
+                "embedding_input": 1,
+                "objective_input": 1,
+            },
+        )
         assert objectives is not None
-        np.testing.assert_array_equal(objectives, [[-1, 0]])
+        np.testing.assert_array_equal(objectives, [[0, 0]])
         assert variables is not None
-        np.testing.assert_array_equal(variables, [[1, 1]])
+        assert variables[0] == {"v1": 0.0, "v2": 1.0}
 
     def test_solve_with_three_objectives(
-        self, ppf: ParallelProgressiveFrontier
+        self, ppf: ParallelProgressiveFrontier, data_processor: DataProcessor
     ) -> None:
+        set_deterministic_torch()
         objectives = [
-            Objective("obj1", "MAX", obj1),
-            Objective("obj2", "MAX", complex_obj1),
-            Objective("obj3", "MAX", complex_obj2),
+            Objective("obj1", "MAX", ModelComponent(data_processor, ObjModel1())),
+            Objective("obj2", "MAX", ModelComponent(data_processor, ObjModel2())),
+            Objective("obj3", "MAX", ModelComponent(data_processor, ComplexObj2())),
         ]
         ppf.objectives = objectives
-        ppf.mogd.objectives = objectives
-        obj_values, var_values = ppf.solve("1", n_grids=2, max_iters=4)
+        obj_values, var_values = ppf.solve(
+            n_grids=2,
+            max_iters=2,
+            input_parameters={
+                "embedding_input": 1,
+                "objective_input": 1,
+            },
+        )
         assert obj_values is not None
-        np.testing.assert_array_equal(obj_values, [[-1, -1, -1], [-1, 0, -2]])
-        assert var_values is not None
-        np.testing.assert_array_equal(var_values, [[1, 1], [1, 7]])
+        np.testing.assert_array_almost_equal(obj_values, [[-1.0, -1.0, -2.0]])
+        assert var_values[0] == {"v1": 1.0, "v2": 7.0}

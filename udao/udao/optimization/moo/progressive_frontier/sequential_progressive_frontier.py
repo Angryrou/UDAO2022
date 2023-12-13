@@ -1,11 +1,12 @@
 import heapq
 import itertools
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
 from ....utils.logging import logger
 from ...utils import moo_utils as moo_ut
+from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point, Rectangle
 from .base_progressive_frontier import BaseProgressiveFrontier
 
@@ -36,9 +37,9 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
 
     def solve(
         self,
-        wl_id: str,
         n_probes: int,
         anchor_option: str = "2_step",
+        input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Solve MOO by Progressive Frontier
@@ -63,7 +64,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         n_objs = len(self.objectives)
         plans = [
             self.get_anchor_point(
-                wl_id=wl_id,
+                input_parameters=input_parameters,
                 obj_ind=i,
                 anchor_option=anchor_option,
             )
@@ -77,7 +78,9 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
                 logger.info("No more uncertainty space to explore further!")
                 break
             rectangle = heapq.heappop(rectangle_queue)
-            middle_point, subrectangles = self._find_local_optimum(rectangle, wl_id)
+            middle_point, subrectangles = self._find_local_optimum(
+                rectangle, input_parameters
+            )
             if middle_point is not None:
                 plans.append(middle_point)
             for sub_rect in subrectangles:
@@ -86,16 +89,14 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
 
         ## filter dominated points
         po_objs_list = [point.objs.tolist() for point in plans]
-        po_vars_list = [
-            point.vars.tolist() if point.vars is not None else [] for point in plans
-        ]
+        po_vars_list = [point.vars for point in plans]
 
         po_objs, po_vars = moo_ut.summarize_ret(po_objs_list, po_vars_list)
 
         return po_objs, po_vars
 
     def _find_local_optimum(
-        self, rectangle: Rectangle, wl_id: str
+        self, rectangle: Rectangle, input_parameters: Optional[Dict[str, Any]]
     ) -> Tuple[Optional[Point], List[Rectangle]]:
         """
         Find the local optimum in the given rectangle and
@@ -120,6 +121,8 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         current_utopia, current_nadir = Point(rectangle.lower_bounds), Point(
             rectangle.upper_bounds
         )
+        logger.debug(f"current utopia is: {current_utopia}")
+        logger.debug(f"current nadir is: {current_nadir}")
         middle_objs = np.array(
             [
                 current_nadir.objs[i]
@@ -131,25 +134,17 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         middle_point = Point(middle_objs)
         obj_bounds_dict = self._form_obj_bounds_dict(current_utopia, middle_point)
         logger.debug(f"obj_bounds are: {obj_bounds_dict}")
-        obj, vars = self.mogd.optimize_constrained_so(
-            wl_id=wl_id,
-            objective_name=self.objectives[self.opt_obj_ind].name,
-            obj_bounds_dict=obj_bounds_dict,
+        soo_objective, soo_constraints = self._soo_params_from_bounds_dict(
+            obj_bounds_dict, self.objectives[self.opt_obj_ind]
         )
-
-        if obj is not None and vars is not None:
-            middle_objs = np.array(
-                [
-                    obj[i] * objective.direction
-                    for i, objective in enumerate(self.objectives)
-                ]
+        try:
+            _, soo_vars = self.mogd.solve(
+                input_parameters=input_parameters,
+                objective=soo_objective,
+                constraints=soo_constraints,
+                variables=self.variables,
             )
-            middle_point = Point(middle_objs, vars)
-            return middle_point, self.generate_sub_rectangles(
-                current_utopia, current_nadir, middle_point
-            )
-
-        else:
+        except NoSolutionError:
             logger.debug(
                 "This is an empty area \n "
                 "don't have pareto points, only "
@@ -160,6 +155,12 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
                 current_utopia, current_nadir, middle_point, successful=False
             )
             return None, rectangles
+        else:
+            middle_objs = self._compute_objectives(soo_vars, input_parameters)
+            middle_point = Point(middle_objs, soo_vars)
+            return middle_point, self.generate_sub_rectangles(
+                current_utopia, current_nadir, middle_point
+            )
 
     def generate_sub_rectangles(
         self, utopia: Point, nadir: Point, middle: Point, successful: bool = True

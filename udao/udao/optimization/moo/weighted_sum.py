@@ -5,6 +5,7 @@ import numpy as np
 import torch as th
 
 from ..concepts import Constraint, Objective, Variable
+from ..concepts.utils import InputParameters, InputVariables
 from ..solver.base_solver import BaseSolver
 from ..utils import moo_utils as moo_ut
 from ..utils.exceptions import NoSolutionError
@@ -27,7 +28,7 @@ class WeightedSumObjective(Objective):
         self.allow_cache = allow_cache
 
     def _function(
-        self, vars: Dict[str, np.ndarray], *args: Any, **kwargs: Any
+        self, input_variables: InputVariables, input_parameters: InputParameters = None
     ) -> np.ndarray:
         hash_var = ""
         if self.allow_cache:
@@ -36,7 +37,10 @@ class WeightedSumObjective(Objective):
                 return self._cache[hash_var]
         objs: List[np.ndarray] = []
         for objective in self.objectives:
-            obj = objective.function(vars, **kwargs) * objective.direction
+            obj = (
+                objective.function(input_variables, input_parameters)
+                * objective.direction
+            )
             objs.append(obj.numpy().squeeze())
 
         # shape (n_feasible_samples/grids, n_objs)
@@ -46,10 +50,10 @@ class WeightedSumObjective(Objective):
         return objs_array
 
     def function(
-        self, vars: Dict[str, np.ndarray], *args: Any, **kwargs: Any
+        self, input_variables: InputVariables, input_parameters: InputParameters = None
     ) -> th.Tensor:
         """Sum of weighted normalized objectives"""
-        objs_array = self._function(vars, *args, **kwargs)
+        objs_array = self._function(input_variables, input_parameters)
         objs_norm = self._normalize_objective(objs_array)
         return th.tensor(np.sum(objs_norm * self.ws, axis=1))
 
