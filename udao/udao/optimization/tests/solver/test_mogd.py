@@ -65,10 +65,10 @@ def mogd() -> MOGD:
         learning_rate=0.1,
         weight_decay=0.1,
         max_iters=100,
-        patient=10,
+        patience=10,
         seed=0,
         multistart=10,
-        stress=0.1,
+        objective_stress=0.1,
     )
     mogd = MOGD(params)
 
@@ -107,10 +107,10 @@ def paper_mogd() -> MOGD:
         learning_rate=1,
         weight_decay=0.0,
         max_iters=100,
-        patient=10,
+        patience=10,
         seed=0,
         multistart=10,
-        stress=10,
+        objective_stress=10,
     )
     mogd = MOGD(params)
 

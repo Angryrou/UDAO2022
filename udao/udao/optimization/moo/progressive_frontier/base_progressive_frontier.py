@@ -23,21 +23,22 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
     ) -> None:
         super().__init__()
         self.objectives = objectives
-        self.constraints = constraints
+        self.constraint_stress = 1e5
+
+        self.constraints = [
+            Constraint(
+                function=constraint.function,
+                lower=constraint.lower,
+                upper=constraint.upper,
+                stress=self.constraint_stress,
+            )
+            for constraint in constraints
+        ]
+
         self.variables = variables
         self.mogd = MOGD(MOGD.Params(**solver_params))
-        """self.mogd.problem_setup(
-            variables=variables,
-            std_func=std_func,
-            objectives=objectives,
-            constraints=constraints,
-            precision_list=precision_list,
-            accurate=accurate,
-            alpha=alpha,
-        )
-        """
+
         self.objective_stress = 10.0
-        self.constraint_stress = 1e5
         self.opt_obj_ind = 0
 
     def get_anchor_point(

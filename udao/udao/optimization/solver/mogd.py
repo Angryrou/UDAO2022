@@ -24,31 +24,44 @@ def get_default_device() -> th.device:
 
 
 class MOGD(BaseSolver):
+    """MOGD solver for single-objective optimization.
+
+    Performs gradient descent on input variables by minimizing an
+    objective loss and a constraint loss.
+    """
+
     @dataclass
     class Params:
         learning_rate: float
+        """learning rate of Adam optimizer applied to input variables"""
         weight_decay: float
+        """weight decay of Adam optimizer applied to input variables"""
+        """TODO: remove"""
         max_iters: int
-        patient: int
+        """maximum number of iterations for a single local search"""
+        patience: int
+        """maximum number of iterations without improvement"""
         multistart: int
-        stress: float
+        """number of random starts for gradient descent"""
+        objective_stress: float
+        """stress term for objective function"""
         seed: int
+        """seed for random number generator"""
         batch_size: int = 1
+        """batch size for gradient descent"""
         device: Optional[th.device] = field(default_factory=get_default_device)
+        """device on which to run the solver - by default available device"""
         dtype: th.dtype = th.float32
+        """type of tensors - by default float32"""
 
     def __init__(self, params: Params) -> None:
-        """
-        initialize solver
-        :param mogd_params: dict, parameters used in solver
-        """
         super().__init__()
         self.lr = params.learning_rate
         self.wd = params.weight_decay
         self.max_iter = params.max_iters
-        self.patient = params.patient
+        self.patient = params.patience
         self.multistart = params.multistart
-        self.objective_stress = params.stress
+        self.objective_stress = params.objective_stress
         self.seed = params.seed
         self.device = params.device
         self.dtype = params.dtype
@@ -60,6 +73,24 @@ class MOGD(BaseSolver):
         objective_function: co.ModelComponent,
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[UdaoInput, UdaoInputShape, Callable[[th.Tensor], TabularContainer]]:
+        """Get random values for numeric variables
+
+        Parameters
+        ----------
+        numeric_variables : Dict[str, co.NumericVariable]
+            Numeric variables on which to apply gradients
+        objective_function : co.ModelComponent
+            Objective function as a ModelComponent
+        input_parameters : Optional[Dict[str, Any]], optional
+            Non decision parts of the input, by default None
+
+        Returns
+        -------
+        Tuple[UdaoInput, UdaoInputShape, Callable[[th.Tensor], TabularContainer]]
+            - random values for numeric variables
+            - shape of the input
+            - function to convert a tensor to a TabularContainer
+        """
         numeric_values: Dict[str, np.ndarray] = {}
 
         for name, variable in numeric_variables.items():
@@ -84,6 +115,23 @@ class MOGD(BaseSolver):
         objective_function: co.ModelComponent,
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[UdaoInput, UdaoInput]:
+        """Get bounds of numeric variables
+
+        Parameters
+        ----------
+        numeric_variables : Dict[str, co.NumericVariable]
+            Numeric variables on which to apply gradients
+        objective_function : co.ModelComponent
+            Objective function as a ModelComponent
+        input_parameters : Optional[Dict[str, Any]], optional
+            Input parameters, by default None
+
+        Returns
+        -------
+        Tuple[UdaoInput, UdaoInput]
+            Lower and upper bounds of numeric
+            variables in the form of a UdaoInput
+        """
         lower_numeric_values = {
             name: variable.lower for name, variable in numeric_variables.items()
         }
@@ -107,6 +155,38 @@ class MOGD(BaseSolver):
         constraints: Sequence[co.Constraint],
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[float, Dict[str, float], float]:
+        """Perform a single start optimization.
+        Categorical variables are fixed to the values in input_parameters.
+        (a grid search of categorical variables is performed in solve)
+        This is where gradient descent is performed.
+
+        Parameters
+        ----------
+        numeric_variables : Dict[str, co.NumericVariable]
+            Numeric variables on which to apply gradients
+        objective : co.Objective
+            Objective to be optimized
+        constraints : Sequence[co.Constraint]
+            Constraints to be satisfied
+        input_parameters : Optional[Dict[str, Any]], optional
+            Non decision parts of the input, by default None
+
+        Returns
+        -------
+        Tuple[float, Dict[str, float], flat]
+            - objective value
+            - variables
+            - best loss value
+
+        Raises
+        ------
+        Exception
+            _description_
+        Exception
+            _description_
+        NoSolutionError
+            _description_
+        """
         best_iter = 0
         best_loss = np.inf
         best_obj: Optional[float] = None
@@ -324,6 +404,29 @@ class MOGD(BaseSolver):
     def objective_loss(
         self, objective_value: th.Tensor, objective: co.Objective
     ) -> th.Tensor:
+        """Compute the objective loss for a given objective value:
+        - if no bounds are specified, use the squared objective value
+        - if both bounds are specified, use the squared normalized
+          objective value if it is within the bounds, otherwise
+          add a stress term to a squared distance to middle of the bounds
+
+        Parameters
+        ----------
+        objective_value : th.Tensor
+            Tensor of objective values
+        objective : co.Objective
+            Objective function
+
+        Returns
+        -------
+        th.Tensor
+            Tensor of objective losses
+
+        Raises
+        ------
+        NotImplementedError
+            If only one bound is specified for the objective
+        """
         loss = th.zeros_like(objective_value)  # size of objective_value ((bs, 1) ?)
         if objective.upper is None and objective.lower is None:
             loss = (objective_value**2) * objective.direction
@@ -348,10 +451,18 @@ class MOGD(BaseSolver):
         self, variables: Dict[str, co.Variable]
     ) -> Optional[np.ndarray]:
         """
-        get combinations of all categorical (binary, enum) variables
-        # reuse code in UDAO
-        :param var_types: list, variable types (float, integer, binary, enum)
-        :return: meshed_cv_value: ndarray, categorical(binary, enum) variables
+        Get combinations of all categorical (binary, enum) variables
+
+        Parameters
+        ----------
+        variables : Dict[str, co.Variable]
+            Variables to be optimized
+
+        Returns
+        -------
+        Optional[np.ndarray]
+            Combinations of all categorical variables
+            of shape (n_samples, n_vars)
         """
         cv_value_list = [
             variable.values
