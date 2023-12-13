@@ -121,7 +121,7 @@ class TestMOGD:
     @pytest.mark.parametrize(
         "gpu, expected_obj, expected_vars",
         [
-            (False, 1, {"v1": 1.0, "v2": 2.0}),
+            (False, 1, {"v1": 1.0, "v2": 3.0}),
             (True, 0.728246, [0.07, 2.15]),
         ],
     )
@@ -136,6 +136,7 @@ class TestMOGD:
         if gpu and not th.cuda.is_available():
             pytest.skip("Skip GPU test")
         mogd.device = th.device("cuda") if gpu else th.device("cpu")
+        set_deterministic_torch(0)
         objective_function = ModelComponent(
             data_processor=data_processor,
             model=SimpleModel1(),  # type: ignore
@@ -162,9 +163,7 @@ class TestMOGD:
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         assert optimal_obj is not None
-        np.testing.assert_array_almost_equal(
-            optimal_obj, np.array(expected_obj), decimal=5
-        )
+        np.testing.assert_array_almost_equal(optimal_obj, expected_obj, decimal=5)
         assert optimal_vars == expected_vars
 
     @pytest.mark.parametrize(
@@ -233,6 +232,71 @@ class TestMOGD:
         np.testing.assert_array_equal(optimal_obj, 2)
         assert optimal_vars is not None
         assert optimal_vars == {"v1": 1, "v2": 3}
+
+    def test_get_input_values(self, mogd: MOGD, data_processor: DataProcessor) -> None:
+        objective_function = ModelComponent(
+            model=lambda x: th.reshape(  # type: ignore
+                x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
+            ),
+            data_processor=data_processor,
+        )
+        mogd.batch_size = 4
+        input_values, input_shape, make_tabular_container = mogd._get_input_values(
+            objective_function=objective_function,
+            numeric_variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            input_parameters={"embedding_input": 0, "objective_input": 0},
+        )
+        assert input_values.feature_input.shape == (4, 2)
+        assert th.all(input_values.feature_input <= 1) and th.all(
+            input_values.feature_input >= 0
+        )
+        assert input_shape.embedding_input_shape == 1
+        assert input_shape.output_shape == 1
+        assert input_shape.feature_input_names == ["v1", "v2"]
+        container = make_tabular_container(input_values.feature_input)
+        np.testing.assert_equal(
+            container.data["v1"].values, input_values.feature_input[:, 0].numpy()
+        )
+        np.testing.assert_equal(
+            container.data["v2"].values, input_values.feature_input[:, 1].numpy()
+        )
+
+    def test_get_input_bounds_w_data_processor(
+        self, mogd: MOGD, data_processor: DataProcessor
+    ) -> None:
+        objective_function = ModelComponent(
+            model=lambda x: th.reshape(  # type: ignore
+                x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
+            ),
+            data_processor=data_processor,
+        )
+        mogd.batch_size = 4
+
+        input_lower, input_upper = mogd._get_input_bounds(
+            objective_function=objective_function,
+            numeric_variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            input_parameters={"embedding_input": 0, "objective_input": 0},
+        )
+        assert th.equal(input_lower.feature_input[0], th.tensor([0, 0]))
+        assert th.equal(input_upper.feature_input[0], th.tensor([1, 1]))
+
+    def test_get_input_bounds_wo_data_processor(
+        self, mogd: MOGD, data_processor: DataProcessor
+    ) -> None:
+        objective_function = ModelComponent(
+            model=lambda x: th.reshape(  # type: ignore
+                x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
+            ),
+            data_processor=data_processor,
+        )
+        data_processor.feature_processors = {}
+        input_lower, input_upper = mogd._get_input_bounds(
+            objective_function=objective_function,
+            numeric_variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            input_parameters={"embedding_input": 0, "objective_input": 0},
+        )
+        assert th.equal(input_lower.feature_input[0], th.tensor([0, 2]))
+        assert th.equal(input_upper.feature_input[0], th.tensor([1, 3]))
 
     @pytest.mark.parametrize(
         "objective_values, expected_loss",

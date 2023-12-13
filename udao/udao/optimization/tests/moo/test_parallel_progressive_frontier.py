@@ -32,11 +32,11 @@ def ppf(data_processor: DataProcessor) -> ParallelProgressiveFrontier:
             "weight_decay": 0,
             "max_iters": 100,
             "patience": 10,
-            "multistart": 5,
+            "multistart": 10,
             "objective_stress": 10,
             "seed": 0,
         },
-        processes=1,
+        processes=2,
         constraints=[],
     )
     ppf.mogd.device = th.device("cpu")
