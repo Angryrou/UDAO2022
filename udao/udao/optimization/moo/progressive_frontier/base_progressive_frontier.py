@@ -14,6 +14,10 @@ from ..base_moo import BaseMOO
 
 
 class BaseProgressiveFrontier(BaseMOO, ABC):
+    """Base class for Progressive Frontier.
+    Includes the common methods for Progressive Frontier.
+    """
+
     def __init__(
         self,
         solver_params: dict,
@@ -145,6 +149,20 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
     def _soo_params_from_bounds_dict(
         self, obj_bounds_dict: dict[str, list], primary_obj: Objective
     ) -> Tuple[Objective, Sequence[Constraint]]:
+        """
+
+        Parameters
+        ----------
+        obj_bounds_dict : dict[str, list]
+            A lower and upper bound for each objective
+        primary_obj : Objective
+            The objective to be optimized
+
+        Returns
+        -------
+        Tuple[Objective, Sequence[Constraint]]
+            The objective and constraints for the single-objective optimization
+        """
         soo_constraints = list(self.constraints)
 
         for obj in self.objectives:
@@ -199,6 +217,21 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         variable_values: dict[str, Any],
         input_parameters: Optional[dict[str, Any]],
     ) -> np.ndarray:
+        """Compute an array of objective for a given point.
+        (variable_values is a dict of variable name and single value)
+
+        Parameters
+        ----------
+        variable_values : dict[str, Any]
+            Name: value of variables
+        input_parameters : Optional[dict[str, Any]]
+            Name: value of other fixed input parameters
+
+        Returns
+        -------
+        np.ndarray
+            _description_
+        """
         obj_list = []
         for obj in self.objectives:
             obj_value = (
