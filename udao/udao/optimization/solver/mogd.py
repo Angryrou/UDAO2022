@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
@@ -12,10 +12,6 @@ from ...utils.logging import logger
 from .. import concepts as co
 from ..utils.exceptions import NoSolutionError
 from .base_solver import BaseSolver
-
-
-def get_default_device() -> th.device:
-    return th.device("cuda") if th.cuda.is_available() else th.device("cpu")
 
 
 class MOGD(BaseSolver):
@@ -44,10 +40,6 @@ class MOGD(BaseSolver):
         """seed for random number generator"""
         batch_size: int = 1
         """batch size for gradient descent"""
-        device: Optional[th.device] = field(default_factory=get_default_device)
-        """device on which to run the solver - by default available device"""
-        dtype: th.dtype = th.float32
-        """type of tensors - by default float32"""
 
     def __init__(self, params: Params) -> None:
         super().__init__()
@@ -58,8 +50,6 @@ class MOGD(BaseSolver):
         self.multistart = params.multistart
         self.objective_stress = params.objective_stress
         self.seed = params.seed
-        self.device = params.device
-        self.dtype = params.dtype
         self.batch_size = params.batch_size
 
     def _get_input_values(
@@ -257,8 +247,9 @@ class MOGD(BaseSolver):
                 lower_input.feature_input[0, grad_indices],
                 upper_input.feature_input[0, grad_indices],
             )
-            if i > best_iter + self.patience:
-                break
+
+        if th.cuda.is_available():
+            th.cuda.empty_cache()
 
         if best_obj is not None:
             logger.debug(
@@ -420,21 +411,20 @@ class MOGD(BaseSolver):
         NotImplementedError
             If only one bound is specified for the objective
         """
-        loss = th.zeros_like(objective_value)  # size of objective_value ((bs, 1) ?)
         if objective.upper is None and objective.lower is None:
-            loss = (objective_value**2) * objective.direction
+            return (
+                th.sign(objective_value) * (objective_value**2) * objective.direction
+            )
         elif objective.upper is not None and objective.lower is not None:
             norm_cst_obj_pred = (objective_value - objective.lower) / (
                 objective.upper - objective.lower
             )  # scaled
-            loss = th.where(
+            return th.where(
                 (norm_cst_obj_pred < 0) | (norm_cst_obj_pred > 1),
                 (norm_cst_obj_pred - 0.5) ** 2 + self.objective_stress,
                 norm_cst_obj_pred * objective.direction,
             )
-        else:
-            raise NotImplementedError("Objective with only one bound is not supported")
-        return loss
+        raise NotImplementedError("Objective with only one bound is not supported")
 
     ##################
     ## _get (vars)  ##
@@ -490,13 +480,3 @@ class MOGD(BaseSolver):
         if objective.lower is not None:
             within_bounds = within_bounds and obj_value >= objective.lower
         return within_bounds
-
-    def get_tensor(self, var: Any, requires_grad: bool = False) -> th.Tensor:
-        """
-        convert numpy array to tensor
-        :param var: ndarray, variable values
-        :return: tensor, variable values
-        """
-        return th.tensor(
-            var, device=self.device, dtype=self.dtype, requires_grad=requires_grad
-        )
