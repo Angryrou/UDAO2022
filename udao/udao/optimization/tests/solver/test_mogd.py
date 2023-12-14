@@ -20,12 +20,12 @@ from ...solver.mogd import MOGD
 
 
 class SimpleModel1(nn.Module):
-    def forward(self, x: UdaoInput, wl_id: None = None) -> th.Tensor:
+    def forward(self, x: UdaoInput) -> th.Tensor:
         return x.feature_input[:, :1]
 
 
 class SimpleModel2(nn.Module):
-    def forward(self, x: UdaoInput, wl_id: None = None) -> th.Tensor:
+    def forward(self, x: UdaoInput) -> th.Tensor:
         return x.feature_input[:, 1:]
 
 
@@ -90,12 +90,12 @@ def data_processor_paper() -> DataProcessor:
 
 
 class PaperModel1(nn.Module):
-    def forward(self, x: UdaoInput, wl_id: None = None) -> th.Tensor:
+    def forward(self, x: UdaoInput) -> th.Tensor:
         return th.reshape(2400 / (x.feature_input[:, 0]), (-1, 1))
 
 
 class PaperModel2(nn.Module):
-    def forward(self, x: UdaoInput, wl_id: None = None) -> th.Tensor:
+    def forward(self, x: UdaoInput) -> th.Tensor:
         return th.reshape(x.feature_input[:, 0], (-1, 1))
 
 

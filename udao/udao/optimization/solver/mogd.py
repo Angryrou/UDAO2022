@@ -13,11 +13,6 @@ from .. import concepts as co
 from ..utils.exceptions import NoSolutionError
 from .base_solver import BaseSolver
 
-SEED = 0
-DEFAULT_DEVICE = th.device("cpu")
-DEFAULT_DTYPE = th.float32
-NOT_FOUND_ERROR = "no valid configuration found"
-
 
 def get_default_device() -> th.device:
     return th.device("cuda") if th.cuda.is_available() else th.device("cpu")
@@ -45,7 +40,7 @@ class MOGD(BaseSolver):
         """number of random starts for gradient descent"""
         objective_stress: float
         """stress term for objective function"""
-        seed: int
+        seed: int = 0
         """seed for random number generator"""
         batch_size: int = 1
         """batch size for gradient descent"""

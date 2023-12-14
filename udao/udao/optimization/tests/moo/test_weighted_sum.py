@@ -156,7 +156,7 @@ class TestWeightedSum:
         ) -> th.Tensor:
             return th.tensor((input_variables["v1"] + input_variables["v2"]) / 10)
 
-        def f3(
+        def constraint_f(
             input_variables: InputVariables, input_parameters: InputParameters = None
         ) -> th.Tensor:
             return th.tensor((input_variables["v1"] + input_variables["v2"]) - 10)
@@ -173,7 +173,7 @@ class TestWeightedSum:
                 direction_type="MIN",
             ),
         ]
-        constraints = [Constraint(function=f3, lower=0)]
+        constraints = [Constraint(function=constraint_f, lower=0)]
         ws_algo = WeightedSum(
             inner_solver=inner_solver,
             ws_pairs=ws_pairs,

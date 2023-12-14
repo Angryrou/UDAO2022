@@ -101,8 +101,8 @@ class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
             self.query_structure_container.operation_types.unique()
         )
         feature_names = [
-            *self.tabular_features.data.columns,
             *self.query_structure_container.graph_meta_features.columns,
+            *self.tabular_features.data.columns,
         ]
         return UdaoInputShape(
             embedding_input_shape=embedding_input_shape,
