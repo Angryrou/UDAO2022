@@ -6,7 +6,7 @@ from pandas import DataFrame
 
 from ..containers import BaseContainer, TabularContainer
 from ..extractors import FeatureExtractor, TabularFeatureExtractor
-from ..iterators.base_iterator import BaseIterator
+from ..iterators import BaseIterator
 from ..preprocessors.base_preprocessor import FeaturePreprocessor
 from ..utils.utils import DatasetType
 
