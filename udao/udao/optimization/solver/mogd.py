@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
@@ -12,6 +12,10 @@ from ...utils.logging import logger
 from .. import concepts as co
 from ..utils.exceptions import NoSolutionError
 from .base_solver import BaseSolver
+
+
+def get_default_device() -> th.device:
+    return th.device("cuda") if th.cuda.is_available() else th.device("cpu")
 
 
 class MOGD(BaseSolver):
@@ -40,6 +44,8 @@ class MOGD(BaseSolver):
         """seed for random number generator"""
         batch_size: int = 1
         """batch size for gradient descent"""
+        device: Optional[th.device] = field(default_factory=get_default_device)
+        dtype: th.dtype = th.float32
 
     def __init__(self, params: Params) -> None:
         super().__init__()
@@ -51,6 +57,8 @@ class MOGD(BaseSolver):
         self.objective_stress = params.objective_stress
         self.seed = params.seed
         self.batch_size = params.batch_size
+        self.device = params.device
+        self.dtype = params.dtype
 
     def _get_input_values(
         self,

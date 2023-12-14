@@ -196,6 +196,8 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
 
         if th.cuda.is_available():
             th.multiprocessing.set_start_method("spawn", force=True)
+        if self.processes == 1:
+            ret_list = [self._solve_wrapper(*args) for args in args_list]
 
         # call self.constraint_so_opt parallely
         with Pool(processes=self.processes) as pool:

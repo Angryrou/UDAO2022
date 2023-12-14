@@ -133,9 +133,10 @@ class TestMOGD:
         expected_obj: float,
         expected_vars: Dict[str, float],
     ) -> None:
+        mogd.device = th.device("cuda") if gpu else th.device("cpu")
+
         if gpu and not th.cuda.is_available():
             pytest.skip("Skip GPU test")
-        mogd.device = th.device("cuda") if gpu else th.device("cpu")
         set_deterministic_torch(0)
         objective_function = ModelComponent(
             data_processor=data_processor,
@@ -334,8 +335,8 @@ class TestMOGD:
             # direction * 0.5**2
             (th.tensor([0.5]), th.tensor([-0.25])),
             # direction * (-O.2)**2
-            (th.tensor([-0.2]), th.tensor([-0.04])),
-            (th.tensor([[0.5], [0.3], [-0.2]]), th.tensor([[-0.25], [-0.09], [-0.04]])),
+            (th.tensor([-0.2]), th.tensor([0.04])),
+            (th.tensor([[0.5], [0.3], [-0.2]]), th.tensor([[-0.25], [-0.09], [0.04]])),
         ],
     )
     def test__objective_loss_without_bounds(
