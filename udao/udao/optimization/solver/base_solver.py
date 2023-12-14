@@ -12,5 +12,5 @@ class BaseSolver(ABC):
         variables: Dict[str, Variable],
         constraints: Optional[Sequence[Constraint]] = None,
         input_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[Optional[float], Optional[Dict[str, float]]]:
+    ) -> Tuple[float, Dict[str, float]]:
         ...

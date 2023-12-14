@@ -1,59 +1,19 @@
-from typing import Dict
-
 import numpy as np
 import pytest
-import torch as th
 
-from ....data.handler.data_processor import DataProcessor
 from ....model.utils.utils import set_deterministic_torch
-from ...concepts import (
-    FloatVariable,
-    IntegerVariable,
-    ModelComponent,
-    Objective,
-    Variable,
-)
+from ...concepts.problem import MOProblem
 from ...moo.progressive_frontier import SequentialProgressiveFrontier
+from ...solver.mogd import MOGD
 from ...utils.moo_utils import Point
-from .conftest import ObjModel1, ObjModel2
 
 
 @pytest.fixture
-def progressive_frontier(
-    data_processor: DataProcessor,
-) -> SequentialProgressiveFrontier:
-    objectives = [
-        Objective(
-            "obj1",
-            "MIN",
-            ModelComponent(data_processor, ObjModel1()),
-        ),
-        Objective(
-            "obj2",
-            "MIN",
-            ModelComponent(data_processor, ObjModel2()),
-        ),
-    ]
-    variables: Dict[str, Variable] = {
-        "v1": FloatVariable(0, 1),
-        "v2": IntegerVariable(1, 7),
-    }
-
+def progressive_frontier(mogd: MOGD) -> SequentialProgressiveFrontier:
     spf = SequentialProgressiveFrontier(
-        variables=variables,
-        objectives=objectives,
-        solver_params={
-            "learning_rate": 0.1,
-            "weight_decay": 0.1,
-            "max_iters": 100,
-            "patience": 10,
-            "multistart": 2,
-            "objective_stress": 0.5,
-            "seed": 0,
-        },
-        constraints=[],
+        params=SequentialProgressiveFrontier.Params(),
+        solver=mogd,
     )
-    spf.mogd.device = th.device("cpu")
     return spf
 
 
@@ -129,13 +89,13 @@ class TestProgressiveFrontier:
         np.testing.assert_array_equal(utopia.objs, np.array([1, 0.3]))
         np.testing.assert_array_equal(nadir.objs, np.array([5, 10]))
 
-    def test_solve(self, progressive_frontier: SequentialProgressiveFrontier) -> None:
+    def test_solve(
+        self,
+        progressive_frontier: SequentialProgressiveFrontier,
+        two_obj_problem: MOProblem,
+    ) -> None:
         objectives, variables = progressive_frontier.solve(
-            n_probes=10,
-            input_parameters={
-                "embedding_input": 1,
-                "objective_input": 1,
-            },
+            problem=two_obj_problem,
         )
         assert objectives is not None
         np.testing.assert_array_equal(objectives, [[0, 0]])
@@ -160,31 +120,25 @@ class TestProgressiveFrontier:
             )
 
     def test_get_anchor_points(
-        self, progressive_frontier: SequentialProgressiveFrontier
+        self,
+        progressive_frontier: SequentialProgressiveFrontier,
+        two_obj_problem: MOProblem,
     ) -> None:
         set_deterministic_torch()
         anchor_point = progressive_frontier.get_anchor_point(
-            input_parameters={
-                "embedding_input": 1,
-                "objective_input": 1,
-            },
+            problem=two_obj_problem,
             obj_ind=0,
         )
-        # assert anchor_point == Point(np.array([0, 0.6944444]), {"v1": 1, "v2": 6})
         np.testing.assert_array_almost_equal(
             anchor_point.objs, np.array([0.0, 0.6944444])
         )
         assert anchor_point.vars == {"v1": 0.0, "v2": 6.0}
         anchor_point = progressive_frontier.get_anchor_point(
-            input_parameters={
-                "embedding_input": 1,
-                "objective_input": 1,
-            },
+            problem=two_obj_problem,
             obj_ind=1,
         )
         np.testing.assert_array_almost_equal(
-            anchor_point.objs, np.array([0.29689768, 0.0])
+            anchor_point.objs, np.array([0.007592, 0.0])
         )
         assert anchor_point.vars is not None
-
-        assert anchor_point.vars == {"v1": 0.5448831915855408, "v2": 1.0}
+        assert anchor_point.vars == {"v1": 0.08712930232286453, "v2": 1.0}

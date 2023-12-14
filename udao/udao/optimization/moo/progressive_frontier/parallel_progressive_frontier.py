@@ -1,12 +1,15 @@
 import itertools
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch as th
 from torch.multiprocessing import Pool
 
 from ....utils.logging import logger
-from ...concepts import Constraint, Objective, Variable
+from ...concepts import Objective
+from ...concepts.problem import MOProblem
+from ...solver.base_solver import BaseSolver
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point, Rectangle
@@ -14,31 +17,28 @@ from .base_progressive_frontier import BaseProgressiveFrontier
 
 
 class ParallelProgressiveFrontier(BaseProgressiveFrontier):
+    @dataclass
+    class Params(BaseProgressiveFrontier.Params):
+        processes: int = 1
+        n_grids: int = 2
+        max_iters: int = 10
+
     def __init__(
         self,
-        solver_params: dict,
-        variables: Dict[str, Variable],
-        objectives: Sequence[Objective],
-        constraints: Sequence[Constraint],
-        constraint_stress: float = 1e5,
-        objective_stress: float = 10.0,
-        processes: int = 1,
+        solver: BaseSolver,
+        params: Params,
     ) -> None:
         super().__init__(
-            solver_params,
-            variables,
-            objectives,
-            constraints,
-            constraint_stress,
-            objective_stress,
+            solver,
+            params,
         )
-        self.processes = processes
+        self.processes = params.processes
+        self.n_grids = params.n_grids
+        self.max_iters = params.max_iters
 
     def solve(
         self,
-        n_grids: int,
-        max_iters: int,
-        input_parameters: Optional[Dict[str, Any]] = None,
+        problem: MOProblem,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         solve MOO by PF-AP (Progressive Frontier - Approximation Parallel)
@@ -61,17 +61,16 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             corresponding variables of Pareto solutions, of shape
             (n_solutions, n_vars)
         """
-
         # create initial rectangle
         # get initial plans/form a intial hyperrectangle
         plans: List[Point] = []
-        n_objs = len(self.objectives)
+        n_objs = len(problem.objectives)
 
         all_objs_list: List[np.ndarray] = []
         all_vars_list: List[Dict] = []
         for i in range(n_objs):
             anchor_point = self.get_anchor_point(
-                input_parameters=input_parameters,
+                problem=problem,
                 obj_ind=i,
             )
             if anchor_point.vars is None:
@@ -83,7 +82,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         if n_objs < 2 or n_objs > 3:
             raise Exception(f"{n_objs} objectives are not supported for now!")
 
-        for i in range(max_iters):
+        for i in range(self.max_iters):
             # choose the cell with max volume to explore
             max_volume = -1
             input_ind = -1
@@ -104,17 +103,21 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             if utopia is None or nadir is None:
                 raise NoSolutionError("Cannot find utopia/nadir points")
             # create uniform n_grids ^ (n_objs) grid cells based on the rectangle
-            grid_cells_list = self._create_grid_cells(utopia, nadir, n_grids, n_objs)
+            grid_cells_list = self._create_grid_cells(
+                utopia, nadir, self.n_grids, n_objs
+            )
 
             obj_bound_cells = []
             for cell in grid_cells_list:
-                obj_bound_dict = self._form_obj_bounds_dict(cell.utopia, cell.nadir)
+                obj_bound_dict = self._form_obj_bounds_dict(
+                    problem, cell.utopia, cell.nadir
+                )
                 obj_bound_cells.append(obj_bound_dict)
 
             logger.debug(f"the cells are: {obj_bound_cells}")
             ret_list = self.parallel_soo(
-                input_parameters=input_parameters,
-                objective=self.objectives[self.opt_obj_ind],
+                problem=problem,
+                objective=problem.objectives[self.opt_obj_ind],
                 cell_list=obj_bound_cells,
             )
 
@@ -125,9 +128,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                     logger.debug("This is an empty area!")
                     continue
                 else:
-                    po_objs_list.append(
-                        self._compute_objectives(soo_vars, input_parameters)
-                    )
+                    po_objs_list.append(self._compute_objectives(problem, soo_vars))
                     if soo_vars is None:
                         raise Exception("Unexpected vars None for objective value.")
                     po_vars_list.append(soo_vars)
@@ -148,16 +149,16 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
     ) -> Optional[Tuple[float, Dict[str, Any]]]:
         """Handle exceptions in solver call for parallel processing."""
         try:
-            return self.mogd.solve(*args, **kwargs)
+            return self.solver.solve(*args, **kwargs)
         except NoSolutionError:
             logger.debug(f"This is an empty area! {args}, {kwargs}")
             return None
 
     def parallel_soo(
         self,
+        problem: MOProblem,
         objective: Objective,
         cell_list: List[Dict[str, Any]],
-        input_parameters: Optional[Dict[str, Any]] = None,
     ) -> List[Tuple[float, Dict[str, Any]]]:
         """Parallel calls to SOO Solver for each cell in cell_list, returns a
         candidate tuple (objective_value, variables) for each cell.
@@ -180,15 +181,15 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         # generate the list of input parameters for constraint_so_opt
         args_list = []
         for obj_bounds_dict in cell_list:
-            soo_objective, soo_constraints = self._soo_params_from_bounds_dict(
-                obj_bounds_dict, objective
+            so_problem = self._so_problem_from_bounds_dict(
+                problem, obj_bounds_dict, objective
             )
             args_list.append(
                 [
-                    soo_objective,
-                    self.variables,
-                    soo_constraints,
-                    input_parameters,
+                    so_problem.objective,
+                    so_problem.variables,
+                    so_problem.constraints,
+                    so_problem.input_parameters,
                 ]
             )
 

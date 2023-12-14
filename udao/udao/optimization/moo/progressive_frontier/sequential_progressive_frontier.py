@@ -1,10 +1,13 @@
 import heapq
 import itertools
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 import numpy as np
 
 from ....utils.logging import logger
+from ...concepts.problem import MOProblem
+from ...solver.base_solver import BaseSolver
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point, Rectangle
@@ -13,32 +16,28 @@ from .base_progressive_frontier import BaseProgressiveFrontier
 
 class SequentialProgressiveFrontier(BaseProgressiveFrontier):
     """
-    MOO by Progressive Frontier
-
-    Parameters:
-    ----------
-    solver_params : dict
-        parameters used in solver
-    variables : Sequence[Variable]
-        variables
-    objectives : Sequence[Objective]
-        objectives
-    constraints : Sequence[Constraint]
-        constraints
-    accurate : bool
-        whether the predictive model is accurate
-    std_func : Optional[Callable]
-        used in in-accurate predictive models
-    alpha : float
-        the value used in loss calculation of the inaccurate model
-    precision_list : List
-        precision for all variables
+    Sequential Progressive Frontier -
+    a progressive frontier algorithm that explores the uncertainty space
+    sequentially, by dividing the space into subrectangles and
+    exploring the subrectangles one by one.
     """
+
+    @dataclass
+    class Params(BaseProgressiveFrontier.Params):
+        n_probes: int = 10
+        """number of probes"""
+
+    def __init__(
+        self,
+        solver: BaseSolver,
+        params: Params,
+    ) -> None:
+        super().__init__(solver, params)
+        self.n_probes = params.n_probes
 
     def solve(
         self,
-        n_probes: int,
-        input_parameters: Optional[Dict[str, Any]] = None,
+        problem: MOProblem,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Solve MOO by Progressive Frontier
@@ -60,10 +59,10 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         """
 
         rectangle_queue: List[Rectangle] = []
-        n_objs = len(self.objectives)
+        n_objs = len(problem.objectives)
         plans = [
             self.get_anchor_point(
-                input_parameters=input_parameters,
+                problem=problem,
                 obj_ind=i,
             )
             for i in range(n_objs)
@@ -71,14 +70,12 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         utopia, nadir = self.get_utopia_and_nadir(plans)
         rectangle = Rectangle(utopia, nadir)
         heapq.heappush(rectangle_queue, rectangle)
-        for _ in range(n_probes - n_objs):
+        for _ in range(self.n_probes - n_objs):
             if not rectangle_queue:
                 logger.info("No more uncertainty space to explore further!")
                 break
             rectangle = heapq.heappop(rectangle_queue)
-            middle_point, subrectangles = self._find_local_optimum(
-                rectangle, input_parameters
-            )
+            middle_point, subrectangles = self._find_local_optimum(problem, rectangle)
             if middle_point is not None:
                 plans.append(middle_point)
             for sub_rect in subrectangles:
@@ -94,7 +91,9 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         return po_objs, po_vars
 
     def _find_local_optimum(
-        self, rectangle: Rectangle, input_parameters: Optional[Dict[str, Any]]
+        self,
+        problem: MOProblem,
+        rectangle: Rectangle,
     ) -> Tuple[Optional[Point], List[Rectangle]]:
         """
         Find the local optimum in the given rectangle and
@@ -126,21 +125,23 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
                 current_nadir.objs[i]
                 if i == self.opt_obj_ind
                 else (current_utopia.objs[i] + current_nadir.objs[i]) / 2
-                for i in range(len(self.objectives))
+                for i in range(len(problem.objectives))
             ]
         )
         middle_point = Point(middle_objs)
-        obj_bounds_dict = self._form_obj_bounds_dict(current_utopia, middle_point)
+        obj_bounds_dict = self._form_obj_bounds_dict(
+            problem, current_utopia, middle_point
+        )
         logger.debug(f"obj_bounds are: {obj_bounds_dict}")
-        soo_objective, soo_constraints = self._soo_params_from_bounds_dict(
-            obj_bounds_dict, self.objectives[self.opt_obj_ind]
+        so_problem = self._so_problem_from_bounds_dict(
+            problem, obj_bounds_dict, problem.objectives[self.opt_obj_ind]
         )
         try:
-            _, soo_vars = self.mogd.solve(
-                input_parameters=input_parameters,
-                objective=soo_objective,
-                constraints=soo_constraints,
-                variables=self.variables,
+            _, soo_vars = self.solver.solve(
+                input_parameters=problem.input_parameters,
+                objective=so_problem.objective,
+                constraints=so_problem.constraints,
+                variables=so_problem.variables,
             )
         except NoSolutionError:
             logger.debug(
@@ -154,7 +155,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
             )
             return None, rectangles
         else:
-            middle_objs = self._compute_objectives(soo_vars, input_parameters)
+            middle_objs = self._compute_objectives(problem, soo_vars)
             middle_point = Point(middle_objs, soo_vars)
             return middle_point, self.generate_sub_rectangles(
                 current_utopia, current_nadir, middle_point

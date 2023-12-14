@@ -1,10 +1,11 @@
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 import torch as th
 
-from ..concepts import Constraint, Objective, Variable
+from ..concepts import Objective
+from ..concepts.problem import MOProblem
 from ..concepts.utils import InputParameters, InputVariables
 from ..solver.base_solver import BaseSolver
 from ..utils import moo_utils as moo_ut
@@ -17,7 +18,10 @@ class WeightedSumObjective(Objective):
     """Weighted Sum Objective"""
 
     def __init__(
-        self, objectives: List[Objective], ws: List[float], allow_cache: bool = False
+        self,
+        objectives: Sequence[Objective],
+        ws: List[float],
+        allow_cache: bool = False,
     ) -> None:
         self.objectives = objectives
         self.ws = ws
@@ -106,23 +110,15 @@ class WeightedSum(BaseMOO):
     def __init__(
         self,
         ws_pairs: np.ndarray,
-        inner_solver: BaseSolver,
-        objectives: List[Objective],
-        constraints: List[Constraint],
+        so_solver: BaseSolver,
         allow_cache: bool = False,
     ):
         super().__init__()
-        self.inner_solver = inner_solver
+        self.so_solver = so_solver
         self.ws_pairs = ws_pairs
-        self.objectives = objectives
-        self.constraints = constraints
         self.allow_cache = allow_cache
 
-    def solve(
-        self,
-        variables: Dict[str, Variable],
-        input_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def solve(self, problem: MOProblem) -> Tuple[np.ndarray, np.ndarray]:
         """solve MOO problem by Weighted Sum (WS)
 
         Parameters
@@ -140,19 +136,19 @@ class WeightedSum(BaseMOO):
         """
         candidate_points: List[Point] = []
         objective = WeightedSumObjective(
-            self.objectives, self.ws_pairs[0], self.allow_cache
+            problem.objectives, self.ws_pairs[0], self.allow_cache
         )
         for ws in self.ws_pairs:
             objective.ws = ws
-            _, soo_vars = self.inner_solver.solve(
+            _, soo_vars = self.so_solver.solve(
                 objective,
-                constraints=self.constraints,
-                variables=variables,
-                input_parameters=input_parameters,
+                constraints=problem.constraints,
+                variables=problem.variables,
+                input_parameters=problem.input_parameters,
             )
 
             objective_values = objective._function(
-                soo_vars, input_parameters=input_parameters  # type: ignore
+                soo_vars, input_parameters=problem.input_parameters  # type: ignore
             )
 
             candidate_points.append(Point(objective_values, soo_vars))

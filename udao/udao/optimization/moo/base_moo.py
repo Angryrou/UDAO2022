@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from ..concepts.problem import MOProblem
+
 
 class BaseMOO(ABC):
     def __init__(
@@ -9,5 +11,5 @@ class BaseMOO(ABC):
         pass
 
     @abstractmethod
-    def solve(self, *args: Any, **kwargs: Any) -> Any:
+    def solve(self, problem: MOProblem) -> Any:
         ...
