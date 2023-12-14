@@ -38,7 +38,6 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         self,
         n_grids: int,
         max_iters: int,
-        anchor_option: str = "2_step",
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -74,7 +73,6 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             anchor_point = self.get_anchor_point(
                 input_parameters=input_parameters,
                 obj_ind=i,
-                anchor_option=anchor_option,
             )
             if anchor_point.vars is None:
                 raise Exception("This should not happen.")

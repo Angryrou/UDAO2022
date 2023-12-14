@@ -50,7 +50,6 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
     def get_anchor_point(
         self,
         obj_ind: int,
-        anchor_option: str = "2_step",
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Point:
         """
@@ -85,7 +84,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
 
         # If the current objective type is Integer,
         # further find the optimal value for other objectives with float type
-        if anchor_option == "2_step" and self.objectives[obj_ind].type == "int":
+        if self.objectives[obj_ind].type == "int":
             utopia_init = np.array(
                 [0 if i != obj_ind else objs[obj_ind] for i in self.objectives]
             )
@@ -114,8 +113,6 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
 
                 return Point(objs, soo_vars_update)
         else:
-            if anchor_option not in ["1_step", "2_step"]:
-                raise Exception(f"anchor_option {anchor_option} is not valid!")
             return Point(objs, soo_vars)
 
     def _form_obj_bounds_dict(self, utopia: Point, nadir: Point) -> dict[str, list]:

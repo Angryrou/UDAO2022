@@ -169,7 +169,6 @@ class TestProgressiveFrontier:
                 "objective_input": 1,
             },
             obj_ind=0,
-            anchor_option="2_step",
         )
         # assert anchor_point == Point(np.array([0, 0.6944444]), {"v1": 1, "v2": 6})
         np.testing.assert_array_almost_equal(
@@ -182,7 +181,6 @@ class TestProgressiveFrontier:
                 "objective_input": 1,
             },
             obj_ind=1,
-            anchor_option="2_step",
         )
         np.testing.assert_array_almost_equal(
             anchor_point.objs, np.array([0.29689768, 0.0])

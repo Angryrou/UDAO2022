@@ -38,7 +38,6 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
     def solve(
         self,
         n_probes: int,
-        anchor_option: str = "2_step",
         input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -66,7 +65,6 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
             self.get_anchor_point(
                 input_parameters=input_parameters,
                 obj_ind=i,
-                anchor_option=anchor_option,
             )
             for i in range(n_objs)
         ]
