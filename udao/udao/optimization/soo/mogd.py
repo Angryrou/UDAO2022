@@ -11,14 +11,14 @@ from ...utils.interfaces import UdaoInput, UdaoInputShape
 from ...utils.logging import logger
 from .. import concepts as co
 from ..utils.exceptions import NoSolutionError
-from .base_solver import BaseSolver
+from .base_solver import SOSolver
 
 
 def get_default_device() -> th.device:
     return th.device("cuda") if th.cuda.is_available() else th.device("cpu")
 
 
-class MOGD(BaseSolver):
+class MOGD(SOSolver):
     """MOGD solver for single-objective optimization.
 
     Performs gradient descent on input variables by minimizing an
@@ -45,6 +45,7 @@ class MOGD(BaseSolver):
         batch_size: int = 1
         """batch size for gradient descent"""
         device: Optional[th.device] = field(default_factory=get_default_device)
+
         dtype: th.dtype = th.float32
 
     def __init__(self, params: Params) -> None:
@@ -255,9 +256,8 @@ class MOGD(BaseSolver):
                 lower_input.feature_input[0, grad_indices],
                 upper_input.feature_input[0, grad_indices],
             )
-
-        if th.cuda.is_available():
-            th.cuda.empty_cache()
+            if i > best_iter + self.patience:
+                break
 
         if best_obj is not None:
             logger.debug(
@@ -288,25 +288,19 @@ class MOGD(BaseSolver):
             )
             raise NoSolutionError
 
-    def solve(
-        self,
-        objective: co.Objective,
-        variables: Dict[str, co.Variable],
-        constraints: Optional[Sequence[co.Constraint]] = None,
-        input_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[float, Dict[str, float]]:
+    def solve(self, problem: co.SOProblem) -> Tuple[float, Dict[str, float]]:
         th.manual_seed(self.seed)
         categorical_variables = [
             name
-            for name, variable in variables.items()
+            for name, variable in problem.variables.items()
             if isinstance(variable, co.EnumVariable)
         ]
         numeric_variables = {
             name: variable
-            for name, variable in variables.items()
+            for name, variable in problem.variables.items()
             if isinstance(variable, co.NumericVariable)
         }
-        meshed_categorical_vars = self.get_meshed_categorical_vars(variables)
+        meshed_categorical_vars = self.get_meshed_categorical_vars(problem.variables)
 
         if meshed_categorical_vars is None:
             meshed_categorical_vars = np.array([0])
@@ -320,7 +314,10 @@ class MOGD(BaseSolver):
                     name: categorical_cell[ind]
                     for ind, name in enumerate(categorical_variables)
                 }  # from {id: value} to {name: value}
-                fixed_values = {**categorical_values, **(input_parameters or {})}
+                fixed_values = {
+                    **categorical_values,
+                    **(problem.input_parameters or {}),
+                }
                 try:
                     (
                         obj_pred,
@@ -329,8 +326,8 @@ class MOGD(BaseSolver):
                     ) = self._single_start_opt(
                         numeric_variables=numeric_variables,
                         input_parameters=fixed_values,
-                        objective=objective,
-                        constraints=constraints or [],
+                        objective=problem.objective,
+                        constraints=problem.constraints or [],
                     )
                 except NoSolutionError:
                     continue
@@ -419,20 +416,23 @@ class MOGD(BaseSolver):
         NotImplementedError
             If only one bound is specified for the objective
         """
+        loss = th.zeros_like(objective_value)  # size of objective_value ((bs, 1) ?)
         if objective.upper is None and objective.lower is None:
-            return (
+            loss = (
                 th.sign(objective_value) * (objective_value**2) * objective.direction
             )
         elif objective.upper is not None and objective.lower is not None:
             norm_cst_obj_pred = (objective_value - objective.lower) / (
                 objective.upper - objective.lower
             )  # scaled
-            return th.where(
+            loss = th.where(
                 (norm_cst_obj_pred < 0) | (norm_cst_obj_pred > 1),
                 (norm_cst_obj_pred - 0.5) ** 2 + self.objective_stress,
                 norm_cst_obj_pred * objective.direction,
             )
-        raise NotImplementedError("Objective with only one bound is not supported")
+        else:
+            raise NotImplementedError("Objective with only one bound is not supported")
+        return loss
 
     ##################
     ## _get (vars)  ##

@@ -4,7 +4,7 @@ import pytest
 from ....model.utils.utils import set_deterministic_torch
 from ...concepts.problem import MOProblem
 from ...moo.progressive_frontier import SequentialProgressiveFrontier
-from ...solver.mogd import MOGD
+from ...soo.mogd import MOGD
 from ...utils.moo_utils import Point
 
 

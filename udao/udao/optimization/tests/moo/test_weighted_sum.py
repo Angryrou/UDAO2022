@@ -6,9 +6,9 @@ from ...concepts import BoolVariable, Constraint, IntegerVariable, Objective
 from ...concepts.problem import MOProblem
 from ...concepts.utils import InputParameters, InputVariables
 from ...moo.weighted_sum import WeightedSum
-from ...solver.base_solver import BaseSolver
-from ...solver.grid_search_solver import GridSearch
-from ...solver.random_sampler_solver import RandomSampler
+from ...soo.base_solver import SOSolver
+from ...soo.grid_search_solver import GridSearch
+from ...soo.random_sampler_solver import RandomSampler
 from ...utils.exceptions import NoSolutionError
 
 
@@ -65,7 +65,7 @@ class TestWeightedSum:
         ],
     )
     def test_solve_without_input_parameters(
-        self, inner_solver: BaseSolver, simple_problem: MOProblem
+        self, inner_solver: SOSolver, simple_problem: MOProblem
     ) -> None:
         """solve a dummy minimization problem with 2 objectives and 1 constraint"""
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
@@ -87,7 +87,7 @@ class TestWeightedSum:
         ],
     )
     def test_solve_with_input_parameters(
-        self, inner_solver: BaseSolver, simple_problem: MOProblem
+        self, inner_solver: SOSolver, simple_problem: MOProblem
     ) -> None:
         """solve a dummy minimization problem with 2 objectives and 1 constraint"""
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
@@ -111,7 +111,7 @@ class TestWeightedSum:
         ],
     )
     def test_ws_raises_no_solution(
-        self, inner_solver: BaseSolver, simple_problem: MOProblem
+        self, inner_solver: SOSolver, simple_problem: MOProblem
     ) -> None:
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
 
@@ -137,7 +137,7 @@ class TestWeightedSum:
         ],
     )
     def test_works_with_three_objectives(
-        self, inner_solver: BaseSolver, simple_problem: MOProblem
+        self, inner_solver: SOSolver, simple_problem: MOProblem
     ) -> None:
         ws_pairs = np.array([[0.3, 0.5, 0.2], [0.6, 0.3, 0.1]])
 

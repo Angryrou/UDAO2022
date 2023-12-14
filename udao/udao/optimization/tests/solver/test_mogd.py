@@ -12,11 +12,8 @@ from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
 from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....model.utils.utils import set_deterministic_torch
 from ....utils.interfaces import UdaoInput
-from ...concepts import EnumVariable, FloatVariable, IntegerVariable, Variable
-from ...concepts.constraint import Constraint
-from ...concepts.objective import Objective
-from ...concepts.utils import ModelComponent
-from ...solver.mogd import MOGD
+from ... import concepts as co
+from ...soo.mogd import MOGD
 
 
 class SimpleModel1(nn.Module):
@@ -138,24 +135,24 @@ class TestMOGD:
         if gpu and not th.cuda.is_available():
             pytest.skip("Skip GPU test")
         set_deterministic_torch(0)
-        objective_function = ModelComponent(
+        objective_function = co.ModelComponent(
             data_processor=data_processor,
             model=SimpleModel1(),  # type: ignore
         )
-        optimal_obj, optimal_vars = mogd.solve(
-            objective=Objective(
+        problem = co.SOProblem(
+            objective=co.Objective(
                 "obj1",
                 direction_type="MAX",
                 function=objective_function,
                 lower=0,
                 upper=2,
             ),
-            variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            variables={"v1": co.FloatVariable(0, 1), "v2": co.IntegerVariable(2, 3)},
             constraints=[
-                Constraint(
+                co.Constraint(
                     lower=0,
                     upper=1,
-                    function=ModelComponent(
+                    function=co.ModelComponent(
                         data_processor=data_processor, model=SimpleModel2()
                     ),
                     stress=10,
@@ -163,26 +160,30 @@ class TestMOGD:
             ],
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
+        optimal_obj, optimal_vars = mogd.solve(problem)
         assert optimal_obj is not None
         np.testing.assert_array_almost_equal(optimal_obj, expected_obj, decimal=5)
         assert optimal_vars == expected_vars
 
     @pytest.mark.parametrize(
         "variable, expected_variable",
-        [(FloatVariable(0, 24), {"v1": 16}), (IntegerVariable(0, 24), {"v1": 16})],
+        [
+            (co.FloatVariable(0, 24), {"v1": 16}),
+            (co.IntegerVariable(0, 24), {"v1": 16}),
+        ],
     )
     def test_solve_paper(
         self,
         paper_mogd: MOGD,
-        variable: Variable,
+        variable: co.Variable,
         expected_variable: Dict[str, float],
         data_processor_paper: DataProcessor,
     ) -> None:
-        optimal_obj, optimal_vars = paper_mogd.solve(
-            objective=Objective(
+        problem = co.SOProblem(
+            objective=co.Objective(
                 "obj1",
                 "MIN",
-                function=ModelComponent(
+                function=co.ModelComponent(
                     model=PaperModel1(), data_processor=data_processor_paper
                 ),
                 lower=100,
@@ -190,10 +191,10 @@ class TestMOGD:
             ),
             variables={"v1": variable},
             constraints=[
-                Constraint(
+                co.Constraint(
                     lower=8,
                     upper=16,
-                    function=ModelComponent(
+                    function=co.ModelComponent(
                         model=PaperModel2(), data_processor=data_processor_paper
                     ),
                     stress=10,
@@ -201,6 +202,7 @@ class TestMOGD:
             ],
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
+        optimal_obj, optimal_vars = paper_mogd.solve(problem)
 
         assert optimal_obj is not None
         np.testing.assert_allclose([optimal_obj], [150], rtol=1e-3)
@@ -213,21 +215,23 @@ class TestMOGD:
     def test_solve_no_constraints(
         self, mogd: MOGD, data_processor: DataProcessor
     ) -> None:
-        objective_function = ModelComponent(
+        objective_function = co.ModelComponent(
             model=lambda x: th.reshape(  # type: ignore
                 x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
             ),
             data_processor=data_processor,
         )
-        optimal_obj, optimal_vars = mogd.solve(
-            objective=Objective(
+        problem = co.SOProblem(
+            objective=co.Objective(
                 name="obj1",
                 direction_type="MAX",
                 function=objective_function,
             ),
-            variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            variables={"v1": co.FloatVariable(0, 1), "v2": co.IntegerVariable(2, 3)},
+            constraints=[],
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
+        optimal_obj, optimal_vars = mogd.solve(problem)
 
         assert optimal_obj is not None
         np.testing.assert_array_equal(optimal_obj, 2)
@@ -235,7 +239,7 @@ class TestMOGD:
         assert optimal_vars == {"v1": 1, "v2": 3}
 
     def test_get_input_values(self, mogd: MOGD, data_processor: DataProcessor) -> None:
-        objective_function = ModelComponent(
+        objective_function = co.ModelComponent(
             model=lambda x: th.reshape(  # type: ignore
                 x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
             ),
@@ -244,7 +248,10 @@ class TestMOGD:
         mogd.batch_size = 4
         input_values, input_shape, make_tabular_container = mogd._get_input_values(
             objective_function=objective_function,
-            numeric_variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            numeric_variables={
+                "v1": co.FloatVariable(0, 1),
+                "v2": co.IntegerVariable(2, 3),
+            },
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         assert input_values.feature_input.shape == (4, 2)
@@ -265,7 +272,7 @@ class TestMOGD:
     def test_get_input_bounds_w_data_processor(
         self, mogd: MOGD, data_processor: DataProcessor
     ) -> None:
-        objective_function = ModelComponent(
+        objective_function = co.ModelComponent(
             model=lambda x: th.reshape(  # type: ignore
                 x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
             ),
@@ -275,7 +282,10 @@ class TestMOGD:
 
         input_lower, input_upper = mogd._get_input_bounds(
             objective_function=objective_function,
-            numeric_variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            numeric_variables={
+                "v1": co.FloatVariable(0, 1),
+                "v2": co.IntegerVariable(2, 3),
+            },
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         assert th.equal(input_lower.feature_input[0], th.tensor([0, 0]))
@@ -284,7 +294,7 @@ class TestMOGD:
     def test_get_input_bounds_wo_data_processor(
         self, mogd: MOGD, data_processor: DataProcessor
     ) -> None:
-        objective_function = ModelComponent(
+        objective_function = co.ModelComponent(
             model=lambda x: th.reshape(  # type: ignore
                 x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
             ),
@@ -293,7 +303,10 @@ class TestMOGD:
         data_processor.feature_processors = {}
         input_lower, input_upper = mogd._get_input_bounds(
             objective_function=objective_function,
-            numeric_variables={"v1": FloatVariable(0, 1), "v2": IntegerVariable(2, 3)},
+            numeric_variables={
+                "v1": co.FloatVariable(0, 1),
+                "v2": co.IntegerVariable(2, 3),
+            },
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         assert th.equal(input_lower.feature_input[0], th.tensor([0, 2]))
@@ -316,10 +329,10 @@ class TestMOGD:
         objective_values: th.Tensor,
         expected_loss: th.Tensor,
     ) -> None:
-        objective = Objective(
+        objective = co.Objective(
             "obj1",
             "MAX",
-            function=ModelComponent(
+            function=co.ModelComponent(
                 data_processor=data_processor, model=SimpleModel1()
             ),
             lower=0,
@@ -346,10 +359,10 @@ class TestMOGD:
         objective_values: th.Tensor,
         expected_loss: th.Tensor,
     ) -> None:
-        objective = Objective(
+        objective = co.Objective(
             "obj1",
             "MAX",
-            function=ModelComponent(
+            function=co.ModelComponent(
                 data_processor=data_processor, model=SimpleModel1()
             ),
         )
@@ -375,25 +388,25 @@ class TestMOGD:
         expected_loss: th.Tensor,
     ) -> None:
         constraints = [
-            Constraint(
+            co.Constraint(
                 lower=0,
                 upper=1,
-                function=ModelComponent(
+                function=co.ModelComponent(
                     data_processor=data_processor, model=SimpleModel1()
                 ),
                 stress=10,
             ),
-            Constraint(
+            co.Constraint(
                 lower=0,
                 upper=2,
-                function=ModelComponent(
+                function=co.ModelComponent(
                     data_processor=data_processor, model=SimpleModel2()
                 ),
                 stress=100,
             ),
-            Constraint(
+            co.Constraint(
                 upper=3,
-                function=ModelComponent(
+                function=co.ModelComponent(
                     data_processor=data_processor, model=SimpleModel2()
                 ),
                 stress=1000,
@@ -404,9 +417,9 @@ class TestMOGD:
 
     def test_get_meshed_categorical_variables(self, mogd: MOGD) -> None:
         variables = {
-            "v1": IntegerVariable(2, 3),
-            "v2": EnumVariable([4, 5]),
-            "v3": EnumVariable([10, 20]),
+            "v1": co.IntegerVariable(2, 3),
+            "v2": co.EnumVariable([4, 5]),
+            "v3": co.EnumVariable([10, 20]),
         }
         meshed_variables = mogd.get_meshed_categorical_vars(variables=variables)
         assert meshed_variables is not None

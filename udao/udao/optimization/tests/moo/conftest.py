@@ -13,7 +13,7 @@ from ....utils.interfaces import UdaoInput
 from ...concepts import Constraint, FloatVariable, IntegerVariable, Objective, Variable
 from ...concepts.problem import MOProblem
 from ...concepts.utils import ModelComponent
-from ...solver.mogd import MOGD
+from ...soo.mogd import MOGD
 
 
 class ObjModel1(nn.Module):

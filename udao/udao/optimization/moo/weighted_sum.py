@@ -5,13 +5,13 @@ import numpy as np
 import torch as th
 
 from ..concepts import Objective
-from ..concepts.problem import MOProblem
+from ..concepts.problem import MOProblem, SOProblem
 from ..concepts.utils import InputParameters, InputVariables
-from ..solver.base_solver import BaseSolver
+from ..soo.base_solver import SOSolver
 from ..utils import moo_utils as moo_ut
 from ..utils.exceptions import NoSolutionError
 from ..utils.moo_utils import Point
-from .base_moo import BaseMOO
+from .base_moo import MOSolver
 
 
 class WeightedSumObjective(Objective):
@@ -91,7 +91,7 @@ class WeightedSumObjective(Objective):
         return (objs_array - objs_min) / (objs_max - objs_min)
 
 
-class WeightedSum(BaseMOO):
+class WeightedSum(MOSolver):
     """
     Weighted Sum (WS) algorithm for MOO
 
@@ -110,7 +110,7 @@ class WeightedSum(BaseMOO):
     def __init__(
         self,
         ws_pairs: np.ndarray,
-        so_solver: BaseSolver,
+        so_solver: SOSolver,
         allow_cache: bool = False,
     ):
         super().__init__()
@@ -141,10 +141,12 @@ class WeightedSum(BaseMOO):
         for ws in self.ws_pairs:
             objective.ws = ws
             _, soo_vars = self.so_solver.solve(
-                objective,
-                constraints=problem.constraints,
-                variables=problem.variables,
-                input_parameters=problem.input_parameters,
+                SOProblem(
+                    objective,
+                    constraints=problem.constraints,
+                    variables=problem.variables,
+                    input_parameters=problem.input_parameters,
+                )
             )
 
             objective_values = objective._function(

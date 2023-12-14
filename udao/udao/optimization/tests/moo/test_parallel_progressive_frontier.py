@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 import pytest
 
@@ -5,7 +7,7 @@ from ....data.handler.data_processor import DataProcessor
 from ....model.utils.utils import set_deterministic_torch
 from ...concepts.problem import MOProblem
 from ...moo.progressive_frontier import ParallelProgressiveFrontier
-from ...solver.mogd import MOGD
+from ...soo.mogd import MOGD
 from ...utils.moo_utils import Point, Rectangle
 
 
@@ -74,6 +76,7 @@ class TestParallelProgressiveFrontier:
             problem=two_obj_problem,
         )
         assert objectives is not None
+        cast(MOGD, ppf.solver).patience = 100
         np.testing.assert_array_equal(objectives, [[0, 0]])
         assert variables is not None
         assert variables[0] == {"v1": 0.0, "v2": 1.0}

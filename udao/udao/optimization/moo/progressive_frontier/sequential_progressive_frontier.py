@@ -7,7 +7,7 @@ import numpy as np
 
 from ....utils.logging import logger
 from ...concepts.problem import Constraint, MOProblem
-from ...solver.base_solver import BaseSolver
+from ...soo.base_solver import SOSolver
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point, Rectangle
@@ -29,7 +29,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
 
     def __init__(
         self,
-        solver: BaseSolver,
+        solver: SOSolver,
         params: Params,
     ) -> None:
         super().__init__(solver, params)
@@ -140,12 +140,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
             problem, obj_bounds_dict, problem.objectives[self.opt_obj_ind]
         )
         try:
-            _, soo_vars = self.solver.solve(
-                input_parameters=problem.input_parameters,
-                objective=so_problem.objective,
-                constraints=so_problem.constraints,
-                variables=so_problem.variables,
-            )
+            _, soo_vars = self.solver.solve(so_problem)
         except NoSolutionError:
             logger.debug(
                 "This is an empty area \n "

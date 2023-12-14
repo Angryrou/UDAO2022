@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Sequence
 
-from . import Constraint, Objective, Variable
+from .constraint import Constraint
+from .objective import Objective
+from .variable import Variable
 
 
 @dataclass

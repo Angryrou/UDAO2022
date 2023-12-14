@@ -1,5 +1,6 @@
 from .constraint import Constraint
 from .objective import Objective
+from .problem import MOProblem, SOProblem
 from .utils import InputParameters, InputVariables, ModelComponent
 from .variable import (
     BoolVariable,
@@ -22,4 +23,6 @@ __all__ = [
     "ModelComponent",
     "InputVariables",
     "InputParameters",
+    "MOProblem",
+    "SOProblem",
 ]

@@ -3,12 +3,12 @@ from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
-from ..concepts import Constraint, Objective, Variable
+from ..concepts import Constraint, SOProblem, Variable
 from ..utils.exceptions import NoSolutionError
-from .base_solver import BaseSolver
+from .base_solver import SOSolver
 
 
-class SamplerSolver(BaseSolver, ABC):
+class SamplerSolver(SOSolver, ABC):
     @abstractmethod
     def _get_input(self, variables: Mapping[str, Variable]) -> Dict[str, np.ndarray]:
         """
@@ -25,13 +25,7 @@ class SamplerSolver(BaseSolver, ABC):
         """
         pass
 
-    def solve(
-        self,
-        objective: Objective,
-        variables: Mapping[str, Variable],
-        constraints: Optional[Sequence[Constraint]] = None,
-        input_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[float, Dict[str, float]]:
+    def solve(self, problem: SOProblem) -> Tuple[float, Dict[str, float]]:
         """Solve a single-objective optimization problem
 
         Parameters
@@ -57,21 +51,21 @@ class SamplerSolver(BaseSolver, ABC):
         NoSolutionError
             If no feasible solution is found
         """
-        if constraints is None:
-            constraints = []
-        variable_values = self._get_input(variables)
+        if problem.constraints is None:
+            pass
+        variable_values = self._get_input(problem.variables)
         filtered_vars = self.filter_on_constraints(
-            input_parameters=input_parameters,
+            input_parameters=problem.input_parameters,
             input_vars=variable_values,
-            constraints=constraints,
+            constraints=problem.constraints,
         )
         if any([len(v) == 0 for v in filtered_vars.values()]):
             raise NoSolutionError("No feasible solution found!")
-        th_value = objective.function(
-            input_variables=filtered_vars, input_parameters=input_parameters
+        th_value = problem.objective.function(
+            input_variables=filtered_vars, input_parameters=problem.input_parameters
         )
         objective_value = th_value.numpy().reshape(-1, 1)
-        op_ind = int(np.argmin(objective_value * objective.direction))
+        op_ind = int(np.argmin(objective_value * problem.objective.direction))
 
         return (
             objective_value[op_ind],
