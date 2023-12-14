@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 from ....utils.logging import logger
-from ...concepts.problem import MOProblem
+from ...concepts.problem import Constraint, MOProblem
 from ...solver.base_solver import BaseSolver
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
@@ -57,7 +57,10 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
             optimal objectives and variables
             None, None if no solution is found
         """
-
+        problem.constraints = [
+            Constraint(c.function, c.lower, c.upper, self.constraint_stress)
+            for c in problem.constraints
+        ]
         rectangle_queue: List[Rectangle] = []
         n_objs = len(problem.objectives)
         plans = [
