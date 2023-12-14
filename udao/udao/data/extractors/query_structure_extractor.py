@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -25,14 +25,14 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
         Whether to add positional encoding to the query plan gaph.
     """
 
-    def __init__(self, with_positional_encoding: bool = False) -> None:
+    def __init__(self, positional_encoding_size: Optional[int] = None) -> None:
         self.template_plans: Dict[int, QueryPlanStructure] = {}
         self.feature_types: Dict[
             str, type
         ] = QueryPlanOperationFeatures.get_feature_names_and_types()
         self.id_template_dict: Dict[str, int] = {}
         self.operation_types: Dict[str, int] = {}
-        self.with_positional_encoding = with_positional_encoding
+        self.positional_encoding_size = positional_encoding_size
 
     def _extract_operation_types(
         self, structure: QueryPlanStructure, split: DatasetType
@@ -60,8 +60,10 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
         if tid is None:
             if split == "train":
                 tid = len(self.template_plans) + 1
-                if self.with_positional_encoding:
-                    structure.graph = add_positional_encoding(structure.graph)
+                if self.positional_encoding_size:
+                    structure.graph = add_positional_encoding(
+                        structure.graph, self.positional_encoding_size
+                    )
                 self.template_plans[tid] = structure
             else:
                 raise KeyError("Unknown template plan")

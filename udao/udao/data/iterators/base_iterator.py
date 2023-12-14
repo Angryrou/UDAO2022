@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from inspect import signature
-from typing import Any, Generic, List, Sequence, Tuple, TypeVar
+from typing import Any, Callable, Generic, List, Sequence, Tuple, TypeVar
 
 import torch as th
 from torch.utils.data import DataLoader, Dataset
@@ -15,24 +15,36 @@ ST = TypeVar("ST")
 class BaseIterator(Dataset, Generic[T, ST]):
     """Base class for all dataset iterators.
     Inherits from torch.utils.data.Dataset.
-    
+
     T is the type of the iterator output.
     ST is the type of the iterator output shape.
-    
+
     See UdaoIterator for an example.
     """
 
     def __init__(self, keys: Sequence[str]) -> None:
         self.keys = keys
         self.tensors_dtype = th.float32
+        self.augmentations: List[Callable[[T], T]] = []
         pass
 
     def __len__(self) -> int:
         return len(self.keys)
 
     @abstractmethod
-    def __getitem__(self, idx: int, /) -> T:
+    def _getitem(self, idx: int, /) -> T:
         pass
+
+    def __getitem__(self, idx: int, /) -> T:
+        """Returns the item at the given index."""
+        item = self._getitem(idx)
+        for augmentation in self.augmentations:
+            item = augmentation(item)
+        return item
+
+    def set_augmentations(self, augmentations: List[Callable[[T], T]]) -> None:
+        """Sets the augmentations to apply to the iterator output."""
+        self.augmentations = augmentations
 
     @abstractmethod
     def get_iterator_shape(self) -> ST:
@@ -110,11 +122,11 @@ class UdaoIterator(BaseIterator[Tuple[UT, th.Tensor], UST], Generic[UT, UST]):
 
     UST: Type of the iterator output shape - in the Udao case,
     restricted to UdaoInputShape and its subclasses.
-    
+
     UT: Type of the iterator output - in the Udao case,
     restricted to UdaoInput and its subclasses
     This results in a type Tuple[UT, th.Tensor] for the iterator output.
-    
+
     Parameters
     ----------
     keys : Sequence[str]

@@ -11,6 +11,7 @@ from ...utils.query_plan import (
     compute_meta_features,
     extract_query_plan_features,
     get_laplacian_positional_encoding,
+    random_flip_positional_encoding,
 )
 from ..conftest import QueryPlanElements
 
@@ -80,7 +81,23 @@ def test_get_laplacian_positional_encoding() -> None:
 
 def test_add_positional_encoding() -> None:
     graph = dgl.graph(([0, 1], [1, 2]))
-    graph = add_positional_encoding(graph)
+    graph = add_positional_encoding(graph, 1)
     result = cast(th.Tensor, graph.ndata["pos_enc"])
     assert result.shape == (3, 1)
     assert th.allclose(result, th.tensor([[-7.0711e-01], [0.0], [7.0711e-01]]))
+
+
+def test_random_flip_positional_encoding() -> None:
+    graph = dgl.graph(([0, 1], [1, 2]))
+    th.manual_seed(0)
+    positional_encoding = th.tensor(
+        [[1, 1, 1], [-1, -1, 1], [-1, 1, 1]], dtype=th.float32
+    )
+    graph.ndata["pos_enc"] = positional_encoding
+    return_graph = random_flip_positional_encoding(graph)
+    return_encoding = cast(th.Tensor, return_graph.ndata["pos_enc"])
+    # same flipping for each node
+    assert th.equal(
+        return_encoding,
+        th.tensor([[-1.0, 1.0, -1.0], [1, -1, -1], [1, 1, -1]]),
+    )

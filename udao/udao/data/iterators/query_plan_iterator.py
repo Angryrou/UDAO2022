@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple
+from typing import Callable, Dict, List, Sequence, Tuple
 
 import dgl
 import pandas as pd
@@ -48,7 +48,9 @@ class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
         **kwargs: TabularContainer,
     ):
         super().__init__(
-            keys=keys, tabular_features=tabular_features, objectives=objectives
+            keys=keys,
+            tabular_features=tabular_features,
+            objectives=objectives,
         )
         self.query_structure_container = query_structure
         self.base_graph_features = ["cbo"]
@@ -72,7 +74,7 @@ class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
             )
         return graph, th.tensor(query.meta_features, dtype=self.tensors_dtype)
 
-    def __getitem__(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
+    def _getitem(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
         key = self.keys[idx]
         features = th.tensor(self.tabular_features.get(key), dtype=self.tensors_dtype)
         objectives = th.tensor(self.objectives.get(key), dtype=self.tensors_dtype)
@@ -126,3 +128,16 @@ class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
         features = th.vstack([item[0].feature_input for item in items])
         objectives = th.vstack([item[1] for item in items])
         return QueryPlanInput(dgl.batch(graphs), features), objectives
+
+    @staticmethod
+    def make_graph_augmentation(
+        augmentation: Callable[[dgl.DGLGraph], dgl.DGLGraph],
+    ) -> Callable:
+        def graph_augmentation(
+            item: Tuple[QueryPlanInput, th.Tensor]
+        ) -> Tuple[QueryPlanInput, th.Tensor]:
+            query_plan, output = item
+            query_plan.embedding_input = augmentation(query_plan.embedding_input)
+            return query_plan, output
+
+        return graph_augmentation

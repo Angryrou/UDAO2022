@@ -19,7 +19,7 @@ class DummyUdaoIterator(UdaoIterator):
         super().__init__(keys, tabular_features=tabular_features, objectives=objectives)
         self.embedding_features = embedding
 
-    def __getitem__(self, idx: int) -> Tuple[UdaoInput, th.Tensor]:
+    def _getitem(self, idx: int) -> Tuple[UdaoInput, th.Tensor]:
         key = self.keys[idx]
         return (
             UdaoInput(

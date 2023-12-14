@@ -102,9 +102,8 @@ class GraphTransformer(BaseGraphEmbedder):
             ]
         )
 
-    def _embed(
-        self, g: dgl.DGLGraph, h: th.Tensor, h_lap_pos_enc: th.Tensor
-    ) -> th.Tensor:
+    def _embed(self, g: dgl.DGLGraph, h: th.Tensor) -> th.Tensor:
+        h_lap_pos_enc = g.ndata["pos_enc"]
         h = self.embedding_h(h)
         h_lap_pos_enc = self.embedding_lap_pos_enc(h_lap_pos_enc)
         h = h + h_lap_pos_enc
@@ -123,6 +122,6 @@ class GraphTransformer(BaseGraphEmbedder):
             raise NotImplementedError
         return hg
 
-    def forward(self, g: dgl.DGLGraph, h_lap_pos_enc: th.Tensor) -> th.Tensor:  # type: ignore[override]
+    def forward(self, g: dgl.DGLGraph) -> th.Tensor:  # type: ignore[override]
         h = self.concatenate_op_features(g)
-        return self.normalize_embedding(self._embed(g, h, h_lap_pos_enc))
+        return self.normalize_embedding(self._embed(g, h))
