@@ -16,7 +16,8 @@ from ..base_moo import MOSolver
 
 
 class BaseProgressiveFrontier(MOSolver, ABC):
-    """Base class for Progressive Frontier.
+    """
+    Base class for Progressive Frontier.
     Includes the common methods for Progressive Frontier.
     """
 
@@ -47,7 +48,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         Find the anchor point for the given objective,
         by unbounded single objective optimization
 
-        Parameters:
+        Parameters
         ----------
         wl_id : str
             workload id
@@ -56,7 +57,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         anchor_option : str
             choice for anchor points calculation
 
-        Returns:
+        Returns
         -------
         Point
             anchor point for the given objective
@@ -116,7 +117,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                       "cores": [solver_ut._get_tensor(0),
                       solver_ut._get_tensor(58)]
                       }
-        Parameters:
+        Parameters
         ----------
         utopia: Point
             the utopia point
@@ -125,7 +126,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         opt_obj_ind: int
             the index of objective to be optimized
 
-        Returns:
+        Returns
         -------
             dict with upper and lower bound for each objective
         """
@@ -196,12 +197,12 @@ class BaseProgressiveFrontier(MOSolver, ABC):
     def get_utopia_and_nadir(points: list[Point]) -> Tuple[Point, Point]:
         """
         get the utopia and nadir points from a list of points
-        Parameters:
+        Parameters
         ----------
         points: list[Point],
             each element is a Point (defined class).
 
-        Returns:
+        Returns
         -------
         Tuple[Point, Point]
             utopia and nadir point

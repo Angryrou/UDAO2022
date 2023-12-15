@@ -42,7 +42,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         """
         Solve MOO by Progressive Frontier
 
-        Parameters:
+        Parameters
         ----------
         wl_id : str
             workload id
@@ -51,7 +51,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         anchor_option : str
             choice for anchor points calculation
 
-        Returns:
+        Returns
         -------
         Tuple[np.ndarray | None, np.ndarray | None]
             optimal objectives and variables
@@ -170,7 +170,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         - if starting from unsuccessful optimum as middle, excludes the space where
         all constraining objectives are lower than the middle point.
 
-        Parameters:
+        Parameters
         ----------
         utopia: Point
             the utopia point
@@ -182,7 +182,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         successful: bool
             whether the middle point is from a successful optimization
 
-        Returns:
+        Returns
         -------
         List[Rectangle]
             sub rectangles to be explored
@@ -209,12 +209,12 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         get the corner points that can form a hyper_rectangle
         from utopia and nadir points.
 
-        Parameters:
+        Parameters
         ----------
         utopia: Points (defined by class), the utopia point
         nadir: Points (defined by class), the nadir point
 
-        Returns:
+        Returns
         -------
         List[Point]
             2^n_objs corner points

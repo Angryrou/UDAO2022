@@ -41,7 +41,8 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         solve MOO by PF-AP (Progressive Frontier - Approximation Parallel)
-        Parameters:
+
+        Parameters
         ----------
         wl_id: str
             workload id, e.g. '1-7'
@@ -51,8 +52,9 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             the number of iterations in pf-ap
         anchor_option: str
             choice for anchor points calculation
-        Returns:
-        --------
+
+        Returns
+        -------
         po_objs: ndarray
             Pareto optimal objective values, of shape
             (n_solutions, n_objs)
@@ -207,7 +209,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         Create cells used in Progressive Frontier(PF)-Approximation
         Parallel (AP) algorithm
 
-        Parameters:
+        Parameters
         ----------
         utopia: Point
             the utopia point
@@ -218,7 +220,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         n_objs: int
             the number of objectives
 
-        Returns:
+        Returns
         -------
             List[Rectangle]
             The rectangles in which to perform optimization.
