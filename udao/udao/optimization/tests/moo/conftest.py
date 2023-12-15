@@ -1,3 +1,5 @@
+from typing import Dict, Sequence
+
 import pytest
 import torch as th
 from torch import nn
@@ -8,6 +10,10 @@ from ....data.handler.data_processor import DataProcessor
 from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
 from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....utils.interfaces import UdaoInput
+from ...concepts import Constraint, FloatVariable, IntegerVariable, Objective, Variable
+from ...concepts.problem import MOProblem
+from ...concepts.utils import ModelComponent
+from ...solver.mogd import MOGD
 
 
 class ObjModel1(nn.Module):
@@ -58,4 +64,59 @@ def data_processor() -> DataProcessor:
             "objectives": TabularFeatureExtractor(columns=["objective_input"]),
         },
         feature_preprocessors={"tabular_features": [TabularFeaturePreprocessor()]},
+    )
+
+
+@pytest.fixture
+def mogd() -> MOGD:
+    return MOGD(
+        MOGD.Params(
+            learning_rate=0.1,
+            weight_decay=0,
+            max_iters=100,
+            patience=10,
+            multistart=10,
+            objective_stress=10,
+            seed=0,
+            device=th.device("cpu"),
+        )
+    )
+
+
+@pytest.fixture
+def two_obj_problem(data_processor: DataProcessor) -> MOProblem:
+    objectives = [
+        Objective("obj1", "MIN", ModelComponent(data_processor, ObjModel1())),
+        Objective("obj2", "MIN", ModelComponent(data_processor, ObjModel2())),
+    ]
+    variables: Dict[str, Variable] = {
+        "v1": FloatVariable(0, 1),
+        "v2": IntegerVariable(1, 7),
+    }
+    constraints: Sequence[Constraint] = []
+    input_parameters = {
+        "embedding_input": 1,
+        "objective_input": 1,
+    }
+    return MOProblem(
+        objectives=objectives,
+        variables=variables,
+        constraints=constraints,
+        input_parameters=input_parameters,
+    )
+
+
+@pytest.fixture
+def three_obj_problem(
+    two_obj_problem: MOProblem, data_processor: DataProcessor
+) -> MOProblem:
+    return MOProblem(
+        objectives=[
+            Objective("obj1", "MAX", ModelComponent(data_processor, ObjModel1())),
+            Objective("obj2", "MAX", ModelComponent(data_processor, ObjModel2())),
+            Objective("obj3", "MAX", ModelComponent(data_processor, ComplexObj2())),
+        ],
+        variables=two_obj_problem.variables,
+        constraints=two_obj_problem.constraints,
+        input_parameters=two_obj_problem.input_parameters,
     )
