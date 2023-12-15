@@ -15,10 +15,9 @@ from platypus import (
 )
 
 from ...utils.interfaces import VarTypes
-from .base_moo import BaseMOO
 
 
-class EVO(BaseMOO):
+class EVO:
     def __init__(
         self,
         inner_algo: str,

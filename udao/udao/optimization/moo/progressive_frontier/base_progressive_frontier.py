@@ -8,14 +8,14 @@ from ....utils.interfaces import VarTypes
 from ....utils.logging import logger
 from ...concepts import Constraint, Objective
 from ...concepts.problem import MOProblem, SOProblem
-from ...solver.base_solver import BaseSolver
+from ...soo.base_solver import SOSolver
 from ...utils import solver_utils as solver_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point
-from ..base_moo import BaseMOO
+from ..base_moo import MOSolver
 
 
-class BaseProgressiveFrontier(BaseMOO, ABC):
+class BaseProgressiveFrontier(MOSolver, ABC):
     """Base class for Progressive Frontier.
     Includes the common methods for Progressive Frontier.
     """
@@ -29,7 +29,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
 
     def __init__(
         self,
-        solver: BaseSolver,
+        solver: SOSolver,
         params: Params,
     ) -> None:
         super().__init__()
@@ -63,10 +63,12 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         """
         try:
             _, soo_vars = self.solver.solve(
-                variables=problem.variables,
-                objective=problem.objectives[obj_ind],
-                constraints=problem.constraints,
-                input_parameters=problem.input_parameters,
+                SOProblem(
+                    variables=problem.variables,
+                    objective=problem.objectives[obj_ind],
+                    constraints=problem.constraints,
+                    input_parameters=problem.input_parameters,
+                )
             )
         except NoSolutionError:
             raise NoSolutionError("Cannot find anchor points.")
@@ -93,12 +95,7 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
                 problem, obj_bounds_dict_so, problem.objectives[float_obj_ind]
             )
             try:
-                _, soo_vars_update = self.solver.solve(
-                    objective=so_problem.objective,
-                    constraints=so_problem.constraints,
-                    input_parameters=so_problem.input_parameters,
-                    variables=so_problem.variables,
-                )
+                _, soo_vars_update = self.solver.solve(so_problem)
             except NoSolutionError:
                 raise NoSolutionError("Cannot find anchor points.")
             else:

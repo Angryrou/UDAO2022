@@ -7,9 +7,8 @@ import torch as th
 from torch.multiprocessing import Pool
 
 from ....utils.logging import logger
-from ...concepts import Constraint, Objective
-from ...concepts.problem import MOProblem
-from ...solver.base_solver import BaseSolver
+from ...concepts import Constraint, MOProblem, Objective, SOProblem
+from ...soo.base_solver import SOSolver
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point, Rectangle
@@ -25,7 +24,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
 
     def __init__(
         self,
-        solver: BaseSolver,
+        solver: SOSolver,
         params: Params,
     ) -> None:
         super().__init__(
@@ -149,13 +148,13 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         return np.array(all_objs_list), np.array(all_vars_list)
 
     def _solve_wrapper(
-        self, *args: Any, **kwargs: Any
+        self, problem: SOProblem
     ) -> Optional[Tuple[float, Dict[str, Any]]]:
         """Handle exceptions in solver call for parallel processing."""
         try:
-            return self.solver.solve(*args, **kwargs)
+            return self.solver.solve(problem)
         except NoSolutionError:
-            logger.debug(f"This is an empty area! {args}, {kwargs}")
+            logger.debug(f"This is an empty area! {problem}")
             return None
 
     def parallel_soo(
@@ -188,14 +187,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             so_problem = self._so_problem_from_bounds_dict(
                 problem, obj_bounds_dict, objective
             )
-            args_list.append(
-                [
-                    so_problem.objective,
-                    so_problem.variables,
-                    so_problem.constraints,
-                    so_problem.input_parameters,
-                ]
-            )
+            args_list.append([so_problem])
 
         if th.cuda.is_available():
             th.multiprocessing.set_start_method("spawn", force=True)

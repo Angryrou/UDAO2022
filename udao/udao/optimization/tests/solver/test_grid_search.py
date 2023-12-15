@@ -5,7 +5,7 @@ import pytest
 import torch as th
 
 from ... import concepts as co
-from ...solver.grid_search_solver import GridSearch
+from ...soo.grid_search_solver import GridSearch
 
 
 class TestGridSearch:
@@ -79,7 +79,11 @@ class TestGridSearch:
             return th.tensor(input_variables["v1"] + input_variables["v2"])
 
         objective = co.Objective("obj1", "MAX", obj1_func)
-        variables = {"v1": co.BoolVariable(), "v2": co.IntegerVariable(1, 7)}
-        soo_obj, soo_vars = solver.solve(objective=objective, variables=variables)
+        variables: Dict[str, co.Variable] = {
+            "v1": co.BoolVariable(),
+            "v2": co.IntegerVariable(1, 7),
+        }
+        problem = co.SOProblem(objective=objective, variables=variables, constraints=[])
+        soo_obj, soo_vars = solver.solve(problem)
         assert soo_obj == 8
         assert soo_vars == {"v1": 1, "v2": 7}

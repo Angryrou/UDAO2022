@@ -4,7 +4,7 @@ from typing import Any
 from ..concepts.problem import MOProblem
 
 
-class BaseMOO(ABC):
+class MOSolver(ABC):
     def __init__(
         self,
     ) -> None:
