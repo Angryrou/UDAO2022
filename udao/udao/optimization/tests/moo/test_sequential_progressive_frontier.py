@@ -9,7 +9,7 @@ from ...utils.moo_utils import Point
 
 
 @pytest.fixture
-def progressive_frontier(mogd: MOGD) -> SequentialProgressiveFrontier:
+def spf(mogd: MOGD) -> SequentialProgressiveFrontier:
     spf = SequentialProgressiveFrontier(
         params=SequentialProgressiveFrontier.Params(),
         solver=mogd,
@@ -18,12 +18,10 @@ def progressive_frontier(mogd: MOGD) -> SequentialProgressiveFrontier:
 
 
 class TestProgressiveFrontier:
-    def test__get_corner_points(
-        self, progressive_frontier: SequentialProgressiveFrontier
-    ) -> None:
+    def test__get_corner_points(self, spf: SequentialProgressiveFrontier) -> None:
         utopia = Point(np.array([1, 0.3]))
         nadir = Point(np.array([5, 10]))
-        corner_points = progressive_frontier._get_corner_points(utopia, nadir)
+        corner_points = spf._get_corner_points(utopia, nadir)
         # 1-------3#
         #         #
         # 0-------2#
@@ -36,13 +34,13 @@ class TestProgressiveFrontier:
         assert all(c == e for c, e in zip(corner_points, expected_points))
 
     def test__generate_sub_rectangles_bad(
-        self, progressive_frontier: SequentialProgressiveFrontier
+        self, spf: SequentialProgressiveFrontier
     ) -> None:
         utopia = Point(np.array([1, 0.3]))
         nadir = Point(np.array([5, 10]))
         middle = Point((utopia.objs + nadir.objs) / 2)
 
-        rectangles = progressive_frontier.generate_sub_rectangles(
+        rectangles = spf.generate_sub_rectangles(
             utopia, nadir, middle, successful=False
         )
         ############
@@ -57,13 +55,13 @@ class TestProgressiveFrontier:
         assert rectangles[1].nadir == Point(np.array([5.0, 10]))
 
     def test__generate_sub_rectangles_good(
-        self, progressive_frontier: SequentialProgressiveFrontier
+        self, spf: SequentialProgressiveFrontier
     ) -> None:
         utopia = Point(np.array([1, 0.3]))
         nadir = Point(np.array([5, 10]))
         middle = Point((utopia.objs + nadir.objs) / 2)
 
-        rectangles = progressive_frontier.generate_sub_rectangles(utopia, nadir, middle)
+        rectangles = spf.generate_sub_rectangles(utopia, nadir, middle)
         ############
         #  1 |  _  #
         ############
@@ -77,24 +75,22 @@ class TestProgressiveFrontier:
         assert rectangles[2].utopia == Point(np.array([3.0, 0.3]))
         assert rectangles[2].nadir == Point(np.array([5.0, 5.15]))
 
-    def test_get_utopia_and_nadir(
-        self, progressive_frontier: SequentialProgressiveFrontier
-    ) -> None:
+    def test_get_utopia_and_nadir(self, spf: SequentialProgressiveFrontier) -> None:
         points = [
             Point(np.array([1, 5]), {"v1": 0.2, "v2": 1}),
             Point(np.array([3, 10]), {"v1": 0.8, "v2": 6}),
             Point(np.array([5, 0.3]), {"v1": 0.5, "v2": 3}),
         ]
-        utopia, nadir = progressive_frontier.get_utopia_and_nadir(points)
+        utopia, nadir = spf.get_utopia_and_nadir(points)
         np.testing.assert_array_equal(utopia.objs, np.array([1, 0.3]))
         np.testing.assert_array_equal(nadir.objs, np.array([5, 10]))
 
     def test_solve(
         self,
-        progressive_frontier: SequentialProgressiveFrontier,
+        spf: SequentialProgressiveFrontier,
         two_obj_problem: MOProblem,
     ) -> None:
-        objectives, variables = progressive_frontier.solve(
+        objectives, variables = spf.solve(
             problem=two_obj_problem,
         )
         assert objectives is not None
@@ -102,16 +98,16 @@ class TestProgressiveFrontier:
         assert variables[0] == {"v1": 0.0, "v2": 1.0}
 
     def test_get_utopia_and_nadir_raises_when_no_points(
-        self, progressive_frontier: SequentialProgressiveFrontier
+        self, spf: SequentialProgressiveFrontier
     ) -> None:
         with pytest.raises(ValueError):
-            progressive_frontier.get_utopia_and_nadir([])
+            spf.get_utopia_and_nadir([])
 
     def test_get_utopia_and_nadir_raises_when_inconsistent_points(
-        self, progressive_frontier: SequentialProgressiveFrontier
+        self, spf: SequentialProgressiveFrontier
     ) -> None:
         with pytest.raises(Exception):
-            progressive_frontier.get_utopia_and_nadir(
+            spf.get_utopia_and_nadir(
                 [
                     Point(np.array([1, 5]), {"v1": 0.2, "v2": 1}),
                     Point(np.array([3, 10]), {"v1": 0.8, "v2": 6}),
@@ -121,11 +117,11 @@ class TestProgressiveFrontier:
 
     def test_get_anchor_points(
         self,
-        progressive_frontier: SequentialProgressiveFrontier,
+        spf: SequentialProgressiveFrontier,
         two_obj_problem: MOProblem,
     ) -> None:
         set_deterministic_torch()
-        anchor_point = progressive_frontier.get_anchor_point(
+        anchor_point = spf.get_anchor_point(
             problem=two_obj_problem,
             obj_ind=0,
         )
@@ -133,7 +129,7 @@ class TestProgressiveFrontier:
             anchor_point.objs, np.array([0.0, 0.6944444])
         )
         assert anchor_point.vars == {"v1": 0.0, "v2": 6.0}
-        anchor_point = progressive_frontier.get_anchor_point(
+        anchor_point = spf.get_anchor_point(
             problem=two_obj_problem,
             obj_ind=1,
         )
