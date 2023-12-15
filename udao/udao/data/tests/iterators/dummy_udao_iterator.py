@@ -1,6 +1,5 @@
 from typing import Sequence, Tuple
 
-import pandas as pd
 import torch as th
 
 from ....data.containers.tabular_container import TabularContainer
@@ -14,10 +13,10 @@ class DummyUdaoIterator(UdaoIterator):
         keys: Sequence[str],
         tabular_features: TabularContainer,
         objectives: TabularContainer,
-        embedding: TabularContainer,
+        embedding_features: TabularContainer,
     ) -> None:
+        self.embedding_features = embedding_features
         super().__init__(keys, tabular_features=tabular_features, objectives=objectives)
-        self.embedding_features = embedding
 
     def _getitem(self, idx: int) -> Tuple[UdaoInput, th.Tensor]:
         key = self.keys[idx]
@@ -33,14 +32,8 @@ class DummyUdaoIterator(UdaoIterator):
             th.tensor(self.objectives.get(key), dtype=self.tensors_dtype),
         )
 
-    def get_tabular_features_container(self, input: UdaoInput) -> TabularContainer:
-        tabular_features = input.feature_input
-        tabular_df = pd.DataFrame(
-            tabular_features.numpy(), columns=self.tabular_features.data.columns
-        )
-        return TabularContainer(tabular_df)
-
-    def get_iterator_shape(self) -> UdaoInputShape:
+    @property
+    def shape(self) -> UdaoInputShape:
         return UdaoInputShape(
             embedding_input_shape=self.embedding_features.data.shape[1],
             feature_input_names=list(self.tabular_features.data.columns),

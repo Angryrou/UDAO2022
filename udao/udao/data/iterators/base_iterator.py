@@ -2,6 +2,7 @@ from abc import abstractmethod
 from inspect import signature
 from typing import Any, Callable, Generic, List, Sequence, Tuple, TypeVar
 
+import pandas as pd
 import torch as th
 from torch.utils.data import DataLoader, Dataset
 
@@ -46,8 +47,9 @@ class BaseIterator(Dataset, Generic[T, ST]):
         """Sets the augmentations to apply to the iterator output."""
         self.augmentations = augmentations
 
+    @property
     @abstractmethod
-    def get_iterator_shape(self) -> ST:
+    def shape(self) -> ST:
         """Returns the shape of the iterator output."""
 
     @staticmethod
@@ -154,6 +156,22 @@ class UdaoIterator(BaseIterator[Tuple[UT, th.Tensor], UST], Generic[UT, UST]):
         Used in the dataloader."""
         pass
 
+    def get_tabular_features_container(
+        self, feature_input: th.Tensor
+    ) -> TabularContainer:
+        indices = [
+            i
+            for i, name in enumerate(self.shape.feature_input_names)
+            if name in self.tabular_features.data.columns
+        ]
+        tabular_features = feature_input[:, indices]
+        tabular_df = pd.DataFrame(
+            tabular_features.numpy(), columns=self.tabular_features.data.columns
+        )
+        return TabularContainer(tabular_df)
+
+    @property
     @abstractmethod
-    def get_tabular_features_container(self, input: UT) -> TabularContainer:
+    def shape(self) -> UST:
+        """Returns the shape of the iterator output."""
         pass

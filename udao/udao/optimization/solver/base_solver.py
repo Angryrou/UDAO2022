@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 from ..concepts import Constraint, Objective, Variable
-from ..utils.moo_utils import Point
 
 
 class BaseSolver(ABC):
@@ -11,7 +10,7 @@ class BaseSolver(ABC):
         self,
         objective: Objective,
         variables: Dict[str, Variable],
-        constraints: Optional[List[Constraint]] = None,
+        constraints: Optional[Sequence[Constraint]] = None,
         input_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Point:
+    ) -> Tuple[Optional[float], Optional[Dict[str, float]]]:
         ...

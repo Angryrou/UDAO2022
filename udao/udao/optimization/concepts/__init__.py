@@ -1,5 +1,6 @@
 from .constraint import Constraint
 from .objective import Objective
+from .utils import InputParameters, InputVariables, ModelComponent
 from .variable import (
     BoolVariable,
     EnumVariable,
@@ -18,4 +19,7 @@ __all__ = [
     "IntegerVariable",
     "BoolVariable",
     "FloatVariable",
+    "ModelComponent",
+    "InputVariables",
+    "InputParameters",
 ]

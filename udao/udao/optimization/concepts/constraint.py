@@ -1,12 +1,24 @@
 from dataclasses import dataclass
-from typing import Callable, Literal, Union
+from typing import Any, Literal, Optional, Union
 
-import numpy as np
+import torch as th
+
+from .utils import UdaoFunction
 
 ConstraintType = Union[Literal["=="], Literal["<="], Literal[">="]]
 
 
 @dataclass
 class Constraint:
-    type: ConstraintType
-    function: Callable[..., np.ndarray]
+    function: UdaoFunction
+    lower: Optional[float] = None
+    upper: Optional[float] = None
+    stress: float = 0.0
+
+    def __call__(self, *args: Any, **kwargs: Any) -> th.Tensor:
+        return self.function(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        return (
+            f"Constraint(lower={self.lower}, upper={self.upper}, stress={self.stress})"
+        )

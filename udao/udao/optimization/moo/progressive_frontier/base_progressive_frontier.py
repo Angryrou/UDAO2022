@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -14,39 +14,43 @@ from ..base_moo import BaseMOO
 
 
 class BaseProgressiveFrontier(BaseMOO, ABC):
+    """Base class for Progressive Frontier.
+    Includes the common methods for Progressive Frontier.
+    """
+
     def __init__(
         self,
         solver_params: dict,
-        variables: Sequence[Variable],
+        variables: Dict[str, Variable],
         objectives: Sequence[Objective],
         constraints: Sequence[Constraint],
-        accurate: bool,
-        std_func: Optional[Callable],
-        alpha: float,
-        precision_list: List[int],
+        constraint_stress: float = 1e5,
+        objective_stress: float = 10.0,
     ) -> None:
         super().__init__()
         self.objectives = objectives
-        self.constraints = constraints
+        self.constraint_stress = constraint_stress
+
+        self.constraints = [
+            Constraint(
+                function=constraint.function,
+                lower=constraint.lower,
+                upper=constraint.upper,
+                stress=self.constraint_stress,
+            )
+            for constraint in constraints
+        ]
+
         self.variables = variables
         self.mogd = MOGD(MOGD.Params(**solver_params))
-        self.mogd.problem_setup(
-            variables=variables,
-            std_func=std_func,
-            objectives=objectives,
-            constraints=constraints,
-            precision_list=precision_list,
-            accurate=accurate,
-            alpha=alpha,
-        )
 
+        self.objective_stress = objective_stress
         self.opt_obj_ind = 0
 
     def get_anchor_point(
         self,
-        wl_id: str,
         obj_ind: int,
-        anchor_option: str = "2_step",
+        input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Point:
         """
         Find the anchor point for the given objective,
@@ -66,21 +70,21 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         Point
             anchor point for the given objective
         """
-        obj_, vars = self.mogd.optimize_constrained_so(
-            wl_id=wl_id,
-            objective_name=self.objectives[obj_ind].name,
-            obj_bounds_dict=None,
-            batch_size=16,
-        )
-        if obj_ is None or vars is None:
+        try:
+            _, soo_vars = self.mogd.solve(
+                variables=self.variables,
+                objective=self.objectives[obj_ind],
+                constraints=self.constraints,
+                input_parameters=input_parameters,
+            )
+        except NoSolutionError:
             raise NoSolutionError("Cannot find anchor points.")
-        objs = np.array(
-            [obj_[i] * obj.direction for i, obj in enumerate(self.objectives)]
-        )
+        else:
+            objs = self._compute_objectives(soo_vars, input_parameters)
 
         # If the current objective type is Integer,
         # further find the optimal value for other objectives with float type
-        if anchor_option == "2_step" and self.objectives[obj_ind].type == "int":
+        if self.objectives[obj_ind].type == "int":
             utopia_init = np.array(
                 [0 if i != obj_ind else objs[obj_ind] for i in self.objectives]
             )
@@ -92,19 +96,24 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
                 if objective.type == VarTypes.FLOAT
             ][0]
             obj_bounds_dict_so = self._form_obj_bounds_dict(utopia_tmp, nadir_tmp)
-            logger.debug(f"obj_bounds are: {obj_bounds_dict_so}")
-            objs_update, vars_update = self.mogd.optimize_constrained_so(
-                wl_id,
-                objective_name=self.objectives[float_obj_ind].name,
-                obj_bounds_dict=obj_bounds_dict_so,
+            soo_objective, soo_constraints = self._soo_params_from_bounds_dict(
+                obj_bounds_dict_so, self.objectives[float_obj_ind]
             )
-            if objs_update is None or vars_update is None:
+            try:
+                _, soo_vars_update = self.mogd.solve(
+                    objective=soo_objective,
+                    constraints=soo_constraints,
+                    input_parameters=input_parameters,
+                    variables=self.variables,
+                )
+            except NoSolutionError:
                 raise NoSolutionError("Cannot find anchor points.")
-            return Point(np.array(objs_update), vars_update)
+            else:
+                objs = self._compute_objectives(soo_vars, input_parameters)
+
+                return Point(objs, soo_vars_update)
         else:
-            if anchor_option not in ["1_step", "2_step"]:
-                raise Exception(f"anchor_option {anchor_option} is not valid!")
-            return Point(objs, vars)
+            return Point(objs, soo_vars)
 
     def _form_obj_bounds_dict(self, utopia: Point, nadir: Point) -> dict[str, list]:
         """
@@ -130,11 +139,50 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
         """
         return {
             objective.name: [
-                solver_ut.get_tensor(int(utopia.objs[i])),
-                solver_ut.get_tensor(int(nadir.objs[i])),
+                solver_ut.get_tensor(utopia.objs[i]),
+                solver_ut.get_tensor(nadir.objs[i]),
             ]
             for i, objective in enumerate(self.objectives)
         }
+
+    def _soo_params_from_bounds_dict(
+        self, obj_bounds_dict: dict[str, list], primary_obj: Objective
+    ) -> Tuple[Objective, Sequence[Constraint]]:
+        """
+
+        Parameters
+        ----------
+        obj_bounds_dict : dict[str, list]
+            A lower and upper bound for each objective
+        primary_obj : Objective
+            The objective to be optimized
+
+        Returns
+        -------
+        Tuple[Objective, Sequence[Constraint]]
+            The objective and constraints for the single-objective optimization
+        """
+        soo_constraints = list(self.constraints)
+
+        for obj in self.objectives:
+            obj_name = obj.name
+            if obj_name != primary_obj.name:
+                soo_constraints.append(
+                    Constraint(
+                        lower=obj_bounds_dict[obj_name][0],
+                        upper=obj_bounds_dict[obj_name][1],
+                        function=obj.function,
+                        stress=self.objective_stress,
+                    )
+                )
+        soo_objective = Objective(
+            name=primary_obj.name,
+            function=primary_obj.function,
+            direction_type=primary_obj.direction_type,
+            lower=obj_bounds_dict[primary_obj.name][0],
+            upper=obj_bounds_dict[primary_obj.name][1],
+        )
+        return soo_objective, soo_constraints
 
     @staticmethod
     def get_utopia_and_nadir(points: list[Point]) -> Tuple[Point, Point]:
@@ -157,8 +205,37 @@ class BaseProgressiveFrontier(BaseMOO, ABC):
             raise Exception("The number of objectives is not consistent among points.")
         best_objs = [min([point.objs[i] for point in points]) for i in range(n_objs)]
         worst_objs = [max([point.objs[i] for point in points]) for i in range(n_objs)]
-
+        logger.debug(f"best_objs {best_objs}")
         utopia = Point(np.array(best_objs))
         nadir = Point(np.array(worst_objs))
 
         return utopia, nadir
+
+    def _compute_objectives(
+        self,
+        variable_values: dict[str, Any],
+        input_parameters: Optional[dict[str, Any]],
+    ) -> np.ndarray:
+        """Compute an array of objective for a given point.
+        (variable_values is a dict of variable name and single value)
+
+        Parameters
+        ----------
+        variable_values : dict[str, Any]
+            Name: value of variables
+        input_parameters : Optional[dict[str, Any]]
+            Name: value of other fixed input parameters
+
+        Returns
+        -------
+        np.ndarray
+            _description_
+        """
+        obj_list = []
+        for obj in self.objectives:
+            obj_value = (
+                obj(input_parameters=input_parameters, input_variables=variable_values)
+                * obj.direction
+            ).squeeze()
+            obj_list.append(obj_value)
+        return np.array(obj_list)

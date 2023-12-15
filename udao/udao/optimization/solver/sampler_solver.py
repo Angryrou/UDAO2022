@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
 from ..concepts import Constraint, Objective, Variable
 from ..utils.exceptions import NoSolutionError
-from ..utils.moo_utils import Point
 from .base_solver import BaseSolver
 
 
@@ -30,9 +29,9 @@ class SamplerSolver(BaseSolver, ABC):
         self,
         objective: Objective,
         variables: Mapping[str, Variable],
-        constraints: Optional[List[Constraint]] = None,
+        constraints: Optional[Sequence[Constraint]] = None,
         input_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Point:
+    ) -> Tuple[Optional[float], Optional[Dict[str, float]]]:
         """Solve a single-objective optimization problem
 
         Parameters
@@ -68,21 +67,22 @@ class SamplerSolver(BaseSolver, ABC):
         )
         if any([len(v) == 0 for v in filtered_vars.values()]):
             raise NoSolutionError("No feasible solution found!")
-        objective_value = np.array(
-            objective.function(filtered_vars, input_parameters=input_parameters)
-        ).reshape(-1, 1)
+        th_value = objective.function(
+            input_variables=filtered_vars, input_parameters=input_parameters
+        )
+        objective_value = th_value.numpy().reshape(-1, 1)
         op_ind = int(np.argmin(objective_value * objective.direction))
 
-        return Point(
-            objs=objective_value[op_ind],
-            vars={k: v[op_ind] for k, v in filtered_vars.items()},
+        return (
+            objective_value[op_ind],
+            {k: v[op_ind] for k, v in filtered_vars.items()},
         )
 
     @staticmethod
     def filter_on_constraints(
         input_parameters: Optional[Dict[str, Any]],
         input_vars: Dict[str, np.ndarray],
-        constraints: List[Constraint],
+        constraints: Sequence[Constraint],
     ) -> Dict[str, np.ndarray]:
         """Keep only input variables that don't violate constraints
 
@@ -101,15 +101,15 @@ class SamplerSolver(BaseSolver, ABC):
         available_indices = np.arange(len(next(iter(input_vars.values()))))
         for constraint in constraints:
             const_values = constraint.function(
-                input_vars, input_parameters=input_parameters
+                input_variables=input_vars, input_parameters=input_parameters
             )
-
-            if constraint.type == "<=":
-                compliant_indices = np.where(const_values <= 0)
-            elif constraint.type == ">=":
-                compliant_indices = np.where(const_values >= 0)
-            else:
-                compliant_indices = np.where(const_values == 0)
-            available_indices = np.intersect1d(compliant_indices, available_indices)
+            if constraint.upper is not None:
+                available_indices = np.intersect1d(
+                    available_indices, np.where(const_values <= constraint.upper)
+                )
+            if constraint.lower is not None:
+                available_indices = np.intersect1d(
+                    available_indices, np.where(const_values >= constraint.lower)
+                )
         filtered_vars = {k: v[available_indices] for k, v in input_vars.items()}
         return filtered_vars

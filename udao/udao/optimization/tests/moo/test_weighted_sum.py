@@ -1,10 +1,9 @@
-from typing import Any, Dict, Optional
-
 import numpy as np
 import pytest
 import torch as th
 
 from ...concepts import BoolVariable, Constraint, IntegerVariable, Objective
+from ...concepts.utils import InputParameters, InputVariables
 from ...moo.weighted_sum import WeightedSum
 from ...solver.base_solver import BaseSolver
 from ...solver.grid_search_solver import GridSearch
@@ -23,20 +22,39 @@ class TestWeightedSum:
     def test_solve_without_input_parameters(self, inner_solver: BaseSolver) -> None:
         """solve a dummy minimization problem with 2 objectives and 1 constraint"""
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
+
+        def f1(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor(input_variables["v1"])
+
+        def f2(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor((input_variables["v1"] + input_variables["v2"]) / 10)
+
+        def f3(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor((input_variables["v1"] + input_variables["v2"]) - 2)
+
         objectives = [
             Objective(
                 "obj1",
-                function=lambda x, **kw: th.tensor(x["v1"]),
+                function=f1,
                 direction_type="MIN",
             ),
             Objective(
                 "obj2",
-                function=lambda x, **kw: th.tensor((x["v1"] + x["v2"]) / 10),
+                function=f2,
                 direction_type="MIN",
             ),
         ]
         constraints = [
-            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 2, type=">=")
+            Constraint(
+                function=f3,
+                lower=0,
+            )
         ]
 
         ws_algo = WeightedSum(
@@ -62,19 +80,24 @@ class TestWeightedSum:
         """solve a dummy minimization problem with 2 objectives and 1 constraint"""
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
 
-        def obj_func1(x: Any, input_parameters: Optional[Dict] = None) -> th.Tensor:
-            if not input_parameters:
-                return th.tensor(x["v1"])
-            else:
-                return th.tensor(x["v1"] + input_parameters["count"])
-
-        def obj_func2(
-            x: np.ndarray, input_parameters: Optional[Dict] = None
+        def obj_func1(
+            input_variables: InputVariables, input_parameters: InputParameters = None
         ) -> th.Tensor:
             if not input_parameters:
-                return th.tensor((x["v1"] + x["v2"]) / 10)
+                return th.tensor(input_variables["v1"])
             else:
-                return th.tensor((x["v1"] + x["v2"]) / 10 + input_parameters["count"])
+                return th.tensor(input_variables["v1"] + input_parameters["count"])
+
+        def obj_func2(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            if not input_parameters:
+                return th.tensor((input_variables["v1"] + input_variables["v2"]) / 10)
+            else:
+                return th.tensor(
+                    (input_variables["v1"] + input_variables["v2"]) / 10
+                    + input_parameters["count"]
+                )
 
         objectives = [
             Objective(
@@ -84,14 +107,20 @@ class TestWeightedSum:
             ),
             Objective("obj2", function=obj_func2, direction_type="MIN"),
         ]
-        constraints = [
-            Constraint(
-                function=lambda x, input_parameters: x["v1"] + x["v2"] - 3
-                if input_parameters
-                else x[:, 0] + x[:, 1] - 2,
-                type=">=",
-            )
-        ]
+
+        def constraint_func(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            if not input_parameters:
+                return th.tensor((input_variables["v1"] + input_variables["v2"]) - 2)
+            else:
+                return th.tensor(
+                    (input_variables["v1"] + input_variables["v2"])
+                    - 2
+                    - input_parameters["count"]
+                )
+
+        constraints = [Constraint(function=constraint_func, lower=0)]
 
         ws_algo = WeightedSum(
             inner_solver=inner_solver,
@@ -116,21 +145,35 @@ class TestWeightedSum:
     )
     def test_ws_raises_no_solution(self, inner_solver: BaseSolver) -> None:
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
+
+        def f1(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor(input_variables["v1"])
+
+        def f2(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor((input_variables["v1"] + input_variables["v2"]) / 10)
+
+        def constraint_f(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor((input_variables["v1"] + input_variables["v2"]) - 10)
+
         objectives = [
             Objective(
                 "obj1",
-                function=lambda x, **kw: th.tensor(x["v1"]),
+                function=f1,
                 direction_type="MIN",
             ),
             Objective(
                 "obj2",
-                function=lambda x, **kw: th.tensor((x["v1"] + x["v2"]) / 10),
+                function=f2,
                 direction_type="MIN",
             ),
         ]
-        constraints = [
-            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 10, type=">=")
-        ]
+        constraints = [Constraint(function=constraint_f, lower=0)]
         ws_algo = WeightedSum(
             inner_solver=inner_solver,
             ws_pairs=ws_pairs,
@@ -149,26 +192,45 @@ class TestWeightedSum:
     )
     def test_works_with_three_objectives(self, inner_solver: BaseSolver) -> None:
         ws_pairs = np.array([[0.3, 0.5, 0.2], [0.6, 0.3, 0.1]])
+
+        def f1(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor(input_variables["v1"])
+
+        def f2(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor(input_variables["v2"])
+
+        def f3(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor((input_variables["v1"] + input_variables["v2"]) / 10)
+
+        def constraint_f(
+            input_variables: InputVariables, input_parameters: InputParameters = None
+        ) -> th.Tensor:
+            return th.tensor(input_variables["v1"] + input_variables["v2"] - 3)
+
         objectives = [
             Objective(
                 "obj1",
-                function=lambda x, **kw: th.tensor(x["v1"]),
+                function=f1,
                 direction_type="MIN",
             ),
             Objective(
                 "obj2",
-                function=lambda x, **kw: th.tensor(x["v2"]),
+                function=f2,
                 direction_type="MIN",
             ),
             Objective(
                 "obj3",
-                function=lambda x, **kw: th.tensor((x["v1"] + x["v2"]) / 10),
+                function=f3,
                 direction_type="MIN",
             ),
         ]
-        constraints = [
-            Constraint(function=lambda x, **kw: x["v1"] + x["v2"] - 3, type=">=")
-        ]
+        constraints = [Constraint(function=constraint_f, lower=0)]
         ws_algo = WeightedSum(
             inner_solver=inner_solver,
             ws_pairs=ws_pairs,

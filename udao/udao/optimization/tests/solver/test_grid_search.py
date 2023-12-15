@@ -4,38 +4,31 @@ import numpy as np
 import pytest
 import torch as th
 
-from ...concepts.objective import Objective
-from ...concepts.variable import (
-    BoolVariable,
-    EnumVariable,
-    FloatVariable,
-    IntegerVariable,
-)
+from ... import concepts as co
 from ...solver.grid_search_solver import GridSearch
-from ...utils.moo_utils import Point
 
 
 class TestGridSearch:
     @pytest.mark.parametrize(
         "test_data, expected",
         [
-            ({"variable": BoolVariable(), "n_grids": 1}, [0]),
-            ({"variable": BoolVariable(), "n_grids": 2}, [0, 1]),
-            ({"variable": BoolVariable(), "n_grids": 3}, [0, 1]),
+            ({"variable": co.BoolVariable(), "n_grids": 1}, [0]),
+            ({"variable": co.BoolVariable(), "n_grids": 2}, [0, 1]),
+            ({"variable": co.BoolVariable(), "n_grids": 3}, [0, 1]),
             (
-                {"variable": IntegerVariable(1, 7), "n_grids": 5},
+                {"variable": co.IntegerVariable(1, 7), "n_grids": 5},
                 [1, 2, 4, 6, 7],
             ),
             (
-                {"variable": IntegerVariable(1, 7), "n_grids": 8},
+                {"variable": co.IntegerVariable(1, 7), "n_grids": 8},
                 [1, 2, 3, 4, 5, 6, 7],
             ),
             (
-                {"variable": FloatVariable(2, 4), "n_grids": 5},
+                {"variable": co.FloatVariable(2, 4), "n_grids": 5},
                 [2, 2.5, 3, 3.5, 4],
             ),
             (
-                {"variable": EnumVariable([0, 4, 7, 10]), "n_grids": 2},
+                {"variable": co.EnumVariable([0, 4, 7, 10]), "n_grids": 2},
                 [0, 4, 7, 10],
             ),
         ],
@@ -52,7 +45,7 @@ class TestGridSearch:
     def test_grid_search_get_multiple_variables(self) -> None:
         solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
         output = solver._get_input(
-            variables={"v1": BoolVariable(), "v2": IntegerVariable(1, 7)},
+            variables={"v1": co.BoolVariable(), "v2": co.IntegerVariable(1, 7)},
         )
         expected_array = np.array(
             [
@@ -79,10 +72,14 @@ class TestGridSearch:
     def test_solve(self) -> None:
         solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
 
-        def obj1_func(x: Dict, input_parameters: Dict) -> th.Tensor:
-            return th.tensor(x["v1"] + x["v2"])
+        def obj1_func(
+            input_variables: co.InputVariables,
+            input_parameters: co.InputParameters = None,
+        ) -> th.Tensor:
+            return th.tensor(input_variables["v1"] + input_variables["v2"])
 
-        objective = Objective("obj1", "MAX", obj1_func)
-        variables = {"v1": BoolVariable(), "v2": IntegerVariable(1, 7)}
-        point = solver.solve(objective=objective, variables=variables)
-        assert point == Point(np.array([8]), {"v1": 1, "v2": 7})
+        objective = co.Objective("obj1", "MAX", obj1_func)
+        variables = {"v1": co.BoolVariable(), "v2": co.IntegerVariable(1, 7)}
+        soo_obj, soo_vars = solver.solve(objective=objective, variables=variables)
+        assert soo_obj == 8
+        assert soo_vars == {"v1": 1, "v2": 7}

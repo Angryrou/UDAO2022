@@ -1,9 +1,12 @@
 import itertools
-from typing import List, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+import torch as th
+from torch.multiprocessing import Pool
 
 from ....utils.logging import logger
+from ...concepts import Constraint, Objective, Variable
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point, Rectangle
@@ -11,12 +14,31 @@ from .base_progressive_frontier import BaseProgressiveFrontier
 
 
 class ParallelProgressiveFrontier(BaseProgressiveFrontier):
+    def __init__(
+        self,
+        solver_params: dict,
+        variables: Dict[str, Variable],
+        objectives: Sequence[Objective],
+        constraints: Sequence[Constraint],
+        constraint_stress: float = 1e5,
+        objective_stress: float = 10.0,
+        processes: int = 1,
+    ) -> None:
+        super().__init__(
+            solver_params,
+            variables,
+            objectives,
+            constraints,
+            constraint_stress,
+            objective_stress,
+        )
+        self.processes = processes
+
     def solve(
         self,
-        wl_id: str,
         n_grids: int,
         max_iters: int,
-        anchor_option: str = "2_step",
+        input_parameters: Optional[Dict[str, Any]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         solve MOO by PF-AP (Progressive Frontier - Approximation Parallel)
@@ -45,20 +67,19 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         plans: List[Point] = []
         n_objs = len(self.objectives)
 
-        all_objs_list: List[List] = []
-        all_vars_list: List[List] = []
+        all_objs_list: List[np.ndarray] = []
+        all_vars_list: List[Dict] = []
         for i in range(n_objs):
             anchor_point = self.get_anchor_point(
-                wl_id=wl_id,
+                input_parameters=input_parameters,
                 obj_ind=i,
-                anchor_option=anchor_option,
             )
             if anchor_point.vars is None:
                 raise Exception("This should not happen.")
             plans.append(anchor_point)
-            all_objs_list.append(anchor_point.objs.tolist())
-            all_vars_list.append(anchor_point.vars.tolist())
-
+            all_objs_list.append(anchor_point.objs)
+            all_vars_list.append(anchor_point.vars)
+        logger.debug(f"the initial plans are: {plans}")
         if n_objs < 2 or n_objs > 3:
             raise Exception(f"{n_objs} objectives are not supported for now!")
 
@@ -70,6 +91,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                 current_volume = abs(
                     np.prod(np.array(all_objs_list)[i] - np.array(all_objs_list)[i + 1])
                 )
+                logger.debug(f"volume {current_volume}")
                 if current_volume > max_volume:
                     max_volume = current_volume
                     input_ind = i
@@ -90,33 +112,95 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                 obj_bound_cells.append(obj_bound_dict)
 
             logger.debug(f"the cells are: {obj_bound_cells}")
-            ret_list = self.mogd.optimize_constrained_so_parallel(
-                wl_id=wl_id,
-                objective_name=self.objectives[self.opt_obj_ind].name,
+            ret_list = self.parallel_soo(
+                input_parameters=input_parameters,
+                objective=self.objectives[self.opt_obj_ind],
                 cell_list=obj_bound_cells,
-                batch_size=1,
             )
 
-            po_objs_list, po_vars_list = [], []
-            for solution in ret_list:
-                if solution[0] is None:
+            po_objs_list: List[np.ndarray] = []
+            po_vars_list: List[Dict] = []
+            for soo_obj, soo_vars in ret_list:
+                if soo_obj is None:
                     logger.debug("This is an empty area!")
                     continue
                 else:
-                    po_objs_list.append(solution[0])
-                    if solution[1] is None:
+                    po_objs_list.append(
+                        self._compute_objectives(soo_vars, input_parameters)
+                    )
+                    if soo_vars is None:
                         raise Exception("Unexpected vars None for objective value.")
-                    po_vars_list.append(solution[1].tolist())
+                    po_vars_list.append(soo_vars)
 
             logger.debug(f"the po_objs_list is: {po_objs_list}")
             logger.debug(f"the po_vars_list is: {po_vars_list}")
             all_objs_list.extend(po_objs_list)
             all_vars_list.extend(po_vars_list)
+            logger.debug(f"the all_objs_list is: {all_objs_list}")
             all_objs, all_vars = moo_ut.summarize_ret(all_objs_list, all_vars_list)
             all_objs_list = all_objs.tolist() if all_objs is not None else []
             all_vars_list = all_vars.tolist() if all_vars is not None else []
 
         return np.array(all_objs_list), np.array(all_vars_list)
+
+    def _solve_wrapper(
+        self, *args: Any, **kwargs: Any
+    ) -> Optional[Tuple[float, Dict[str, Any]]]:
+        """Handle exceptions in solver call for parallel processing."""
+        try:
+            return self.mogd.solve(*args, **kwargs)
+        except NoSolutionError:
+            logger.debug(f"This is an empty area! {args}, {kwargs}")
+            return None
+
+    def parallel_soo(
+        self,
+        objective: Objective,
+        cell_list: List[Dict[str, Any]],
+        input_parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[Tuple[float, Dict[str, Any]]]:
+        """Parallel calls to SOO Solver for each cell in cell_list, returns a
+        candidate tuple (objective_value, variables) for each cell.
+
+        Parameters
+        ----------
+        objective : Objective
+            Objective to be optimized
+        cell_list : List[Dict[str, Any]]
+            List of cells to be optimized
+            (a cell is a dict of bounds for each objective)
+        input_parameters : Optional[Dict[str, Any]], optional
+            Fixed parameters to be passed , by default None
+
+        Returns
+        -------
+        List[Tuple[float, Dict[str, Any]]]
+            List of candidate tuples (objective_value, variables)
+        """
+        # generate the list of input parameters for constraint_so_opt
+        args_list = []
+        for obj_bounds_dict in cell_list:
+            soo_objective, soo_constraints = self._soo_params_from_bounds_dict(
+                obj_bounds_dict, objective
+            )
+            args_list.append(
+                [
+                    soo_objective,
+                    self.variables,
+                    soo_constraints,
+                    input_parameters,
+                ]
+            )
+
+        if th.cuda.is_available():
+            th.multiprocessing.set_start_method("spawn", force=True)
+        if self.processes == 1:
+            ret_list = [self._solve_wrapper(*args) for args in args_list]
+
+        # call self.constraint_so_opt parallely
+        with Pool(processes=self.processes) as pool:
+            ret_list = pool.starmap(self._solve_wrapper, args_list)
+        return [res for res in ret_list if res is not None]
 
     @staticmethod
     def _create_grid_cells(

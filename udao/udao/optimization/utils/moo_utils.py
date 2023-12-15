@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -8,9 +8,7 @@ from .exceptions import NoSolutionError
 
 
 class Point:
-    def __init__(
-        self, objs: np.ndarray, vars: Optional[Union[np.ndarray, Dict]] = None
-    ) -> None:
+    def __init__(self, objs: np.ndarray, vars: Optional[Dict] = None) -> None:
         """
         A point in the objective space.
         Variables are optional, and are not specified for imaginary points
