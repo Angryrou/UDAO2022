@@ -356,11 +356,19 @@ class MOGD(SOSolver):
     ) -> th.Tensor:
         """
         compute loss of the values of each constraint function fixme: double-check
-        :param wl_id: str, workload id, e.g. '1-7'
-        :param vars: tensor ((bs, n_vars) or (n_vars, )),
-            variables, where bs is batch_size
-        :return: const_loss: tensor (Tensor:()),
+
+        Parameters
+        ----------
+        constraint_values : List[th.Tensor]
+            values of each constraint function
+        constraints : Sequence[co.Constraint]
+            constraint functions
+
+        Returns
+        -------
+        th.Tensor
             loss of the values of each constraint function
+
         """
 
         # vars: a tensor
@@ -396,8 +404,8 @@ class MOGD(SOSolver):
         """Compute the objective loss for a given objective value:
         - if no bounds are specified, use the squared objective value
         - if both bounds are specified, use the squared normalized
-          objective value if it is within the bounds, otherwise
-          add a stress term to a squared distance to middle of the bounds
+        objective value if it is within the bounds, otherwise
+        add a stress term to a squared distance to middle of the bounds
 
         Parameters
         ----------
@@ -415,6 +423,7 @@ class MOGD(SOSolver):
         ------
         NotImplementedError
             If only one bound is specified for the objective
+
         """
         loss = th.zeros_like(objective_value)  # size of objective_value ((bs, 1) ?)
         if objective.upper is None and objective.lower is None:

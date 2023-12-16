@@ -19,8 +19,8 @@ class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
     and the tree structure of the logical plan.
     Keep track of the different query plans seen so far, and their template id.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     with_positional_encoding: bool
         Whether to add positional encoding to the query plan gaph.
     """

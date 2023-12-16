@@ -249,5 +249,5 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                 )
                 * obj.direction
             ).squeeze()
-            obj_list.append(obj_value)
+            obj_list.append(obj_value.detach().cpu())
         return np.array(obj_list)

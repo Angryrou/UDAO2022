@@ -114,7 +114,7 @@ def derive_batch_input(
             "id": keys,
         }
     )
-    pd_input.set_index("id", inplace=True)
+    pd_input.set_index("id", inplace=True, drop=False)
     iterator = data_processor.make_iterator(pd_input, keys, split="test")
     dataloader = iterator.get_dataloader(batch_size=n_items)
     batch_input, _ = next(iter(dataloader))

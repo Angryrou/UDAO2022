@@ -54,7 +54,7 @@ It:
 * applies any preprocessing on the resulting features
 * creates iterators for each split based on the features.
 
-.. image:: ../images/datahandler_diagram.svg
+.. image:: ../images/data_processing_and_model.svg
   :width: 800
   :alt: Diagram of UDAO data processing
 
