@@ -11,10 +11,16 @@ ObjectiveDirection = Union[Literal["MIN"], Literal["MAX"]]
 
 @dataclass
 class Objective:
+    """Objective to optimize."""
+
     name: str
+    """Name of the objective."""
     direction_type: ObjectiveDirection
+    """Direction of the objective: MIN or MAX."""
     function: UdaoFunction
+    """Objective function."""
     lower: Optional[float] = None
+    """Lower bound of the objective."""
     upper: Optional[float] = None
     """Upper bound of the objective."""
     type: VarTypes = VarTypes.FLOAT

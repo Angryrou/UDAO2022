@@ -80,8 +80,8 @@ class SamplerSolver(SOSolver, ABC):
     ) -> Dict[str, np.ndarray]:
         """Keep only input variables that don't violate constraints
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         wl_id : str | None
             workload id
         input_vars : np.ndarray

@@ -95,8 +95,8 @@ class WeightedSum(MOSolver):
     """
     Weighted Sum (WS) algorithm for MOO
 
-    Parameters:
-    ------------
+    Parameters
+    ----------
     ws_pairs: np.ndarray,
         weight settings for all objectives, of shape (n_weights, n_objs)
     inner_solver: BaseSolver,
@@ -105,6 +105,7 @@ class WeightedSum(MOSolver):
         objective functions
     constraints: List[Constraint],
         constraint functions
+
     """
 
     def __init__(

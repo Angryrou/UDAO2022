@@ -13,9 +13,11 @@ It contains the following submodules:
 .. toctree::
    :maxdepth: 2
 
-   data_handler
-   iterators
+
    containers
    extractors
-   predicate_embedders
    preprocessors
+   iterators
+   data_processor
+   data_handler
+   predicate_embedders
