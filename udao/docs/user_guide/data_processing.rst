@@ -31,10 +31,10 @@ As such, it is expected to have as attributes:
 * a list of keys
 * a list of feature containers as attributes.
 
-The :py:class:`~udao.data.iterators.base_iterator.BaseDatasetIterator` class enforces these requirements as well as other utilitary methods to prepare the data for interaction with PyTorch.
+The :py:class:`~udao.data.iterators.base_iterator.BaseIterator` class enforces these requirements as well as other utilitary methods to prepare the data for interaction with PyTorch.
 
-The :py:meth:`~udao.data.iterators.base_iterator.BaseDatasetIterator.get_dataloader` returns a torch dataloader that can directly be used for training.
-Iterators can also implement a custom :py:meth:`~udao.data.iterators.base_iterator.BaseDatasetIterator.collate` method to define how to batch features from different samples in the dataloader.
+The :py:meth:`~udao.data.iterators.base_iterator.BaseIterator.get_dataloader` returns a torch dataloader that can directly be used for training.
+Iterators can also implement a custom :py:meth:`~udao.data.iterators.base_iterator.BaseIterator.collate` method to define how to batch features from different samples in the dataloader.
 
 
 Additional processing
@@ -54,10 +54,12 @@ It:
 * applies any preprocessing on the resulting features
 * creates iterators for each split based on the features.
 
-.. image:: ../images/datahandler_diagram.svg
+.. image:: ../images/data_processing_and_model.svg
   :width: 800
   :alt: Diagram of UDAO data processing
 
+The ``DataHandler`` relies on the :py:class:`~udao.data.handler.data_processor.DataProcessor` class to define the parameters of the data processing pipeline.
+While the ``DataHandler`` is meant for offline operations, splitting a dataset into training, validation and test, the ``DataProcessor`` class can be reused later to process new data in the same way as the training data.
 
 Setting up a simple tabular data pipeline
 -----------------------------------------
@@ -67,7 +69,7 @@ To process a dataframe for training, with column selection and normalization, on
   from udao.data.iterators import BaseDatasetIterator
 
 
-  class MyIterator(BaseDatasetIterator):
+  class MyIterator(BaseIterator):
       """Iterator on tabular data, with objectives
 
       Parameters
@@ -103,26 +105,32 @@ To process a dataframe for training, with column selection and normalization, on
 You can then set up the data handler, based on the iterator. Here we use :py:func:`~udao.data.handler.data_handler.create_data_handler_params` to generate the parameters
 This enables to obtain a training dataloader ready for model training::
 
-  from udao.data.handler import DataHandler, create_data_handler_params, FeaturePipeline
+  from udao.data.handler import DataHandler, FeaturePipeline, create_data_processor
   from udao.data.extractors import TabularFeatureExtractor, select_columns
   from udao.data.preprocessors import NormalizePreprocessor
   from sklearn.preprocessing import MinMaxScaler
   from .iterators import MyIterator
-
-  params_getter = create_data_handler_params(MyIterator)
-  params = params_getter(
-    index_column="idx",
-    features=FeaturePipeline(
-        extractor=(TabularFeatureExtractor, [select_columns, {"columns": ["k1", "k2", "k3"]}])
-        ,
-        preprocessors=[(NormalizePreprocessor, [MinMaxScaler()])],
-      ),
-    objectives=FeaturePipeline(
-        extractor=(TabularFeatureExtractor, [select_columns, {"columns": ["latency"]}])
-        preprocessors=None,
+    processor_getter = create_data_processor(MyIterator, "op_enc")
+    data_processor = processor_getter(
+        tensor_dtypes=tensor_dtypes,
+        features=FeaturePipeline(
+            extractor=(TabularFeatureExtractor("k1", "k2", "k3"))
+            ,
+            preprocessors=[NormalizePreprocessor(MinMaxScaler())],
+          ),
+        objectives=FeaturePipeline(
+            extractor=(TabularFeatureExtractor(["latency"]))
+            preprocessors=None,
       ),
     )
-    dh = data_handler.from_csv("data.csv", params)
+    data_handler = DataHandler.from_csv("data.csv",
+        DataHandlerParams(
+            index_column="id",
+            stratify_on="tid",
+            dryrun=True,
+            data_processor=data_processor,
+        ),
+    )
     iterators = dh.get_iterators()
     # iterators is a dict with keys "train", "test", "val"
     # each value is an instance of MyIterator

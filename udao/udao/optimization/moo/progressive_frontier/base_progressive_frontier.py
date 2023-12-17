@@ -16,7 +16,8 @@ from ..base_moo import MOSolver
 
 
 class BaseProgressiveFrontier(MOSolver, ABC):
-    """Base class for Progressive Frontier.
+    """
+    Base class for Progressive Frontier.
     Includes the common methods for Progressive Frontier.
     """
 
@@ -25,7 +26,9 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """Parameters for Progressive Frontier"""
 
         constraint_stress: float = 1e5
+        """Stress for constraint violations (added penalty)"""
         objective_stress: float = 10.0
+        """Stress for objective constraints (added penalty)"""
 
     def __init__(
         self,
@@ -47,16 +50,13 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         Find the anchor point for the given objective,
         by unbounded single objective optimization
 
-        Parameters:
+        Parameters
         ----------
-        wl_id : str
-            workload id
+        problem : MOProblem
+            MOO problem in which the objective is to be optimized
         obj_ind : int
             index of the objective to be optimized
-        anchor_option : str
-            choice for anchor points calculation
-
-        Returns:
+        Returns
         -------
         Point
             anchor point for the given objective
@@ -116,7 +116,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                       "cores": [solver_ut._get_tensor(0),
                       solver_ut._get_tensor(58)]
                       }
-        Parameters:
+        Parameters
         ----------
         utopia: Point
             the utopia point
@@ -125,7 +125,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         opt_obj_ind: int
             the index of objective to be optimized
 
-        Returns:
+        Returns
         -------
             dict with upper and lower bound for each objective
         """
@@ -196,12 +196,12 @@ class BaseProgressiveFrontier(MOSolver, ABC):
     def get_utopia_and_nadir(points: list[Point]) -> Tuple[Point, Point]:
         """
         get the utopia and nadir points from a list of points
-        Parameters:
+        Parameters
         ----------
         points: list[Point],
             each element is a Point (defined class).
 
-        Returns:
+        Returns
         -------
         Tuple[Point, Point]
             utopia and nadir point
@@ -248,5 +248,5 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                 )
                 * obj.direction
             ).squeeze()
-            obj_list.append(obj_value)
+            obj_list.append(obj_value.detach().cpu())
         return np.array(obj_list)

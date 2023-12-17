@@ -9,6 +9,6 @@ Welcome to the API reference section of UDAO. This section provides detailed inf
 
    data/index
    model/index
-
+   optimization/index
 
 If you're just starting out with UDAO, it's recommended to visit the :doc:`User Guide <../user_guide/introduction>` to get a holistic understanding of the project.

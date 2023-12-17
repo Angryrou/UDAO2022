@@ -6,6 +6,8 @@ import numpy as np
 
 @dataclass
 class Variable:
+    """Variable to optimize."""
+
     pass
 
 
@@ -24,24 +26,32 @@ class NumericVariable(Variable):
 
 @dataclass
 class IntegerVariable(NumericVariable):
+    """Numeric variable with integer values."""
+
     lower: int
     upper: int
 
 
 @dataclass
 class FloatVariable(NumericVariable):
+    """Numeric variable with float values."""
+
     lower: float
     upper: float
 
 
 @dataclass
 class BoolVariable(IntegerVariable):
+    """Boolean variable."""
+
     lower: int = field(default=0, init=False)
     upper: int = field(default=1, init=False)
 
 
 @dataclass
 class EnumVariable(Variable):
+    """Categorical variable (non-numeric)"""
+
     values: list
 
 

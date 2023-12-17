@@ -14,6 +14,11 @@ InputParameters = Optional[Dict[str, Any]]
 
 
 class UdaoFunction(Protocol):
+    """A function that can be used for a constraint or an objective. called with:
+    - input_variables: the variables inputs
+    - input_parameters: the non-decision inputs
+    """
+
     def __call__(
         self,
         input_variables: InputVariables,
@@ -34,6 +39,7 @@ class ModelComponent:
         input_variables: InputVariables,
         input_parameters: InputParameters = None,
     ) -> Tuple[Any, BaseIterator]:
+        """Derive the batch input from the input dict."""
         return derive_batch_input(
             self.data_processor,
             input_parameters=input_parameters,
@@ -41,6 +47,8 @@ class ModelComponent:
         )
 
     def inverse_process_data(self, data: TabularContainer, name: str) -> DataFrame:
+        """Inverse process the data (e.g. for finding
+        optimal values after optimization)"""
         return self.data_processor.inverse_transform(data, name)
 
     def __call__(
@@ -106,7 +114,7 @@ def derive_batch_input(
             "id": keys,
         }
     )
-    pd_input.set_index("id", inplace=True)
+    pd_input.set_index("id", inplace=True, drop=False)
     iterator = data_processor.make_iterator(pd_input, keys, split="test")
     dataloader = iterator.get_dataloader(batch_size=n_items)
     batch_input, _ = next(iter(dataloader))

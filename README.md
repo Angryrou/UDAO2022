@@ -1,15 +1,16 @@
 # UDAO2022
 
-## Dependency 
+## Dependency
 
 The python virtual environment
+
 ```bash
 # cpu
 conda create -n <name> python=3.9
 conda install pytorch torchvision torchaudio cpuonly -c pytorch # version 1.13.1
 pip install -r requirements.txt
 
-# gpu 
+# gpu
 conda create -n udao-gpu python=3.9
 conda install pytorch torchvision torchaudio pytorch-cuda=11.6 -c pytorch -c nvidia # version 1.13.1
 pip install -r requirements-gpu.txt
@@ -22,18 +23,21 @@ conda install -c anaconda cudatoolkit=11 # to be able to run dgl's gpu version
 The supportive trace collection projects. Put or solflink those projects under `resources`
 
 [our customized tpch-kit][1]
+
 ```bash
 OS=MACOS # or LINUX, for both Spark and Postgres
 bash examples/trace/1.setup_tpch.sh $OS
 ```
 
 [our customized tpcds-kit][2]
+
 ```bash
 OS=MACOS # or LINUX, for both Spark and Postgres
 bash examples/trace/2.setup_tpcds.sh $OS
 ```
 
 [our customized spark-sql-perf][3]
+
 ```bash
 cd resources/
 git clone https://github.com/Angryrou/spark-sql-perf.git
@@ -45,9 +49,9 @@ sbt +package
 # an example of running in our cluster, look into `my_set_benchmark.sh` for more details
 bm=TPCH
 sf=100
-bash $PWD/resources/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_benchmark.sh $bm $sf 
+bash $PWD/resources/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_benchmark.sh $bm $sf
 ```
-   
+
 [1]: https://github.com/Angryrou/tpch-kit
 [2]: https://github.com/Angryrou/tpcds-kit
 [3]: https://github.com/Angryrou/spark-sql-perf
@@ -55,17 +59,20 @@ bash $PWD/resources/spark-sql-perf/src/main/scripts/benchmark_sf_testing/my_set_
 ## Requirement
 
 Rules in implementation:
+
 1. use the variable type in the function name.
 2. to be added
 
 ## Pre-commit hooks
 
 Install pre-commit hooks
+
 ```bash
 pre-commit install
 ```
 
 Then every time you commit, the following pre-commit hooks are run:
+
 - black: code formatter
 - ruff: fast linter
 - mypy: strict type checking
@@ -74,19 +81,24 @@ Then every time you commit, the following pre-commit hooks are run:
 
 ## Documentation
 
-Install sphinx in your conda environment
+Install sphinx in your conda environment, as well as the sphinx-book-theme and chardet for the docs to build properly
+
 ```bash
 conda install sphinx
+pip install chardet sphinx-book-theme
 ```
+
 Then go to the udao/docs directory and build the docs
+
 ```bash
 cd docs
 make html
 ```
 
-You can then open the index.html file in the _build/html directory to view the documentation.
+You can then open the index.html file in the \_build/html directory to view the documentation.
 
 ## Testing
+
 We use pytest for testing.
 
 First, so that imports are recognized within the module, add the udao root directory (containing docs/ and udao/) to your PYTHONPATH
@@ -96,30 +108,33 @@ export PYTHONPATH=$PYTHONPATH:/path/to/udao
 ```
 
 To run all the tests of the udao directory, run
+
 ```bash
     pytest udao
 ```
 
 To run the tests with coverage
+
 ```bash
     pytest --cov=udao udao
 ```
 
 To generate an html report for visualization of coverage line by line
+
 ```bash
     pytest --cov=udao --cov-report html udao
 ```
 
-
-
 ## udao module dependencies
 
 The python virtual environment
+
 ```bash
 # cpu
 conda create -n <name> python=3.11
 pip install -r udao/requirements-cpu.txt
 
-# gpu 
+# gpu
 conda create -n <name> python=3.11
 pip install -r udao/requirements-gpu.txt
+```

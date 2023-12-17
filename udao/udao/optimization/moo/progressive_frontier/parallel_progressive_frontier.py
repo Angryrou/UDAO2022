@@ -19,8 +19,11 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
     @dataclass
     class Params(BaseProgressiveFrontier.Params):
         processes: int = 1
+        """Processes to use for parallel processing"""
         n_grids: int = 2
+        """Number of splits per objective"""
         max_iters: int = 10
+        """Number of iterations to explore the space"""
 
     def __init__(
         self,
@@ -41,18 +44,13 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         solve MOO by PF-AP (Progressive Frontier - Approximation Parallel)
-        Parameters:
+
+        Parameters
         ----------
-        wl_id: str
-            workload id, e.g. '1-7'
-        n_grids: int
-            the number of cells set in pf-ap
-        max_iters: int
-            the number of iterations in pf-ap
-        anchor_option: str
-            choice for anchor points calculation
-        Returns:
-        --------
+        problem : MOProblem
+            MOO problem to be solved
+        Returns
+        -------
         po_objs: ndarray
             Pareto optimal objective values, of shape
             (n_solutions, n_objs)
@@ -207,7 +205,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         Create cells used in Progressive Frontier(PF)-Approximation
         Parallel (AP) algorithm
 
-        Parameters:
+        Parameters
         ----------
         utopia: Point
             the utopia point
@@ -218,7 +216,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         n_objs: int
             the number of objectives
 
-        Returns:
+        Returns
         -------
             List[Rectangle]
             The rectangles in which to perform optimization.
