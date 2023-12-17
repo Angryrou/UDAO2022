@@ -16,7 +16,10 @@ class Objective:
     function: UdaoFunction
     lower: Optional[float] = None
     upper: Optional[float] = None
-    type: Optional[VarTypes] = None
+    """Upper bound of the objective."""
+    type: VarTypes = VarTypes.FLOAT
+    """Type of the objective.
+    If int, the optimization can behave differently."""
 
     @property
     def direction(self) -> int:

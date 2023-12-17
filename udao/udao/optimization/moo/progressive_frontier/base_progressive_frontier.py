@@ -77,7 +77,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
 
         # If the current objective type is Integer,
         # further find the optimal value for other objectives with float type
-        if problem.objectives[obj_ind].type == "int":
+        if problem.objectives[obj_ind].type == VarTypes.INT:
             utopia_init = np.array(
                 [0 if i != obj_ind else objs[obj_ind] for i in problem.objectives]
             )
@@ -99,7 +99,8 @@ class BaseProgressiveFrontier(MOSolver, ABC):
             except NoSolutionError:
                 raise NoSolutionError("Cannot find anchor points.")
             else:
-                objs = self._compute_objectives(problem, soo_vars)
+                logger.debug(f"soo_vars_update is: {soo_vars_update}")
+                objs = self._compute_objectives(problem, soo_vars_update)
 
                 return Point(objs, soo_vars_update)
         else:

@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from ....model.utils.utils import set_deterministic_torch
+from ....utils.interfaces import VarTypes
 from ...concepts.problem import MOProblem
 from ...moo.progressive_frontier import SequentialProgressiveFrontier
 from ...soo.mogd import MOGD
@@ -138,3 +139,17 @@ class TestProgressiveFrontier:
         )
         assert anchor_point.vars is not None
         assert anchor_point.vars == {"v1": 0.08712930232286453, "v2": 1.0}
+
+    def test_get_anchor_points_with_int(
+        self,
+        spf: SequentialProgressiveFrontier,
+        two_obj_problem: MOProblem,
+    ) -> None:
+        two_obj_problem.objectives[0].type = VarTypes.INT
+        set_deterministic_torch()
+        anchor_point = spf.get_anchor_point(
+            problem=two_obj_problem,
+            obj_ind=0,
+        )
+        np.testing.assert_array_almost_equal(anchor_point.objs, np.array([0.0, 0.0]))
+        assert anchor_point.vars == {"v1": 0.0, "v2": 1.0}
