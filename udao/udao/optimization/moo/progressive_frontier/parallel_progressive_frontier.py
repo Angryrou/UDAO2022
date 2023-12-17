@@ -19,8 +19,11 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
     @dataclass
     class Params(BaseProgressiveFrontier.Params):
         processes: int = 1
+        """Processes to use for parallel processing"""
         n_grids: int = 2
+        """Number of splits per objective"""
         max_iters: int = 10
+        """Number of iterations to explore the space"""
 
     def __init__(
         self,
@@ -44,15 +47,8 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
 
         Parameters
         ----------
-        wl_id: str
-            workload id, e.g. '1-7'
-        n_grids: int
-            the number of cells set in pf-ap
-        max_iters: int
-            the number of iterations in pf-ap
-        anchor_option: str
-            choice for anchor points calculation
-
+        problem : MOProblem
+            MOO problem to be solved
         Returns
         -------
         po_objs: ndarray

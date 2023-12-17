@@ -44,12 +44,8 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
 
         Parameters
         ----------
-        wl_id : str
-            workload id
-        n_probes : int
-            number of probes
-        anchor_option : str
-            choice for anchor points calculation
+        problem : MOProblem
+            MOO problem to be solved
 
         Returns
         -------

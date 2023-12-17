@@ -26,7 +26,9 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """Parameters for Progressive Frontier"""
 
         constraint_stress: float = 1e5
+        """Stress for constraint violations (added penalty)"""
         objective_stress: float = 10.0
+        """Stress for objective constraints (added penalty)"""
 
     def __init__(
         self,
@@ -50,13 +52,10 @@ class BaseProgressiveFrontier(MOSolver, ABC):
 
         Parameters
         ----------
-        wl_id : str
-            workload id
+        problem : MOProblem
+            MOO problem in which the objective is to be optimized
         obj_ind : int
             index of the objective to be optimized
-        anchor_option : str
-            choice for anchor points calculation
-
         Returns
         -------
         Point
