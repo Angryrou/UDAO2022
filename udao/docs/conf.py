@@ -21,7 +21,7 @@ sys.path.insert(0, path)
 
 project = "UDAO"
 copyright = "2023, Chenghao Lyu"
-author = "Chenghao Lyu"
+author = "Julien Fontanarava, Chenghao Lyu"
 
 # The full version, including alpha/beta/rc tags
 release = "1.0"

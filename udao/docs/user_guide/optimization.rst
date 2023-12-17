@@ -31,7 +31,7 @@ Defining a solver
 -----------------
 
 Single objective solver
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 Several single objective solvers are available in the :py:mod:`~udao.optimization.soo` module.
 They all inherit from :py:class:`~udao.optimization.soo.base_solver.SOSolver`.
 You can define your own solver by inheriting from :py:class:`~udao.optimization.soo.base_solver.SOSolver` and implementing the :py:meth:`~udao.optimization.soo.base_solver.SOSolver.solve` method.
