@@ -217,6 +217,7 @@ class MOGD(SOSolver):
             obj_output = objective.function.model(input_data)
             objective_loss = self.objective_loss(obj_output, objective)
             constraint_loss = th.zeros_like(objective_loss)
+
             if constraints:
                 const_outputs = [
                     cast(co.ModelComponent, constraint.function).model(input_data)
@@ -226,6 +227,7 @@ class MOGD(SOSolver):
             loss = objective_loss + constraint_loss
             sum_loss = th.sum(loss)
             min_loss, min_loss_id = th.min(loss), th.argmin(loss)
+
             is_within_constraints = constraint_loss[min_loss_id] == 0
             is_within_objective_bounds = self.within_objective_bounds(
                 obj_output[min_loss_id].item(), objective
@@ -379,14 +381,17 @@ class MOGD(SOSolver):
         ):
             constraint_violation = th.zeros_like(constraint_values[0])
             if constraint.upper is not None and constraint.lower is not None:
-                normed_constraint = (constraint_value - constraint.lower) / (
-                    constraint.upper - constraint.lower
-                )
-                constraint_violation = th.where(
-                    (normed_constraint < 0) | (normed_constraint > 1),
-                    (normed_constraint - 0.5),
-                    0,
-                )
+                if constraint.upper == constraint.lower:
+                    constraint_violation = th.abs(constraint_value - constraint.upper)
+                else:
+                    normed_constraint = (constraint_value - constraint.lower) / (
+                        constraint.upper - constraint.lower
+                    )
+                    constraint_violation = th.where(
+                        (normed_constraint < 0) | (normed_constraint > 1),
+                        (normed_constraint - 0.5),
+                        0,
+                    )
             elif constraint.lower is not None:
                 constraint_violation = th.relu(constraint.lower - constraint_value)
             elif constraint.upper is not None:

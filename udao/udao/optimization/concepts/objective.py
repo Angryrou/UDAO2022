@@ -23,7 +23,7 @@ class Objective:
     """Lower bound of the objective."""
     upper: Optional[float] = None
     """Upper bound of the objective."""
-    type: Optional[VarTypes] = None
+    type: VarTypes = VarTypes.FLOAT
     """Type of the objective.
     If int, the optimization can behave differently."""
 
