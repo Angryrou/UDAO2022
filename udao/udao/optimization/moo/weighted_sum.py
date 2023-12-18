@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch as th
@@ -7,11 +7,11 @@ import torch as th
 from ..concepts import Objective
 from ..concepts.problem import MOProblem, SOProblem
 from ..concepts.utils import InputParameters, InputVariables
-from ..soo.base_solver import SOSolver
+from ..soo.so_solver import SOSolver
 from ..utils import moo_utils as moo_ut
 from ..utils.exceptions import NoSolutionError
 from ..utils.moo_utils import Point
-from .base_moo import MOSolver
+from .mo_solver import MOSolver
 
 
 class WeightedSumObjective(Objective):
@@ -119,7 +119,9 @@ class WeightedSum(MOSolver):
         self.ws_pairs = ws_pairs
         self.allow_cache = allow_cache
 
-    def solve(self, problem: MOProblem) -> Tuple[np.ndarray, np.ndarray]:
+    def solve(
+        self, problem: MOProblem, seed: Optional[int] = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """solve MOO problem by Weighted Sum (WS)
 
         Parameters
@@ -139,7 +141,7 @@ class WeightedSum(MOSolver):
         objective = WeightedSumObjective(
             problem.objectives, self.ws_pairs[0], self.allow_cache
         )
-        for ws in self.ws_pairs:
+        for i, ws in enumerate(self.ws_pairs):
             objective.ws = ws
             _, soo_vars = self.so_solver.solve(
                 SOProblem(
@@ -147,7 +149,8 @@ class WeightedSum(MOSolver):
                     constraints=problem.constraints,
                     variables=problem.variables,
                     input_parameters=problem.input_parameters,
-                )
+                ),
+                seed=seed + i if seed is not None else None,
             )
 
             objective_values = objective._function(

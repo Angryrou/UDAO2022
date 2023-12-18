@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -55,7 +55,11 @@ class EnumVariable(Variable):
     values: list
 
 
-def get_random_variable_values(var: Variable, n_samples: int) -> np.ndarray:
+def get_random_variable_values(
+    var: Variable, n_samples: int, seed: Optional[int] = None
+) -> np.ndarray:
+    if seed is not None:
+        np.random.seed(seed)
     if isinstance(var, FloatVariable):
         return np.random.uniform(var.lower, var.upper, n_samples)
     elif isinstance(var, IntegerVariable):

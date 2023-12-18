@@ -35,26 +35,24 @@ class TestRandomSampler:
         self, test_data: Dict, expected: Iterable
     ) -> None:
         solver = RandomSampler(
-            RandomSampler.Params(n_samples_per_param=test_data["n_samples"], seed=0)
+            RandomSampler.Params(n_samples_per_param=test_data["n_samples"])
         )
-        output = solver._get_input(
-            variables={"v1": test_data["variable"]},
-        )
+        output = solver._get_input(variables={"v1": test_data["variable"]}, seed=0)
         np.testing.assert_allclose(
             [[o] for o in output["v1"]], [[e] for e in expected], rtol=1e-2
         )
 
     def test_random_sampler_multiple_variables(self) -> None:
-        solver = RandomSampler(RandomSampler.Params(n_samples_per_param=3, seed=0))
+        solver = RandomSampler(RandomSampler.Params(n_samples_per_param=3))
 
         output = solver._get_input(
-            variables={"v1": co.BoolVariable(), "v2": co.IntegerVariable(1, 7)},
+            variables={"v1": co.BoolVariable(), "v2": co.IntegerVariable(1, 7)}, seed=0
         )
         expected_array = np.array(
             [
-                [0, 1],
-                [1, 4],
-                [1, 4],
+                [0, 5],
+                [1, 6],
+                [1, 1],
             ]
         )
         np.testing.assert_equal(
@@ -62,7 +60,7 @@ class TestRandomSampler:
         )
 
     def test_solve(self) -> None:
-        solver = RandomSampler(RandomSampler.Params(n_samples_per_param=30, seed=0))
+        solver = RandomSampler(RandomSampler.Params(n_samples_per_param=50))
 
         def obj1_func(
             input_variables: co.InputVariables,
@@ -76,6 +74,6 @@ class TestRandomSampler:
             "v2": co.IntegerVariable(1, 7),
         }
         problem = co.SOProblem(objective=objective, variables=variables, constraints=[])
-        soo_obj, soo_vars = solver.solve(problem)
+        soo_obj, soo_vars = solver.solve(problem, seed=0)
         assert soo_obj == 8
         assert soo_vars == {"v1": 1, "v2": 7}

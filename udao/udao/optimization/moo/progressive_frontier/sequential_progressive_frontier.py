@@ -7,7 +7,7 @@ import numpy as np
 
 from ....utils.logging import logger
 from ...concepts.problem import Constraint, MOProblem
-from ...soo.base_solver import SOSolver
+from ...soo.so_solver import SOSolver
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point, Rectangle
@@ -38,6 +38,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
     def solve(
         self,
         problem: MOProblem,
+        seed: Optional[int] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Solve MOO by Progressive Frontier
@@ -60,10 +61,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         rectangle_queue: List[Rectangle] = []
         n_objs = len(problem.objectives)
         plans = [
-            self.get_anchor_point(
-                problem=problem,
-                obj_ind=i,
-            )
+            self.get_anchor_point(problem=problem, obj_ind=i, seed=seed)
             for i in range(n_objs)
         ]
         utopia, nadir = self.get_utopia_and_nadir(plans)
@@ -74,7 +72,9 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
                 logger.info("No more uncertainty space to explore further!")
                 break
             rectangle = heapq.heappop(rectangle_queue)
-            middle_point, subrectangles = self._find_local_optimum(problem, rectangle)
+            middle_point, subrectangles = self._find_local_optimum(
+                problem, rectangle, seed=seed
+            )
             if middle_point is not None:
                 plans.append(middle_point)
             for sub_rect in subrectangles:
@@ -93,6 +93,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         self,
         problem: MOProblem,
         rectangle: Rectangle,
+        seed: Optional[int] = None,
     ) -> Tuple[Optional[Point], List[Rectangle]]:
         """
         Find the local optimum in the given rectangle and
@@ -136,7 +137,7 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
             problem, obj_bounds_dict, problem.objectives[self.opt_obj_ind]
         )
         try:
-            _, soo_vars = self.solver.solve(so_problem)
+            _, soo_vars = self.solver.solve(so_problem, seed=seed)
         except NoSolutionError:
             logger.debug(
                 "This is an empty area \n "

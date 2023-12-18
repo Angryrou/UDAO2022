@@ -8,7 +8,7 @@ from torch.multiprocessing import Pool
 
 from ....utils.logging import logger
 from ...concepts import Constraint, MOProblem, Objective, SOProblem
-from ...soo.base_solver import SOSolver
+from ...soo.so_solver import SOSolver
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point, Rectangle
@@ -41,6 +41,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
     def solve(
         self,
         problem: MOProblem,
+        seed: Optional[int] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         solve MOO by PF-AP (Progressive Frontier - Approximation Parallel)
@@ -70,10 +71,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         all_objs_list: List[np.ndarray] = []
         all_vars_list: List[Dict] = []
         for i in range(n_objs):
-            anchor_point = self.get_anchor_point(
-                problem=problem,
-                obj_ind=i,
-            )
+            anchor_point = self.get_anchor_point(problem=problem, obj_ind=i, seed=seed)
             if anchor_point.vars is None:
                 raise Exception("This should not happen.")
             plans.append(anchor_point)
@@ -120,6 +118,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
                 problem=problem,
                 objective=problem.objectives[self.opt_obj_ind],
                 cell_list=obj_bound_cells,
+                seed=seed,
             )
 
             po_objs_list: List[np.ndarray] = []
@@ -146,11 +145,11 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         return np.array(all_objs_list), np.array(all_vars_list)
 
     def _solve_wrapper(
-        self, problem: SOProblem
+        self, problem: SOProblem, seed: Optional[int] = None
     ) -> Optional[Tuple[float, Dict[str, Any]]]:
         """Handle exceptions in solver call for parallel processing."""
         try:
-            return self.solver.solve(problem)
+            return self.solver.solve(problem, seed=seed)
         except NoSolutionError:
             logger.debug(f"This is an empty area! {problem}")
             return None
@@ -160,6 +159,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         problem: MOProblem,
         objective: Objective,
         cell_list: List[Dict[str, Any]],
+        seed: Optional[int] = None,
     ) -> List[Tuple[float, Dict[str, Any]]]:
         """Parallel calls to SOO Solver for each cell in cell_list, returns a
         candidate tuple (objective_value, variables) for each cell.
@@ -180,12 +180,12 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             List of candidate tuples (objective_value, variables)
         """
         # generate the list of input parameters for constraint_so_opt
-        args_list = []
+        args_list: List[Tuple[SOProblem, Optional[int]]] = []
         for obj_bounds_dict in cell_list:
             so_problem = self._so_problem_from_bounds_dict(
                 problem, obj_bounds_dict, objective
             )
-            args_list.append([so_problem])
+            args_list.append((so_problem, seed))
 
         if th.cuda.is_available():
             th.multiprocessing.set_start_method("spawn", force=True)

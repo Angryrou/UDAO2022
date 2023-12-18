@@ -1,6 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
@@ -8,11 +8,11 @@ from ....utils.interfaces import VarTypes
 from ....utils.logging import logger
 from ...concepts import Constraint, Objective
 from ...concepts.problem import MOProblem, SOProblem
-from ...soo.base_solver import SOSolver
+from ...soo.so_solver import SOSolver
 from ...utils import solver_utils as solver_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point
-from ..base_moo import MOSolver
+from ..mo_solver import MOSolver
 
 
 class BaseProgressiveFrontier(MOSolver, ABC):
@@ -45,6 +45,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         self,
         problem: MOProblem,
         obj_ind: int,
+        seed: Optional[int] = None,
     ) -> Point:
         """
         Find the anchor point for the given objective,
@@ -68,7 +69,8 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                     objective=problem.objectives[obj_ind],
                     constraints=problem.constraints,
                     input_parameters=problem.input_parameters,
-                )
+                ),
+                seed=seed,
             )
         except NoSolutionError:
             raise NoSolutionError("Cannot find anchor points.")
@@ -95,7 +97,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                 problem, obj_bounds_dict_so, problem.objectives[float_obj_ind]
             )
             try:
-                _, soo_vars_update = self.solver.solve(so_problem)
+                _, soo_vars_update = self.solver.solve(so_problem, seed=seed)
             except NoSolutionError:
                 raise NoSolutionError("Cannot find anchor points.")
             else:

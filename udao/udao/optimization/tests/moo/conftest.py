@@ -72,12 +72,10 @@ def mogd() -> MOGD:
     return MOGD(
         MOGD.Params(
             learning_rate=0.1,
-            weight_decay=0,
             max_iters=100,
             patience=10,
             multistart=10,
             objective_stress=10,
-            seed=0,
             device=th.device("cpu"),
         )
     )
