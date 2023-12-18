@@ -212,7 +212,10 @@ class MOGD(SOSolver):
         optimizer = optim.Adam([input_vars_subvector], lr=self.lr)
 
         for i in range(self.max_iter):
+            input_data.feature_input = input_data.feature_input.clone().detach()
+
             input_data.feature_input[:, grad_indices] = input_vars_subvector
+
             # Compute objective, constraints and corresponding losses
             obj_output = objective.function.model(input_data)
             objective_loss = self.objective_loss(obj_output, objective)
@@ -248,9 +251,8 @@ class MOGD(SOSolver):
                 best_iter = i
 
             optimizer.zero_grad()
-            sum_loss.backward(retain_graph=True)  # type: ignore
+            sum_loss.backward()  # type: ignore
             optimizer.step()
-
             # Update input_vars_subvector with constrained values
             input_vars_subvector.data = th.clip(
                 input_vars_subvector.data,
@@ -260,7 +262,6 @@ class MOGD(SOSolver):
             )
             if i > best_iter + self.patience:
                 break
-
         if best_obj is not None:
             logger.debug(
                 f"Finished at iteration {iter}, best local {objective.name} "
