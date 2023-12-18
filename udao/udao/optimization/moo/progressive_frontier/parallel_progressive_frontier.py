@@ -59,6 +59,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             corresponding variables of Pareto solutions, of shape
             (n_solutions, n_vars)
         """
+        primary_objective_id = self._first_float_objective(problem)
         # create initial rectangle
         # get initial plans/form a intial hyperrectangle
         problem.constraints = [
@@ -116,7 +117,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             logger.debug(f"the cells are: {obj_bound_cells}")
             ret_list = self.parallel_soo(
                 problem=problem,
-                objective=problem.objectives[self.opt_obj_ind],
+                objective=problem.objectives[primary_objective_id],
                 cell_list=obj_bound_cells,
                 seed=seed,
             )

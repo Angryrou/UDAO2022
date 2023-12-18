@@ -42,7 +42,7 @@ class TestProgressiveFrontier:
         middle = Point((utopia.objs + nadir.objs) / 2)
 
         rectangles = spf.generate_sub_rectangles(
-            utopia, nadir, middle, successful=False
+            utopia, nadir, middle, primary_objective_idx=0, successful=False
         )
         ############
         #  0 |  1  #
@@ -62,7 +62,12 @@ class TestProgressiveFrontier:
         nadir = Point(np.array([5, 10]))
         middle = Point((utopia.objs + nadir.objs) / 2)
 
-        rectangles = spf.generate_sub_rectangles(utopia, nadir, middle)
+        rectangles = spf.generate_sub_rectangles(
+            utopia,
+            nadir,
+            middle,
+            primary_objective_idx=0,
+        )
         ############
         #  1 |  _  #
         ############

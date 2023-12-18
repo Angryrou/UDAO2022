@@ -39,7 +39,6 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         self.solver = solver
         self.constraint_stress = params.constraint_stress
         self.objective_stress = params.objective_stress
-        self.opt_obj_ind = 0
 
     def get_anchor_point(
         self,
@@ -85,11 +84,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
             )
             utopia_tmp, nadir_tmp = Point(objs=utopia_init), Point(objs=objs)
             # select the first objective with float type
-            float_obj_ind = [
-                i
-                for i, objective in enumerate(problem.objectives)
-                if objective.type == VarTypes.FLOAT
-            ][0]
+            float_obj_ind = self._first_float_objective(problem)
             obj_bounds_dict_so = self._form_obj_bounds_dict(
                 problem, utopia_tmp, nadir_tmp
             )
@@ -253,3 +248,29 @@ class BaseProgressiveFrontier(MOSolver, ABC):
             ).squeeze()
             obj_list.append(obj_value.detach().cpu())
         return np.array(obj_list)
+
+    def _first_float_objective(self, problem: MOProblem) -> int:
+        """
+        Find the first objective with float type
+        Parameters
+        ----------
+        problem : MOProblem
+            MOO problem
+
+        Returns
+        -------
+        int
+            index of the first objective with float type
+        """
+        try:
+            float_obj_ind = [
+                i
+                for i, objective in enumerate(problem.objectives)
+                if objective.type == VarTypes.FLOAT
+            ][0]
+        except IndexError:
+            raise Exception(
+                "No float type objective found. Need at least one float type objective."
+            )
+        else:
+            return float_obj_ind
