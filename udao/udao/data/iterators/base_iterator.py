@@ -6,7 +6,7 @@ import pandas as pd
 import torch as th
 from torch.utils.data import DataLoader, Dataset
 
-from ...utils.interfaces import UdaoInput, UdaoInputShape
+from ...utils.interfaces import FeatureInput, FeatureInputShape
 from ..containers import TabularContainer
 
 T = TypeVar("T")
@@ -20,7 +20,7 @@ class BaseIterator(Dataset, Generic[T, ST]):
     T is the type of the iterator output.
     ST is the type of the iterator output shape.
 
-    See UdaoIterator for an example.
+    See FeatureIterator for an example.
     """
 
     def __init__(self, keys: Sequence[str]) -> None:
@@ -53,10 +53,11 @@ class BaseIterator(Dataset, Generic[T, ST]):
         """Returns the shape of the iterator output."""
 
     @staticmethod
-    def collate(items: List[Any]) -> Any:
+    @abstractmethod
+    def collate(items: List[T]) -> T:
         """Collates the items into a batch.
         Used in the dataloader."""
-        return items
+        pass
 
     def get_dataloader(
         self,
@@ -109,24 +110,24 @@ class BaseIterator(Dataset, Generic[T, ST]):
 
 # Type of the iterator output - in the Udao case,
 # restricted to UdaoInput and its subclasses
-UT = TypeVar("UT", bound=UdaoInput)
+FT = TypeVar("FT", bound=FeatureInput)
 # Type of the iterator output shape - in the Udao case,
 # restricted to UdaoInputShape and its subclasses
-UST = TypeVar("UST", bound=UdaoInputShape)
+FST = TypeVar("FST", bound=FeatureInputShape)
 
 
-class UdaoIterator(BaseIterator[Tuple[UT, th.Tensor], UST], Generic[UT, UST]):
+class FeatureIterator(BaseIterator[Tuple[FT, th.Tensor], FST], Generic[FT, FST]):
     """Base iterator for the Udao use case, where the iterator
-    returns a UdaoInput object. It is expected to accept:
+    returns a FeatureInput object. It is expected to accept:
     - a TabularContainer representing the tabular features
     which can be set as variables by the user in the optimization pipeline
     - a TabularContainer representing the objectives
 
-    UST: Type of the iterator output shape - in the Udao case,
-    restricted to UdaoInputShape and its subclasses.
+    FST: Type of the iterator output shape - in the Udao case,
+    restricted to FeatureInputShape and its subclasses.
 
-    UT: Type of the iterator output - in the Udao case,
-    restricted to UdaoInput and its subclasses
+    FT: Type of the iterator output - in the Udao case,
+    restricted to th.Tensor and its subclasses
     This results in a type Tuple[UT, th.Tensor] for the iterator output.
 
     Parameters
@@ -149,13 +150,6 @@ class UdaoIterator(BaseIterator[Tuple[UT, th.Tensor], UST], Generic[UT, UST]):
         self.tabular_features = tabular_features
         self.objectives = objectives
 
-    @staticmethod
-    @abstractmethod
-    def collate(items: List[Tuple[UT, th.Tensor]]) -> Tuple[UT, th.Tensor]:
-        """Collates the items into a batch.
-        Used in the dataloader."""
-        pass
-
     def get_tabular_features_container(
         self, feature_input: th.Tensor
     ) -> TabularContainer:
@@ -169,9 +163,3 @@ class UdaoIterator(BaseIterator[Tuple[UT, th.Tensor], UST], Generic[UT, UST]):
             tabular_features.numpy(), columns=self.tabular_features.data.columns
         )
         return TabularContainer(tabular_df)
-
-    @property
-    @abstractmethod
-    def shape(self) -> UST:
-        """Returns the shape of the iterator output."""
-        pass

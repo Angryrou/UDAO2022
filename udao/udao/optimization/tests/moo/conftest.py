@@ -8,7 +8,7 @@ from ....data.containers.tabular_container import TabularContainer
 from ....data.extractors.tabular_extractor import TabularFeatureExtractor
 from ....data.handler.data_processor import DataProcessor
 from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
-from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
+from ....data.tests.iterators.dummy_udao_iterator import DummyFeatureIterator
 from ....utils.interfaces import UdaoInput
 from ...concepts import Constraint, FloatVariable, IntegerVariable, Objective, Variable
 from ...concepts.problem import MOProblem
@@ -55,9 +55,8 @@ class TabularFeaturePreprocessor(StaticFeaturePreprocessor):
 @pytest.fixture()
 def data_processor() -> DataProcessor:
     return DataProcessor(
-        iterator_cls=DummyUdaoIterator,
+        iterator_cls=DummyFeatureIterator,
         feature_extractors={
-            "embedding_features": TabularFeatureExtractor(columns=["embedding_input"]),
             "tabular_features": TabularFeatureExtractor(
                 columns=["v1", "v2"],
             ),
@@ -92,15 +91,12 @@ def two_obj_problem(data_processor: DataProcessor) -> MOProblem:
         "v2": IntegerVariable(1, 7),
     }
     constraints: Sequence[Constraint] = []
-    input_parameters = {
-        "embedding_input": 1,
-        "objective_input": 1,
-    }
+
     return MOProblem(
         objectives=objectives,
         variables=variables,
         constraints=constraints,
-        input_parameters=input_parameters,
+        input_parameters=None,
     )
 
 

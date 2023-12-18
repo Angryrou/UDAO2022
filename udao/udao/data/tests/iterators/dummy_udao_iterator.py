@@ -3,11 +3,50 @@ from typing import Sequence, Tuple
 import torch as th
 
 from ....data.containers.tabular_container import TabularContainer
-from ....data.iterators.base_iterator import UdaoIterator
-from ....utils.interfaces import UdaoInput, UdaoInputShape
+from ....data.iterators.base_iterator import FeatureIterator
+from ....utils.interfaces import (
+    FeatureInput,
+    FeatureInputShape,
+    UdaoInput,
+    UdaoInputShape,
+)
 
 
-class DummyUdaoIterator(UdaoIterator):
+class DummyFeatureIterator(FeatureIterator[FeatureInput, FeatureInputShape]):
+    def __init__(
+        self,
+        keys: Sequence[str],
+        tabular_features: TabularContainer,
+        objectives: TabularContainer,
+    ) -> None:
+        super().__init__(keys, tabular_features=tabular_features, objectives=objectives)
+
+    def _getitem(self, idx: int) -> Tuple[FeatureInput, th.Tensor]:
+        key = self.keys[idx]
+        return (
+            FeatureInput(
+                th.tensor(self.tabular_features.get(key), dtype=self.tensors_dtype)
+            ),
+            th.tensor(self.objectives.get(key), dtype=self.tensors_dtype),
+        )
+
+    @property
+    def shape(self) -> FeatureInputShape:
+        return FeatureInputShape(
+            feature_input_names=list(self.tabular_features.data.columns),
+            output_names=list(self.objectives.data.columns),
+        )
+
+    @staticmethod
+    def collate(
+        items: Sequence[Tuple[FeatureInput, th.Tensor]]
+    ) -> Tuple[FeatureInput, th.Tensor]:
+        features = FeatureInput(th.vstack([item[0].feature_input for item in items]))
+        objectives = th.vstack([item[1] for item in items])
+        return features, objectives
+
+
+class DummyUdaoIterator(FeatureIterator[UdaoInput, UdaoInputShape]):
     def __init__(
         self,
         keys: Sequence[str],
@@ -37,7 +76,7 @@ class DummyUdaoIterator(UdaoIterator):
         return UdaoInputShape(
             embedding_input_shape=self.embedding_features.data.shape[1],
             feature_input_names=list(self.tabular_features.data.columns),
-            output_shape=self.objectives.data.shape[1],
+            output_names=list(self.objectives.data.columns),
         )
 
     @staticmethod

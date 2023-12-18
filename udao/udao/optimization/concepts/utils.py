@@ -6,8 +6,9 @@ import torch as th
 from pandas import DataFrame
 
 from ...data.containers.tabular_container import TabularContainer
+from ...data.extractors.tabular_extractor import TabularFeatureExtractor
 from ...data.handler.data_processor import DataProcessor
-from ...data.iterators.base_iterator import BaseIterator
+from ...data.iterators.base_iterator import BaseIterator, FeatureIterator
 
 InputVariables = Union[Dict[str, np.ndarray], Dict[str, Any]]
 InputParameters = Optional[Dict[str, Any]]
@@ -79,7 +80,7 @@ class InaccurateModel(th.nn.Module):
 
 
 def derive_batch_input(
-    data_processor: DataProcessor,
+    data_processor: DataProcessor[FeatureIterator],
     input_variables: InputVariables,
     input_parameters: InputParameters = None,
 ) -> Tuple[Any, BaseIterator]:
@@ -107,9 +108,16 @@ def derive_batch_input(
         n_items = 1
         input_variables = {k: [v] for k, v in input_variables.items()}
     keys = [f"{i}" for i in range(n_items)]
+    objective_values = {}
+    # hack to get dummy objective values when using a tabular extractor
+    if (obj_extractor := data_processor.feature_extractors["objectives"]) is not None:
+        if isinstance(obj_extractor, TabularFeatureExtractor) and obj_extractor.columns:
+            objective_values = {k: 0 for k in obj_extractor.columns}
+
     pd_input = pd.DataFrame.from_dict(
         {
             **{k: [v] * n_items for k, v in (input_parameters or {}).items()},
+            **objective_values,
             **input_variables,
             "id": keys,
         }

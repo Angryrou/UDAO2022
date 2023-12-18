@@ -6,7 +6,7 @@ import torch as th
 import torch.optim as optim
 
 from ...data.containers.tabular_container import TabularContainer
-from ...data.iterators.base_iterator import UdaoIterator
+from ...data.iterators.base_iterator import FeatureIterator
 from ...utils.interfaces import UdaoInput, UdaoInputShape
 from ...utils.logging import logger
 from .. import concepts as co
@@ -91,7 +91,7 @@ class MOGD(SOSolver):
             input_parameters=input_parameters or {}, input_variables=numeric_values
         )
         make_tabular_container = cast(
-            UdaoIterator, iterator
+            FeatureIterator, iterator
         ).get_tabular_features_container
 
         input_data_shape = iterator.shape

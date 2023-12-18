@@ -10,16 +10,24 @@ ST = TypeVar("ST")
 
 
 @dataclass
-class UdaoInput(Generic[T]):
-    embedding_input: T
+class FeatureInput:
     feature_input: th.Tensor
 
 
 @dataclass
-class UdaoInputShape(Generic[ST]):
-    embedding_input_shape: ST
+class FeatureInputShape:
     feature_input_names: list[str]
-    output_shape: int
+    output_names: list[str]
+
+
+@dataclass
+class UdaoInput(Generic[T], FeatureInput):
+    embedding_input: T
+
+
+@dataclass
+class UdaoInputShape(Generic[ST], FeatureInputShape):
+    embedding_input_shape: ST
 
 
 class VarTypes(Enum):

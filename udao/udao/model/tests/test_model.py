@@ -34,7 +34,7 @@ class TestUdaoModel:
         iterator_shape = UdaoInputShape(
             embedding_input_shape=1,
             feature_input_names=["a"],
-            output_shape=1,
+            output_names=["b"],
         )
         model = UdaoModel.from_config(
             regressor_cls=DummyRegressor,
@@ -51,7 +51,7 @@ class TestUdaoModel:
         iterator_shape = UdaoInputShape(
             embedding_input_shape=1,
             feature_input_names=["a"],
-            output_shape=1,
+            output_names=["b"],
         )
         model = UdaoModel.from_config(
             regressor_cls=DummyRegressor,

@@ -9,20 +9,20 @@ from ....data.containers.tabular_container import TabularContainer
 from ....data.extractors.tabular_extractor import TabularFeatureExtractor
 from ....data.handler.data_processor import DataProcessor
 from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
-from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
+from ....data.tests.iterators.dummy_udao_iterator import DummyFeatureIterator
 from ....model.utils.utils import set_deterministic_torch
-from ....utils.interfaces import UdaoInput
+from ....utils.interfaces import FeatureInput
 from ... import concepts as co
 from ...soo.mogd import MOGD
 
 
 class SimpleModel1(nn.Module):
-    def forward(self, x: UdaoInput) -> th.Tensor:
+    def forward(self, x: FeatureInput) -> th.Tensor:
         return x.feature_input[:, :1]
 
 
 class SimpleModel2(nn.Module):
-    def forward(self, x: UdaoInput) -> th.Tensor:
+    def forward(self, x: FeatureInput) -> th.Tensor:
         return x.feature_input[:, 1:]
 
 
@@ -42,9 +42,8 @@ def data_processor() -> DataProcessor:
             return tabular_feature
 
     return DataProcessor(
-        iterator_cls=DummyUdaoIterator,
+        iterator_cls=DummyFeatureIterator,
         feature_extractors={
-            "embedding_features": TabularFeatureExtractor(columns=["embedding_input"]),
             "tabular_features": TabularFeatureExtractor(
                 columns=["v1", "v2"],
             ),
@@ -73,9 +72,8 @@ def mogd() -> MOGD:
 @pytest.fixture()
 def data_processor_paper() -> DataProcessor:
     return DataProcessor(
-        iterator_cls=DummyUdaoIterator,
+        iterator_cls=DummyFeatureIterator,
         feature_extractors={
-            "embedding_features": TabularFeatureExtractor(columns=["embedding_input"]),
             "tabular_features": TabularFeatureExtractor(
                 columns=["v1"],
             ),
@@ -85,12 +83,12 @@ def data_processor_paper() -> DataProcessor:
 
 
 class PaperModel1(nn.Module):
-    def forward(self, x: UdaoInput) -> th.Tensor:
+    def forward(self, x: FeatureInput) -> th.Tensor:
         return th.reshape(2400 / (x.feature_input[:, 0]), (-1, 1))
 
 
 class PaperModel2(nn.Module):
-    def forward(self, x: UdaoInput) -> th.Tensor:
+    def forward(self, x: FeatureInput) -> th.Tensor:
         return th.reshape(x.feature_input[:, 0], (-1, 1))
 
 
@@ -154,7 +152,6 @@ class TestMOGD:
                     stress=10,
                 )
             ],
-            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         optimal_obj, optimal_vars = mogd.solve(problem, seed=0)
         assert optimal_obj is not None
@@ -196,7 +193,6 @@ class TestMOGD:
                     stress=10,
                 )
             ],
-            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         optimal_obj, optimal_vars = paper_mogd.solve(problem, seed=0)
 
@@ -225,7 +221,6 @@ class TestMOGD:
             ),
             variables={"v1": co.FloatVariable(0, 1), "v2": co.IntegerVariable(2, 3)},
             constraints=[],
-            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         optimal_obj, optimal_vars = mogd.solve(problem, seed=0)
 
@@ -248,14 +243,12 @@ class TestMOGD:
                 "v1": co.FloatVariable(0, 1),
                 "v2": co.IntegerVariable(2, 3),
             },
-            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         assert input_values.feature_input.shape == (4, 2)
         assert th.all(input_values.feature_input <= 1) and th.all(
             input_values.feature_input >= 0
         )
-        assert input_shape.embedding_input_shape == 1
-        assert input_shape.output_shape == 1
+        assert input_shape.output_names == ["objective_input"]
         assert input_shape.feature_input_names == ["v1", "v2"]
         container = make_tabular_container(input_values.feature_input)
         np.testing.assert_equal(
@@ -282,7 +275,6 @@ class TestMOGD:
                 "v1": co.FloatVariable(0, 1),
                 "v2": co.IntegerVariable(2, 3),
             },
-            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         assert th.equal(input_lower.feature_input[0], th.tensor([0, 0]))
         assert th.equal(input_upper.feature_input[0], th.tensor([1, 1]))
@@ -303,7 +295,6 @@ class TestMOGD:
                 "v1": co.FloatVariable(0, 1),
                 "v2": co.IntegerVariable(2, 3),
             },
-            input_parameters={"embedding_input": 0, "objective_input": 0},
         )
         assert th.equal(input_lower.feature_input[0], th.tensor([0, 2]))
         assert th.equal(input_upper.feature_input[0], th.tensor([1, 3]))
