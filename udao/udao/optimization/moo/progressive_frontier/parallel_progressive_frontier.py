@@ -191,10 +191,10 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
             th.multiprocessing.set_start_method("spawn", force=True)
         if self.processes == 1:
             ret_list = [self._solve_wrapper(*args) for args in args_list]
-
-        # call self.constraint_so_opt parallely
-        with Pool(processes=self.processes) as pool:
-            ret_list = pool.starmap(self._solve_wrapper, args_list)
+        else:
+            # call self.constraint_so_opt parallely
+            with Pool(processes=self.processes) as pool:
+                ret_list = pool.starmap(self._solve_wrapper, args_list)
         return [res for res in ret_list if res is not None]
 
     @staticmethod
