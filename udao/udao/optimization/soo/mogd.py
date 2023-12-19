@@ -364,6 +364,7 @@ class MOGD(SOSolver):
         if best_obj is not None and best_feature_input is not None:
             best_raw_vars = {
                 name: best_feature_input[name]
+                .cpu()
                 .numpy()
                 .squeeze()
                 .tolist()  # turn np.ndarray to float
