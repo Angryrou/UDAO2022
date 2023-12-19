@@ -114,7 +114,7 @@ class TestMOGD:
         "gpu, expected_obj, expected_vars",
         [
             (False, 1, {"v1": 1.0, "v2": 2.0}),
-            (True, 0.728246, [0.07, 2.15]),
+            (True, 1, {"v1": 1.0, "v2": 2.0}),
         ],
     )
     def test_solve(
