@@ -10,7 +10,7 @@ def recv_msg(sock):
     if not raw_msglen:
         return None
     msglen = struct.unpack('>I', raw_msglen)[0]
-    logger.debug(f"received message length: {msglen}")
+    logger.info(f"received message length: {msglen}")
 
     # Read the message data
     msg_data = recvall(sock, msglen)
@@ -40,7 +40,7 @@ sock.listen(1)
 
 logger = _get_logger(
     name="server",
-    std_level=logging.DEBUG,
+    std_level=logging.INFO,
     file_level=logging.DEBUG,
     log_file_path="server.log",
 )
@@ -49,21 +49,20 @@ try:
     while True:
         logger.info(f"Server listening on {host}:{port}")
         conn, addr = sock.accept()
-        logger.debug(f"Connected by {addr}")
+        logger.info(f"Connected by {addr}")
 
         while True:
             # message = conn.recv(4096).decode('utf-8')
             message = recv_msg(conn)
-            logger.debug(f"Received message: {message}")
+            logger.info(f"Received message: {message}")
             if not message:
                 logger.warning(f"No message received, disconnecting {addr}")
                 break
             response = "xxx\n"
             conn.sendall(response.encode("utf-8"))
-            logger.debug(f"Sent response: {response}")
+            logger.info(f"Sent response: {response}")
 
         conn.close()
-        logger.info(f"Server listening on {host}:{port}")
 except Exception as e:
     logger.exception("Exception occurred: e")
     sock.close()
