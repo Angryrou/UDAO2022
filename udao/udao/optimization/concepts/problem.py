@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Sequence
 
+from ...data.handler.data_processor import DataProcessor
 from .constraint import Constraint
 from .objective import Objective
 from .variable import Variable
@@ -16,6 +17,8 @@ class MOProblem:
     """Dictionary of variables to optimize"""
     constraints: Sequence[Constraint]
     """List of constraints to comply with"""
+    data_processor: Optional[DataProcessor] = None
+    """Data processor to use for the problem"""
     input_parameters: Optional[Dict[str, Any]] = None
     """Dictionary of non-decision input parameters"""
 
@@ -38,6 +41,8 @@ class SOProblem:
     """Dictionary of variables to optimize"""
     constraints: Sequence[Constraint]
     """List of constraints to comply with"""
+    data_processor: Optional[DataProcessor] = None
+    """Data processor to use for the problem"""
     input_parameters: Optional[Dict[str, Any]] = None
     """Dictionary of non-decision input parameters"""
 

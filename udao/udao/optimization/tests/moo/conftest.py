@@ -12,7 +12,6 @@ from ....data.tests.iterators.dummy_udao_iterator import DummyFeatureIterator
 from ....utils.interfaces import UdaoInput
 from ...concepts import Constraint, FloatVariable, IntegerVariable, Objective, Variable
 from ...concepts.problem import MOProblem
-from ...concepts.utils import ModelComponent
 from ...soo.mogd import MOGD
 
 
@@ -83,8 +82,8 @@ def mogd() -> MOGD:
 @pytest.fixture
 def two_obj_problem(data_processor: DataProcessor) -> MOProblem:
     objectives = [
-        Objective("obj1", "MIN", ModelComponent(data_processor, ObjModel1())),
-        Objective("obj2", "MIN", ModelComponent(data_processor, ObjModel2())),
+        Objective("obj1", "MIN", ObjModel1()),
+        Objective("obj2", "MIN", ObjModel2()),
     ]
     variables: Dict[str, Variable] = {
         "v1": FloatVariable(0, 1),
@@ -93,6 +92,7 @@ def two_obj_problem(data_processor: DataProcessor) -> MOProblem:
     constraints: Sequence[Constraint] = []
 
     return MOProblem(
+        data_processor=data_processor,
         objectives=objectives,
         variables=variables,
         constraints=constraints,
@@ -106,11 +106,12 @@ def three_obj_problem(
 ) -> MOProblem:
     return MOProblem(
         objectives=[
-            Objective("obj1", "MAX", ModelComponent(data_processor, ObjModel1())),
-            Objective("obj2", "MAX", ModelComponent(data_processor, ObjModel2())),
-            Objective("obj3", "MAX", ModelComponent(data_processor, ComplexObj2())),
+            Objective("obj1", "MAX", ObjModel1()),
+            Objective("obj2", "MAX", ObjModel2()),
+            Objective("obj3", "MAX", ComplexObj2()),
         ],
         variables=two_obj_problem.variables,
         constraints=two_obj_problem.constraints,
         input_parameters=two_obj_problem.input_parameters,
+        data_processor=data_processor,
     )

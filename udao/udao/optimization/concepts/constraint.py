@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import torch as th
 
-from .utils import UdaoFunction
+from ..concepts.utils import UdaoFunction
 
 ConstraintType = Union[Literal["=="], Literal["<="], Literal[">="]]
 
@@ -12,8 +12,14 @@ ConstraintType = Union[Literal["=="], Literal["<="], Literal[">="]]
 class Constraint:
     """Constraint for optimization."""
 
-    function: UdaoFunction
-    """Constraint function."""
+    function: Union[UdaoFunction, th.nn.Module, Callable[..., th.Tensor]]
+    """Objective function.
+    The choice of the type depends on whether a DataProcessor is specified
+    for the problem:
+    - if no DataProcessor is provided: UdaoFunction, it is a callable
+    that takes input_variables and input_parameters
+    - else, th.nn.Module or other Callable returning a tensor.
+    """
     lower: Optional[float] = None
     """lower bound of the constraint."""
     upper: Optional[float] = None

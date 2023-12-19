@@ -4,6 +4,7 @@ from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 import numpy as np
 
 from ..concepts import Constraint, SOProblem, Variable
+from ..concepts.utils import derive_processed_input
 from ..utils.exceptions import NoSolutionError
 from .so_solver import SOSolver
 
@@ -70,9 +71,17 @@ class SamplerSolver(SOSolver, ABC):
         )
         if any([len(v) == 0 for v in filtered_vars.values()]):
             raise NoSolutionError("No feasible solution found!")
-        th_value = problem.objective.function(
-            input_variables=filtered_vars, input_parameters=problem.input_parameters
-        )
+        if problem.data_processor is not None:
+            input_data, _ = derive_processed_input(
+                problem.data_processor,
+                input_parameters=problem.input_parameters,
+                input_variables=filtered_vars,
+            )
+            th_value = problem.objective.function(input_data)
+        else:
+            th_value = problem.objective.function(
+                input_variables=filtered_vars, input_parameters=problem.input_parameters
+            )
         objective_value = th_value.numpy().reshape(-1, 1)
         op_ind = int(np.argmin(objective_value * problem.objective.direction))
 

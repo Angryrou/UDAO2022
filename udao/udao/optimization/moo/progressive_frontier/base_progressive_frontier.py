@@ -8,6 +8,7 @@ from ....utils.interfaces import VarTypes
 from ....utils.logging import logger
 from ...concepts import Constraint, Objective
 from ...concepts.problem import MOProblem, SOProblem
+from ...concepts.utils import derive_processed_input, derive_unprocessed_input
 from ...soo.so_solver import SOSolver
 from ...utils import solver_utils as solver_ut
 from ...utils.exceptions import NoSolutionError
@@ -69,6 +70,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                     objective=problem.objectives[obj_ind],
                     constraints=problem.constraints,
                     input_parameters=problem.input_parameters,
+                    data_processor=problem.data_processor,
                 ),
                 seed=seed,
             )
@@ -192,6 +194,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
             variables=problem.variables,
             constraints=soo_constraints,
             input_parameters=problem.input_parameters,
+            data_processor=problem.data_processor,
         )
         return so_problem
 
@@ -244,12 +247,23 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         obj_list = []
         for obj in problem.objectives:
-            obj_value = (
-                obj(
-                    input_parameters=problem.input_parameters,
-                    input_variables=variable_values,
+            if problem.data_processor is not None:
+                input_data, _ = derive_processed_input(
+                    problem.data_processor,
+                    variable_values,
+                    problem.input_parameters,
                 )
-                * obj.direction
-            ).squeeze()
+                obj_value = obj(input_data)
+            else:
+                input_vars, input_params = derive_unprocessed_input(
+                    variable_values,
+                    problem.input_parameters,
+                )
+                obj_value = obj(
+                    input_parameters=input_params,
+                    input_variables=input_vars,
+                )
+
+            obj_value = (obj_value * obj.direction).squeeze()
             obj_list.append(obj_value.detach().cpu())
         return np.array(obj_list)

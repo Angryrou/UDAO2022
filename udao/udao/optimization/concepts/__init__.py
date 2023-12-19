@@ -1,7 +1,7 @@
 from .constraint import Constraint
 from .objective import Objective
 from .problem import MOProblem, SOProblem
-from .utils import InputParameters, InputVariables, ModelComponent
+from .utils import InputParameters, InputVariables
 from .variable import (
     BoolVariable,
     EnumVariable,
@@ -20,7 +20,6 @@ __all__ = [
     "IntegerVariable",
     "BoolVariable",
     "FloatVariable",
-    "ModelComponent",
     "InputVariables",
     "InputParameters",
     "MOProblem",
