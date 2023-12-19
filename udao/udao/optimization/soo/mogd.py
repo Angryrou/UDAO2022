@@ -519,6 +519,12 @@ class MOGD(SOSolver):
     ) -> Tuple[float, Dict[str, float]]:
         if seed is not None:
             th.manual_seed(seed)
+        if self.device:
+            for constraint in problem.constraints:
+                if isinstance(constraint.function, th.nn.Module):
+                    constraint.function.to(self.device)
+            if isinstance(problem.objective.function, th.nn.Module):
+                problem.objective.function.to(self.device)
         categorical_variables = [
             name
             for name, variable in problem.variables.items()
