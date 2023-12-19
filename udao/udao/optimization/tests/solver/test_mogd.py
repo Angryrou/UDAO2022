@@ -60,10 +60,8 @@ def mogd() -> MOGD:
 
     params = MOGD.Params(
         learning_rate=0.1,
-        weight_decay=0.1,
         max_iters=100,
         patience=10,
-        seed=0,
         multistart=10,
         objective_stress=0.1,
     )
@@ -101,11 +99,9 @@ def paper_mogd() -> MOGD:
     set_deterministic_torch(42)
 
     params = MOGD.Params(
-        learning_rate=1,
-        weight_decay=0.0,
+        learning_rate=0.1,
         max_iters=100,
-        patience=10,
-        seed=0,
+        patience=100,
         multistart=10,
         objective_stress=10,
     )
@@ -118,7 +114,7 @@ class TestMOGD:
     @pytest.mark.parametrize(
         "gpu, expected_obj, expected_vars",
         [
-            (False, 1, {"v1": 1.0, "v2": 3.0}),
+            (False, 1, {"v1": 1.0, "v2": 2.0}),
             (True, 0.728246, [0.07, 2.15]),
         ],
     )
@@ -160,7 +156,7 @@ class TestMOGD:
             ],
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
-        optimal_obj, optimal_vars = mogd.solve(problem)
+        optimal_obj, optimal_vars = mogd.solve(problem, seed=0)
         assert optimal_obj is not None
         np.testing.assert_array_almost_equal(optimal_obj, expected_obj, decimal=5)
         assert optimal_vars == expected_vars
@@ -202,7 +198,7 @@ class TestMOGD:
             ],
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
-        optimal_obj, optimal_vars = paper_mogd.solve(problem)
+        optimal_obj, optimal_vars = paper_mogd.solve(problem, seed=0)
 
         assert optimal_obj is not None
         np.testing.assert_allclose([optimal_obj], [150], rtol=1e-3)
@@ -231,7 +227,7 @@ class TestMOGD:
             constraints=[],
             input_parameters={"embedding_input": 0, "objective_input": 0},
         )
-        optimal_obj, optimal_vars = mogd.solve(problem)
+        optimal_obj, optimal_vars = mogd.solve(problem, seed=0)
 
         assert optimal_obj is not None
         np.testing.assert_array_equal(optimal_obj, 2)
@@ -424,5 +420,5 @@ class TestMOGD:
         meshed_variables = mogd.get_meshed_categorical_vars(variables=variables)
         assert meshed_variables is not None
         np.testing.assert_array_equal(
-            meshed_variables, [[4, 10], [5, 10], [4, 20], [5, 20]]
+            meshed_variables, [[4.0, 10.0], [5.0, 10.0], [4.0, 20.0], [5.0, 20.0]]
         )

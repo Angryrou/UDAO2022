@@ -5,27 +5,35 @@ import numpy as np
 
 from ..concepts import Constraint, SOProblem, Variable
 from ..utils.exceptions import NoSolutionError
-from .base_solver import SOSolver
+from .so_solver import SOSolver
 
 
 class SamplerSolver(SOSolver, ABC):
     @abstractmethod
-    def _get_input(self, variables: Mapping[str, Variable]) -> Dict[str, np.ndarray]:
+    def _get_input(
+        self, variables: Mapping[str, Variable], seed: Optional[int] = None
+    ) -> Dict[str, np.ndarray]:
         """
         generate samples of variables
 
-        Parameters:
+        Parameters
         -----------
         variables: List[Variable],
             lower and upper var_ranges of variables(non-ENUM),
             and values of ENUM variables
-        Returns:
+        seed: int, by default None
+            random seed
+
+        Returns
+        --------
         np.ndarray,
             variables (n_samples * n_vars)
         """
         pass
 
-    def solve(self, problem: SOProblem) -> Tuple[float, Dict[str, float]]:
+    def solve(
+        self, problem: SOProblem, seed: Optional[int] = None
+    ) -> Tuple[float, Dict[str, float]]:
         """Solve a single-objective optimization problem
 
         Parameters
@@ -39,7 +47,8 @@ class SamplerSolver(SOSolver, ABC):
         input_parameters : Optional[Dict[str, Any]], optional
             Fixed parameters input to objectives and/or constraints,
             by default None
-
+        seed: int, by default None
+            random seed
         Returns
         -------
         Point
@@ -53,7 +62,7 @@ class SamplerSolver(SOSolver, ABC):
         """
         if problem.constraints is None:
             pass
-        variable_values = self._get_input(problem.variables)
+        variable_values = self._get_input(problem.variables, seed=seed)
         filtered_vars = self.filter_on_constraints(
             input_parameters=problem.input_parameters,
             input_vars=variable_values,

@@ -13,15 +13,15 @@ class RandomSampler(SamplerSolver):
         n_samples_per_param: int
         "the number of samples per variable"
 
-        seed: Optional[int] = None
-        "random seed for generatino of samples"
-
     def __init__(self, params: Params) -> None:
         super().__init__()
         self.n_samples_per_param = params.n_samples_per_param
-        self.seed = params.seed
 
-    def _process_variable(self, var: Variable) -> np.ndarray:
+    def _process_variable(
+        self, var: Variable, seed: Optional[int] = None
+    ) -> np.ndarray:
+        if seed is not None:
+            np.random.seed(seed)
         """Generate samples of a variable"""
         if isinstance(var, FloatVariable):
             return np.random.uniform(var.lower, var.upper, self.n_samples_per_param)
@@ -37,7 +37,9 @@ class RandomSampler(SamplerSolver):
                 f"ERROR: variable type {type(var)} is not supported!"
             )
 
-    def _get_input(self, variables: Mapping[str, Variable]) -> Dict[str, np.ndarray]:
+    def _get_input(
+        self, variables: Mapping[str, Variable], seed: Optional[int] = None
+    ) -> Dict[str, np.ndarray]:
         """
         generate samples of variables
 
@@ -53,8 +55,7 @@ class RandomSampler(SamplerSolver):
         """
         result_dict = {}
 
-        np.random.seed(self.seed)
         for name, var in variables.items():
-            result_dict[name] = self._process_variable(var)
+            result_dict[name] = self._process_variable(var, seed=seed)
 
         return result_dict

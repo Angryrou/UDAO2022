@@ -11,7 +11,7 @@ from ...utils.interfaces import UdaoInput, UdaoInputShape
 from ...utils.logging import logger
 from .. import concepts as co
 from ..utils.exceptions import NoSolutionError
-from .base_solver import SOSolver
+from .so_solver import SOSolver
 
 
 def get_default_device() -> th.device:
@@ -29,9 +29,6 @@ class MOGD(SOSolver):
     class Params:
         learning_rate: float
         """learning rate of Adam optimizer applied to input variables"""
-        weight_decay: float
-        """weight decay of Adam optimizer applied to input variables"""
-        """TODO: remove"""
         max_iters: int
         """maximum number of iterations for a single local search"""
         patience: int
@@ -40,8 +37,7 @@ class MOGD(SOSolver):
         """number of random starts for gradient descent"""
         objective_stress: float
         """stress term for objective function"""
-        seed: int = 0
-        """seed for random number generator"""
+
         batch_size: int = 1
         """batch size for gradient descent"""
         device: Optional[th.device] = field(default_factory=get_default_device)
@@ -51,12 +47,10 @@ class MOGD(SOSolver):
     def __init__(self, params: Params) -> None:
         super().__init__()
         self.lr = params.learning_rate
-        self.wd = params.weight_decay
         self.max_iter = params.max_iters
         self.patience = params.patience
         self.multistart = params.multistart
         self.objective_stress = params.objective_stress
-        self.seed = params.seed
         self.batch_size = params.batch_size
         self.device = params.device
         self.dtype = params.dtype
@@ -66,6 +60,7 @@ class MOGD(SOSolver):
         numeric_variables: Dict[str, co.NumericVariable],
         objective_function: co.ModelComponent,
         input_parameters: Optional[Dict[str, Any]] = None,
+        seed: Optional[int] = None,
     ) -> Tuple[UdaoInput, UdaoInputShape, Callable[[th.Tensor], TabularContainer]]:
         """Get random values for numeric variables
 
@@ -89,7 +84,7 @@ class MOGD(SOSolver):
 
         for name, variable in numeric_variables.items():
             numeric_values[name] = co.variable.get_random_variable_values(
-                variable, self.batch_size
+                variable, self.batch_size, seed=seed
             )
 
         input_data, iterator = objective_function.process_data(
@@ -148,6 +143,7 @@ class MOGD(SOSolver):
         objective: co.Objective,
         constraints: Sequence[co.Constraint],
         input_parameters: Optional[Dict[str, Any]] = None,
+        seed: Optional[int] = None,
     ) -> Tuple[float, Dict[str, float], float]:
         """Perform a single start optimization.
         Categorical variables are fixed to the values in input_parameters.
@@ -164,6 +160,8 @@ class MOGD(SOSolver):
             Constraints to be satisfied
         input_parameters : Optional[Dict[str, Any]], optional
             Non decision parts of the input, by default None
+        seed: int, by default None
+            random seed
 
         Returns
         -------
@@ -193,7 +191,10 @@ class MOGD(SOSolver):
                 )
         # Random numeric variables and their characteristics
         input_data, input_data_shape, make_tabular_container = self._get_input_values(
-            numeric_variables, objective.function, input_parameters=input_parameters
+            numeric_variables,
+            objective.function,
+            input_parameters=input_parameters,
+            seed=seed,
         )
         # Bounds of numeric variables
         lower_input, upper_input = self._get_input_bounds(
@@ -291,8 +292,11 @@ class MOGD(SOSolver):
             )
             raise NoSolutionError
 
-    def solve(self, problem: co.SOProblem) -> Tuple[float, Dict[str, float]]:
-        th.manual_seed(self.seed)
+    def solve(
+        self, problem: co.SOProblem, seed: Optional[int] = None
+    ) -> Tuple[float, Dict[str, float]]:
+        if seed is not None:
+            th.manual_seed(seed)
         categorical_variables = [
             name
             for name, variable in problem.variables.items()
@@ -311,7 +315,7 @@ class MOGD(SOSolver):
         best_loss_list: List[float] = []
         obj_list: List[float] = []
         vars_list: List[Dict] = []
-        for _ in range(self.multistart):
+        for i in range(self.multistart):
             for categorical_cell in meshed_categorical_vars:
                 categorical_values = {
                     name: categorical_cell[ind]
@@ -331,6 +335,7 @@ class MOGD(SOSolver):
                         input_parameters=fixed_values,
                         objective=problem.objective,
                         constraints=problem.constraints or [],
+                        seed=seed + i if seed is not None else None,
                     )
                 except NoSolutionError:
                     continue

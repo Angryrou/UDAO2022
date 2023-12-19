@@ -93,6 +93,7 @@ class TestProgressiveFrontier:
     ) -> None:
         objectives, variables = spf.solve(
             problem=two_obj_problem,
+            seed=0,
         )
         assert objectives is not None
         np.testing.assert_array_equal(objectives, [[0, 0]])
@@ -125,20 +126,22 @@ class TestProgressiveFrontier:
         anchor_point = spf.get_anchor_point(
             problem=two_obj_problem,
             obj_ind=0,
+            seed=0,
         )
         np.testing.assert_array_almost_equal(
-            anchor_point.objs, np.array([0.0, 0.6944444])
+            anchor_point.objs, np.array([0.0, 0.444444])
         )
-        assert anchor_point.vars == {"v1": 0.0, "v2": 6.0}
+        assert anchor_point.vars == {"v1": 0.0, "v2": 5.0}
         anchor_point = spf.get_anchor_point(
             problem=two_obj_problem,
             obj_ind=1,
+            seed=0,
         )
         np.testing.assert_array_almost_equal(
-            anchor_point.objs, np.array([0.007592, 0.0])
+            anchor_point.objs, np.array([0.301196, 0.0])
         )
         assert anchor_point.vars is not None
-        assert anchor_point.vars == {"v1": 0.08712930232286453, "v2": 1.0}
+        assert anchor_point.vars == {"v1": 0.54881352186203, "v2": 1.0}
 
     def test_get_anchor_points_with_int(
         self,
@@ -147,9 +150,6 @@ class TestProgressiveFrontier:
     ) -> None:
         two_obj_problem.objectives[0].type = VarTypes.INT
         set_deterministic_torch()
-        anchor_point = spf.get_anchor_point(
-            problem=two_obj_problem,
-            obj_ind=0,
-        )
+        anchor_point = spf.get_anchor_point(problem=two_obj_problem, obj_ind=0, seed=0)
         np.testing.assert_array_almost_equal(anchor_point.objs, np.array([0.0, 0.0]))
         assert anchor_point.vars == {"v1": 0.0, "v2": 1.0}

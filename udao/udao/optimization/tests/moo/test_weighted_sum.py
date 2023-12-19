@@ -6,9 +6,9 @@ from ...concepts import BoolVariable, Constraint, IntegerVariable, Objective
 from ...concepts.problem import MOProblem
 from ...concepts.utils import InputParameters, InputVariables
 from ...moo.weighted_sum import WeightedSum
-from ...soo.base_solver import SOSolver
 from ...soo.grid_search_solver import GridSearch
 from ...soo.random_sampler_solver import RandomSampler
+from ...soo.so_solver import SOSolver
 from ...utils.exceptions import NoSolutionError
 
 
@@ -61,7 +61,7 @@ class TestWeightedSum:
         "inner_solver",
         [
             GridSearch(GridSearch.Params(n_grids_per_var=[2, 7])),
-            RandomSampler(RandomSampler.Params(n_samples_per_param=30, seed=0)),
+            RandomSampler(RandomSampler.Params(n_samples_per_param=30)),
         ],
     )
     def test_solve_without_input_parameters(
@@ -75,7 +75,7 @@ class TestWeightedSum:
             so_solver=inner_solver,
             ws_pairs=ws_pairs,
         )
-        po_objs, po_vars = ws_algo.solve(problem=simple_problem)
+        po_objs, po_vars = ws_algo.solve(problem=simple_problem, seed=0)
         np.testing.assert_equal(po_objs, np.array([[0, 0.2]]))
         np.testing.assert_equal(po_vars, np.array({"v1": 0, "v2": 2}))
 
@@ -83,7 +83,7 @@ class TestWeightedSum:
         "inner_solver",
         [
             GridSearch(GridSearch.Params(n_grids_per_var=[2, 7])),
-            RandomSampler(RandomSampler.Params(n_samples_per_param=30, seed=0)),
+            RandomSampler(RandomSampler.Params(n_samples_per_param=30)),
         ],
     )
     def test_solve_with_input_parameters(
@@ -96,9 +96,7 @@ class TestWeightedSum:
             so_solver=inner_solver,
             ws_pairs=ws_pairs,
         )
-        po_objs, po_vars = ws_algo.solve(
-            problem=simple_problem,
-        )
+        po_objs, po_vars = ws_algo.solve(problem=simple_problem, seed=0)
 
         np.testing.assert_equal(po_objs, np.array([[1, 1.3]]))
         np.testing.assert_equal(po_vars, np.array([{"v1": 0, "v2": 3}]))
@@ -107,7 +105,7 @@ class TestWeightedSum:
         "inner_solver",
         [
             GridSearch(GridSearch.Params(n_grids_per_var=[2, 7])),
-            RandomSampler(RandomSampler.Params(n_samples_per_param=10, seed=0)),
+            RandomSampler(RandomSampler.Params(n_samples_per_param=10)),
         ],
     )
     def test_ws_raises_no_solution(
@@ -127,13 +125,13 @@ class TestWeightedSum:
             ws_pairs=ws_pairs,
         )
         with pytest.raises(NoSolutionError):
-            ws_algo.solve(problem=simple_problem)
+            ws_algo.solve(problem=simple_problem, seed=0)
 
     @pytest.mark.parametrize(
         "inner_solver",
         [
             GridSearch(GridSearch.Params(n_grids_per_var=[2, 7])),
-            RandomSampler(RandomSampler.Params(n_samples_per_param=30, seed=0)),
+            RandomSampler(RandomSampler.Params(n_samples_per_param=30)),
         ],
     )
     def test_works_with_three_objectives(
@@ -161,9 +159,7 @@ class TestWeightedSum:
             so_solver=inner_solver,
             ws_pairs=ws_pairs,
         )
-        po_objs, po_vars = ws_algo.solve(
-            problem=simple_problem,
-        )
+        po_objs, po_vars = ws_algo.solve(problem=simple_problem, seed=0)
 
         np.testing.assert_equal(po_objs, np.array([[0, 3, 0.3]]))
         np.testing.assert_equal(po_vars, np.array([{"v1": 0, "v2": 3}]))

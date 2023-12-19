@@ -1,6 +1,6 @@
 import itertools
 from dataclasses import dataclass
-from typing import Dict, List, Mapping
+from typing import Dict, List, Mapping, Optional
 
 import numpy as np
 
@@ -42,7 +42,9 @@ class GridSearch(SamplerSolver):
                 f"ERROR: variable type {type(var)} is not supported!"
             )
 
-    def _get_input(self, variables: Mapping[str, Variable]) -> Dict[str, np.ndarray]:
+    def _get_input(
+        self, variables: Mapping[str, Variable], seed: Optional[int] = None
+    ) -> Dict[str, np.ndarray]:
         """
         Generate grids for each variable
 

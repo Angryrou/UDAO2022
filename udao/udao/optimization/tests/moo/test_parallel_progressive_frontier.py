@@ -71,13 +71,14 @@ class TestParallelProgressiveFrontier:
     def test_solve_with_two_objectives(
         self, ppf: ParallelProgressiveFrontier, two_obj_problem: MOProblem
     ) -> None:
-        set_deterministic_torch()
+        set_deterministic_torch(0)
         objectives, variables = ppf.solve(
             problem=two_obj_problem,
+            seed=0,
         )
         assert objectives is not None
         cast(MOGD, ppf.solver).patience = 100
-        np.testing.assert_array_equal(objectives, [[0, 0]])
+        np.testing.assert_array_equal(objectives, np.array([[0, 0]]))
         assert variables is not None
         assert variables[0] == {"v1": 0.0, "v2": 1.0}
 
@@ -85,9 +86,7 @@ class TestParallelProgressiveFrontier:
         self, ppf: ParallelProgressiveFrontier, three_obj_problem: MOProblem
     ) -> None:
         set_deterministic_torch()
-        obj_values, var_values = ppf.solve(
-            problem=three_obj_problem,
-        )
+        obj_values, var_values = ppf.solve(problem=three_obj_problem, seed=0)
         assert obj_values is not None
-        np.testing.assert_array_almost_equal(obj_values, [[-1.0, -1.0, -2.0]])
+        np.testing.assert_array_almost_equal(obj_values, np.array([[-1.0, -1.0, -2.0]]))
         assert var_values[0] == {"v1": 1.0, "v2": 7.0}
