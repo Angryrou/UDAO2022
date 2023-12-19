@@ -674,7 +674,6 @@ class MOGD(SOSolver):
         loss = th.zeros_like(
             objective_value, device=self.device, dtype=self.dtype
         )  # size of objective_value ((bs, 1) ?)
-        print(objective_value.get_device(), loss.get_device())
         if objective.upper is None and objective.lower is None:
             loss = (
                 th.sign(objective_value) * (objective_value**2) * objective.direction
@@ -683,6 +682,7 @@ class MOGD(SOSolver):
             norm_cst_obj_pred = (objective_value - objective.lower) / (
                 objective.upper - objective.lower
             )  # scaled
+            print(f"norm_cst_obj_pred {norm_cst_obj_pred.get_device()}")
             loss = th.where(
                 (norm_cst_obj_pred < 0) | (norm_cst_obj_pred > 1),
                 (norm_cst_obj_pred - 0.5) ** 2 + self.objective_stress,
