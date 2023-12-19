@@ -50,6 +50,7 @@ class BaseProblem:
             input_data, _ = derive_processed_input(
                 self.data_processor,
                 input_variables=input_variables,
+                input_parameters=self.input_parameters,
             )
             th_value = optimization_element(input_data)
         else:
@@ -67,15 +68,6 @@ class BaseProblem:
     def derive_SO_problem(self, objective: Objective) -> "SOProblem":
         return SOProblem(
             objective=objective,
-            variables=self.variables,
-            constraints=self.constraints,
-            data_processor=self.data_processor,
-            input_parameters=self.input_parameters,
-        )
-
-    def derive_MO_problem(self, objectives: Sequence[Objective]) -> "MOProblem":
-        return MOProblem(
-            objectives=objectives,
             variables=self.variables,
             constraints=self.constraints,
             data_processor=self.data_processor,

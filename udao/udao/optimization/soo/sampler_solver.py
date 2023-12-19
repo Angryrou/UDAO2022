@@ -73,7 +73,7 @@ class SamplerSolver(SOSolver, ABC):
         th_value = problem.apply_function(
             optimization_element=problem.objective, input_variables=filtered_vars
         )
-        objective_value = th_value.numpy().reshape(-1, 1)
+        objective_value = th_value.detach().numpy().reshape(-1, 1)
         op_ind = int(np.argmin(objective_value * problem.objective.direction))
 
         return (

@@ -13,7 +13,7 @@ from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtr
 from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
 from udao.data.handler.data_handler import DataHandler, DataHandlerParams
 from udao.data.handler.data_processor import FeaturePipeline, create_data_processor
-from udao.data.iterators.query_plan_iterator import QueryPlanIterator
+from udao.data.iterators.query_plan_iterator import QueryPlanInput, QueryPlanIterator
 from udao.data.predicate_embedders import Word2VecEmbedder, Word2VecParams
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
 from udao.model.embedders.graph_averager import GraphAverager
@@ -23,7 +23,8 @@ from udao.model.regressors.mlp import MLP
 from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 from udao.optimization import concepts
-from udao.optimization.soo.mogd import MOGD
+from udao.optimization.moo.progressive_frontier import SequentialProgressiveFrontier
+from udao.optimization.soo.random_sampler_solver import RandomSampler
 from udao.utils.logging import logger
 
 logger.setLevel("INFO")
@@ -46,7 +47,7 @@ if __name__ == "__main__":
             preprocessors=[NormalizePreprocessor(MinMaxScaler())],
         ),
         objectives=FeaturePipeline(
-            extractor=TabularFeatureExtractor(["latency"]),
+            extractor=TabularFeatureExtractor(["latency", "cost"]),
         ),
         query_structure=FeaturePipeline(
             extractor=QueryStructureExtractor(positional_encoding_size=10),
@@ -71,6 +72,21 @@ if __name__ == "__main__":
         lqp_df[["id", *cols_to_use]],
         on="id",
     )
+
+    aws_cost_cpu_hour_ratio = 0.052624
+    aws_cost_mem_hour_ratio = 0.0057785  # for GB*H
+
+    def get_cloud_cost(lat: float, mem: int, cores: int, nexec: int) -> float:
+        cpu_hour = (nexec + 1) * cores * lat / 3600
+        mem_hour = (nexec + 1) * mem * lat / 3600
+        cost = cpu_hour * aws_cost_cpu_hour_ratio + mem_hour * aws_cost_mem_hour_ratio
+        return cost
+
+    df["cost"] = df.apply(  # type: ignore
+        lambda row: get_cloud_cost(row["latency"], row["k1"] * 2, row["k2"], row["k3"]),
+        axis=1,
+    )
+
     data_handler = DataHandler(
         df,
         DataHandlerParams(
@@ -98,9 +114,9 @@ if __name__ == "__main__":
     )
     module = UdaoModule(
         model,
-        ["latency"],
+        ["latency", "cost"],
         loss=WMAPELoss(),
-        learning_params=LearningParams(init_lr=1e-3, min_lr=1e-5, weight_decay=1e-2),
+        learning_params=LearningParams(init_lr=1e-1, min_lr=1e-5, weight_decay=1e-2),
         metrics=[WeightedMeanAbsolutePercentageError],
     )
     tb_logger = TensorBoardLogger("tb_logs")
@@ -113,7 +129,6 @@ if __name__ == "__main__":
     # split_iterators["train"].set_augmentations(
     #    [train_iterator.make_graph_augmentation(random_flip_positional_encoding)]
     # )
-
     scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
     trainer = pl.Trainer(
         accelerator=device,
@@ -133,9 +148,6 @@ if __name__ == "__main__":
 
     input_parameters = {
         "plan": plan,
-        "k1": 6.0,
-        "k2": 2.0,
-        "k3": 5.0,
         "k4": 1.0,
         "k5": 3.0,
         "k6": 1.0,
@@ -153,26 +165,30 @@ if __name__ == "__main__":
         "m6": 122.46,
         "m7": 19789.84,
         "m8": 846.0800000000002,
-        "latency": 0,  # dummy
     }
 
-    def n_cores(
-        input_variables: concepts.InputVariables,
-        input_parameters: concepts.InputParameters = None,
+    def cloud_cost(
+        input_data: QueryPlanInput,
     ) -> th.Tensor:
-        return th.tensor((input_variables["k3"]) * input_variables["k1"])
+        return model(input_data)[:, 1].reshape(-1, 1)
+
+    def latency(
+        input_data: QueryPlanInput,
+    ) -> th.Tensor:
+        return model(input_data)[:, 0].reshape(-1, 1)
 
     problem = concepts.MOProblem(
+        data_processor=data_processor,
         objectives=[
             concepts.Objective(
                 name="latency",
                 direction_type="MIN",
-                function=concepts.ModelComponent(
-                    data_processor=data_processor, model=model
-                ),
+                function=latency,
             ),
             concepts.Objective(
-                name="cloud_cost", direction_type="MIN", function=n_cores
+                name="cloud_cost",
+                direction_type="MIN",
+                function=cloud_cost,
             ),
         ],
         variables={
@@ -183,31 +199,15 @@ if __name__ == "__main__":
         input_parameters=input_parameters,
         constraints=[],
     )
-    mogd = MOGD(
-        MOGD.Params(
-            learning_rate=0.1,
-            weight_decay=0.1,
-            max_iters=100,
-            patience=10,
-            seed=0,
-            multistart=10,
-            objective_stress=0.1,
-            batch_size=10,
-        )
-    )
-    so_problem = concepts.SOProblem(
-        objective=problem.objectives[0],
-        variables=problem.variables,
-        constraints=problem.constraints,
-        input_parameters=problem.input_parameters,
-    )
-    soo_obj, soo_var = mogd.solve(so_problem)
-    logger.info(f"Found solution: {soo_obj}, {soo_var}")
-    """
+
+    so_solver = RandomSampler(RandomSampler.Params(n_samples_per_param=100))
     mo_solver = SequentialProgressiveFrontier(
-        solver=mogd,
+        solver=so_solver,
         params=SequentialProgressiveFrontier.Params(),
     )
 
-    mo_solver.solve(problem)
-    """
+    moo_objs, moo_vars = mo_solver.solve(problem)
+    logger.info(f"Found solution: {moo_objs}, {moo_vars}")
+    so_problem = problem.derive_SO_problem(objective=problem.objectives[0])
+    soo_obj, soo_var = so_solver.solve(so_problem)
+    logger.info(f"Found solution: {soo_obj}, {soo_var}")

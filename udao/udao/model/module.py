@@ -105,9 +105,7 @@ class UdaoModule(pl.LightningModule):
             loss = loss_dict[self.objectives[0]]
         else:
             loss = th.sum(
-                th.tensor(
-                    [self.loss_weights[k] * loss for k, loss in loss_dict.items()]
-                )
+                th.stack([self.loss_weights[k] * loss for k, loss in loss_dict.items()])
             )
         return loss, loss_dict
 
