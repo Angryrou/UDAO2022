@@ -344,7 +344,7 @@ class MOGD(SOSolver):
                     }
                     best_iter = i
 
-            # Update input_vars_subvector with constrained values
+            # Update input_variable_values with constrained values
             with th.no_grad():
                 for k in input_variable_values:
                     input_variable_values[k].data = th.clip(

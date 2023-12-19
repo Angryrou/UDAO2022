@@ -8,7 +8,6 @@ from ....utils.interfaces import VarTypes
 from ....utils.logging import logger
 from ...concepts import Constraint, Objective
 from ...concepts.problem import MOProblem, SOProblem
-from ...concepts.utils import derive_processed_input, derive_unprocessed_input
 from ...soo.so_solver import SOSolver
 from ...utils import solver_utils as solver_ut
 from ...utils.exceptions import NoSolutionError
@@ -65,12 +64,8 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         try:
             _, soo_vars = self.solver.solve(
-                SOProblem(
-                    variables=problem.variables,
+                problem.derive_SO_problem(
                     objective=problem.objectives[obj_ind],
-                    constraints=problem.constraints,
-                    input_parameters=problem.input_parameters,
-                    data_processor=problem.data_processor,
                 ),
                 seed=seed,
             )
@@ -169,7 +164,15 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         Tuple[Objective, Sequence[Constraint]]
             The objective and constraints for the single-objective optimization
         """
-        soo_constraints = list(problem.constraints)
+        soo_objective = Objective(
+            name=primary_obj.name,
+            direction_type=primary_obj.direction_type,  # type: ignore
+            function=primary_obj.function,
+            lower=obj_bounds_dict[primary_obj.name][0],
+            upper=obj_bounds_dict[primary_obj.name][1],
+        )
+        so_problem = problem.derive_SO_problem(soo_objective)
+        soo_constraints = list(so_problem.constraints)
 
         for obj in problem.objectives:
             obj_name = obj.name
@@ -182,20 +185,8 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                         stress=self.objective_stress,
                     )
                 )
-        soo_objective = Objective(
-            name=primary_obj.name,
-            function=primary_obj.function,
-            direction_type=primary_obj.direction_type,
-            lower=obj_bounds_dict[primary_obj.name][0],
-            upper=obj_bounds_dict[primary_obj.name][1],
-        )
-        so_problem = SOProblem(
-            objective=soo_objective,
-            variables=problem.variables,
-            constraints=soo_constraints,
-            input_parameters=problem.input_parameters,
-            data_processor=problem.data_processor,
-        )
+        so_problem.constraints = soo_constraints
+
         return so_problem
 
     @staticmethod
@@ -247,23 +238,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         obj_list = []
         for obj in problem.objectives:
-            if problem.data_processor is not None:
-                input_data, _ = derive_processed_input(
-                    problem.data_processor,
-                    variable_values,
-                    problem.input_parameters,
-                )
-                obj_value = obj(input_data)
-            else:
-                input_vars, input_params = derive_unprocessed_input(
-                    variable_values,
-                    problem.input_parameters,
-                )
-                obj_value = obj(
-                    input_parameters=input_params,
-                    input_variables=input_vars,
-                )
-
+            obj_value = problem.apply_function(obj, variable_values)
             obj_value = (obj_value * obj.direction).squeeze()
             obj_list.append(obj_value.detach().cpu())
         return np.array(obj_list)

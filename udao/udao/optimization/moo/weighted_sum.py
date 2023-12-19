@@ -5,7 +5,7 @@ import numpy as np
 import torch as th
 
 from ..concepts import Objective
-from ..concepts.problem import MOProblem, SOProblem
+from ..concepts.problem import MOProblem
 from ..concepts.utils import InputParameters, InputVariables
 from ..soo.so_solver import SOSolver
 from ..utils import moo_utils as moo_ut
@@ -144,12 +144,7 @@ class WeightedSum(MOSolver):
         for i, ws in enumerate(self.ws_pairs):
             objective.ws = ws
             _, soo_vars = self.so_solver.solve(
-                SOProblem(
-                    objective,
-                    constraints=problem.constraints,
-                    variables=problem.variables,
-                    input_parameters=problem.input_parameters,
-                ),
+                problem.derive_SO_problem(objective),
                 seed=seed + i if seed is not None else None,
             )
 

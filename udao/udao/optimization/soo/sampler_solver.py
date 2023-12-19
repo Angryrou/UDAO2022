@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Mapping, Optional, Tuple
 
 import numpy as np
 
-from ..concepts import Constraint, SOProblem, Variable
-from ..concepts.utils import derive_processed_input
+from ..concepts import SOProblem, Variable
 from ..utils.exceptions import NoSolutionError
 from .so_solver import SOSolver
 
@@ -65,23 +64,15 @@ class SamplerSolver(SOSolver, ABC):
             pass
         variable_values = self._get_input(problem.variables, seed=seed)
         filtered_vars = self.filter_on_constraints(
-            input_parameters=problem.input_parameters,
             input_vars=variable_values,
-            constraints=problem.constraints,
+            problem=problem,
         )
         if any([len(v) == 0 for v in filtered_vars.values()]):
             raise NoSolutionError("No feasible solution found!")
-        if problem.data_processor is not None:
-            input_data, _ = derive_processed_input(
-                problem.data_processor,
-                input_parameters=problem.input_parameters,
-                input_variables=filtered_vars,
-            )
-            th_value = problem.objective.function(input_data)
-        else:
-            th_value = problem.objective.function(
-                input_variables=filtered_vars, input_parameters=problem.input_parameters
-            )
+
+        th_value = problem.apply_function(
+            optimization_element=problem.objective, input_variables=filtered_vars
+        )
         objective_value = th_value.numpy().reshape(-1, 1)
         op_ind = int(np.argmin(objective_value * problem.objective.direction))
 
@@ -92,9 +83,8 @@ class SamplerSolver(SOSolver, ABC):
 
     @staticmethod
     def filter_on_constraints(
-        input_parameters: Optional[Dict[str, Any]],
         input_vars: Dict[str, np.ndarray],
-        constraints: Sequence[Constraint],
+        problem: SOProblem,
     ) -> Dict[str, np.ndarray]:
         """Keep only input variables that don't violate constraints
 
@@ -107,14 +97,12 @@ class SamplerSolver(SOSolver, ABC):
         constraints : List[Constraint]
             constraint functions
         """
-        if not constraints:
+        if not problem.constraints:
             return input_vars
 
         available_indices = np.arange(len(next(iter(input_vars.values()))))
-        for constraint in constraints:
-            const_values = constraint.function(
-                input_variables=input_vars, input_parameters=input_parameters
-            )
+        for constraint in problem.constraints:
+            const_values = problem.apply_function(constraint, input_vars)
             if constraint.upper is not None:
                 available_indices = np.intersect1d(
                     available_indices, np.where(const_values <= constraint.upper)
