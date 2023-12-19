@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch as th
@@ -19,11 +19,11 @@ class WeightedSumObjective(Objective):
 
     def __init__(
         self,
-        objectives: Sequence[Objective],
+        problem: MOProblem,
         ws: List[float],
         allow_cache: bool = False,
     ) -> None:
-        self.objectives = objectives
+        self.problem = problem
         self.ws = ws
         super().__init__(
             name="weighted_sum", function=self.function, direction_type="MIN"
@@ -31,18 +31,16 @@ class WeightedSumObjective(Objective):
         self._cache: Dict[str, np.ndarray] = {}
         self.allow_cache = allow_cache
 
-    def _function(
-        self, input_variables: InputVariables, input_parameters: InputParameters = None
-    ) -> np.ndarray:
+    def _function(self, input_variables: InputVariables) -> np.ndarray:
         hash_var = ""
         if self.allow_cache:
             hash_var = json.dumps(vars)
             if hash_var in self._cache:
                 return self._cache[hash_var]
         objs: List[np.ndarray] = []
-        for objective in self.objectives:
+        for objective in self.problem.objectives:
             obj = (
-                objective.function(input_variables, input_parameters)
+                self.problem.apply_function(objective, input_variables)
                 * objective.direction
             )
             objs.append(obj.numpy().squeeze())
@@ -57,7 +55,7 @@ class WeightedSumObjective(Objective):
         self, input_variables: InputVariables, input_parameters: InputParameters = None
     ) -> th.Tensor:
         """Sum of weighted normalized objectives"""
-        objs_array = self._function(input_variables, input_parameters)
+        objs_array = self._function(input_variables)
         objs_norm = self._normalize_objective(objs_array)
         return th.tensor(np.sum(objs_norm * self.ws, axis=1))
 
@@ -138,9 +136,7 @@ class WeightedSum(MOSolver):
             Pareto solutions and corresponding variables.
         """
         candidate_points: List[Point] = []
-        objective = WeightedSumObjective(
-            problem.objectives, self.ws_pairs[0], self.allow_cache
-        )
+        objective = WeightedSumObjective(problem, self.ws_pairs[0], self.allow_cache)
         for i, ws in enumerate(self.ws_pairs):
             objective.ws = ws
             _, soo_vars = self.so_solver.solve(
@@ -148,9 +144,7 @@ class WeightedSum(MOSolver):
                 seed=seed + i if seed is not None else None,
             )
 
-            objective_values = objective._function(
-                soo_vars, input_parameters=problem.input_parameters  # type: ignore
-            )
+            objective_values = objective._function(soo_vars)
 
             candidate_points.append(Point(objective_values, soo_vars))
 
