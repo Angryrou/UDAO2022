@@ -7,7 +7,7 @@ import torch as th
 from ...data.containers.tabular_container import TabularContainer
 from ...utils.interfaces import UdaoInput, UdaoInputShape
 from ..containers import QueryStructureContainer
-from .base_iterator import UdaoIterator
+from .base_iterator import FeatureIterator
 
 
 @dataclass
@@ -17,7 +17,7 @@ class QueryPlanInput(UdaoInput[dgl.DGLGraph]):
     pass
 
 
-class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
+class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
     """
     Iterator that returns a dgl.DGLGraph for each key, with associated node features.
     The features are stored in the graph.ndata dictionary.
@@ -79,7 +79,7 @@ class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
         objectives = th.tensor(self.objectives.get(key), dtype=self.tensors_dtype)
         graph, meta_input = self._get_graph_and_meta(key)
         features = th.cat([meta_input, features])
-        input_data = QueryPlanInput(graph, features)
+        input_data = QueryPlanInput(features, graph)
         return input_data, objectives
 
     @property
@@ -104,10 +104,11 @@ class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
             *self.query_structure_container.graph_meta_features.columns,
             *self.tabular_features.data.columns,
         ]
+        output_names = list(self.objectives.data.columns)
         return UdaoInputShape(
             embedding_input_shape=embedding_input_shape,
             feature_input_names=feature_names,
-            output_shape=sample_output.shape[0],
+            output_names=output_names,
         )
 
     @staticmethod
@@ -118,7 +119,7 @@ class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoInputShape]):
         graphs = [item[0].embedding_input for item in items]
         features = th.vstack([item[0].feature_input for item in items])
         objectives = th.vstack([item[1] for item in items])
-        return QueryPlanInput(dgl.batch(graphs), features), objectives
+        return QueryPlanInput(features, dgl.batch(graphs)), objectives
 
     @staticmethod
     def make_graph_augmentation(

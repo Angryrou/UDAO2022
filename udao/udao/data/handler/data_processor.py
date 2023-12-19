@@ -1,5 +1,17 @@
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type, Union, cast
+from typing import (
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import torch as th
 from pandas import DataFrame
@@ -20,7 +32,10 @@ class FeaturePipeline:
     and their initialization arguments."""
 
 
-class DataProcessor:
+IT = TypeVar("IT", bound=BaseIterator)
+
+
+class DataProcessor(Generic[IT]):
     """
     Parameters
     ----------
@@ -59,7 +74,7 @@ class DataProcessor:
 
     def __init__(
         self,
-        iterator_cls: Type[BaseIterator],
+        iterator_cls: Type[IT],
         feature_extractors: Dict[str, FeatureExtractor],
         feature_preprocessors: Optional[
             Mapping[
@@ -120,9 +135,7 @@ class DataProcessor:
 
         return features
 
-    def make_iterator(
-        self, data: DataFrame, keys: Sequence, split: DatasetType
-    ) -> BaseIterator:
+    def make_iterator(self, data: DataFrame, keys: Sequence, split: DatasetType) -> IT:
         return self.iterator_cls(keys, **self.extract_features(data, split=split))
 
     def inverse_transform(
@@ -162,8 +175,8 @@ class DataProcessor:
 
 
 def create_data_processor(
-    iterator_cls: Type[BaseIterator], *args: str
-) -> Callable[..., DataProcessor]:
+    iterator_cls: Type[IT], *args: str
+) -> Callable[..., DataProcessor[IT]]:
     """
     Creates a DataHandlerParams class dynamically based on
     provided iterator class and additional arguments.
@@ -198,7 +211,7 @@ def create_data_processor(
     def get_processor(
         tensors_dtype: Optional[th.dtype] = None,
         **kwargs: FeaturePipeline,
-    ) -> DataProcessor:
+    ) -> DataProcessor[IT]:
         feature_extractors: Dict[str, FeatureExtractor] = {}
         feature_preprocessors: Dict[str, Sequence[FeaturePreprocessor]] = {}
         for param in params:
@@ -213,7 +226,7 @@ def create_data_processor(
                     f"All iterator features should be provided with an extractor."
                 )
 
-        return DataProcessor(
+        return DataProcessor[IT](
             iterator_cls=iterator_cls,
             tensors_dtype=tensors_dtype,
             feature_extractors=feature_extractors,

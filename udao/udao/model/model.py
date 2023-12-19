@@ -23,7 +23,7 @@ class UdaoModel(nn.Module):
             regressor_cls.Params(
                 input_embedding_dim=embedder.embedding_size,
                 input_features_dim=len(iterator_shape.feature_input_names),
-                output_dim=iterator_shape.output_shape,
+                output_dim=len(iterator_shape.output_names),
                 **regressor_params
             ),
         )
