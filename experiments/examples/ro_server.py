@@ -52,7 +52,6 @@ try:
         logger.info(f"Connected by {addr}")
 
         while True:
-            # message = conn.recv(4096).decode('utf-8')
             message = recv_msg(conn)
             logger.info(f"Received message: {message}")
             if not message:
@@ -64,5 +63,5 @@ try:
 
         conn.close()
 except Exception as e:
-    logger.exception("Exception occurred: e")
+    logger.exception(f"Exception occurred: {e}")
     sock.close()
