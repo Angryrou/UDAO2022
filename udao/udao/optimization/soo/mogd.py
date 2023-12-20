@@ -216,7 +216,7 @@ class MOGD(SOSolver):
             input_parameters=input_parameters,
             input_variables=upper_numeric_values,
         )
-        return lower_input, upper_input
+        return lower_input.to(self.device), upper_input.to(self.device)
 
     def _gradient_descent(
         self, problem: co.SOProblem, input_data: Any, optimizer: th.optim.Optimizer
@@ -246,6 +246,12 @@ class MOGD(SOSolver):
         UncompliantSolutionError
             If no solution within bounds is found
         """
+        print(f"input data device {input_data.features.get_device()}")
+        module = cast(th.nn.Module, problem.objective.function)
+        print(
+            f"problem.objective.function device"
+            f"{((p, p.get_device()) for p in module.parameters())}"
+        )
         # Compute objective, constraints and corresponding losses
         obj_output = problem.objective.function(input_data)
         objective_loss = self.objective_loss(obj_output, problem.objective)
