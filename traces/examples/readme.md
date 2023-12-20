@@ -17,22 +17,22 @@ Most parameters have a default value according to Spark. For the resource parame
 export PYTHONPATH="UDAO2022/traces:$PYTHONPATH"
 
 # test-default
-python spark_collector.py --benchmark_type TPCH --cluster_name HEX1 --n_data_per_template 2 --n_processes 16 --cluster_cores 120 --default
+python spark_trace_collector.py --benchmark_type TPCH --cluster_name HEX1 --n_data_per_template 2 --n_processes 16 --cluster_cores 120 --default
 # tpch-test1
-python spark_collector.py --benchmark_type TPCH --cluster_name HEX1 --n_data_per_template 2 --n_processes 16 --cluster_cores 120  --debug
+python spark_trace_collector.py --benchmark_type TPCH --cluster_name HEX1 --n_data_per_template 2 --n_processes 16 --cluster_cores 120  --debug
 # tpch-test2
-python spark_collector.py --benchmark_type TPCH --cluster_name HEX1 --n_data_per_template 2 --n_processes 16 --cluster_cores 120
+python spark_trace_collector.py --benchmark_type TPCH --cluster_name HEX1 --n_data_per_template 2 --n_processes 16 --cluster_cores 120
 # tpch run
-python spark_collector.py --benchmark_type TPCH --cluster_name HEX1 --n_data_per_template 2273 --n_processes 16 --cluster_cores 120  
+python spark_trace_collector.py --benchmark_type TPCH --cluster_name HEX1 --n_data_per_template 2273 --n_processes 16 --cluster_cores 120  
 
 # test-default
-python spark_collector.py --benchmark_type TPCDS --cluster_name HEX2 --n_data_per_template 2 --n_processes 16 --cluster_cores 120 --default
+python spark_trace_collector.py --benchmark_type TPCDS --cluster_name HEX2 --n_data_per_template 2 --n_processes 16 --cluster_cores 120 --default
 # tpcds-test1
-python spark_collector.py --benchmark_type TPCDS --cluster_name HEX2 --n_data_per_template 2 --n_processes 16 --cluster_cores 120  --debug
+python spark_trace_collector.py --benchmark_type TPCDS --cluster_name HEX2 --n_data_per_template 2 --n_processes 16 --cluster_cores 120  --debug
 # tpcds-test2
-python spark_collector.py --benchmark_type TPCDS --cluster_name HEX2 --n_data_per_template 2 --n_processes 16 --cluster_cores 120
+python spark_trace_collector.py --benchmark_type TPCDS --cluster_name HEX2 --n_data_per_template 2 --n_processes 16 --cluster_cores 120
 # tpcds run    
-python spark_collector.py --benchmark_type TPCDS --cluster_name HEX2 --n_data_per_template 490 --n_processes 16 --cluster_cores 120    
+python spark_trace_collector.py --benchmark_type TPCDS --cluster_name HEX2 --n_data_per_template 490 --n_processes 16 --cluster_cores 120    
 ```
 
 
