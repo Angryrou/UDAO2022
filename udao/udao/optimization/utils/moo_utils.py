@@ -257,12 +257,3 @@ def save_results(
     if not os.path.exists(file_path):
         os.makedirs(file_path)
     np.savetxt(f"{file_path}/{mode}.txt", results)
-
-
-# common functions used in moo
-def _get_direction(opt_type: Sequence, obj_index: int) -> int:
-    """Get gradient direction from optimization type"""
-    if opt_type[obj_index] == "MIN":
-        return 1
-    else:
-        return -1

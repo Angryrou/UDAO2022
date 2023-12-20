@@ -7,7 +7,7 @@ import torch as th
 from torch.multiprocessing import Pool
 
 from ....utils.logging import logger
-from ...concepts import Constraint, MOProblem, Objective, SOProblem
+from ...concepts import MOProblem, Objective, SOProblem
 from ...soo.so_solver import SOSolver
 from ...utils import moo_utils as moo_ut
 from ...utils.exceptions import NoSolutionError
@@ -61,10 +61,7 @@ class ParallelProgressiveFrontier(BaseProgressiveFrontier):
         """
         # create initial rectangle
         # get initial plans/form a intial hyperrectangle
-        problem.constraints = [
-            Constraint(c.function, c.lower, c.upper, self.constraint_stress)
-            for c in problem.constraints
-        ]
+
         plans: List[Point] = []
         n_objs = len(problem.objectives)
 
