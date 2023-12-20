@@ -12,3 +12,5 @@ This section of the documentation contains information on the usage of the
    data_processing
    model
    optimization
+   a_simple_example
+   mogd

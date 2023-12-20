@@ -4,7 +4,7 @@ Multi-Objective Optimization
 
 Base MOO
 ========
-.. automodule:: udao.optimization.moo.base_moo
+.. automodule:: udao.optimization.moo.mo_solver
    :members:
    :show-inheritance:
 

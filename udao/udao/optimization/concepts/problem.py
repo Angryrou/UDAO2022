@@ -47,7 +47,6 @@ class BaseProblem:
         optimization_element: Constraint,
         input_variables: InputVariables,
         device: Optional[th.device] = None,
-        dtype: Optional[th.dtype] = None,
     ) -> th.Tensor:
         if self.data_processor is not None:
             input_data, _ = derive_processed_input(
