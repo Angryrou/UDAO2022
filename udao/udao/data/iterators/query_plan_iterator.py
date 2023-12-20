@@ -106,14 +106,10 @@ class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
         embedding_input_shape["type"] = len(
             self.query_structure_container.operation_types.unique()
         )
-        feature_names = (
-            [*self.tabular_features.data.columns]
-            if self.query_structure_container.graph_meta_features is None
-            else [
-                *self.query_structure_container.graph_meta_features.columns,
-                *self.tabular_features.data.columns,
-            ]
-        )
+        meta_features = self.query_structure_container.graph_meta_features
+        feature_names = self.tabular_features.data.columns.tolist()
+        if meta_features:
+            feature_names[:0] = meta_features.columns.tolist()
         output_names = list(self.objectives.data.columns)
         return UdaoInputShape(
             embedding_input_shape=embedding_input_shape,
