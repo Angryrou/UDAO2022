@@ -24,7 +24,7 @@ from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 from udao.optimization import concepts
 from udao.optimization.moo.progressive_frontier import SequentialProgressiveFrontier
-from udao.optimization.soo.random_sampler_solver import RandomSampler
+from udao.optimization.soo.mogd import MOGD
 from udao.utils.logging import logger
 
 logger.setLevel("INFO")
@@ -200,7 +200,15 @@ if __name__ == "__main__":
         constraints=[],
     )
 
-    so_solver = RandomSampler(RandomSampler.Params(n_samples_per_param=100))
+    so_solver = MOGD(
+        MOGD.Params(
+            learning_rate=1e-1,
+            max_iters=100,
+            patience=10,
+            multistart=10,
+            objective_stress=10,
+        )
+    )
     mo_solver = SequentialProgressiveFrontier(
         solver=so_solver,
         params=SequentialProgressiveFrontier.Params(),
