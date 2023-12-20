@@ -256,10 +256,10 @@ class TestMOGD:
         assert input_shape.feature_names == ["v1", "v2"]
         container = make_tabular_container(input_values.features)
         np.testing.assert_equal(
-            container.data["v1"].values, input_values.features[:, 0].numpy()
+            container.data["v1"].values, input_values.features[:, 0].cpu().numpy()
         )
         np.testing.assert_equal(
-            container.data["v2"].values, input_values.features[:, 1].numpy()
+            container.data["v2"].values, input_values.features[:, 1].cpu().numpy()
         )
 
     def test_get_processed_input_bounds(
@@ -339,7 +339,7 @@ class TestMOGD:
             minimize=False,
             function=SimpleModel1(),
         )
-        loss = mogd.objective_loss(objective_values, objective)
+        loss = mogd.objective_loss(objective_values.to(mogd.device), objective)
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
         assert th.allclose(loss, expected_loss)
 
@@ -379,7 +379,9 @@ class TestMOGD:
                 function=SimpleModel2(),
             ),
         ]
-        loss = mogd.constraints_loss(constraint_values, constraints)
+        loss = mogd.constraints_loss(
+            [c.to(mogd.device) for c in constraint_values], constraints
+        )
         assert th.allclose(loss, expected_loss)
 
     def test_get_meshed_categorical_variables(self, mogd: MOGD) -> None:
