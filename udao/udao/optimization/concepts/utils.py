@@ -76,8 +76,7 @@ class InaccurateModel(th.nn.Module):
 def derive_unprocessed_input(
     input_variables: InputVariables,
     input_parameters: InputParameters = None,
-    device: th.device = th.device("cpu"),
-    dtype: th.dtype = th.float32,
+    device: Optional[th.device] = None,
 ) -> Tuple[Dict[str, th.Tensor], Dict[str, Any]]:
     """Derive the input data from the input values
 
@@ -107,8 +106,7 @@ def derive_unprocessed_input(
         k: th.tensor([v] * n_items) for k, v in (input_parameters or {}).items()
     }
     return {
-        name: th.tensor(value, dtype=dtype, device=device)
-        for name, value in input_variables.items()
+        name: th.tensor(value, device=device) for name, value in input_variables.items()
     }, input_parameters_values
 
 
@@ -116,6 +114,7 @@ def derive_processed_input(
     data_processor: DataProcessor[UdaoIterator],
     input_variables: InputVariables,
     input_parameters: InputParameters = None,
+    device: Optional[th.device] = None,
 ) -> Tuple[UdaoInput, BaseIterator]:
     """Derive the batch input from the input dict
 
@@ -159,4 +158,4 @@ def derive_processed_input(
     iterator = data_processor.make_iterator(pd_input, keys, split="test")
     dataloader = iterator.get_dataloader(batch_size=n_items)
     batch_input, _ = next(iter(dataloader))
-    return batch_input, iterator
+    return batch_input.to(device) if device else batch_input, iterator

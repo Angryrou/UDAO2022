@@ -8,11 +8,10 @@ import torch.optim as optim
 from ...data.containers.tabular_container import TabularContainer
 from ...data.handler.data_processor import DataProcessor
 from ...data.iterators.base_iterator import UdaoIterator
-from ...data.iterators.query_plan_iterator import QueryPlanInput
 from ...utils.interfaces import UdaoInput, UdaoItemShape
 from ...utils.logging import logger
 from .. import concepts as co
-from ..concepts.utils import derive_processed_input
+from ..concepts.utils import derive_processed_input, derive_unprocessed_input
 from ..utils.exceptions import NoSolutionError, UncompliantSolutionError
 from .so_solver import SOSolver
 
@@ -60,7 +59,6 @@ class MOGD(SOSolver):
         self.batch_size = params.batch_size
         self.device = params.device
         self.dtype = params.dtype
-        print("MOGD device: ", self.device)
 
     def _get_unprocessed_input_values(
         self,
@@ -91,19 +89,11 @@ class MOGD(SOSolver):
             numeric_values[name] = co.variable.get_random_variable_values(
                 variable, self.batch_size, seed=seed
             )
-        variable_sample = numeric_values[list(numeric_values.keys())[0]]
-        if isinstance(variable_sample, np.ndarray):
-            n_items = len(variable_sample)
-        else:
-            n_items = 1
-            numeric_values = {k: np.array([v]) for k, v in numeric_values.items()}
-        input_parameters_values = {
-            k: [v] * n_items for k, v in (input_parameters or {}).items()
-        }
-        return {
-            name: th.tensor(value, dtype=self.dtype, device=self.device)
-            for name, value in numeric_values.items()
-        }, input_parameters_values
+        return derive_unprocessed_input(
+            input_variables=numeric_values,
+            input_parameters=input_parameters,
+            device=self.device,
+        )
 
     def _get_processed_input_values(
         self,
@@ -140,6 +130,7 @@ class MOGD(SOSolver):
             data_processor=data_processor,
             input_parameters=input_parameters or {},
             input_variables=numeric_values,
+            device=self.device,
         )
         make_tabular_container = cast(
             UdaoIterator, iterator
@@ -148,7 +139,7 @@ class MOGD(SOSolver):
         input_data_shape = iterator.shape
 
         return (
-            input_data.to(self.device) if self.device else input_data,
+            input_data,
             input_data_shape,
             make_tabular_container,
         )
@@ -250,12 +241,6 @@ class MOGD(SOSolver):
         UncompliantSolutionError
             If no solution within bounds is found
         """
-        print(f"input data device {input_data.features.get_device()}")
-        module = cast(th.nn.Module, problem.objective.function)
-        print(
-            f"problem.objective.function device"
-            f"{[(p.shape, p.get_device()) for p in module.parameters()]}"
-        )
         # Compute objective, constraints and corresponding losses
         obj_output = problem.objective.function(input_data)
         objective_loss = self.objective_loss(obj_output, problem.objective)
@@ -266,10 +251,8 @@ class MOGD(SOSolver):
                 constraint.function(input_data) for constraint in problem.constraints
             ]
             constraint_loss = self.constraints_loss(const_outputs, problem.constraints)
-            print(f"constraint_loss device {constraint_loss.get_device()}")
 
         loss = objective_loss + constraint_loss
-        print(f"loss device {loss.get_device()}")
 
         sum_loss = th.sum(loss)
         min_loss, min_loss_id = th.min(loss), th.argmin(loss)
@@ -442,8 +425,6 @@ class MOGD(SOSolver):
         i = 0
         while i < self.max_iter:
             input_data.features = input_data.features.clone().detach()
-            print(f"input data device outer loop {input_data.features.get_device()}")
-            print(f"graph {cast(QueryPlanInput, input_data).embedding_input.device}")
             input_data.features[:, grad_indices] = input_vars_subvector
             try:
                 min_loss_id, min_loss, local_best_obj = self._gradient_descent(
@@ -455,7 +436,6 @@ class MOGD(SOSolver):
                 if min_loss < best_loss:
                     best_loss = min_loss
                     best_obj = local_best_obj
-                    print(f"input data device {input_data.features.get_device()}")
                     best_feature_input = (
                         input_data.features.cpu()[min_loss_id]
                         .detach()
@@ -465,13 +445,12 @@ class MOGD(SOSolver):
                     best_iter = i
 
             # Update input_vars_subvector with constrained values
-            with th.no_grad():
-                input_vars_subvector = th.clip(
-                    input_vars_subvector,
-                    # use .data to avoid gradient tracking during update
-                    lower_input.features[0, grad_indices],
-                    upper_input.features[0, grad_indices],
-                )
+            input_vars_subvector.data = th.clip(
+                input_vars_subvector.data,
+                # use .data to avoid gradient tracking during update
+                lower_input.features[0, grad_indices],
+                upper_input.features[0, grad_indices],
+            )
             if i > best_iter + self.patience:
                 break
             i += 1
@@ -542,10 +521,8 @@ class MOGD(SOSolver):
             th.manual_seed(seed)
         if self.device:
             for constraint in problem.constraints:
-                if isinstance(constraint.function, th.nn.Module):
-                    constraint.function.to(self.device)
-            if isinstance(problem.objective.function, th.nn.Module):
-                problem.objective.function.to(self.device)
+                constraint.to(self.device)
+            problem.objective.to(self.device)
 
         categorical_variables = [
             name

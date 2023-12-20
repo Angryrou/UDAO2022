@@ -38,5 +38,10 @@ class Constraint:
     def __call__(self, *args: Any, **kwargs: Any) -> th.Tensor:
         return self.function(*args, **kwargs)
 
+    def to(self, device: Optional[th.device]) -> "Constraint":
+        if isinstance(self.function, th.nn.Module) and device is not None:
+            self.function.to(device)
+        return self
+
     def __repr__(self) -> str:
         return f"Constraint(lower={self.lower}, upper={self.upper})"
