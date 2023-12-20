@@ -1,28 +1,23 @@
-from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union
+from typing import Callable, Literal, Optional, Union
 
 import torch as th
 
+from .optimization_element import OptimizationElement
 from .utils import UdaoFunction
 
 ConstraintType = Union[Literal["=="], Literal["<="], Literal[">="]]
 
 
-@dataclass
-class Constraint:
-    """Constraint for optimization."""
-
-    function: UdaoFunction
-    """Constraint function."""
-    lower: Optional[float] = None
-    """lower bound of the constraint."""
-    upper: Optional[float] = None
-    """upper bound of the constraint."""
-    stress: float = 0.0
-    """stress to be applied when a loss is computed"""
-
-    def __call__(self, *args: Any, **kwargs: Any) -> th.Tensor:
-        return self.function(*args, **kwargs)
+class Constraint(OptimizationElement):
+    def __init__(
+        self,
+        function: Union[UdaoFunction, th.nn.Module, Callable[..., th.Tensor]],
+        lower: Optional[float] = None,
+        upper: Optional[float] = None,
+        stress: float = 0.0,
+    ):
+        super().__init__(function=function, lower=lower, upper=upper)
+        self.stress = stress
 
     def __repr__(self) -> str:
         return (

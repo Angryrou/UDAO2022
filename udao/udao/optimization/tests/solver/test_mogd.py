@@ -12,6 +12,7 @@ from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
 from ....data.tests.iterators.dummy_udao_iterator import DummyFeatureIterator
 from ....model.utils.utils import set_deterministic_torch
 from ....utils.interfaces import FeatureInput
+from ....utils.logging import logger
 from ... import concepts as co
 from ...soo.mogd import MOGD
 
@@ -83,13 +84,13 @@ def data_processor_paper() -> DataProcessor:
 
 
 class PaperModel1(nn.Module):
-    def forward(self, x: FeatureInput) -> th.Tensor:
-        return th.reshape(2400 / (x.feature_input[:, 0]), (-1, 1))
+    def forward(self, x: Dict[str, th.Tensor]) -> th.Tensor:
+        return th.reshape(2400 / (x["cores"]), (-1, 1))
 
 
 class PaperModel2(nn.Module):
-    def forward(self, x: FeatureInput) -> th.Tensor:
-        return th.reshape(x.feature_input[:, 0], (-1, 1))
+    def forward(self, x: Dict[str, th.Tensor]) -> th.Tensor:
+        return th.reshape(x["cores"], (-1, 1))
 
 
 @pytest.fixture()
@@ -129,15 +130,13 @@ class TestMOGD:
         if gpu and not th.cuda.is_available():
             pytest.skip("Skip GPU test")
         set_deterministic_torch(0)
-        objective_function = co.ModelComponent(
-            data_processor=data_processor,
-            model=SimpleModel1(),  # type: ignore
-        )
+
         problem = co.SOProblem(
+            data_processor=data_processor,
             objective=co.Objective(
                 "obj1",
                 direction_type="MAX",
-                function=objective_function,
+                function=SimpleModel1(),
                 lower=0,
                 upper=2,
             ),
@@ -146,9 +145,7 @@ class TestMOGD:
                 co.Constraint(
                     lower=0,
                     upper=1,
-                    function=co.ModelComponent(
-                        data_processor=data_processor, model=SimpleModel2()
-                    ),
+                    function=SimpleModel2(),
                     stress=10,
                 )
             ],
@@ -161,8 +158,8 @@ class TestMOGD:
     @pytest.mark.parametrize(
         "variable, expected_variable",
         [
-            (co.FloatVariable(0, 24), {"v1": 16}),
-            (co.IntegerVariable(0, 24), {"v1": 16}),
+            (co.FloatVariable(0, 24), {"cores": 16}),
+            (co.IntegerVariable(0, 24), {"cores": 16}),
         ],
     )
     def test_solve_paper(
@@ -176,44 +173,40 @@ class TestMOGD:
             objective=co.Objective(
                 "obj1",
                 "MIN",
-                function=co.ModelComponent(
-                    model=PaperModel1(), data_processor=data_processor_paper
-                ),
+                function=PaperModel1(),
                 lower=100,
                 upper=200,
             ),
-            variables={"v1": variable},
+            variables={"cores": variable},
             constraints=[
                 co.Constraint(
                     lower=8,
                     upper=16,
-                    function=co.ModelComponent(
-                        model=PaperModel2(), data_processor=data_processor_paper
-                    ),
+                    function=PaperModel2(),
                     stress=10,
                 )
             ],
         )
         optimal_obj, optimal_vars = paper_mogd.solve(problem, seed=0)
-
+        logger.debug(f"optimal_obj: {optimal_obj}, optimal_vars: {optimal_vars}")
         assert optimal_obj is not None
         np.testing.assert_allclose([optimal_obj], [150], rtol=1e-3)
         assert optimal_vars is not None
         assert len(optimal_vars) == 1
         np.testing.assert_allclose(
-            [optimal_vars["v1"]], [expected_variable["v1"]], rtol=1e-3
+            [optimal_vars["cores"]], [expected_variable["cores"]], rtol=1e-3
         )
 
     def test_solve_no_constraints(
         self, mogd: MOGD, data_processor: DataProcessor
     ) -> None:
-        objective_function = co.ModelComponent(
-            model=lambda x: th.reshape(  # type: ignore
+        def objective_function(x: FeatureInput) -> th.Tensor:
+            return th.reshape(
                 x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
-            ),
-            data_processor=data_processor,
-        )
+            )
+
         problem = co.SOProblem(
+            data_processor=data_processor,
             objective=co.Objective(
                 name="obj1",
                 direction_type="MAX",
@@ -229,16 +222,31 @@ class TestMOGD:
         assert optimal_vars is not None
         assert optimal_vars == {"v1": 1, "v2": 3}
 
-    def test_get_input_values(self, mogd: MOGD, data_processor: DataProcessor) -> None:
-        objective_function = co.ModelComponent(
-            model=lambda x: th.reshape(  # type: ignore
-                x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
-            ),
-            data_processor=data_processor,
-        )
+    def test_get_unprocessed_input_values(
+        self, mogd: MOGD, data_processor: DataProcessor
+    ) -> None:
         mogd.batch_size = 4
-        input_values, input_shape, make_tabular_container = mogd._get_input_values(
-            objective_function=objective_function,
+
+        input_values, _ = mogd._get_unprocessed_input_values(
+            numeric_variables={
+                "v1": co.FloatVariable(0, 1),
+                "v2": co.IntegerVariable(2, 3),
+            },
+        )
+        assert set(input_values.keys()) == {"v1", "v2"}
+        assert all(input_values["v1"] <= 1) and all(input_values["v1"] >= 0)
+        assert all([v in [2, 3] for v in input_values["v2"]])
+
+    def test_get_processed_input_values(
+        self, mogd: MOGD, data_processor: DataProcessor
+    ) -> None:
+        mogd.batch_size = 4
+        (
+            input_values,
+            input_shape,
+            make_tabular_container,
+        ) = mogd._get_processed_input_values(
+            data_processor=data_processor,
             numeric_variables={
                 "v1": co.FloatVariable(0, 1),
                 "v2": co.IntegerVariable(2, 3),
@@ -258,19 +266,11 @@ class TestMOGD:
             container.data["v2"].values, input_values.feature_input[:, 1].numpy()
         )
 
-    def test_get_input_bounds_w_data_processor(
+    def test_get_processed_input_bounds(
         self, mogd: MOGD, data_processor: DataProcessor
     ) -> None:
-        objective_function = co.ModelComponent(
-            model=lambda x: th.reshape(  # type: ignore
-                x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
-            ),
+        input_lower, input_upper = mogd._get_processed_input_bounds(
             data_processor=data_processor,
-        )
-        mogd.batch_size = 4
-
-        input_lower, input_upper = mogd._get_input_bounds(
-            objective_function=objective_function,
             numeric_variables={
                 "v1": co.FloatVariable(0, 1),
                 "v2": co.IntegerVariable(2, 3),
@@ -279,25 +279,18 @@ class TestMOGD:
         assert th.equal(input_lower.feature_input[0], th.tensor([0, 0]))
         assert th.equal(input_upper.feature_input[0], th.tensor([1, 1]))
 
-    def test_get_input_bounds_wo_data_processor(
+    def test_get_unprocessed_input_bounds(
         self, mogd: MOGD, data_processor: DataProcessor
     ) -> None:
-        objective_function = co.ModelComponent(
-            model=lambda x: th.reshape(  # type: ignore
-                x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
-            ),
-            data_processor=data_processor,
-        )
         data_processor.feature_processors = {}
-        input_lower, input_upper = mogd._get_input_bounds(
-            objective_function=objective_function,
+        input_lower, input_upper = mogd._get_unprocessed_input_bounds(
             numeric_variables={
                 "v1": co.FloatVariable(0, 1),
                 "v2": co.IntegerVariable(2, 3),
             },
         )
-        assert th.equal(input_lower.feature_input[0], th.tensor([0, 2]))
-        assert th.equal(input_upper.feature_input[0], th.tensor([1, 3]))
+        assert input_lower == {"v1": 0, "v2": 2}
+        assert input_upper == {"v1": 1, "v2": 3}
 
     @pytest.mark.parametrize(
         "objective_values, expected_loss",
@@ -319,9 +312,7 @@ class TestMOGD:
         objective = co.Objective(
             "obj1",
             "MAX",
-            function=co.ModelComponent(
-                data_processor=data_processor, model=SimpleModel1()
-            ),
+            function=SimpleModel1(),
             lower=0,
             upper=2,
         )
@@ -349,9 +340,7 @@ class TestMOGD:
         objective = co.Objective(
             "obj1",
             "MAX",
-            function=co.ModelComponent(
-                data_processor=data_processor, model=SimpleModel1()
-            ),
+            function=SimpleModel1(),
         )
         loss = mogd.objective_loss(objective_values, objective)
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
@@ -378,24 +367,18 @@ class TestMOGD:
             co.Constraint(
                 lower=0,
                 upper=1,
-                function=co.ModelComponent(
-                    data_processor=data_processor, model=SimpleModel1()
-                ),
+                function=SimpleModel1(),
                 stress=10,
             ),
             co.Constraint(
                 lower=0,
                 upper=2,
-                function=co.ModelComponent(
-                    data_processor=data_processor, model=SimpleModel2()
-                ),
+                function=SimpleModel2(),
                 stress=100,
             ),
             co.Constraint(
                 upper=3,
-                function=co.ModelComponent(
-                    data_processor=data_processor, model=SimpleModel2()
-                ),
+                function=SimpleModel2(),
                 stress=1000,
             ),
         ]

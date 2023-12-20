@@ -1,31 +1,40 @@
-from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union
+from typing import Callable, Literal, Optional, Union
 
 import torch as th
 
 from ...utils.interfaces import VarTypes
-from .utils import UdaoFunction
+from ..concepts.utils import UdaoFunction
+from .optimization_element import OptimizationElement
 
 ObjectiveDirection = Union[Literal["MIN"], Literal["MAX"]]
 
 
-@dataclass
-class Objective:
-    """Objective to optimize."""
+class Objective(OptimizationElement):
+    """
 
-    name: str
-    """Name of the objective."""
-    direction_type: ObjectiveDirection
-    """Direction of the objective: MIN or MAX."""
-    function: UdaoFunction
-    """Objective function."""
-    lower: Optional[float] = None
-    """Lower bound of the objective."""
-    upper: Optional[float] = None
-    """Upper bound of the objective."""
-    type: VarTypes = VarTypes.FLOAT
-    """Type of the objective.
-    If int, the optimization can behave differently."""
+    Parameters
+    ----------
+    name : str
+        Name of the objective.
+    direction_type : ObjectiveDirection
+        Direction of the objective: MIN or MAX.
+    type: VarTypes
+        Type of the objective, by default VarTypes.FLOAT
+    """
+
+    def __init__(
+        self,
+        name: str,
+        direction_type: ObjectiveDirection,
+        function: Union[UdaoFunction, th.nn.Module, Callable[..., th.Tensor]],
+        lower: Optional[float] = None,
+        upper: Optional[float] = None,
+        type: VarTypes = VarTypes.FLOAT,
+    ):
+        super().__init__(function=function, lower=lower, upper=upper)
+        self.name = name
+        self.direction_type = direction_type
+        self.type = type
 
     @property
     def direction(self) -> int:
@@ -34,9 +43,6 @@ class Objective:
             return 1
         else:
             return -1
-
-    def __call__(self, *args: Any, **kwargs: Any) -> th.Tensor:
-        return self.function(*args, **kwargs)
 
     def __repr__(self) -> str:
         return (

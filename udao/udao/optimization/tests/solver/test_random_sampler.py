@@ -1,4 +1,4 @@
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional
 
 import numpy as np
 import pytest
@@ -63,10 +63,10 @@ class TestRandomSampler:
         solver = RandomSampler(RandomSampler.Params(n_samples_per_param=50))
 
         def obj1_func(
-            input_variables: co.InputVariables,
-            input_parameters: co.InputParameters = None,
+            input_variables: Dict[str, th.Tensor],
+            input_parameters: Optional[Dict[str, th.Tensor]] = None,
         ) -> th.Tensor:
-            return th.tensor(input_variables["v1"] + input_variables["v2"])
+            return input_variables["v1"] + input_variables["v2"]
 
         objective = co.Objective("obj1", "MAX", obj1_func)
         variables: Dict[str, co.Variable] = {

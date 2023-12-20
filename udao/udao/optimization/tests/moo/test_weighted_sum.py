@@ -1,3 +1,5 @@
+from typing import Dict, Optional
+
 import numpy as np
 import pytest
 import torch as th
@@ -17,17 +19,14 @@ def simple_problem() -> MOProblem:
     def obj_func1(
         input_variables: InputVariables, input_parameters: InputParameters = None
     ) -> th.Tensor:
-        return th.tensor(
-            input_variables["v1"] + (input_parameters or {}).get("count", 0)
-        )
+        return input_variables["v1"] + (input_parameters or {}).get("count", 0)
 
     def obj_func2(
         input_variables: InputVariables, input_parameters: InputParameters = None
     ) -> th.Tensor:
-        return th.tensor(
-            (input_variables["v1"] + input_variables["v2"]) / 10
-            + (input_parameters or {}).get("count", 0)
-        )
+        return (input_variables["v1"] + input_variables["v2"]) / 10 + (
+            input_parameters or {}
+        ).get("count", 0)
 
     objectives = [
         Objective(
@@ -41,7 +40,7 @@ def simple_problem() -> MOProblem:
     def constraint_func(
         input_variables: InputVariables, input_parameters: InputParameters = None
     ) -> th.Tensor:
-        return th.tensor(
+        return (
             (input_variables["v1"] + input_variables["v2"])
             - 2
             - (input_parameters or {}).get("count", 0)
@@ -76,7 +75,7 @@ class TestWeightedSum:
             ws_pairs=ws_pairs,
         )
         po_objs, po_vars = ws_algo.solve(problem=simple_problem, seed=0)
-        np.testing.assert_equal(po_objs, np.array([[0, 0.2]]))
+        np.testing.assert_array_almost_equal(po_objs, np.array([[0, 0.2]]))
         np.testing.assert_equal(po_vars, np.array({"v1": 0, "v2": 2}))
 
     @pytest.mark.parametrize(
@@ -98,7 +97,7 @@ class TestWeightedSum:
         )
         po_objs, po_vars = ws_algo.solve(problem=simple_problem, seed=0)
 
-        np.testing.assert_equal(po_objs, np.array([[1, 1.3]]))
+        np.testing.assert_almost_equal(po_objs, np.array([[1, 1.3]]))
         np.testing.assert_equal(po_vars, np.array([{"v1": 0, "v2": 3}]))
 
     @pytest.mark.parametrize(
@@ -114,9 +113,10 @@ class TestWeightedSum:
         ws_pairs = np.array([[0.3, 0.7], [0.6, 0.4]])
 
         def f3(
-            input_variables: InputVariables, input_parameters: InputParameters = None
+            input_variables: Dict[str, th.Tensor],
+            input_parameters: Optional[Dict[str, th.Tensor]] = None,
         ) -> th.Tensor:
-            return th.tensor((input_variables["v1"] + input_variables["v2"]) - 10)
+            return input_variables["v1"] + input_variables["v2"] - 10
 
         simple_problem.constraints = [Constraint(function=f3, lower=0)]
         simple_problem.input_parameters = None
@@ -140,9 +140,10 @@ class TestWeightedSum:
         ws_pairs = np.array([[0.3, 0.5, 0.2], [0.6, 0.3, 0.1]])
 
         def f2(
-            input_variables: InputVariables, input_parameters: InputParameters = None
+            input_variables: Dict[str, th.Tensor],
+            input_parameters: Optional[Dict[str, th.Tensor]] = None,
         ) -> th.Tensor:
-            return th.tensor(input_variables["v2"])
+            return input_variables["v2"]
 
         objectives = list(simple_problem.objectives)
         objectives.insert(1, Objective("obj3", function=f2, direction_type="MIN"))
@@ -150,9 +151,10 @@ class TestWeightedSum:
         simple_problem.input_parameters = None
 
         def constraint_f(
-            input_variables: InputVariables, input_parameters: InputParameters = None
+            input_variables: Dict[str, th.Tensor],
+            input_parameters: Optional[Dict[str, th.Tensor]] = None,
         ) -> th.Tensor:
-            return th.tensor(input_variables["v1"] + input_variables["v2"] - 3)
+            return input_variables["v1"] + input_variables["v2"] - 3
 
         simple_problem.constraints = [Constraint(function=constraint_f, lower=0)]
         ws_algo = WeightedSum(
@@ -161,5 +163,5 @@ class TestWeightedSum:
         )
         po_objs, po_vars = ws_algo.solve(problem=simple_problem, seed=0)
 
-        np.testing.assert_equal(po_objs, np.array([[0, 3, 0.3]]))
+        np.testing.assert_almost_equal(po_objs, np.array([[0, 3, 0.3]]))
         np.testing.assert_equal(po_vars, np.array([{"v1": 0, "v2": 3}]))

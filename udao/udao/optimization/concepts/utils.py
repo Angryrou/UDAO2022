@@ -3,9 +3,7 @@ from typing import Any, Dict, Optional, Protocol, Tuple, Union
 import numpy as np
 import pandas as pd
 import torch as th
-from pandas import DataFrame
 
-from ...data.containers.tabular_container import TabularContainer
 from ...data.extractors.tabular_extractor import TabularFeatureExtractor
 from ...data.handler.data_processor import DataProcessor
 from ...data.iterators.base_iterator import BaseIterator, FeatureIterator
@@ -41,16 +39,11 @@ class ModelComponent:
         input_parameters: InputParameters = None,
     ) -> Tuple[Any, BaseIterator]:
         """Derive the batch input from the input dict."""
-        return derive_batch_input(
+        return derive_processed_input(
             self.data_processor,
             input_parameters=input_parameters,
             input_variables=input_variables,
         )
-
-    def inverse_process_data(self, data: TabularContainer, name: str) -> DataFrame:
-        """Inverse process the data (e.g. for finding
-        optimal values after optimization)"""
-        return self.data_processor.inverse_transform(data, name)
 
     def __call__(
         self,
@@ -79,7 +72,46 @@ class InaccurateModel(th.nn.Module):
         return self.model(x) + self.alpha * std
 
 
-def derive_batch_input(
+def derive_unprocessed_input(
+    input_variables: InputVariables,
+    input_parameters: InputParameters = None,
+    device: th.device = th.device("cpu"),
+    dtype: th.dtype = th.float32,
+) -> Tuple[Dict[str, th.Tensor], Dict[str, Any]]:
+    """Derive the input data from the input values
+
+    Parameters
+    ----------
+    input_variables : InputVariables
+        _description_
+    input_parameters : InputParameters, optional
+        _description_, by default None
+    device : th.device, optional
+        _description_, by default th.device("cpu")
+    dtype : th.dtype, optional
+        _description_, by default th.float32
+
+    Returns
+    -------
+    Tuple[Dict[str, th.Tensor], Dict[str, Any]]
+        _description_
+    """
+    variable_sample = input_variables[list(input_variables.keys())[0]]
+    if isinstance(variable_sample, np.ndarray):
+        n_items = len(variable_sample)
+    else:
+        n_items = 1
+        input_variables = {k: np.array([v]) for k, v in input_variables.items()}
+    input_parameters_values = {
+        k: th.tensor([v] * n_items) for k, v in (input_parameters or {}).items()
+    }
+    return {
+        name: th.tensor(value, dtype=dtype, device=device)
+        for name, value in input_variables.items()
+    }, input_parameters_values
+
+
+def derive_processed_input(
     data_processor: DataProcessor[FeatureIterator],
     input_variables: InputVariables,
     input_parameters: InputParameters = None,

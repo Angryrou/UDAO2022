@@ -64,11 +64,8 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         try:
             _, soo_vars = self.solver.solve(
-                SOProblem(
-                    variables=problem.variables,
+                problem.derive_SO_problem(
                     objective=problem.objectives[obj_ind],
-                    constraints=problem.constraints,
-                    input_parameters=problem.input_parameters,
                 ),
                 seed=seed,
             )
@@ -167,7 +164,15 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         Tuple[Objective, Sequence[Constraint]]
             The objective and constraints for the single-objective optimization
         """
-        soo_constraints = list(problem.constraints)
+        soo_objective = Objective(
+            name=primary_obj.name,
+            direction_type=primary_obj.direction_type,  # type: ignore
+            function=primary_obj.function,
+            lower=obj_bounds_dict[primary_obj.name][0],
+            upper=obj_bounds_dict[primary_obj.name][1],
+        )
+        so_problem = problem.derive_SO_problem(soo_objective)
+        soo_constraints = list(so_problem.constraints)
 
         for obj in problem.objectives:
             obj_name = obj.name
@@ -180,19 +185,8 @@ class BaseProgressiveFrontier(MOSolver, ABC):
                         stress=self.objective_stress,
                     )
                 )
-        soo_objective = Objective(
-            name=primary_obj.name,
-            function=primary_obj.function,
-            direction_type=primary_obj.direction_type,
-            lower=obj_bounds_dict[primary_obj.name][0],
-            upper=obj_bounds_dict[primary_obj.name][1],
-        )
-        so_problem = SOProblem(
-            objective=soo_objective,
-            variables=problem.variables,
-            constraints=soo_constraints,
-            input_parameters=problem.input_parameters,
-        )
+        so_problem.constraints = soo_constraints
+
         return so_problem
 
     @staticmethod
@@ -244,12 +238,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         obj_list = []
         for obj in problem.objectives:
-            obj_value = (
-                obj(
-                    input_parameters=problem.input_parameters,
-                    input_variables=variable_values,
-                )
-                * obj.direction
-            ).squeeze()
+            obj_value = problem.apply_function(obj, variable_values)
+            obj_value = (obj_value * obj.direction).squeeze()
             obj_list.append(obj_value.detach().cpu())
         return np.array(obj_list)
