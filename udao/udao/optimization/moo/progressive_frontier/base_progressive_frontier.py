@@ -3,13 +3,13 @@ from dataclasses import dataclass
 from typing import Any, Optional, Tuple
 
 import numpy as np
+import torch as th
 
 from ....utils.interfaces import VarTypes
 from ....utils.logging import logger
 from ...concepts import Objective
 from ...concepts.problem import MOProblem, SOProblem
 from ...soo.so_solver import SOSolver
-from ...utils import solver_utils as solver_ut
 from ...utils.exceptions import NoSolutionError
 from ...utils.moo_utils import Point
 from ..mo_solver import MOSolver
@@ -102,7 +102,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
 
     def _form_obj_bounds_dict(
         self, problem: MOProblem, utopia: Point, nadir: Point
-    ) -> dict[str, list]:
+    ) -> dict[str, list[float]]:
         """
         form the dict used in the constrained optimization
         e.g. the format:
@@ -128,13 +128,13 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         for i, objective in enumerate(problem.objectives):
             if objective.direction < 0:
                 bounds[objective.name] = [
-                    solver_ut.get_tensor(nadir.objs[i] * objective.direction),
-                    solver_ut.get_tensor(utopia.objs[i] * objective.direction),
+                    nadir.objs[i] * objective.direction,
+                    utopia.objs[i] * objective.direction,
                 ]
             else:
                 bounds[objective.name] = [
-                    solver_ut.get_tensor(utopia.objs[i] * objective.direction),
-                    solver_ut.get_tensor(nadir.objs[i] * objective.direction),
+                    utopia.objs[i] * objective.direction,
+                    nadir.objs[i] * objective.direction,
                 ]
 
         return bounds
@@ -234,7 +234,9 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         obj_list = []
         for obj in problem.objectives:
-            obj_value = problem.apply_function(obj, variable_values)
+            obj_value = problem.apply_function(
+                obj, variable_values, device=th.device("cpu")
+            )
             obj_value = (obj_value * obj.direction).squeeze()
-            obj_list.append(obj_value.detach().cpu())
+            obj_list.append(obj_value.detach())
         return np.array(obj_list)

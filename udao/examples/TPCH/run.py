@@ -24,7 +24,7 @@ from udao.model.utils.losses import WMAPELoss
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 from udao.optimization import concepts
 from udao.optimization.moo.progressive_frontier import SequentialProgressiveFrontier
-from udao.optimization.soo.random_sampler_solver import RandomSampler
+from udao.optimization.soo.mogd import MOGD
 from udao.utils.logging import logger
 
 logger.setLevel("INFO")
@@ -167,15 +167,22 @@ if __name__ == "__main__":
         "m8": 846.0800000000002,
     }
 
-    def cloud_cost(
-        input_data: QueryPlanInput,
-    ) -> th.Tensor:
-        return model(input_data)[:, 1].reshape(-1, 1)
+    class cloud_cost(th.nn.Module):
+        def __init__(self, model: th.nn.Module) -> None:
+            super().__init__()
 
-    def latency(
-        input_data: QueryPlanInput,
-    ) -> th.Tensor:
-        return model(input_data)[:, 0].reshape(-1, 1)
+            self.model = model
+
+        def forward(self, input_data: QueryPlanInput) -> th.Tensor:
+            return self.model(input_data)[:, 1].reshape(-1, 1)
+
+    class latency(th.nn.Module):
+        def __init__(self, model: th.nn.Module) -> None:
+            super().__init__()
+            self.model = model
+
+        def forward(self, input_data: QueryPlanInput) -> th.Tensor:
+            return self.model(input_data)[:, 0].reshape(-1, 1)
 
     problem = concepts.MOProblem(
         data_processor=data_processor,
@@ -183,12 +190,12 @@ if __name__ == "__main__":
             concepts.Objective(
                 name="latency",
                 minimize=True,
-                function=latency,
+                function=latency(model),
             ),
             concepts.Objective(
                 name="cloud_cost",
                 minimize=True,
-                function=cloud_cost,
+                function=cloud_cost(model),
             ),
         ],
         variables={
@@ -200,7 +207,15 @@ if __name__ == "__main__":
         constraints=[],
     )
 
-    so_solver = RandomSampler(RandomSampler.Params(n_samples_per_param=100))
+    so_solver = MOGD(
+        MOGD.Params(
+            learning_rate=1e-1,
+            max_iters=100,
+            patience=10,
+            multistart=10,
+            objective_stress=10,
+        )
+    )
     mo_solver = SequentialProgressiveFrontier(
         solver=so_solver,
         params=SequentialProgressiveFrontier.Params(),

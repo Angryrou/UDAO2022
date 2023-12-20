@@ -5,7 +5,7 @@ from typing import Any, Dict, Literal, Optional, Sequence
 import dgl
 import torch as th
 import torch.nn as nn
-from udao.utils.interfaces import UdaoInputShape
+from udao.utils.interfaces import UdaoEmbedItemShape
 
 from .base_embedder import BaseEmbedder
 from .layers.iso_bn import IsoBN
@@ -42,7 +42,7 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
     @classmethod
     def from_iterator_shape(
         cls,
-        iterator_shape: UdaoInputShape[Dict[str, int]],
+        iterator_shape: UdaoEmbedItemShape[Dict[str, int]],
         **kwargs: Any,
     ) -> "BaseGraphEmbedder":
         embedding_input_shapes = iterator_shape.embedding_input_shape

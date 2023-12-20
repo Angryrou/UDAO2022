@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from torch import nn
-from udao.utils.interfaces import UdaoInputShape
+from udao.utils.interfaces import UdaoEmbedItemShape
 
 
 class BaseEmbedder(nn.Module, ABC):
@@ -18,7 +18,7 @@ class BaseEmbedder(nn.Module, ABC):
     @abstractmethod
     def from_iterator_shape(
         cls,
-        iterator_shape: UdaoInputShape,
+        iterator_shape: UdaoEmbedItemShape,
         **kwargs: Any,
     ) -> "BaseEmbedder":
         ...

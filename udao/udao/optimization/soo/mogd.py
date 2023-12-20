@@ -7,11 +7,11 @@ import torch.optim as optim
 
 from ...data.containers.tabular_container import TabularContainer
 from ...data.handler.data_processor import DataProcessor
-from ...data.iterators.base_iterator import FeatureIterator
-from ...utils.interfaces import UdaoInput, UdaoInputShape
+from ...data.iterators.base_iterator import UdaoIterator
+from ...utils.interfaces import UdaoInput, UdaoItemShape
 from ...utils.logging import logger
 from .. import concepts as co
-from ..concepts.utils import derive_processed_input
+from ..concepts.utils import derive_processed_input, derive_unprocessed_input
 from ..utils.exceptions import NoSolutionError, UncompliantSolutionError
 from .so_solver import SOSolver
 
@@ -89,19 +89,11 @@ class MOGD(SOSolver):
             numeric_values[name] = co.variable.get_random_variable_values(
                 variable, self.batch_size, seed=seed
             )
-        variable_sample = numeric_values[list(numeric_values.keys())[0]]
-        if isinstance(variable_sample, np.ndarray):
-            n_items = len(variable_sample)
-        else:
-            n_items = 1
-            numeric_values = {k: np.array([v]) for k, v in numeric_values.items()}
-        input_parameters_values = {
-            k: [v] * n_items for k, v in (input_parameters or {}).items()
-        }
-        return {
-            name: th.tensor(value, dtype=self.dtype, device=self.device)
-            for name, value in numeric_values.items()
-        }, input_parameters_values
+        return derive_unprocessed_input(
+            input_variables=numeric_values,
+            input_parameters=input_parameters,
+            device=self.device,
+        )
 
     def _get_processed_input_values(
         self,
@@ -109,7 +101,7 @@ class MOGD(SOSolver):
         data_processor: DataProcessor,
         input_parameters: Optional[Dict[str, Any]] = None,
         seed: Optional[int] = None,
-    ) -> Tuple[UdaoInput, UdaoInputShape, Callable[[th.Tensor], TabularContainer]]:
+    ) -> Tuple[UdaoInput, UdaoItemShape, Callable[[th.Tensor], TabularContainer],]:
         """Get random values for numeric variables
 
         Parameters
@@ -138,14 +130,19 @@ class MOGD(SOSolver):
             data_processor=data_processor,
             input_parameters=input_parameters or {},
             input_variables=numeric_values,
+            device=self.device,
         )
         make_tabular_container = cast(
-            FeatureIterator, iterator
+            UdaoIterator, iterator
         ).get_tabular_features_container
 
         input_data_shape = iterator.shape
 
-        return input_data, input_data_shape, make_tabular_container
+        return (
+            input_data,
+            input_data_shape,
+            make_tabular_container,
+        )
 
     def _get_unprocessed_input_bounds(
         self,
@@ -211,7 +208,10 @@ class MOGD(SOSolver):
             input_parameters=input_parameters,
             input_variables=upper_numeric_values,
         )
-        return lower_input, upper_input
+        if self.device:
+            return lower_input.to(self.device), upper_input.to(self.device)
+        else:
+            return lower_input, upper_input
 
     def _gradient_descent(
         self, problem: co.SOProblem, input_data: Any, optimizer: th.optim.Optimizer
@@ -244,14 +244,16 @@ class MOGD(SOSolver):
         # Compute objective, constraints and corresponding losses
         obj_output = problem.objective.function(input_data)
         objective_loss = self.objective_loss(obj_output, problem.objective)
-        constraint_loss = th.zeros_like(objective_loss)
+        constraint_loss = th.zeros_like(objective_loss, device=self.device)
 
         if problem.constraints:
             const_outputs = [
                 constraint.function(input_data) for constraint in problem.constraints
             ]
             constraint_loss = self.constraints_loss(const_outputs, problem.constraints)
+
         loss = objective_loss + constraint_loss
+
         sum_loss = th.sum(loss)
         min_loss, min_loss_id = th.min(loss), th.argmin(loss)
 
@@ -364,6 +366,7 @@ class MOGD(SOSolver):
         if best_obj is not None and best_feature_input is not None:
             best_raw_vars = {
                 name: best_feature_input[name]
+                .cpu()
                 .numpy()
                 .squeeze()
                 .tolist()  # turn np.ndarray to float
@@ -411,20 +414,18 @@ class MOGD(SOSolver):
         )
         # Indices of numeric variables on which to apply gradients
         mask = th.tensor(
-            [i in problem.variables for i in input_data_shape.feature_input_names]
+            [i in problem.variables for i in input_data_shape.feature_names],
+            device=self.device,
         )
         grad_indices = th.nonzero(mask, as_tuple=False).squeeze()
-        input_vars_subvector = (
-            input_data.feature_input[:, grad_indices].clone().detach()
-        )
+        input_vars_subvector = input_data.features[:, grad_indices].clone().detach()
         input_vars_subvector.requires_grad_(True)
 
         optimizer = optim.Adam([input_vars_subvector], lr=self.lr)
         i = 0
         while i < self.max_iter:
-            input_data.feature_input = input_data.feature_input.clone().detach()
-
-            input_data.feature_input[:, grad_indices] = input_vars_subvector
+            input_data.features = input_data.features.clone().detach()
+            input_data.features[:, grad_indices] = input_vars_subvector
             try:
                 min_loss_id, min_loss, local_best_obj = self._gradient_descent(
                     problem, input_data, optimizer=optimizer
@@ -436,7 +437,7 @@ class MOGD(SOSolver):
                     best_loss = min_loss
                     best_obj = local_best_obj
                     best_feature_input = (
-                        input_data.feature_input.cpu()[min_loss_id]
+                        input_data.features.cpu()[min_loss_id]
                         .detach()
                         .clone()
                         .reshape(1, -1)
@@ -447,8 +448,8 @@ class MOGD(SOSolver):
             input_vars_subvector.data = th.clip(
                 input_vars_subvector.data,
                 # use .data to avoid gradient tracking during update
-                lower_input.feature_input[0, grad_indices],
-                upper_input.feature_input[0, grad_indices],
+                lower_input.features[0, grad_indices],
+                upper_input.features[0, grad_indices],
             )
             if i > best_iter + self.patience:
                 break
@@ -518,6 +519,11 @@ class MOGD(SOSolver):
     ) -> Tuple[float, Dict[str, float]]:
         if seed is not None:
             th.manual_seed(seed)
+        if self.device:
+            for constraint in problem.constraints:
+                constraint.to(self.device)
+            problem.objective.to(self.device)
+
         categorical_variables = [
             name
             for name, variable in problem.variables.items()
@@ -605,7 +611,9 @@ class MOGD(SOSolver):
 
         # vars: a tensor
         # get loss for constraint functions defined in the problem setting
-        total_loss = th.zeros_like(constraint_values[0])
+        total_loss = th.zeros_like(
+            constraint_values[0], device=self.device, dtype=self.dtype
+        )
         for i, (constraint_value, constraint) in enumerate(
             zip(constraint_values, constraints)
         ):
@@ -614,7 +622,9 @@ class MOGD(SOSolver):
                 if isinstance(constraint, co.Objective)
                 else self.constraint_stress
             )
-            constraint_violation = th.zeros_like(constraint_values[0])
+            constraint_violation = th.zeros_like(
+                constraint_values[0], device=self.device, dtype=self.dtype
+            )
             if constraint.upper is not None and constraint.lower is not None:
                 if constraint.upper == constraint.lower:
                     constraint_violation = th.abs(constraint_value - constraint.upper)
@@ -664,7 +674,7 @@ class MOGD(SOSolver):
             If only one bound is specified for the objective
 
         """
-        loss = th.zeros_like(objective_value)  # size of objective_value ((bs, 1) ?)
+
         if objective.upper is None and objective.lower is None:
             loss = (
                 th.sign(objective_value) * (objective_value**2) * objective.direction

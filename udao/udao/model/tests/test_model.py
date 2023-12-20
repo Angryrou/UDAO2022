@@ -3,7 +3,7 @@ from typing import Any
 import torch as th
 from attr import dataclass
 
-from ...utils.interfaces import UdaoInput, UdaoInputShape
+from ...utils.interfaces import UdaoEmbedInput, UdaoEmbedItemShape
 from ..embedders import BaseEmbedder
 from ..model import UdaoModel
 from ..regressors import BaseRegressor
@@ -16,7 +16,7 @@ class DummyEmbedder(BaseEmbedder):
 
     @classmethod
     def from_iterator_shape(
-        cls, iterator_shape: UdaoInputShape, **kwargs: Any
+        cls, iterator_shape: UdaoEmbedItemShape, **kwargs: Any
     ) -> "DummyEmbedder":
         return cls(cls.Params(**kwargs))
 
@@ -31,9 +31,9 @@ class DummyRegressor(BaseRegressor):
 
 class TestUdaoModel:
     def test_from_config(self) -> None:
-        iterator_shape = UdaoInputShape(
+        iterator_shape = UdaoEmbedItemShape(
             embedding_input_shape=1,
-            feature_input_names=["a"],
+            feature_names=["a"],
             output_names=["b"],
         )
         model = UdaoModel.from_config(
@@ -48,9 +48,9 @@ class TestUdaoModel:
         assert model.regressor.output_dim == 1
 
     def test_forward(self) -> None:
-        iterator_shape = UdaoInputShape(
+        iterator_shape = UdaoEmbedItemShape(
             embedding_input_shape=1,
-            feature_input_names=["a"],
+            feature_names=["a"],
             output_names=["b"],
         )
         model = UdaoModel.from_config(
@@ -63,6 +63,6 @@ class TestUdaoModel:
         embedding = th.tensor([1.0])
         inst_feat = th.tensor([2.0])
         out = model.forward(
-            UdaoInput(embedding_input=embedding, feature_input=inst_feat)
+            UdaoEmbedInput(embedding_input=embedding, features=inst_feat)
         )
         assert out == th.tensor([3.0])

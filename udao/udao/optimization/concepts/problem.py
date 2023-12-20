@@ -43,15 +43,19 @@ class BaseProblem:
         self.input_parameters = input_parameters
 
     def apply_function(
-        self, optimization_element: Constraint, input_variables: InputVariables
+        self,
+        optimization_element: Constraint,
+        input_variables: InputVariables,
+        device: Optional[th.device] = None,
     ) -> th.Tensor:
         if self.data_processor is not None:
             input_data, _ = derive_processed_input(
                 self.data_processor,
                 input_variables=input_variables,
                 input_parameters=self.input_parameters,
+                device=device,
             )
-            th_value = optimization_element(input_data)
+            th_value = optimization_element.to(device)(input_data)
         else:
             input_vars, input_params = derive_unprocessed_input(
                 input_variables,

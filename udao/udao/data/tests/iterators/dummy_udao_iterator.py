@@ -3,16 +3,16 @@ from typing import Sequence, Tuple
 import torch as th
 
 from ....data.containers.tabular_container import TabularContainer
-from ....data.iterators.base_iterator import FeatureIterator
+from ....data.iterators.base_iterator import UdaoIterator
 from ....utils.interfaces import (
-    FeatureInput,
-    FeatureInputShape,
+    UdaoEmbedInput,
+    UdaoEmbedItemShape,
     UdaoInput,
-    UdaoInputShape,
+    UdaoItemShape,
 )
 
 
-class DummyFeatureIterator(FeatureIterator[FeatureInput, FeatureInputShape]):
+class DummyUdaoIterator(UdaoIterator[UdaoInput, UdaoItemShape]):
     def __init__(
         self,
         keys: Sequence[str],
@@ -21,32 +21,32 @@ class DummyFeatureIterator(FeatureIterator[FeatureInput, FeatureInputShape]):
     ) -> None:
         super().__init__(keys, tabular_features=tabular_features, objectives=objectives)
 
-    def _getitem(self, idx: int) -> Tuple[FeatureInput, th.Tensor]:
+    def _getitem(self, idx: int) -> Tuple[UdaoInput, th.Tensor]:
         key = self.keys[idx]
         return (
-            FeatureInput(
+            UdaoInput(
                 th.tensor(self.tabular_features.get(key), dtype=self.tensors_dtype)
             ),
             th.tensor(self.objectives.get(key), dtype=self.tensors_dtype),
         )
 
     @property
-    def shape(self) -> FeatureInputShape:
-        return FeatureInputShape(
-            feature_input_names=list(self.tabular_features.data.columns),
+    def shape(self) -> UdaoItemShape:
+        return UdaoItemShape(
+            feature_names=list(self.tabular_features.data.columns),
             output_names=list(self.objectives.data.columns),
         )
 
     @staticmethod
     def collate(
-        items: Sequence[Tuple[FeatureInput, th.Tensor]]
-    ) -> Tuple[FeatureInput, th.Tensor]:
-        features = FeatureInput(th.vstack([item[0].feature_input for item in items]))
+        items: Sequence[Tuple[UdaoInput, th.Tensor]]
+    ) -> Tuple[UdaoInput, th.Tensor]:
+        features = UdaoInput(th.vstack([item[0].features for item in items]))
         objectives = th.vstack([item[1] for item in items])
         return features, objectives
 
 
-class DummyUdaoIterator(FeatureIterator[UdaoInput, UdaoInputShape]):
+class DummyUdaoEmbedIterator(UdaoIterator[UdaoEmbedInput, UdaoEmbedItemShape]):
     def __init__(
         self,
         keys: Sequence[str],
@@ -57,14 +57,14 @@ class DummyUdaoIterator(FeatureIterator[UdaoInput, UdaoInputShape]):
         self.embedding_features = embedding_features
         super().__init__(keys, tabular_features=tabular_features, objectives=objectives)
 
-    def _getitem(self, idx: int) -> Tuple[UdaoInput, th.Tensor]:
+    def _getitem(self, idx: int) -> Tuple[UdaoEmbedInput, th.Tensor]:
         key = self.keys[idx]
         return (
-            UdaoInput(
+            UdaoEmbedInput(
                 embedding_input=th.tensor(
                     self.embedding_features.get(key), dtype=self.tensors_dtype
                 ),
-                feature_input=th.tensor(
+                features=th.tensor(
                     self.tabular_features.get(key), dtype=self.tensors_dtype
                 ),
             ),
@@ -72,21 +72,21 @@ class DummyUdaoIterator(FeatureIterator[UdaoInput, UdaoInputShape]):
         )
 
     @property
-    def shape(self) -> UdaoInputShape:
-        return UdaoInputShape(
+    def shape(self) -> UdaoEmbedItemShape:
+        return UdaoEmbedItemShape(
             embedding_input_shape=self.embedding_features.data.shape[1],
-            feature_input_names=list(self.tabular_features.data.columns),
+            feature_names=list(self.tabular_features.data.columns),
             output_names=list(self.objectives.data.columns),
         )
 
     @staticmethod
     def collate(
-        items: Sequence[Tuple[UdaoInput, th.Tensor]]
-    ) -> Tuple[UdaoInput, th.Tensor]:
+        items: Sequence[Tuple[UdaoEmbedInput, th.Tensor]]
+    ) -> Tuple[UdaoEmbedInput, th.Tensor]:
         embedding_input = th.vstack([item[0].embedding_input for item in items])
-        features = th.vstack([item[0].feature_input for item in items])
+        features = th.vstack([item[0].features for item in items])
         objectives = th.vstack([item[1] for item in items])
         return (
-            UdaoInput(embedding_input=embedding_input, feature_input=features),
+            UdaoEmbedInput(embedding_input=embedding_input, features=features),
             objectives,
         )

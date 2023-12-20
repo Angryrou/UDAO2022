@@ -1,6 +1,7 @@
 Containers
 ==========
-Containers are the data structures outputted by the extractors and used by the iterators.
+Containers are the data structures returned by the extractors and used by the iterators.
+They are ``udao``'s vehicle for data along the processing pipeline.
 
 Base Container
 ---------------

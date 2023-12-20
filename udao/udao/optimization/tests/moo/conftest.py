@@ -8,35 +8,31 @@ from ....data.containers.tabular_container import TabularContainer
 from ....data.extractors.tabular_extractor import TabularFeatureExtractor
 from ....data.handler.data_processor import DataProcessor
 from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
-from ....data.tests.iterators.dummy_udao_iterator import DummyFeatureIterator
-from ....utils.interfaces import UdaoInput
+from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
+from ....utils.interfaces import UdaoEmbedInput
 from ...concepts import Constraint, FloatVariable, IntegerVariable, Objective, Variable
 from ...concepts.problem import MOProblem
 from ...soo.mogd import MOGD
 
 
 class ObjModel1(nn.Module):
-    def forward(self, x: UdaoInput) -> th.Tensor:
-        return th.reshape(x.feature_input[:, 0] ** 2, (-1, 1))
+    def forward(self, x: UdaoEmbedInput) -> th.Tensor:
+        return th.reshape(x.features[:, 0] ** 2, (-1, 1))
 
 
 class ObjModel2(nn.Module):
-    def forward(self, x: UdaoInput) -> th.Tensor:
-        return th.reshape(x.feature_input[:, 1] ** 2, (-1, 1))
+    def forward(self, x: UdaoEmbedInput) -> th.Tensor:
+        return th.reshape(x.features[:, 1] ** 2, (-1, 1))
 
 
 class ComplexObj1(nn.Module):
-    def forward(self, x: UdaoInput) -> th.Tensor:
-        return th.reshape(
-            x.feature_input[:, 0] ** 2 - x.feature_input[:, 1] ** 2, (-1, 1)
-        )
+    def forward(self, x: UdaoEmbedInput) -> th.Tensor:
+        return th.reshape(x.features[:, 0] ** 2 - x.features[:, 1] ** 2, (-1, 1))
 
 
 class ComplexObj2(nn.Module):
-    def forward(self, x: UdaoInput) -> th.Tensor:
-        return th.reshape(
-            x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
-        )
+    def forward(self, x: UdaoEmbedInput) -> th.Tensor:
+        return th.reshape(x.features[:, 0] ** 2 + x.features[:, 1] ** 2, (-1, 1))
 
 
 class TabularFeaturePreprocessor(StaticFeaturePreprocessor):
@@ -54,7 +50,7 @@ class TabularFeaturePreprocessor(StaticFeaturePreprocessor):
 @pytest.fixture()
 def data_processor() -> DataProcessor:
     return DataProcessor(
-        iterator_cls=DummyFeatureIterator,
+        iterator_cls=DummyUdaoIterator,
         feature_extractors={
             "tabular_features": TabularFeatureExtractor(
                 columns=["v1", "v2"],

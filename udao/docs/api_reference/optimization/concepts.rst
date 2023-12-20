@@ -8,15 +8,15 @@ Variable
    :members:
    :show-inheritance:
 
-Objective
+Constraint
 ===================
-.. automodule:: udao.optimization.concepts.objective
+.. automodule:: udao.optimization.concepts.optimization_element
    :members:
    :show-inheritance:
 
-Constraint
+Objective
 ===================
-.. automodule:: udao.optimization.concepts.constraint
+.. automodule:: udao.optimization.concepts.objective
    :members:
    :show-inheritance:
 

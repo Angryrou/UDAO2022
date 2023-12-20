@@ -9,22 +9,22 @@ from ....data.containers.tabular_container import TabularContainer
 from ....data.extractors.tabular_extractor import TabularFeatureExtractor
 from ....data.handler.data_processor import DataProcessor
 from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
-from ....data.tests.iterators.dummy_udao_iterator import DummyFeatureIterator
+from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....model.utils.utils import set_deterministic_torch
-from ....utils.interfaces import FeatureInput
+from ....utils.interfaces import UdaoInput
 from ....utils.logging import logger
 from ... import concepts as co
 from ...soo.mogd import MOGD
 
 
 class SimpleModel1(nn.Module):
-    def forward(self, x: FeatureInput) -> th.Tensor:
-        return x.feature_input[:, :1]
+    def forward(self, x: UdaoInput) -> th.Tensor:
+        return x.features[:, :1]
 
 
 class SimpleModel2(nn.Module):
-    def forward(self, x: FeatureInput) -> th.Tensor:
-        return x.feature_input[:, 1:]
+    def forward(self, x: UdaoInput) -> th.Tensor:
+        return x.features[:, 1:]
 
 
 @pytest.fixture()
@@ -43,7 +43,7 @@ def data_processor() -> DataProcessor:
             return tabular_feature
 
     return DataProcessor(
-        iterator_cls=DummyFeatureIterator,
+        iterator_cls=DummyUdaoIterator,
         feature_extractors={
             "tabular_features": TabularFeatureExtractor(
                 columns=["v1", "v2"],
@@ -73,7 +73,7 @@ def mogd() -> MOGD:
 @pytest.fixture()
 def data_processor_paper() -> DataProcessor:
     return DataProcessor(
-        iterator_cls=DummyFeatureIterator,
+        iterator_cls=DummyUdaoIterator,
         feature_extractors={
             "tabular_features": TabularFeatureExtractor(
                 columns=["v1"],
@@ -114,7 +114,7 @@ class TestMOGD:
         "gpu, expected_obj, expected_vars",
         [
             (False, 1, {"v1": 1.0, "v2": 2.0}),
-            (True, 0.728246, [0.07, 2.15]),
+            (True, 1, {"v1": 1.0, "v2": 2.0}),
         ],
     )
     def test_solve(
@@ -200,10 +200,8 @@ class TestMOGD:
     def test_solve_no_constraints(
         self, mogd: MOGD, data_processor: DataProcessor
     ) -> None:
-        def objective_function(x: FeatureInput) -> th.Tensor:
-            return th.reshape(
-                x.feature_input[:, 0] ** 2 + x.feature_input[:, 1] ** 2, (-1, 1)
-            )
+        def objective_function(x: UdaoInput) -> th.Tensor:
+            return th.reshape(x.features[:, 0] ** 2 + x.features[:, 1] ** 2, (-1, 1))
 
         problem = co.SOProblem(
             data_processor=data_processor,
@@ -252,18 +250,16 @@ class TestMOGD:
                 "v2": co.IntegerVariable(2, 3),
             },
         )
-        assert input_values.feature_input.shape == (4, 2)
-        assert th.all(input_values.feature_input <= 1) and th.all(
-            input_values.feature_input >= 0
-        )
+        assert input_values.features.shape == (4, 2)
+        assert th.all(input_values.features <= 1) and th.all(input_values.features >= 0)
         assert input_shape.output_names == ["objective_input"]
-        assert input_shape.feature_input_names == ["v1", "v2"]
-        container = make_tabular_container(input_values.feature_input)
+        assert input_shape.feature_names == ["v1", "v2"]
+        container = make_tabular_container(input_values.features)
         np.testing.assert_equal(
-            container.data["v1"].values, input_values.feature_input[:, 0].numpy()
+            container.data["v1"].values, input_values.features[:, 0].cpu().numpy()
         )
         np.testing.assert_equal(
-            container.data["v2"].values, input_values.feature_input[:, 1].numpy()
+            container.data["v2"].values, input_values.features[:, 1].cpu().numpy()
         )
 
     def test_get_processed_input_bounds(
@@ -276,8 +272,8 @@ class TestMOGD:
                 "v2": co.IntegerVariable(2, 3),
             },
         )
-        assert th.equal(input_lower.feature_input[0], th.tensor([0, 0]))
-        assert th.equal(input_upper.feature_input[0], th.tensor([1, 1]))
+        assert th.equal(input_lower.features[0].cpu(), th.tensor([0, 0]).cpu())
+        assert th.equal(input_upper.features[0].cpu(), th.tensor([1, 1]).cpu())
 
     def test_get_unprocessed_input_bounds(
         self, mogd: MOGD, data_processor: DataProcessor
@@ -317,9 +313,11 @@ class TestMOGD:
             upper=2,
         )
         mogd.objective_stress = 0.1
-        loss = mogd.objective_loss(objective_values, objective)
+        loss = mogd.objective_loss(
+            objective_values.to(mogd.device), objective.to(mogd.device)  # type: ignore
+        )
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
-        assert th.equal(loss.cpu(), expected_loss)
+        assert th.equal(loss.cpu(), expected_loss.cpu())
 
     @pytest.mark.parametrize(
         "objective_values, expected_loss",
@@ -343,9 +341,11 @@ class TestMOGD:
             minimize=False,
             function=SimpleModel1(),
         )
-        loss = mogd.objective_loss(objective_values, objective)
+        loss = mogd.objective_loss(
+            objective_values.to(mogd.device), objective.to(mogd.device)  # type: ignore
+        )
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
-        assert th.allclose(loss, expected_loss)
+        assert th.allclose(loss.cpu(), expected_loss.cpu())
 
     @pytest.mark.parametrize(
         "constraint_values, expected_loss",
@@ -383,8 +383,11 @@ class TestMOGD:
                 function=SimpleModel2(),
             ),
         ]
-        loss = mogd.constraints_loss(constraint_values, constraints)
-        assert th.allclose(loss, expected_loss)
+        loss = mogd.constraints_loss(
+            [c.to(mogd.device) for c in constraint_values],
+            [c.to(mogd.device) for c in constraints],  # type: ignore
+        )
+        assert th.allclose(loss.cpu(), expected_loss.cpu())
 
     def test_get_meshed_categorical_variables(self, mogd: MOGD) -> None:
         variables = {
