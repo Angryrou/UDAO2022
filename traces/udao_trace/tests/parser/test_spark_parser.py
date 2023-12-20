@@ -24,9 +24,11 @@ class TestSparkParser:
     )
     def test_parse_one_file(self, sp, file) -> None:
         q_dict_list, qs_dict_list = sp.parse_one_file(file)
-        print(q_dict_list, qs_dict_list)
+        print()
+        print(q_dict_list)
         q_lens = [len(d) for d in q_dict_list]
         assert(np.mean(q_lens) == 37 and np.std(q_lens) == 0)
+        print(qs_dict_list)
         qs_lens = [len(d) for d in qs_dict_list]
         assert(np.mean(qs_lens) == 40 and np.std(qs_lens) == 0)
 
