@@ -250,7 +250,7 @@ class MOGD(SOSolver):
         module = cast(th.nn.Module, problem.objective.function)
         print(
             f"problem.objective.function device"
-            f"{((p, p.get_device()) for p in module.parameters())}"
+            f"{[(p, p.get_device()) for p in module.parameters()]}"
         )
         # Compute objective, constraints and corresponding losses
         obj_output = problem.objective.function(input_data)
