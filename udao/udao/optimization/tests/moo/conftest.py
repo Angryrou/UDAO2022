@@ -74,6 +74,7 @@ def mogd() -> MOGD:
             patience=10,
             multistart=10,
             objective_stress=10,
+            constraint_stress=1e5,
             device=th.device("cpu"),
         )
     )
@@ -82,8 +83,8 @@ def mogd() -> MOGD:
 @pytest.fixture
 def two_obj_problem(data_processor: DataProcessor) -> MOProblem:
     objectives = [
-        Objective("obj1", "MIN", ObjModel1()),
-        Objective("obj2", "MIN", ObjModel2()),
+        Objective("obj1", minimize=True, function=ObjModel1()),
+        Objective("obj2", minimize=True, function=ObjModel2()),
     ]
     variables: Dict[str, Variable] = {
         "v1": FloatVariable(0, 1),
@@ -106,9 +107,9 @@ def three_obj_problem(
 ) -> MOProblem:
     return MOProblem(
         objectives=[
-            Objective("obj1", "MAX", ObjModel1()),
-            Objective("obj2", "MAX", ObjModel2()),
-            Objective("obj3", "MAX", ComplexObj2()),
+            Objective("obj1", minimize=False, function=ObjModel1()),
+            Objective("obj2", minimize=False, function=ObjModel2()),
+            Objective("obj3", minimize=False, function=ComplexObj2()),
         ],
         variables=two_obj_problem.variables,
         constraints=two_obj_problem.constraints,

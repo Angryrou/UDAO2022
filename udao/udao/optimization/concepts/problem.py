@@ -9,9 +9,8 @@ from ..concepts.utils import (
     derive_processed_input,
     derive_unprocessed_input,
 )
-from .constraint import Constraint
 from .objective import Objective
-from .optimization_element import OptimizationElement
+from .optimization_element import Constraint
 from .variable import Variable
 
 
@@ -44,7 +43,7 @@ class BaseProblem:
         self.input_parameters = input_parameters
 
     def apply_function(
-        self, optimization_element: OptimizationElement, input_variables: InputVariables
+        self, optimization_element: Constraint, input_variables: InputVariables
     ) -> th.Tensor:
         if self.data_processor is not None:
             input_data, _ = derive_processed_input(

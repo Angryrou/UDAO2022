@@ -25,9 +25,7 @@ class WeightedSumObjective(Objective):
     ) -> None:
         self.problem = problem
         self.ws = ws
-        super().__init__(
-            name="weighted_sum", function=self.function, direction_type="MIN"
-        )
+        super().__init__(name="weighted_sum", function=self.function, minimize=True)
         self._cache: Dict[str, np.ndarray] = {}
         self.allow_cache = allow_cache
 
