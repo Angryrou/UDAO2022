@@ -339,7 +339,9 @@ class TestMOGD:
             minimize=False,
             function=SimpleModel1(),
         )
-        loss = mogd.objective_loss(objective_values.to(mogd.device), objective)
+        loss = mogd.objective_loss(
+            objective_values.to(mogd.device), objective.to(mogd.device)  # type: ignore
+        )
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
         assert th.allclose(loss, expected_loss)
 
@@ -380,7 +382,8 @@ class TestMOGD:
             ),
         ]
         loss = mogd.constraints_loss(
-            [c.to(mogd.device) for c in constraint_values], constraints
+            [c.to(mogd.device) for c in constraint_values],
+            [c.to(mogd.device) for c in constraints],  # type: ignore
         )
         assert th.allclose(loss, expected_loss)
 
