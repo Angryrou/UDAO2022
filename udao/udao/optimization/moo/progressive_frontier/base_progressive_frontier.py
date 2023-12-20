@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Optional, Tuple
 
 import numpy as np
+import torch as th
 
 from ....utils.interfaces import VarTypes
 from ....utils.logging import logger
@@ -233,7 +234,9 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         obj_list = []
         for obj in problem.objectives:
-            obj_value = problem.apply_function(obj, variable_values)
+            obj_value = problem.apply_function(
+                obj, variable_values, device=th.device("cpu")
+            )
             obj_value = (obj_value * obj.direction).squeeze()
-            obj_list.append(obj_value.detach().cpu())
+            obj_list.append(obj_value.detach())
         return np.array(obj_list)

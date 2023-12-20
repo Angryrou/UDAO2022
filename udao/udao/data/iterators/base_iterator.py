@@ -71,7 +71,7 @@ class BaseIterator(Dataset, Generic[T, ST]):
         This will use the collate static method
         to collate the items into a batch.
         """
-        return DataLoader(
+        return DataLoader[T](
             self,
             batch_size=batch_size,
             shuffle=shuffle,
