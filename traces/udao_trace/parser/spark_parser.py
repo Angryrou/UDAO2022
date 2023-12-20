@@ -90,8 +90,12 @@ class SparkParser:
         conf = self._parse_conf(d[conf_key])
         return {**im, **{"PD": pd}, **ss_dict}, conf
 
+    @staticmethod
+    def _drop_raw_plan(d: Dict, to_drop: str = "rawPlan") -> Dict:
+        return {k: v for k, v in d.items() if k != to_drop}
+
     def _parse_lqp_features(self, d: Dict) -> (Dict, Dict):
-        lqp_str = JsonHandler.dump_to_string(d["LQP"], indent=None)
+        lqp_str = JsonHandler.dump_to_string(self._drop_raw_plan(d["LQP"]), indent=None)
         base, conf = self._parse_base(d)
         return {**{"lqp": lqp_str}, **base}, conf
 
@@ -119,8 +123,8 @@ class SparkParser:
             return {**meta, **feat_dict, **theta_c, **conf, **obj_dict}
 
     def _parse_qs(self, d: Dict, meta: Dict, theta_c: Dict) -> Dict:
-        qs_lqp_str = JsonHandler.dump_to_string(d["QSLogical"], indent=None)
-        qs_pqp_str = JsonHandler.dump_to_string(d["QSPhysical"], indent=None)
+        qs_lqp_str = JsonHandler.dump_to_string(self._drop_raw_plan(d["QSLogical"]), indent=None)
+        qs_pqp_str = JsonHandler.dump_to_string(self._drop_raw_plan(d["QSPhysical"]), indent=None)
         local = {"qs_lqp": qs_lqp_str, "qs_pqp": qs_pqp_str, "InitialPartitionNum": d["InitialPartitionNum"]}
         base, conf = self._parse_base(d)
         obj_dict = self._parse_qs_objectives(d["Objectives"])
