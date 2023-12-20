@@ -108,7 +108,7 @@ class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
         )
         meta_features = self.query_structure_container.graph_meta_features
         feature_names = self.tabular_features.data.columns.tolist()
-        if meta_features:
+        if meta_features is not None:
             feature_names[:0] = meta_features.columns.tolist()
         output_names = list(self.objectives.data.columns)
         return UdaoInputShape(
