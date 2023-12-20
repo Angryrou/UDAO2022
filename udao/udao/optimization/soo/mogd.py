@@ -59,6 +59,7 @@ class MOGD(SOSolver):
         self.batch_size = params.batch_size
         self.device = params.device
         self.dtype = params.dtype
+        print("MOGD device: ", self.device)
 
     def _get_unprocessed_input_values(
         self,
@@ -412,7 +413,8 @@ class MOGD(SOSolver):
         )
         # Indices of numeric variables on which to apply gradients
         mask = th.tensor(
-            [i in problem.variables for i in input_data_shape.feature_input_names]
+            [i in problem.variables for i in input_data_shape.feature_input_names],
+            device=self.device,
         )
         grad_indices = th.nonzero(mask, as_tuple=False).squeeze()
         input_vars_subvector = (
@@ -436,6 +438,7 @@ class MOGD(SOSolver):
                 if min_loss < best_loss:
                     best_loss = min_loss
                     best_obj = local_best_obj
+                    print(f"input data device {input_data.feature_input.get_device()}")
                     best_feature_input = (
                         input_data.feature_input.cpu()[min_loss_id]
                         .detach()
@@ -525,6 +528,7 @@ class MOGD(SOSolver):
                     constraint.function.to(self.device)
             if isinstance(problem.objective.function, th.nn.Module):
                 problem.objective.function.to(self.device)
+
         categorical_variables = [
             name
             for name, variable in problem.variables.items()
@@ -682,7 +686,6 @@ class MOGD(SOSolver):
             norm_cst_obj_pred = (objective_value - objective.lower) / (
                 objective.upper - objective.lower
             )  # scaled
-            print(f"norm_cst_obj_pred {norm_cst_obj_pred.get_device()}")
             loss = th.where(
                 (norm_cst_obj_pred < 0) | (norm_cst_obj_pred > 1),
                 (norm_cst_obj_pred - 0.5) ** 2 + self.objective_stress,
