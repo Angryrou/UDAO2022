@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional
 
 import dgl
 import pandas as pd
@@ -12,7 +12,7 @@ from ..utils.query_plan import QueryPlanStructure
 class QueryDescription:
     template_graph: dgl.DGLGraph
     graph_features: Iterable
-    meta_features: Iterable
+    meta_features: Optional[Iterable]
     operation_types: Iterable
 
 
@@ -22,7 +22,7 @@ class QueryStructureContainer(BaseContainer):
 
     graph_features: pd.DataFrame
     """ Stores the features of the operations in the query plan."""
-    graph_meta_features: pd.DataFrame
+    graph_meta_features: Optional[pd.DataFrame]
     """ Stores the meta features of the operations in the query plan."""
     template_plans: Dict[int, QueryPlanStructure]
     """Link a template id to a QueryPlanStructure"""
@@ -33,7 +33,11 @@ class QueryStructureContainer(BaseContainer):
 
     def get(self, key: str) -> QueryDescription:
         graph_features = self.graph_features.loc[key].values
-        graph_meta_features = self.graph_meta_features.loc[key].values
+        graph_meta_features = (
+            None
+            if self.graph_meta_features is None
+            else self.graph_meta_features.loc[key].values
+        )
         template_id = self.key_to_template[key]
         template_graph = self.template_plans[template_id].graph
         operation_types = self.operation_types.loc[key].values

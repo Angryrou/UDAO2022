@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import dgl
 import torch as th
@@ -58,7 +58,7 @@ class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
     def __len__(self) -> int:
         return len(self.keys)
 
-    def _get_graph_and_meta(self, key: str) -> Tuple[dgl.DGLGraph, th.Tensor]:
+    def _get_graph_and_meta(self, key: str) -> Tuple[dgl.DGLGraph, Optional[th.Tensor]]:
         """Returns the graph corresponding to the key,
         associated with features as th.tensor,
         and the meta information.
@@ -71,14 +71,20 @@ class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
             graph.ndata[feature] = th.tensor(
                 container.get(key), dtype=self.tensors_dtype
             )
-        return graph, th.tensor(query.meta_features, dtype=self.tensors_dtype)
+        meta_input = (
+            None
+            if query.meta_features is None
+            else th.tensor(query.meta_features, dtype=self.tensors_dtype)
+        )
+        return graph, meta_input
 
     def _getitem(self, idx: int) -> Tuple[QueryPlanInput, th.Tensor]:
         key = self.keys[idx]
         features = th.tensor(self.tabular_features.get(key), dtype=self.tensors_dtype)
         objectives = th.tensor(self.objectives.get(key), dtype=self.tensors_dtype)
         graph, meta_input = self._get_graph_and_meta(key)
-        features = th.cat([meta_input, features])
+        if meta_input is not None:
+            features = th.cat([meta_input, features])
         input_data = QueryPlanInput(features, graph)
         return input_data, objectives
 
@@ -100,10 +106,10 @@ class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
         embedding_input_shape["type"] = len(
             self.query_structure_container.operation_types.unique()
         )
-        feature_names = [
-            *self.query_structure_container.graph_meta_features.columns,
-            *self.tabular_features.data.columns,
-        ]
+        meta_features = self.query_structure_container.graph_meta_features
+        feature_names = self.tabular_features.data.columns.tolist()
+        if meta_features is not None:
+            feature_names[:0] = meta_features.columns.tolist()
         output_names = list(self.objectives.data.columns)
         return UdaoInputShape(
             embedding_input_shape=embedding_input_shape,
