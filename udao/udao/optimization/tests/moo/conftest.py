@@ -92,10 +92,10 @@ def two_obj_problem(data_processor: DataProcessor) -> MOProblem:
     constraints: Sequence[Constraint] = []
 
     return MOProblem(
-        data_processor=data_processor,
         objectives=objectives,
         variables=variables,
         constraints=constraints,
+        data_processor=data_processor,
         input_parameters=None,
     )
 

@@ -101,12 +101,9 @@ class UdaoModule(pl.LightningModule):
             m: self.loss(y_hat[:, i], y[:, i]) for i, m in enumerate(self.objectives)
         }
 
-        if len(loss_dict) == 1:
-            loss = loss_dict[self.objectives[0]]
-        else:
-            loss = th.sum(
-                th.stack([self.loss_weights[k] * loss for k, loss in loss_dict.items()])
-            )
+        loss = th.sum(
+            th.stack([self.loss_weights[k] * loss for k, loss in loss_dict.items()])
+        )
         return loss, loss_dict
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
