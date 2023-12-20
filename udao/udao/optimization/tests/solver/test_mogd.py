@@ -313,9 +313,11 @@ class TestMOGD:
             upper=2,
         )
         mogd.objective_stress = 0.1
-        loss = mogd.objective_loss(objective_values, objective)
+        loss = mogd.objective_loss(
+            objective_values.to(mogd.device), objective.to(mogd.device)  # type: ignore
+        )
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
-        assert th.equal(loss.cpu(), expected_loss)
+        assert th.equal(loss.cpu(), expected_loss.cpu())
 
     @pytest.mark.parametrize(
         "objective_values, expected_loss",
@@ -343,7 +345,7 @@ class TestMOGD:
             objective_values.to(mogd.device), objective.to(mogd.device)  # type: ignore
         )
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
-        assert th.allclose(loss, expected_loss)
+        assert th.allclose(loss.cpu(), expected_loss.cpu())
 
     @pytest.mark.parametrize(
         "constraint_values, expected_loss",
@@ -385,7 +387,7 @@ class TestMOGD:
             [c.to(mogd.device) for c in constraint_values],
             [c.to(mogd.device) for c in constraints],  # type: ignore
         )
-        assert th.allclose(loss, expected_loss)
+        assert th.allclose(loss.cpu(), expected_loss.cpu())
 
     def test_get_meshed_categorical_variables(self, mogd: MOGD) -> None:
         variables = {
