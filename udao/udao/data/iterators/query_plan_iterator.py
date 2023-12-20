@@ -5,19 +5,20 @@ import dgl
 import torch as th
 
 from ...data.containers.tabular_container import TabularContainer
-from ...utils.interfaces import UdaoInput, UdaoInputShape
+from ...utils.interfaces import UdaoEmbedInput, UdaoEmbedItemShape
 from ..containers import QueryStructureContainer
-from .base_iterator import FeatureIterator
+from .base_iterator import UdaoIterator
 
 
 @dataclass
-class QueryPlanInput(UdaoInput[dgl.DGLGraph]):
+class QueryPlanInput(UdaoEmbedInput[dgl.DGLGraph]):
     """The embedding input is a dgl.DGLGraph"""
 
-    pass
+    def to(self, device: th.device) -> "QueryPlanInput":
+        return QueryPlanInput(self.features.to(device), self.embedding_input.to(device))
 
 
-class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
+class QueryPlanIterator(UdaoIterator[QueryPlanInput, UdaoEmbedItemShape]):
     """
     Iterator that returns a dgl.DGLGraph for each key, with associated node features.
     The features are stored in the graph.ndata dictionary.
@@ -83,7 +84,7 @@ class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
         return input_data, objectives
 
     @property
-    def shape(self) -> UdaoInputShape[Dict[str, int]]:
+    def shape(self) -> UdaoEmbedItemShape[Dict[str, int]]:
         """Returns the dimensions of the iterator inputs and outputs."""
 
         sample_input, sample_output = self._get_sample()
@@ -105,9 +106,9 @@ class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
             *self.tabular_features.data.columns,
         ]
         output_names = list(self.objectives.data.columns)
-        return UdaoInputShape(
+        return UdaoEmbedItemShape(
             embedding_input_shape=embedding_input_shape,
-            feature_input_names=feature_names,
+            feature_names=feature_names,
             output_names=output_names,
         )
 
@@ -117,7 +118,7 @@ class QueryPlanIterator(FeatureIterator[QueryPlanInput, UdaoInputShape]):
     ) -> Tuple[QueryPlanInput, th.Tensor]:
         """Collate a list of FeatureItem into a single graph."""
         graphs = [item[0].embedding_input for item in items]
-        features = th.vstack([item[0].feature_input for item in items])
+        features = th.vstack([item[0].features for item in items])
         objectives = th.vstack([item[1] for item in items])
         return QueryPlanInput(features, dgl.batch(graphs)), objectives
 

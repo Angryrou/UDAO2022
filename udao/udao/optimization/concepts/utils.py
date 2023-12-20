@@ -6,7 +6,7 @@ import torch as th
 
 from ...data.extractors.tabular_extractor import TabularFeatureExtractor
 from ...data.handler.data_processor import DataProcessor
-from ...data.iterators.base_iterator import BaseIterator, FeatureIterator
+from ...data.iterators.base_iterator import BaseIterator, UdaoIterator
 
 InputVariables = Union[Dict[str, np.ndarray], Dict[str, Any]]
 InputParameters = Optional[Dict[str, Any]]
@@ -112,7 +112,7 @@ def derive_unprocessed_input(
 
 
 def derive_processed_input(
-    data_processor: DataProcessor[FeatureIterator],
+    data_processor: DataProcessor[UdaoIterator],
     input_variables: InputVariables,
     input_parameters: InputParameters = None,
 ) -> Tuple[Any, BaseIterator]:
