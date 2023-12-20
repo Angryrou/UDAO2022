@@ -6,7 +6,7 @@ import pandas as pd
 import torch as th
 from torch.utils.data import DataLoader, Dataset
 
-from ...utils.interfaces import FeatureInput, FeatureInputShape
+from ...utils.interfaces import UdaoInput, UdaoItemShape
 from ..containers import TabularContainer
 
 T = TypeVar("T")
@@ -110,13 +110,13 @@ class BaseIterator(Dataset, Generic[T, ST]):
 
 # Type of the iterator output - in the Udao case,
 # restricted to UdaoInput and its subclasses
-FT = TypeVar("FT", bound=FeatureInput)
+UT = TypeVar("UT", bound=UdaoInput)
 # Type of the iterator output shape - in the Udao case,
 # restricted to UdaoInputShape and its subclasses
-FST = TypeVar("FST", bound=FeatureInputShape)
+UST = TypeVar("UST", bound=UdaoItemShape)
 
 
-class FeatureIterator(BaseIterator[Tuple[FT, th.Tensor], FST], Generic[FT, FST]):
+class UdaoIterator(BaseIterator[Tuple[UT, th.Tensor], UST], Generic[UT, UST]):
     """Base iterator for the Udao use case, where the iterator
     returns a FeatureInput object. It is expected to accept:
     - a TabularContainer representing the tabular features
@@ -155,7 +155,7 @@ class FeatureIterator(BaseIterator[Tuple[FT, th.Tensor], FST], Generic[FT, FST])
     ) -> TabularContainer:
         indices = [
             i
-            for i, name in enumerate(self.shape.feature_input_names)
+            for i, name in enumerate(self.shape.feature_names)
             if name in self.tabular_features.data.columns
         ]
         tabular_features = feature_input[:, indices]

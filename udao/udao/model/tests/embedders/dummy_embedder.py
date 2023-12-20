@@ -3,7 +3,7 @@ from typing import Any
 
 import torch.nn as nn
 
-from ....utils.interfaces import UdaoInputShape
+from ....utils.interfaces import UdaoEmbedItemShape
 from ...embedders.base_embedder import BaseEmbedder
 
 
@@ -20,7 +20,7 @@ class DummyEmbedder(BaseEmbedder):
     @classmethod
     def from_iterator_shape(
         cls,
-        iterator_shape: UdaoInputShape,
+        iterator_shape: UdaoEmbedItemShape,
         **kwargs: Any,
     ) -> "DummyEmbedder":
         return DummyEmbedder(

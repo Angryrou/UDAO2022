@@ -7,8 +7,8 @@ import torch.optim as optim
 
 from ...data.containers.tabular_container import TabularContainer
 from ...data.handler.data_processor import DataProcessor
-from ...data.iterators.base_iterator import FeatureIterator
-from ...utils.interfaces import UdaoInput, UdaoInputShape
+from ...data.iterators.base_iterator import UdaoIterator
+from ...utils.interfaces import UdaoEmbedInput, UdaoEmbedItemShape
 from ...utils.logging import logger
 from .. import concepts as co
 from ..concepts.utils import derive_processed_input
@@ -110,7 +110,11 @@ class MOGD(SOSolver):
         data_processor: DataProcessor,
         input_parameters: Optional[Dict[str, Any]] = None,
         seed: Optional[int] = None,
-    ) -> Tuple[UdaoInput, UdaoInputShape, Callable[[th.Tensor], TabularContainer]]:
+    ) -> Tuple[
+        UdaoEmbedInput,
+        UdaoEmbedItemShape,
+        Callable[[th.Tensor], TabularContainer],
+    ]:
         """Get random values for numeric variables
 
         Parameters
@@ -141,12 +145,12 @@ class MOGD(SOSolver):
             input_variables=numeric_values,
         )
         make_tabular_container = cast(
-            FeatureIterator, iterator
+            UdaoIterator, iterator
         ).get_tabular_features_container
 
         input_data_shape = iterator.shape
 
-        return input_data, input_data_shape, make_tabular_container
+        return input_data.to(self.device), input_data_shape, make_tabular_container
 
     def _get_unprocessed_input_bounds(
         self,
@@ -178,7 +182,7 @@ class MOGD(SOSolver):
         numeric_variables: Dict[str, co.NumericVariable],
         data_processor: DataProcessor,
         input_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[UdaoInput, UdaoInput]:
+    ) -> Tuple[UdaoEmbedInput, UdaoEmbedInput]:
         """Get bounds of numeric variables
 
         Parameters
@@ -413,21 +417,19 @@ class MOGD(SOSolver):
         )
         # Indices of numeric variables on which to apply gradients
         mask = th.tensor(
-            [i in problem.variables for i in input_data_shape.feature_input_names],
+            [i in problem.variables for i in input_data_shape.feature_names],
             device=self.device,
         )
         grad_indices = th.nonzero(mask, as_tuple=False).squeeze()
-        input_vars_subvector = (
-            input_data.feature_input[:, grad_indices].clone().detach()
-        )
+        input_vars_subvector = input_data.features[:, grad_indices].clone().detach()
         input_vars_subvector.requires_grad_(True)
 
         optimizer = optim.Adam([input_vars_subvector], lr=self.lr)
         i = 0
         while i < self.max_iter:
-            input_data.feature_input = input_data.feature_input.clone().detach()
+            input_data.features = input_data.features.clone().detach()
 
-            input_data.feature_input[:, grad_indices] = input_vars_subvector
+            input_data.features[:, grad_indices] = input_vars_subvector
             try:
                 min_loss_id, min_loss, local_best_obj = self._gradient_descent(
                     problem, input_data, optimizer=optimizer
@@ -438,9 +440,9 @@ class MOGD(SOSolver):
                 if min_loss < best_loss:
                     best_loss = min_loss
                     best_obj = local_best_obj
-                    print(f"input data device {input_data.feature_input.get_device()}")
+                    print(f"input data device {input_data.features.get_device()}")
                     best_feature_input = (
-                        input_data.feature_input.cpu()[min_loss_id]
+                        input_data.features.cpu()[min_loss_id]
                         .detach()
                         .clone()
                         .reshape(1, -1)
@@ -451,8 +453,8 @@ class MOGD(SOSolver):
             input_vars_subvector.data = th.clip(
                 input_vars_subvector.data,
                 # use .data to avoid gradient tracking during update
-                lower_input.feature_input[0, grad_indices],
-                upper_input.feature_input[0, grad_indices],
+                lower_input.features[0, grad_indices],
+                upper_input.features[0, grad_indices],
             )
             if i > best_iter + self.patience:
                 break
