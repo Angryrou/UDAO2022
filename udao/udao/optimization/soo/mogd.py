@@ -8,6 +8,7 @@ import torch.optim as optim
 from ...data.containers.tabular_container import TabularContainer
 from ...data.handler.data_processor import DataProcessor
 from ...data.iterators.base_iterator import UdaoIterator
+from ...data.iterators.query_plan_iterator import QueryPlanInput
 from ...utils.interfaces import UdaoInput, UdaoItemShape
 from ...utils.logging import logger
 from .. import concepts as co
@@ -442,7 +443,7 @@ class MOGD(SOSolver):
         while i < self.max_iter:
             input_data.features = input_data.features.clone().detach()
             print(f"input data device outer loop {input_data.features.get_device()}")
-
+            print(f"graph {cast(QueryPlanInput, input_data).embedding_input.device}")
             input_data.features[:, grad_indices] = input_vars_subvector
             try:
                 min_loss_id, min_loss, local_best_obj = self._gradient_descent(
