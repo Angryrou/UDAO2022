@@ -167,15 +167,19 @@ if __name__ == "__main__":
         "m8": 846.0800000000002,
     }
 
-    def cloud_cost(
-        input_data: QueryPlanInput,
-    ) -> th.Tensor:
-        return model(input_data)[:, 1].reshape(-1, 1)
+    class cloud_cost(th.nn.Module):
+        def __init__(self, model: th.nn.Module) -> None:
+            self.model = model
 
-    def latency(
-        input_data: QueryPlanInput,
-    ) -> th.Tensor:
-        return model(input_data)[:, 0].reshape(-1, 1)
+        def forward(self, input_data: QueryPlanInput) -> th.Tensor:
+            return self.model(input_data)[:, 1].reshape(-1, 1)
+
+    class latency(th.nn.Module):
+        def __init__(self, model: th.nn.Module) -> None:
+            self.model = model
+
+        def forward(self, input_data: QueryPlanInput) -> th.Tensor:
+            return self.model(input_data)[:, 0].reshape(-1, 1)
 
     problem = concepts.MOProblem(
         data_processor=data_processor,
@@ -183,12 +187,12 @@ if __name__ == "__main__":
             concepts.Objective(
                 name="latency",
                 minimize=True,
-                function=latency,
+                function=latency(model),
             ),
             concepts.Objective(
                 name="cloud_cost",
                 minimize=True,
-                function=cloud_cost,
+                function=cloud_cost(model),
             ),
         ],
         variables={
