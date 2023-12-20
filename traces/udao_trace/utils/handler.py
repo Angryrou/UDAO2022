@@ -3,7 +3,7 @@ import os
 import pickle
 import traceback
 
-from typing import List
+from typing import List, Optional
 
 from . import ClusterName
 
@@ -19,6 +19,14 @@ class JsonHandler:
             except:
                 raise Exception(f"{f} cannot be parsed as a JSON file")
 
+    @staticmethod
+    def dump_to_string(obj: dict, indent: Optional[int] = None) -> str:
+        return json.dumps(obj, indent=indent)
+
+    @staticmethod
+    def dump_to_file(obj: dict, file: str, indent: Optional[int] = None) -> None:
+        with open(file, "w") as f:
+            json.dump(obj, f, indent=indent)
 
 class PickleHandler(object):
 

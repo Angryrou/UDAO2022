@@ -5,12 +5,12 @@ import sys
 import time
 from multiprocessing import Pool, Manager
 
-from udao_trace.configuration import SparkConf
-from udao_trace.environment.cluster import Cluster
-from udao_trace.utils import BenchmarkType, ClusterName, PickleHandler
-from udao_trace.utils.handler import error_handler
-from udao_trace.utils.logging import logger
-from udao_trace.workload import QueryMatrix, Benchmark
+from ..configuration import SparkConf
+from ..environment.cluster import Cluster
+from ..utils import BenchmarkType, ClusterName, PickleHandler
+from ..utils.handler import error_handler
+from ..utils.logging import logger
+from ..workload import QueryMatrix, Benchmark
 
 
 class SparkCollector:
