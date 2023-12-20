@@ -182,12 +182,12 @@ if __name__ == "__main__":
         objectives=[
             concepts.Objective(
                 name="latency",
-                direction_type="MIN",
+                minimize=True,
                 function=latency,
             ),
             concepts.Objective(
                 name="cloud_cost",
-                direction_type="MIN",
+                minimize=True,
                 function=cloud_cost,
             ),
         ],
