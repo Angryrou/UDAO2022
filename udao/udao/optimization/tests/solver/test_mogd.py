@@ -272,8 +272,8 @@ class TestMOGD:
                 "v2": co.IntegerVariable(2, 3),
             },
         )
-        assert th.equal(input_lower.features[0], th.tensor([0, 0]))
-        assert th.equal(input_upper.features[0], th.tensor([1, 1]))
+        assert th.equal(input_lower.features[0].cpu(), th.tensor([0, 0]).cpu())
+        assert th.equal(input_upper.features[0].cpu(), th.tensor([1, 1]).cpu())
 
     def test_get_unprocessed_input_bounds(
         self, mogd: MOGD, data_processor: DataProcessor

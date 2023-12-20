@@ -160,6 +160,6 @@ class UdaoIterator(BaseIterator[Tuple[UT, th.Tensor], UST], Generic[UT, UST]):
         ]
         tabular_features = feature_input[:, indices]
         tabular_df = pd.DataFrame(
-            tabular_features.numpy(), columns=self.tabular_features.data.columns
+            tabular_features.cpu().numpy(), columns=self.tabular_features.data.columns
         )
         return TabularContainer(tabular_df)

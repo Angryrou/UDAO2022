@@ -106,7 +106,8 @@ def derive_unprocessed_input(
         k: th.tensor([v] * n_items) for k, v in (input_parameters or {}).items()
     }
     return {
-        name: th.tensor(value, device=device) for name, value in input_variables.items()
+        name: th.tensor(value, device=device).float()
+        for name, value in input_variables.items()
     }, input_parameters_values
 
 
