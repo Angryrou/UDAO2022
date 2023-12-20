@@ -2,9 +2,9 @@
 Single Objective Optimization
 ==================================
 
-SOSolver
+SO Solver
 ==========
-.. automodule:: udao.optimization.soo.base_solver
+.. automodule:: udao.optimization.soo.so_solver
    :members:
    :show-inheritance:
 

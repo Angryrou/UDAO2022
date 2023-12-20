@@ -674,9 +674,7 @@ class MOGD(SOSolver):
             If only one bound is specified for the objective
 
         """
-        loss = th.zeros_like(
-            objective_value, device=self.device, dtype=self.dtype
-        )  # size of objective_value ((bs, 1) ?)
+
         if objective.upper is None and objective.lower is None:
             loss = (
                 th.sign(objective_value) * (objective_value**2) * objective.direction
