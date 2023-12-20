@@ -78,7 +78,7 @@ class TestGridSearch:
         ) -> th.Tensor:
             return input_variables["v1"] + input_variables["v2"]
 
-        objective = co.Objective("obj1", "MAX", obj1_func)
+        objective = co.Objective("obj1", minimize=False, function=obj1_func)
         variables: Dict[str, co.Variable] = {
             "v1": co.BoolVariable(),
             "v2": co.IntegerVariable(1, 7),

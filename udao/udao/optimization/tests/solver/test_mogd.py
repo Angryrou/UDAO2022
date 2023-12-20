@@ -63,7 +63,7 @@ def mogd() -> MOGD:
         max_iters=100,
         patience=10,
         multistart=10,
-        objective_stress=0.1,
+        objective_stress=10,
     )
     mogd = MOGD(params)
 
@@ -135,7 +135,7 @@ class TestMOGD:
             data_processor=data_processor,
             objective=co.Objective(
                 "obj1",
-                direction_type="MAX",
+                minimize=False,
                 function=SimpleModel1(),
                 lower=0,
                 upper=2,
@@ -146,7 +146,6 @@ class TestMOGD:
                     lower=0,
                     upper=1,
                     function=SimpleModel2(),
-                    stress=10,
                 )
             ],
         )
@@ -172,18 +171,19 @@ class TestMOGD:
         problem = co.SOProblem(
             objective=co.Objective(
                 "obj1",
-                "MIN",
+                minimize=True,
                 function=PaperModel1(),
                 lower=100,
                 upper=200,
             ),
             variables={"cores": variable},
             constraints=[
-                co.Constraint(
+                co.Objective(
+                    name="obj2",
                     lower=8,
                     upper=16,
                     function=PaperModel2(),
-                    stress=10,
+                    minimize=False,
                 )
             ],
         )
@@ -209,7 +209,7 @@ class TestMOGD:
             data_processor=data_processor,
             objective=co.Objective(
                 name="obj1",
-                direction_type="MAX",
+                minimize=False,
                 function=objective_function,
             ),
             variables={"v1": co.FloatVariable(0, 1), "v2": co.IntegerVariable(2, 3)},
@@ -311,11 +311,12 @@ class TestMOGD:
     ) -> None:
         objective = co.Objective(
             "obj1",
-            "MAX",
+            minimize=False,
             function=SimpleModel1(),
             lower=0,
             upper=2,
         )
+        mogd.objective_stress = 0.1
         loss = mogd.objective_loss(objective_values, objective)
         # 0.5 /2 (normalized) * direction (-1 for max) = -0.25
         assert th.equal(loss.cpu(), expected_loss)
@@ -339,7 +340,7 @@ class TestMOGD:
     ) -> None:
         objective = co.Objective(
             "obj1",
-            "MAX",
+            minimize=False,
             function=SimpleModel1(),
         )
         loss = mogd.objective_loss(objective_values, objective)
@@ -363,23 +364,23 @@ class TestMOGD:
         constraint_values: List[th.Tensor],
         expected_loss: th.Tensor,
     ) -> None:
+        mogd.constraint_stress = 1000
         constraints = [
-            co.Constraint(
+            co.Objective(
+                name="objA",
+                minimize=False,
                 lower=0,
                 upper=1,
                 function=SimpleModel1(),
-                stress=10,
             ),
             co.Constraint(
                 lower=0,
                 upper=2,
                 function=SimpleModel2(),
-                stress=100,
             ),
             co.Constraint(
                 upper=3,
                 function=SimpleModel2(),
-                stress=1000,
             ),
         ]
         loss = mogd.constraints_loss(constraint_values, constraints)

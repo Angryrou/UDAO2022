@@ -37,9 +37,10 @@ class MOGD(SOSolver):
         """maximum number of iterations without improvement"""
         multistart: int
         """number of random starts for gradient descent"""
-        objective_stress: float
-        """stress term for objective function"""
-
+        objective_stress: float = 10.0
+        """stress term for objective functions"""
+        constraint_stress: float = 1e5
+        """stress term for constraint functions"""
         batch_size: int = 1
         """batch size for gradient descent"""
         device: Optional[th.device] = field(default_factory=get_default_device)
@@ -54,6 +55,7 @@ class MOGD(SOSolver):
         self.patience = params.patience
         self.multistart = params.multistart
         self.objective_stress = params.objective_stress
+        self.constraint_stress = params.constraint_stress
         self.batch_size = params.batch_size
         self.device = params.device
         self.dtype = params.dtype
@@ -607,6 +609,11 @@ class MOGD(SOSolver):
         for i, (constraint_value, constraint) in enumerate(
             zip(constraint_values, constraints)
         ):
+            stress = (
+                self.objective_stress
+                if isinstance(constraint, co.Objective)
+                else self.constraint_stress
+            )
             constraint_violation = th.zeros_like(constraint_values[0])
             if constraint.upper is not None and constraint.lower is not None:
                 if constraint.upper == constraint.lower:
@@ -625,8 +632,7 @@ class MOGD(SOSolver):
             elif constraint.upper is not None:
                 constraint_violation = th.relu(constraint_value - constraint.upper)
             total_loss += (
-                constraint_violation**2
-                + constraint.stress * (constraint_violation > 0).float()
+                constraint_violation**2 + stress * (constraint_violation > 0).float()
             )
 
         return total_loss

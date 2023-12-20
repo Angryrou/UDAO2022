@@ -5,7 +5,7 @@ import torch as th
 from .utils import UdaoFunction
 
 
-class OptimizationElement:
+class Constraint:
     """An optimization element is either an objective or a constraint.
 
     The choice of the type depends on whether a DataProcessor is specified
@@ -37,3 +37,6 @@ class OptimizationElement:
 
     def __call__(self, *args: Any, **kwargs: Any) -> th.Tensor:
         return self.function(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        return f"Constraint(lower={self.lower}, upper={self.upper})"

@@ -6,7 +6,7 @@ import numpy as np
 
 from ....utils.interfaces import VarTypes
 from ....utils.logging import logger
-from ...concepts import Constraint, Objective
+from ...concepts import Objective
 from ...concepts.problem import MOProblem, SOProblem
 from ...soo.so_solver import SOSolver
 from ...utils import solver_utils as solver_ut
@@ -25,10 +25,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
     class Params:
         """Parameters for Progressive Frontier"""
 
-        constraint_stress: float = 1e5
-        """Stress for constraint violations (added penalty)"""
-        objective_stress: float = 10.0
-        """Stress for objective constraints (added penalty)"""
+        pass
 
     def __init__(
         self,
@@ -37,8 +34,6 @@ class BaseProgressiveFrontier(MOSolver, ABC):
     ) -> None:
         super().__init__()
         self.solver = solver
-        self.constraint_stress = params.constraint_stress
-        self.objective_stress = params.objective_stress
         self.opt_obj_ind = 0
 
     def get_anchor_point(
@@ -166,7 +161,7 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         soo_objective = Objective(
             name=primary_obj.name,
-            direction_type=primary_obj.direction_type,  # type: ignore
+            minimize=primary_obj.minimize,
             function=primary_obj.function,
             lower=obj_bounds_dict[primary_obj.name][0],
             upper=obj_bounds_dict[primary_obj.name][1],
@@ -178,11 +173,12 @@ class BaseProgressiveFrontier(MOSolver, ABC):
             obj_name = obj.name
             if obj_name != primary_obj.name:
                 soo_constraints.append(
-                    Constraint(
+                    Objective(
+                        name=obj.name,
+                        minimize=obj.minimize,
                         lower=obj_bounds_dict[obj_name][0],
                         upper=obj_bounds_dict[obj_name][1],
                         function=obj.function,
-                        stress=self.objective_stress,
                     )
                 )
         so_problem.constraints = soo_constraints

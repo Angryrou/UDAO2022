@@ -32,9 +32,9 @@ def simple_problem() -> MOProblem:
         Objective(
             "obj1",
             function=obj_func1,
-            direction_type="MIN",
+            minimize=True,
         ),
-        Objective("obj2", function=obj_func2, direction_type="MIN"),
+        Objective("obj2", function=obj_func2, minimize=True),
     ]
 
     def constraint_func(
@@ -146,7 +146,7 @@ class TestWeightedSum:
             return input_variables["v2"]
 
         objectives = list(simple_problem.objectives)
-        objectives.insert(1, Objective("obj3", function=f2, direction_type="MIN"))
+        objectives.insert(1, Objective("obj3", function=f2, minimize=True))
         simple_problem.objectives = objectives
         simple_problem.input_parameters = None
 
