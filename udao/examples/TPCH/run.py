@@ -169,6 +169,8 @@ if __name__ == "__main__":
 
     class cloud_cost(th.nn.Module):
         def __init__(self, model: th.nn.Module) -> None:
+            super().__init__()
+
             self.model = model
 
         def forward(self, input_data: QueryPlanInput) -> th.Tensor:
@@ -176,6 +178,7 @@ if __name__ == "__main__":
 
     class latency(th.nn.Module):
         def __init__(self, model: th.nn.Module) -> None:
+            super().__init__()
             self.model = model
 
         def forward(self, input_data: QueryPlanInput) -> th.Tensor:
