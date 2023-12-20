@@ -5,13 +5,13 @@ import pandas as pd
 
 import pytest
 
-from udao_trace.configuration import SparkConf
+from ...configuration import SparkConf
 
 
 @pytest.fixture()
 def sc() -> SparkConf:
     base_dir = Path(__file__).parent
-    knob_meta_file = str(base_dir / "assets/spark_configuration_aqe_on.json")
+    knob_meta_file = str(base_dir.parent / "assets/spark_configuration_aqe_on.json")
     return SparkConf(knob_meta_file)
 
 EPS=1e-6
@@ -32,7 +32,7 @@ CONF3 = ["1", "1g", "16", "16", "48m", "200", "true", "0.6",
 HEADER = ["k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8",
           "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11"]
 
-class TestSparkProxy:
+class TestSparkConf:
 
     @pytest.mark.parametrize(
         "conf_norm, expected_conf_denorm",
