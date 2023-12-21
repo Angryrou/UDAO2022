@@ -136,7 +136,7 @@ class WeightedSum(MOSolver):
             objective.ws = ws
             _, soo_vars = self.so_solver.solve(
                 so_problem,
-                seed=seed + i if seed is not None else None,
+                seed=seed + i * (not self.allow_cache) if seed is not None else None,
             )
 
             objective_values = np.array(

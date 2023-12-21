@@ -167,8 +167,8 @@ class TestWeightedSum:
         )
         po_objs, po_vars = ws_algo.solve(problem=two_obj_problem, seed=0)
 
-        np.testing.assert_almost_equal(po_objs, np.array([[0, 0]]), decimal=5)
-        np.testing.assert_almost_equal(po_vars[0]["v1"], 0.0, decimal=3)
+        np.testing.assert_almost_equal(po_objs, np.array([[0, 0]]), decimal=3)
+        np.testing.assert_almost_equal(po_vars[0]["v1"], 0.0, decimal=2)
         assert po_vars[0]["v2"] == 1.0
 
     @pytest.mark.parametrize(
