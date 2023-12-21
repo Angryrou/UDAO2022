@@ -1,12 +1,11 @@
 import json
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch as th
 
 from ..concepts import Objective
 from ..concepts.problem import MOProblem
-from ..concepts.utils import InputParameters, InputVariables
 from ..soo.so_solver import SOSolver
 from ..utils import moo_utils as moo_ut
 from ..utils.exceptions import NoSolutionError
@@ -29,7 +28,7 @@ class WeightedSumObjective(Objective):
         self._cache: Dict[str, np.ndarray] = {}
         self.allow_cache = allow_cache
 
-    def _function(self, input_variables: InputVariables) -> np.ndarray:
+    def _function(self, *args: Any, **kwargs: Any) -> np.ndarray:
         hash_var = ""
         if self.allow_cache:
             hash_var = json.dumps(vars)
@@ -37,10 +36,7 @@ class WeightedSumObjective(Objective):
                 return self._cache[hash_var]
         objs: List[np.ndarray] = []
         for objective in self.problem.objectives:
-            obj = (
-                self.problem.apply_function(objective, input_variables)
-                * objective.direction
-            )
+            obj = objective(*args, **kwargs) * objective.direction
             objs.append(obj.numpy().squeeze())
 
         # shape (n_feasible_samples/grids, n_objs)
@@ -49,11 +45,9 @@ class WeightedSumObjective(Objective):
             self._cache[hash_var] = objs_array
         return objs_array
 
-    def function(
-        self, input_variables: InputVariables, input_parameters: InputParameters = None
-    ) -> th.Tensor:
+    def function(self, *args: Any, **kwargs: Any) -> th.Tensor:
         """Sum of weighted normalized objectives"""
-        objs_array = self._function(input_variables)
+        objs_array = self._function(*args, **kwargs)
         objs_norm = self._normalize_objective(objs_array)
         return th.tensor(np.sum(objs_norm * self.ws, axis=1))
 
@@ -135,14 +129,20 @@ class WeightedSum(MOSolver):
         """
         candidate_points: List[Point] = []
         objective = WeightedSumObjective(problem, self.ws_pairs[0], self.allow_cache)
+        so_problem = problem.derive_SO_problem(objective)
         for i, ws in enumerate(self.ws_pairs):
             objective.ws = ws
             _, soo_vars = self.so_solver.solve(
-                problem.derive_SO_problem(objective),
+                so_problem,
                 seed=seed + i if seed is not None else None,
             )
 
-            objective_values = objective._function(soo_vars)
+            objective_values = np.array(
+                [
+                    problem.apply_function(obj, soo_vars).cpu().numpy()
+                    for obj in problem.objectives
+                ]
+            ).T.squeeze()
 
             candidate_points.append(Point(objective_values, soo_vars))
 
