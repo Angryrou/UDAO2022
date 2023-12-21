@@ -7,7 +7,7 @@ from .extractors import (
     TabularFeatureExtractor,
     TrainedFeatureExtractor,
 )
-from .handler import DataHandler
+from .handler.data_handler import DataHandler
 from .handler.data_processor import DataProcessor
 from .iterators import BaseIterator, QueryPlanIterator, TabularIterator, UdaoIterator
 from .preprocessors import (

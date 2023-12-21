@@ -178,8 +178,8 @@ def create_data_processor(
     iterator_cls: Type[IT], *args: str
 ) -> Callable[..., DataProcessor[IT]]:
     """
-    Creates a DataHandlerParams class dynamically based on
-    provided iterator class and additional arguments.
+    Creates a function dynamically to instatiate DataProcessor
+    based on provided iterator class and additional arguments.
 
     Parameters
     ----------
@@ -190,8 +190,8 @@ def create_data_processor(
 
     Returns
     -------
-    params_getter: Type[DataHandlerParams]
-        A dynamically generated DataHandlerParams class
+    create_data_processor: Callable[..., DataProcessor]
+        A dynamically generated function
         with arguments derived from the provided iterator class,
         in addition to other specified arguments.
 

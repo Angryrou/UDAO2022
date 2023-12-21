@@ -124,7 +124,7 @@ This enables to obtain a training dataloader ready for model training::
       ),
     )
     data_handler = DataHandler.from_csv("data.csv",
-        DataHandlerParams(
+        DataHandler.Params(
             index_column="id",
             stratify_on="tid",
             dryrun=True,

@@ -48,7 +48,7 @@ def data_processor() -> DataProcessor:
 
 
 def test_create_data_processor() -> None:
-    # Create the dynamic DataHandlerParams class
+    # Create the dynamic getter
     data_processor_getter = create_data_processor(TabularIterator)
 
     scaler = MinMaxScaler()

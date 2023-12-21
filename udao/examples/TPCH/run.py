@@ -9,9 +9,10 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torchmetrics import WeightedMeanAbsolutePercentageError
+
 from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
 from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
-from udao.data.handler.data_handler import DataHandler, DataHandlerParams
+from udao.data.handler.data_handler import DataHandler
 from udao.data.handler.data_processor import FeaturePipeline, create_data_processor
 from udao.data.iterators.query_plan_iterator import QueryPlanInput, QueryPlanIterator
 from udao.data.predicate_embedders import Word2VecEmbedder, Word2VecParams
@@ -89,7 +90,7 @@ if __name__ == "__main__":
 
     data_handler = DataHandler(
         df,
-        DataHandlerParams(
+        DataHandler.Params(
             index_column="id",
             stratify_on="tid",
             dryrun=True,
