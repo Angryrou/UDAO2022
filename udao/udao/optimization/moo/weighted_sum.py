@@ -6,6 +6,7 @@ import torch as th
 
 from ..concepts import Objective
 from ..concepts.problem import MOProblem
+from ..soo.mogd import MOGD
 from ..soo.so_solver import SOSolver
 from ..utils import moo_utils as moo_ut
 from ..utils.exceptions import NoSolutionError
@@ -31,7 +32,7 @@ class WeightedSumObjective(Objective):
     def _function(self, *args: Any, **kwargs: Any) -> th.Tensor:
         hash_var = ""
         if self.allow_cache:
-            hash_var = json.dumps(vars)
+            hash_var = json.dumps(str(args) + str(kwargs))
             if hash_var in self._cache:
                 return self._cache[hash_var]
         objs: List[th.Tensor] = []
@@ -105,6 +106,10 @@ class WeightedSum(MOSolver):
         self.so_solver = so_solver
         self.ws_pairs = ws_pairs
         self.allow_cache = allow_cache
+        if self.allow_cache and isinstance(so_solver, MOGD):
+            raise NotImplementedError(
+                "MOGD does not support caching." "Please set allow_cache=False."
+            )
 
     def solve(
         self, problem: MOProblem, seed: Optional[int] = None
