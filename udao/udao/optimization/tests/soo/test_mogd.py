@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import numpy as np
 import pytest
@@ -84,13 +84,17 @@ def data_processor_paper() -> DataProcessor:
 
 
 class PaperModel1(nn.Module):
-    def forward(self, x: Dict[str, th.Tensor]) -> th.Tensor:
-        return th.reshape(2400 / (x["cores"]), (-1, 1))
+    def forward(
+        self, input_variables: Dict[str, th.Tensor], input_parameters: Any = None
+    ) -> th.Tensor:
+        return th.reshape(2400 / (input_variables["cores"]), (-1, 1))
 
 
 class PaperModel2(nn.Module):
-    def forward(self, x: Dict[str, th.Tensor]) -> th.Tensor:
-        return th.reshape(x["cores"], (-1, 1))
+    def forward(
+        self, input_variables: Dict[str, th.Tensor], input_parameters: Any = None
+    ) -> th.Tensor:
+        return th.reshape(input_variables["cores"], (-1, 1))
 
 
 @pytest.fixture()

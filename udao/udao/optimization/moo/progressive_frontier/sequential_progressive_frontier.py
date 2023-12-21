@@ -80,7 +80,6 @@ class SequentialProgressiveFrontier(BaseProgressiveFrontier):
         ## filter dominated points
         po_objs_list = [point.objs.tolist() for point in plans]
         po_vars_list = [point.vars for point in plans]
-
         po_objs, po_vars = moo_ut.summarize_ret(po_objs_list, po_vars_list)
 
         return po_objs, po_vars

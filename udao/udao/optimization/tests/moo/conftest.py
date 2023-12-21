@@ -10,8 +10,16 @@ from ....data.handler.data_processor import DataProcessor
 from ....data.preprocessors.base_preprocessor import StaticPreprocessor
 from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....utils.interfaces import UdaoEmbedInput
-from ...concepts import Constraint, FloatVariable, IntegerVariable, Objective, Variable
+from ...concepts import (
+    BoolVariable,
+    Constraint,
+    FloatVariable,
+    IntegerVariable,
+    Objective,
+    Variable,
+)
 from ...concepts.problem import MOProblem
+from ...concepts.utils import InputParameters, InputVariables
 from ...soo.mogd import MOGD
 
 
@@ -111,4 +119,45 @@ def three_obj_problem(
         constraints=two_obj_problem.constraints,
         input_parameters=two_obj_problem.input_parameters,
         data_processor=data_processor,
+    )
+
+
+@pytest.fixture
+def simple_problem() -> MOProblem:
+    def obj_func1(
+        input_variables: InputVariables, input_parameters: InputParameters = None
+    ) -> th.Tensor:
+        return input_variables["v1"] + (input_parameters or {}).get("count", 0)
+
+    def obj_func2(
+        input_variables: InputVariables, input_parameters: InputParameters = None
+    ) -> th.Tensor:
+        return (input_variables["v1"] + input_variables["v2"]) / 10 + (
+            input_parameters or {}
+        ).get("count", 0)
+
+    objectives = [
+        Objective(
+            "obj1",
+            function=obj_func1,
+            minimize=True,
+        ),
+        Objective("obj2", function=obj_func2, minimize=True),
+    ]
+
+    def constraint_func(
+        input_variables: InputVariables, input_parameters: InputParameters = None
+    ) -> th.Tensor:
+        return (
+            (input_variables["v1"] + input_variables["v2"])
+            - 2
+            - (input_parameters or {}).get("count", 0)
+        )
+
+    constraints = [Constraint(function=constraint_func, lower=0)]
+    return MOProblem(
+        objectives=objectives,
+        constraints=constraints,
+        variables={"v1": BoolVariable(), "v2": IntegerVariable(1, 7)},
+        input_parameters={"count": 1},
     )
