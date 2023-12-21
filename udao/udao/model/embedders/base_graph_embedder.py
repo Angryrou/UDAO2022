@@ -5,8 +5,9 @@ from typing import Any, Dict, Literal, Optional, Sequence
 import dgl
 import torch as th
 import torch.nn as nn
-from udao.utils.interfaces import UdaoEmbedItemShape
 
+from ...utils.interfaces import UdaoEmbedItemShape
+from ...utils.logging import logger
 from .base_embedder import BaseEmbedder
 from .layers.iso_bn import IsoBN
 
@@ -60,10 +61,9 @@ class BaseGraphEmbedder(BaseEmbedder, ABC):
             **kwargs,
         }
         if any((name not in cls.Params.__dataclass_fields__) for name in params_dict):
-            print(cls.Params.__dataclass_fields__)
             for name in params_dict:
                 if name not in cls.Params.__dataclass_fields__:
-                    print(f"{name} is not a valid parameter for {cls.__name__}")
+                    logger.debug(f"{name} is not a valid parameter for {cls.__name__}")
             raise ValueError(f"Some parameters are not valid for {cls.__name__} Params")
         return cls(cls.Params(**params_dict))
 

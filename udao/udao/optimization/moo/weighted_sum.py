@@ -48,7 +48,6 @@ class WeightedSumObjective(Objective):
         """Sum of weighted normalized objectives"""
         objs_tensor = self._function(*args, **kwargs)
         objs_norm = self._normalize_objective(objs_tensor)
-        print(objs_norm.shape, th.tensor(self.ws).shape)
         return th.sum(objs_norm * th.tensor(self.ws), dim=1)
 
     def _normalize_objective(self, objs_array: th.Tensor) -> th.Tensor:
