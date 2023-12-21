@@ -5,7 +5,7 @@ import pytest
 import torch as th
 
 from ... import concepts as co
-from ...soo.random_sampler_solver import RandomSampler
+from ...soo.random_sampler_solver import RandomSamplerSolver
 
 
 class TestRandomSampler:
@@ -34,8 +34,8 @@ class TestRandomSampler:
     def test_random_sampler_single_variable(
         self, test_data: Dict, expected: Iterable
     ) -> None:
-        solver = RandomSampler(
-            RandomSampler.Params(n_samples_per_param=test_data["n_samples"])
+        solver = RandomSamplerSolver(
+            RandomSamplerSolver.Params(n_samples_per_param=test_data["n_samples"])
         )
         output = solver._get_input(variables={"v1": test_data["variable"]}, seed=0)
         np.testing.assert_allclose(
@@ -43,7 +43,7 @@ class TestRandomSampler:
         )
 
     def test_random_sampler_multiple_variables(self) -> None:
-        solver = RandomSampler(RandomSampler.Params(n_samples_per_param=3))
+        solver = RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=3))
 
         output = solver._get_input(
             variables={"v1": co.BoolVariable(), "v2": co.IntegerVariable(1, 7)}, seed=0
@@ -60,7 +60,7 @@ class TestRandomSampler:
         )
 
     def test_solve(self) -> None:
-        solver = RandomSampler(RandomSampler.Params(n_samples_per_param=50))
+        solver = RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=50))
 
         def obj1_func(
             input_variables: Dict[str, th.Tensor],

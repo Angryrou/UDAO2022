@@ -36,5 +36,5 @@ def test_summarize_ret(
     expected_var: List[List[float]],
 ) -> None:
     po_objs, po_vars = summarize_ret(po_obj_list, po_var_list)
-    np.testing.assert_array_equal(po_objs, expected_obj)
+    np.testing.assert_array_equal(po_objs, np.array(expected_obj))
     np.testing.assert_array_equal(po_vars, expected_var)

@@ -9,8 +9,8 @@ from ..concepts.utils import (
     derive_processed_input,
     derive_unprocessed_input,
 )
+from .constraint import Constraint
 from .objective import Objective
-from .optimization_element import Constraint
 from .variable import Variable
 
 
