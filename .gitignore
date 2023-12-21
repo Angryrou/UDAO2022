@@ -146,3 +146,6 @@ examples/model/spark/out
 examples/experiments/1.heuristic.vs.q_level_tuning
 application_graphs
 metastore_db
+
+udao/examples/moo/checkpoints
+udao/examples/moo/tb_logs

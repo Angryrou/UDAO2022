@@ -174,14 +174,25 @@ if __name__ == "__main__":
             y = nn_model(x)[:, 1]
             return th.reshape(y, (-1, 1))
 
-    def Const1(input_variables: InputVariables, input_parameters: InputParameters = None) -> th.Tensor:
-        y = (input_variables["v1"] - 5) ** 2 + input_variables["v2"] ** 2
-        return th.reshape(y, (-1, 1))
+    class Const1(th.nn.Module):
+        def forward(self, x: UdaoInput) -> th.Tensor:
+            norm_x_1 = x.features[:, 0]
+            norm_x_2 = x.features[:, 1]
+            x_1 = norm_x_1 * 5
+            x_2 = norm_x_2 * 3
+            y = (x_1 - 5) ** 2 + x_2 ** 2
+
+            return th.reshape(y, (-1, 1))
 
 
-    def Const2(input_variables: InputVariables, input_parameters: InputParameters = None) -> th.Tensor:
-        y = (input_variables["v1"] - 8) ** 2 + (input_variables["v2"] + 3) ** 2
-        return th.reshape(y, (-1, 1))
+    class Const2(th.nn.Module):
+        def forward(self, x: UdaoInput) -> th.Tensor:
+            norm_x_1 = x.features[:, 0]
+            norm_x_2 = x.features[:, 1]
+            x_1 = norm_x_1 * 5
+            x_2 = norm_x_2 * 3
+            y = (x_1 - 8) ** 2 + (x_2 + 3) ** 2
+            return th.reshape(y, (-1, 1))
 
 
     objectives = [
@@ -192,8 +203,8 @@ if __name__ == "__main__":
         "v1": FloatVariable(0, 5),
         "v2": FloatVariable(0, 3),
     }
-    constraints = [Constraint(function=Const1, upper=25),
-                   Constraint(function=Const2, lower=7.7)]
+    constraints = [Constraint(function=Const1(), upper=25),
+                   Constraint(function=Const2(), lower=7.7)]
 
     problem = MOProblem(
         objectives=objectives,
@@ -217,15 +228,15 @@ if __name__ == "__main__":
     so_grid = GridSearch(GridSearch.Params(n_grids_per_var=[100, 100]))
 
     # WS
-    w1 = np.linspace(0, 1, num=11, endpoint=True)
-    w2 = 1 - w1
-    ws_pairs = np.vstack((w1, w2)).T
-    ws_algo = WeightedSum(
-        so_solver=so_grid,
-        ws_pairs=ws_pairs,
-    )
-    ws_objs, ws_vars = ws_algo.solve(problem=problem)
-    logger.info(f"Found PF-AS solutions of NN: {ws_objs}, {ws_vars}")
+    # w1 = np.linspace(0, 1, num=11, endpoint=True)
+    # w2 = 1 - w1
+    # ws_pairs = np.vstack((w1, w2)).T
+    # ws_algo = WeightedSum(
+    #     so_solver=so_grid,
+    #     ws_pairs=ws_pairs,
+    # )
+    # ws_objs, ws_vars = ws_algo.solve(problem=problem)
+    # logger.info(f"Found PF-AS solutions of NN: {ws_objs}, {ws_vars}")
 
     # PF-AS
     spf = SequentialProgressiveFrontier(
