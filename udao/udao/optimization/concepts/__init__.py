@@ -1,5 +1,5 @@
+from .constraint import Constraint
 from .objective import Objective
-from .optimization_element import Constraint
 from .problem import MOProblem, SOProblem
 from .utils import InputParameters, InputVariables
 from .variable import (

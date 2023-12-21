@@ -8,8 +8,8 @@ from ...concepts import BoolVariable, Constraint, IntegerVariable, Objective
 from ...concepts.problem import MOProblem
 from ...concepts.utils import InputParameters, InputVariables
 from ...moo.weighted_sum import WeightedSum
-from ...soo.grid_search_solver import GridSearch
-from ...soo.random_sampler_solver import RandomSampler
+from ...soo.grid_search_solver import GridSearchSolver
+from ...soo.random_sampler_solver import RandomSamplerSolver
 from ...soo.so_solver import SOSolver
 from ...utils.exceptions import NoSolutionError
 
@@ -59,8 +59,8 @@ class TestWeightedSum:
     @pytest.mark.parametrize(
         "inner_solver",
         [
-            GridSearch(GridSearch.Params(n_grids_per_var=[2, 7])),
-            RandomSampler(RandomSampler.Params(n_samples_per_param=30)),
+            GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7])),
+            RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=30)),
         ],
     )
     def test_solve_without_input_parameters(
@@ -81,8 +81,8 @@ class TestWeightedSum:
     @pytest.mark.parametrize(
         "inner_solver",
         [
-            GridSearch(GridSearch.Params(n_grids_per_var=[2, 7])),
-            RandomSampler(RandomSampler.Params(n_samples_per_param=30)),
+            GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7])),
+            RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=30)),
         ],
     )
     def test_solve_with_input_parameters(
@@ -103,8 +103,8 @@ class TestWeightedSum:
     @pytest.mark.parametrize(
         "inner_solver",
         [
-            GridSearch(GridSearch.Params(n_grids_per_var=[2, 7])),
-            RandomSampler(RandomSampler.Params(n_samples_per_param=10)),
+            GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7])),
+            RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=10)),
         ],
     )
     def test_ws_raises_no_solution(
@@ -130,8 +130,8 @@ class TestWeightedSum:
     @pytest.mark.parametrize(
         "inner_solver",
         [
-            GridSearch(GridSearch.Params(n_grids_per_var=[2, 7])),
-            RandomSampler(RandomSampler.Params(n_samples_per_param=30)),
+            GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7])),
+            RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=30)),
         ],
     )
     def test_works_with_three_objectives(

@@ -1,4 +1,3 @@
-import os
 from typing import Dict, Optional, Sequence, Tuple
 
 import numpy as np
@@ -156,14 +155,34 @@ def summarize_ret(
 
 
 # generate even weights for 2d and 3D
-def even_weights(stepsize: float, m: int) -> np.ndarray:
+def even_weights(stepsize: float, n_objectives: int) -> np.ndarray:
+    """Generate even weights for 2d and 3D
+
+    Parameters
+    ----------
+    stepsize : float
+        Step size for the weights
+    n_objectives : int
+        Number of objectives for which to generate weights
+        Only 2 and 3 are supported
+
+    Returns
+    -------
+    np.ndarray
+        Array of weights of shape (n_weights, n_objectives)
+
+    Raises
+    ------
+    Exception
+        If `n_objectives` is not 2 or 3
+    """
     ws_pairs = np.array([])
-    if m == 2:
+    if n_objectives == 2:
         w1 = np.hstack([np.arange(0, 1, stepsize), 1])
         w2 = 1 - w1
         ws_pairs = np.array([[w1, w2] for w1, w2 in zip(w1, w2)])
 
-    elif m == 3:
+    elif n_objectives == 3:
         w_steps = np.linspace(0, 1, num=int(1 / stepsize) + 1, endpoint=True)
         for i, w in enumerate(w_steps):
             # use round to avoid case of floating point limitations in Python
@@ -186,7 +205,7 @@ def even_weights(stepsize: float, m: int) -> np.ndarray:
             else:
                 ws_pairs = np.vstack([ws_pairs, ws])
     else:
-        raise Exception(f"{m} objectives are not supported.")
+        raise Exception(f"{n_objectives} objectives are not supported.")
 
     assert all(np.round(np.sum(ws_pairs, axis=1), 10) == 1)
     return np.array(ws_pairs)
@@ -232,28 +251,3 @@ def plot_po(po: np.ndarray, n_obj: int = 2, title: str = "pf_ap") -> None:
 
     plt.tight_layout()
     plt.show()
-
-
-def rand_float(lower: float, upper: float, n_samples: int) -> Optional[np.ndarray]:
-    """
-    generate n_samples random float values within the lower and upper var_ranges
-    :param lower: int, lower bound
-    :param upper: int upper bound
-    :param n_samples: int, the number of samples
-    :return: ndarray(n_samples, ), n_samples random float
-    """
-    if lower > upper:
-        return None
-    else:
-        scale = upper - lower
-        out = np.random.rand(n_samples) * scale + lower
-        return out
-
-
-def save_results(
-    path: str, results: np.ndarray, wl_id: str, mode: str = "data"
-) -> None:
-    file_path = path + f"jobId_{wl_id}/"
-    if not os.path.exists(file_path):
-        os.makedirs(file_path)
-    np.savetxt(f"{file_path}/{mode}.txt", results)

@@ -5,7 +5,7 @@ import pytest
 import torch as th
 
 from ... import concepts as co
-from ...soo.grid_search_solver import GridSearch
+from ...soo.grid_search_solver import GridSearchSolver
 
 
 class TestGridSearch:
@@ -36,14 +36,16 @@ class TestGridSearch:
     def test_grid_search_get_single_variable(
         self, test_data: Dict, expected: Iterable
     ) -> None:
-        solver = GridSearch(GridSearch.Params(n_grids_per_var=[test_data["n_grids"]]))
+        solver = GridSearchSolver(
+            GridSearchSolver.Params(n_grids_per_var=[test_data["n_grids"]])
+        )
         output = solver._get_input(
             variables={"variable": test_data["variable"]},
         )
         np.testing.assert_equal(output, {"variable": np.array([e for e in expected])})
 
     def test_grid_search_get_multiple_variables(self) -> None:
-        solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
+        solver = GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7]))
         output = solver._get_input(
             variables={"v1": co.BoolVariable(), "v2": co.IntegerVariable(1, 7)},
         )
@@ -70,7 +72,7 @@ class TestGridSearch:
         )
 
     def test_solve(self) -> None:
-        solver = GridSearch(GridSearch.Params(n_grids_per_var=[2, 7]))
+        solver = GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7]))
 
         def obj1_func(
             input_variables: Dict[str, th.Tensor],

@@ -7,7 +7,9 @@ from ..concepts import EnumVariable, FloatVariable, IntegerVariable, Variable
 from .sampler_solver import SamplerSolver
 
 
-class RandomSampler(SamplerSolver):
+class RandomSamplerSolver(SamplerSolver):
+    """Solving a SOO problem by random sampling over variables"""
+
     @dataclass
     class Params:
         n_samples_per_param: int

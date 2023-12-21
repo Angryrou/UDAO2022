@@ -4,7 +4,7 @@ import torch as th
 
 from ...utils.interfaces import VarTypes
 from ..concepts.utils import UdaoFunction
-from .optimization_element import Constraint
+from .constraint import Constraint
 
 
 class Objective(Constraint):

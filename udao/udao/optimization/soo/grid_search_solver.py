@@ -8,7 +8,9 @@ from ..concepts import EnumVariable, IntegerVariable, NumericVariable, Variable
 from .sampler_solver import SamplerSolver
 
 
-class GridSearch(SamplerSolver):
+class GridSearchSolver(SamplerSolver):
+    """Solving a SOO problem by grid search over variables"""
+
     @dataclass
     class Params:
         n_grids_per_var: List[int]

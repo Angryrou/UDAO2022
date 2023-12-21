@@ -106,11 +106,10 @@ class BaseProgressiveFrontier(MOSolver, ABC):
         """
         form the dict used in the constrained optimization
         e.g. the format:
-        obj_bounds_dict = {"latency": [solver_ut._get_tensor(0),
-                      solver_ut._get_tensor(10000000)],
-                      "cores": [solver_ut._get_tensor(0),
-                      solver_ut._get_tensor(58)]
-                      }
+        obj_bounds_dict = {
+            "latency": [0, 10000000],
+            "cores": [0, 58]
+            }
         Parameters
         ----------
         utopia: Point
