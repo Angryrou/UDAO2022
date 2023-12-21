@@ -12,9 +12,9 @@ Feature extraction
 A feature extractor extracts a certain kind of information from the main data source, which is expected to be a dataframe.
 There are two types of feature extractors:
 
-* :py:class:`~udao.data.extractors.base_extractors.TrainedFeatureExtractor` must first be fitted on the training data
+* :py:class:`~udao.data.extractors.base_extractors.TrainedExtractor` must first be fitted on the training data
 
-* :py:class:`~udao.data.extractors.base_extractors.StaticFeatureExtractor` are applied independently on any split of the data
+* :py:class:`~udao.data.extractors.base_extractors.StaticExtractor` are applied independently on any split of the data
 
 All feature extractors should implement one of these interfaces.
 

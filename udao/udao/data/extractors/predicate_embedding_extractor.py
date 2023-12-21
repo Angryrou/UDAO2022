@@ -5,10 +5,10 @@ import pandas as pd
 from ..containers import TabularContainer
 from ..predicate_embedders import BasePredicateEmbedder
 from ..predicate_embedders.utils import extract_operations, prepare_operation
-from .base_extractors import TrainedFeatureExtractor
+from .base_extractors import TrainedExtractor
 
 
-class PredicateEmbeddingExtractor(TrainedFeatureExtractor[TabularContainer]):
+class PredicateEmbeddingExtractor(TrainedExtractor[TabularContainer]):
     """Class to extract embeddings from a DataFrame of query plans.
 
     Parameters

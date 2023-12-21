@@ -4,10 +4,10 @@ import pandas as pd
 
 from ...utils.interfaces import VarTypes
 from ..containers import TabularContainer
-from .base_extractors import StaticFeatureExtractor
+from .base_extractors import StaticExtractor
 
 
-class TabularFeatureExtractor(StaticFeatureExtractor[TabularContainer]):
+class TabularFeatureExtractor(StaticExtractor[TabularContainer]):
     """
     Extract columns from a DataFrame as a TabularContainer.
 

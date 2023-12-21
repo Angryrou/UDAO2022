@@ -7,7 +7,7 @@ from ..utils.utils import DatasetType
 T = TypeVar("T", bound=BaseContainer)
 
 
-class TrainedFeaturePreprocessor(ABC, Generic[T]):
+class TrainedPreprocessor(ABC, Generic[T]):
     """Base class for feature processors that require training."""
 
     trained: bool = True
@@ -20,7 +20,7 @@ class TrainedFeaturePreprocessor(ABC, Generic[T]):
         pass
 
 
-class StaticFeaturePreprocessor(ABC, Generic[T]):
+class StaticPreprocessor(ABC, Generic[T]):
     """Base class for feature processors that do not require training."""
 
     trained: bool = False
@@ -33,4 +33,4 @@ class StaticFeaturePreprocessor(ABC, Generic[T]):
         pass
 
 
-FeaturePreprocessor = Union[TrainedFeaturePreprocessor, StaticFeaturePreprocessor]
+FeaturePreprocessor = Union[TrainedPreprocessor, StaticPreprocessor]

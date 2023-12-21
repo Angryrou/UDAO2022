@@ -10,10 +10,10 @@ from ..utils.query_plan import (
     extract_query_plan_features,
 )
 from ..utils.utils import DatasetType
-from .base_extractors import TrainedFeatureExtractor
+from .base_extractors import TrainedExtractor
 
 
-class QueryStructureExtractor(TrainedFeatureExtractor[QueryStructureContainer]):
+class QueryStructureExtractor(TrainedExtractor[QueryStructureContainer]):
     """
     Extracts the features of the operations in the logical plan,
     and the tree structure of the logical plan.
