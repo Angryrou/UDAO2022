@@ -10,12 +10,10 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torchmetrics import WeightedMeanAbsolutePercentageError
 
-from udao.data.containers.tabular_container import TabularContainer
 from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
 from udao.data.handler.data_handler import DataHandler, DataHandlerParams
 from udao.data.handler.data_processor import create_data_processor, FeaturePipeline
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
-from udao.data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
 from udao.data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from udao.model.module import LearningParams, UdaoModule
 from udao.model.utils.losses import WMAPELoss
@@ -23,7 +21,6 @@ from udao.model.utils.utils import set_deterministic_torch
 from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 from udao.optimization.concepts import Constraint, FloatVariable, Objective, Variable
 from udao.optimization.concepts.problem import MOProblem
-from udao.optimization.concepts.utils import InputParameters, InputVariables
 from udao.optimization.moo.weighted_sum import WeightedSum
 from udao.optimization.moo.progressive_frontier import SequentialProgressiveFrontier
 from udao.optimization.moo.progressive_frontier import ParallelProgressiveFrontier
@@ -166,16 +163,25 @@ if __name__ == "__main__":
     # for optimization
     class Obj1NNModel(th.nn.Module):
         def forward(self, x: UdaoInput) -> th.Tensor:
-            y = nn_model(x)[:, 0].reshape(-1, 1)
+            if x.features.requires_grad:
+                y = nn_model(x)[:, 0].reshape(-1, 1)
+            else:
+                with th.no_grad():
+                    y = nn_model(x)[:, 0].reshape(-1, 1)
             return y
 
     class Obj2NNModel(th.nn.Module):
         def forward(self, x: UdaoInput) -> th.Tensor:
-            y = nn_model(x)[:, 1]
+            if x.features.requires_grad:
+                y = nn_model(x)[:, 0].reshape(-1, 1)
+            else:
+                with th.no_grad():
+                    y = nn_model(x)[:, 0].reshape(-1, 1)
             return th.reshape(y, (-1, 1))
 
     class Const1(th.nn.Module):
         def forward(self, x: UdaoInput) -> th.Tensor:
+            # act similar as the closed form
             norm_x_1 = x.features[:, 0]
             norm_x_2 = x.features[:, 1]
             x_1 = norm_x_1 * 5
@@ -183,7 +189,6 @@ if __name__ == "__main__":
             y = (x_1 - 5) ** 2 + x_2 ** 2
 
             return th.reshape(y, (-1, 1))
-
 
     class Const2(th.nn.Module):
         def forward(self, x: UdaoInput) -> th.Tensor:
@@ -193,7 +198,6 @@ if __name__ == "__main__":
             x_2 = norm_x_2 * 3
             y = (x_1 - 8) ** 2 + (x_2 + 3) ** 2
             return th.reshape(y, (-1, 1))
-
 
     objectives = [
         Objective("obj1", minimize=True, function=Obj1NNModel()),
@@ -228,15 +232,15 @@ if __name__ == "__main__":
     so_grid = GridSearch(GridSearch.Params(n_grids_per_var=[100, 100]))
 
     # WS
-    # w1 = np.linspace(0, 1, num=11, endpoint=True)
-    # w2 = 1 - w1
-    # ws_pairs = np.vstack((w1, w2)).T
-    # ws_algo = WeightedSum(
-    #     so_solver=so_grid,
-    #     ws_pairs=ws_pairs,
-    # )
-    # ws_objs, ws_vars = ws_algo.solve(problem=problem)
-    # logger.info(f"Found PF-AS solutions of NN: {ws_objs}, {ws_vars}")
+    w1 = np.linspace(0, 1, num=11, endpoint=True)
+    w2 = 1 - w1
+    ws_pairs = np.vstack((w1, w2)).T
+    ws_algo = WeightedSum(
+        so_solver=so_grid,
+        ws_pairs=ws_pairs,
+    )
+    ws_objs, ws_vars = ws_algo.solve(problem=problem)
+    logger.info(f"Found WS solutions of NN: {ws_objs}, {ws_vars}")
 
     # PF-AS
     spf = SequentialProgressiveFrontier(
