@@ -215,7 +215,7 @@ class MOGD(SOSolver):
 
     def _gradient_descent(
         self, problem: co.SOProblem, input_data: Any, optimizer: th.optim.Optimizer
-    ) -> Tuple[int, float, float]:
+    ) -> Tuple[int, float]:
         """Perform a gradient descent step on input variables
 
         Parameters
@@ -242,36 +242,19 @@ class MOGD(SOSolver):
             If no solution within bounds is found
         """
         # Compute objective, constraints and corresponding losses
-        obj_output = problem.objective.function(input_data)
-        objective_loss = self.objective_loss(obj_output, problem.objective)
-        constraint_loss = th.zeros_like(objective_loss, device=self.device)
 
-        if problem.constraints:
-            const_outputs = [
-                constraint.function(input_data) for constraint in problem.constraints
-            ]
-            constraint_loss = self.constraints_loss(const_outputs, problem.constraints)
-
-        loss = objective_loss + constraint_loss
+        loss = self.compute_loss(problem, input_data)
 
         sum_loss = th.sum(loss)
         min_loss, min_loss_id = th.min(loss), th.argmin(loss)
 
-        is_within_constraints = constraint_loss[min_loss_id] == 0
-        is_within_objective_bounds = self.within_objective_bounds(
-            obj_output[min_loss_id].item(), problem.objective
-        )
         optimizer.zero_grad()
         sum_loss.backward()  # type: ignore
         optimizer.step()
-        if is_within_constraints and is_within_objective_bounds:
-            return (
-                int(min_loss_id.item()),
-                min_loss.item(),
-                obj_output[min_loss_id].item(),
-            )
-        else:
-            raise UncompliantSolutionError("No solution within bounds found!")
+        return (
+            int(min_loss_id.item()),
+            min_loss.item(),
+        )
 
     def _log_success(
         self,
@@ -314,7 +297,7 @@ class MOGD(SOSolver):
         best_iter = 0
         best_loss = np.inf
         best_obj: Optional[float] = None
-        best_feature_input: Optional[Dict[str, th.Tensor]] = None
+        best_raw_vars: Optional[Dict[str, Any]] = None
 
         (
             input_variable_values,
@@ -331,7 +314,7 @@ class MOGD(SOSolver):
         i = 0
         while i < self.max_iter:
             try:
-                min_loss_id, min_loss, local_best_obj = self._gradient_descent(
+                min_loss_id, min_loss = self._gradient_descent(
                     problem,
                     {**input_variable_values, **input_parameter_values},
                     optimizer=optimizer,
@@ -340,14 +323,36 @@ class MOGD(SOSolver):
                 pass
             else:
                 if min_loss < best_loss:
-                    best_loss = min_loss
-                    best_obj = local_best_obj
-                    best_feature_input = {
-                        k: v[min_loss_id].detach().clone()
-                        for k, v in input_variable_values.items()
-                    }
-                    best_iter = i
+                    raw_vars = self._compute_raw_variables_from_unprocessed_input(
+                        problem=problem,
+                        input_variable_values=input_variable_values,
+                    )
+                    obj_value = problem.apply_function(problem.objective, raw_vars)
+                    is_within_objective_bounds = self.within_objective_bounds(
+                        obj_value.item(), problem.objective
+                    )
+                    loss = self.objective_loss(obj_value, problem.objective)
+                    is_within_constraints = True
+                    if problem.constraints:
+                        constraint_loss = self.constraints_loss(
+                            [
+                                problem.apply_function(constraint, raw_vars)
+                                for constraint in problem.constraints
+                            ],
+                            problem.constraints,
+                        )
+                        loss += constraint_loss
+                        is_within_constraints = bool((constraint_loss == 0).item())
+                    if (
+                        is_within_objective_bounds
+                        and is_within_constraints
+                        and loss.item() < best_loss
+                    ):
+                        best_loss = loss.item()
+                        best_obj = obj_value.cpu().item()
+                        best_raw_vars = raw_vars
 
+                    best_iter = i
             # Update input_variable_values with constrained values
             with th.no_grad():
                 for k in input_variable_values:
@@ -361,17 +366,9 @@ class MOGD(SOSolver):
                 break
             i += 1
         if best_obj is not None:
-            self._log_success(problem, i, best_obj, best_iter, best_feature_input)
+            self._log_success(problem, i, best_obj, best_iter, best_raw_vars)
 
-        if best_obj is not None and best_feature_input is not None:
-            best_raw_vars = {
-                name: best_feature_input[name]
-                .cpu()
-                .numpy()
-                .squeeze()
-                .tolist()  # turn np.ndarray to float
-                for name in problem.variables
-            }
+        if best_obj is not None and best_raw_vars is not None:
             return best_obj, best_raw_vars, best_loss
         else:
             self._log_failure(problem, i)
@@ -394,7 +391,7 @@ class MOGD(SOSolver):
         best_iter = 0
         best_loss = np.inf
         best_obj: Optional[float] = None
-        best_feature_input: Optional[th.Tensor] = None
+        best_raw_vars: Optional[Dict[str, Any]] = None
         # Random numeric variables and their characteristics
         (
             input_data,
@@ -427,21 +424,48 @@ class MOGD(SOSolver):
             input_data.features = input_data.features.clone().detach()
             input_data.features[:, grad_indices] = input_vars_subvector
             try:
-                min_loss_id, min_loss, local_best_obj = self._gradient_descent(
+                min_loss_id, min_loss = self._gradient_descent(
                     problem, input_data, optimizer=optimizer
                 )
             except UncompliantSolutionError:
                 pass
             else:
                 if min_loss < best_loss:
-                    best_loss = min_loss
-                    best_obj = local_best_obj
-                    best_feature_input = (
-                        input_data.features.cpu()[min_loss_id]
+                    # Compute objective, constraints and corresponding losses
+                    # after reverting to raw variables
+                    raw_vars = self._compute_raw_variables_from_processed_input(
+                        problem=problem,
+                        feature_input=input_data.features.cpu()[min_loss_id]
                         .detach()
                         .clone()
-                        .reshape(1, -1)
+                        .reshape(1, -1),
+                        make_tabular_container=make_tabular_container,
                     )
+                    obj_value = problem.apply_function(problem.objective, raw_vars)
+                    is_within_objective_bounds = self.within_objective_bounds(
+                        obj_value.item(), problem.objective
+                    )
+                    loss = self.objective_loss(obj_value, problem.objective)
+                    is_within_constraints = True
+                    if problem.constraints:
+                        constraint_loss = self.constraints_loss(
+                            [
+                                problem.apply_function(constraint, raw_vars)
+                                for constraint in problem.constraints
+                            ],
+                            problem.constraints,
+                        )
+                        loss += constraint_loss
+                        is_within_constraints = bool((constraint_loss == 0).item())
+                    if (
+                        is_within_objective_bounds
+                        and is_within_constraints
+                        and loss.item() < best_loss
+                    ):
+                        best_loss = loss.item()
+                        best_obj = obj_value.cpu().item()
+                        best_raw_vars = raw_vars
+
                     best_iter = i
 
             # Update input_vars_subvector with constrained values
@@ -454,24 +478,56 @@ class MOGD(SOSolver):
             if i > best_iter + self.patience:
                 break
             i += 1
-        if best_obj is not None:
-            self._log_success(problem, i, best_obj, best_iter, best_feature_input)
+        if best_obj is not None and best_raw_vars is not None:
+            self._log_success(problem, i, best_obj, best_iter, best_raw_vars)
 
-            best_feature_input = cast(th.Tensor, best_feature_input)
-            feature_container = make_tabular_container(best_feature_input)
-            best_raw_df = problem.data_processor.inverse_transform(
-                feature_container, "tabular_features"
-            )
-            best_raw_vars = {
-                name: best_raw_df[[name]]
-                .values.squeeze()
-                .tolist()  # turn np.ndarray to float
-                for name in problem.variables
-            }
             return best_obj, best_raw_vars, best_loss
         else:
             self._log_failure(problem, i)
             raise NoSolutionError
+
+    def _compute_raw_variables_from_unprocessed_input(
+        self, problem: co.SOProblem, input_variable_values: Dict[str, th.Tensor]
+    ) -> Dict[str, Any]:
+        raw_vars: Dict[str, float] = {
+            name: input_variable_values[name]
+            .detach()
+            .cpu()
+            .numpy()
+            .squeeze()
+            .tolist()  # turn np.ndarray to float
+            for name in problem.variables
+        }
+        raw_vars = {
+            name: (
+                int(round(val))
+                if isinstance(problem.variables[name], co.IntegerVariable)
+                else val
+            )
+            for name, val in raw_vars.items()
+        }
+        return raw_vars
+
+    def _compute_raw_variables_from_processed_input(
+        self,
+        problem: co.SOProblem,
+        feature_input: th.Tensor,
+        make_tabular_container: Optional[Callable[[th.Tensor], TabularContainer]],
+    ) -> Dict[str, Any]:
+        raw_variable_values = {}
+        if not problem.data_processor or make_tabular_container is None:
+            raise Exception("Data processor or make_tabular_container is not defined!")
+        feature_container = make_tabular_container(feature_input)
+        best_raw_df = problem.data_processor.inverse_transform(
+            feature_container, "tabular_features"
+        )
+        for name, variable in problem.variables.items():
+            val = best_raw_df[[name]].values.squeeze().tolist()
+
+            raw_variable_values[name] = (
+                int(round(val)) if isinstance(variable, co.IntegerVariable) else val
+            )
+        return raw_variable_values
 
     def _single_start_opt(
         self,
@@ -575,6 +631,7 @@ class MOGD(SOSolver):
                     vars_list.append(best_raw_vars)
         if not obj_list:
             raise NoSolutionError("No valid solutions and variables found!")
+
         idx = np.argmin(best_loss_list)
         vars_cand = vars_list[idx]
         if vars_cand is not None:
@@ -690,6 +747,20 @@ class MOGD(SOSolver):
             )
         else:
             raise NotImplementedError("Objective with only one bound is not supported")
+        return loss
+
+    def compute_loss(self, problem: co.SOProblem, input_data: Any) -> th.Tensor:
+        obj_output = problem.objective.function(input_data)
+        objective_loss = self.objective_loss(obj_output, problem.objective)
+        constraint_loss = th.zeros_like(objective_loss, device=self.device)
+
+        if problem.constraints:
+            const_outputs = [
+                constraint.function(input_data) for constraint in problem.constraints
+            ]
+            constraint_loss = self.constraints_loss(const_outputs, problem.constraints)
+
+        loss = objective_loss + constraint_loss
         return loss
 
     ##################

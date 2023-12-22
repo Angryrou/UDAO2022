@@ -4,56 +4,16 @@ import numpy as np
 import pytest
 import torch as th
 
-from ...concepts import BoolVariable, Constraint, IntegerVariable, Objective
+from ....utils.logging import logger
+from ...concepts import Constraint, Objective
 from ...concepts.problem import MOProblem
-from ...concepts.utils import InputParameters, InputVariables
 from ...moo.weighted_sum import WeightedSum
 from ...soo.grid_search_solver import GridSearchSolver
 from ...soo.mogd import MOGD
 from ...soo.random_sampler_solver import RandomSamplerSolver
 from ...soo.so_solver import SOSolver
 from ...utils.exceptions import NoSolutionError
-
-
-@pytest.fixture
-def simple_problem() -> MOProblem:
-    def obj_func1(
-        input_variables: InputVariables, input_parameters: InputParameters = None
-    ) -> th.Tensor:
-        return input_variables["v1"] + (input_parameters or {}).get("count", 0)
-
-    def obj_func2(
-        input_variables: InputVariables, input_parameters: InputParameters = None
-    ) -> th.Tensor:
-        return (input_variables["v1"] + input_variables["v2"]) / 10 + (
-            input_parameters or {}
-        ).get("count", 0)
-
-    objectives = [
-        Objective(
-            "obj1",
-            function=obj_func1,
-            minimize=True,
-        ),
-        Objective("obj2", function=obj_func2, minimize=True),
-    ]
-
-    def constraint_func(
-        input_variables: InputVariables, input_parameters: InputParameters = None
-    ) -> th.Tensor:
-        return (
-            (input_variables["v1"] + input_variables["v2"])
-            - 2
-            - (input_parameters or {}).get("count", 0)
-        )
-
-    constraints = [Constraint(function=constraint_func, lower=0)]
-    return MOProblem(
-        objectives=objectives,
-        constraints=constraints,
-        variables={"v1": BoolVariable(), "v2": IntegerVariable(1, 7)},
-        input_parameters={"count": 1},
-    )
+from ...utils.moo_utils import even_weights
 
 
 class TestWeightedSum:
@@ -106,15 +66,6 @@ class TestWeightedSum:
         [
             GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7])),
             RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=1000)),
-            MOGD(
-                MOGD.Params(
-                    learning_rate=0.1,
-                    max_iters=100,
-                    patience=20,
-                    multistart=5,
-                    batch_size=10,
-                )
-            ),
         ],
     )
     def test_solver_with_two_obj_problem(
@@ -139,6 +90,28 @@ class TestWeightedSum:
 
         np.testing.assert_almost_equal(po_objs, np.array([[0, 0]]), decimal=5)
         np.testing.assert_almost_equal(po_vars[0]["v1"], 0.0, decimal=3)
+        assert po_vars[0]["v2"] == 1.0
+
+    def test_solver_with_two_obj_problem_mogd(self, two_obj_problem: MOProblem) -> None:
+        inner_solver = MOGD(
+            MOGD.Params(
+                learning_rate=0.1,
+                max_iters=100,
+                patience=20,
+                multistart=5,
+                batch_size=10,
+            )
+        )
+
+        ws_pairs = even_weights(0.1, 2)
+        logger.debug(f"ws_pairs: {ws_pairs}")
+        ws_algo = WeightedSum(
+            so_solver=inner_solver, ws_pairs=ws_pairs, normalize=False  # type: ignore
+        )
+        po_objs, po_vars = ws_algo.solve(problem=two_obj_problem, seed=0)
+
+        np.testing.assert_almost_equal(po_objs, np.array([[0, 0]]))
+        np.testing.assert_almost_equal(po_vars[0]["v1"], 0.0)
         assert po_vars[0]["v2"] == 1.0
 
     @pytest.mark.parametrize(

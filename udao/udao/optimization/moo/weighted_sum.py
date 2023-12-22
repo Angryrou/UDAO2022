@@ -22,12 +22,14 @@ class WeightedSumObjective(Objective):
         problem: MOProblem,
         ws: List[float],
         allow_cache: bool = False,
+        normalize: bool = True,
     ) -> None:
         self.problem = problem
         self.ws = ws
         super().__init__(name="weighted_sum", function=self.function, minimize=True)
         self._cache: Dict[str, th.Tensor] = {}
         self.allow_cache = allow_cache
+        self.normalize = normalize
 
     def _function(self, *args: Any, **kwargs: Any) -> th.Tensor:
         hash_var = ""
@@ -48,8 +50,9 @@ class WeightedSumObjective(Objective):
     def function(self, *args: Any, **kwargs: Any) -> th.Tensor:
         """Sum of weighted normalized objectives"""
         objs_tensor = self._function(*args, **kwargs)
-        objs_norm = self._normalize_objective(objs_tensor)
-        return th.sum(objs_norm * th.tensor(self.ws), dim=1)
+        if self.normalize:
+            objs_tensor = self._normalize_objective(objs_tensor)
+        return th.sum(objs_tensor * th.tensor(self.ws), dim=1)
 
     def _normalize_objective(self, objs_array: th.Tensor) -> th.Tensor:
         """Normalize objective values to [0, 1]
@@ -76,6 +79,8 @@ class WeightedSumObjective(Objective):
                 "Cannot do normalization! Lower bounds of "
                 "objective values are higher than their upper bounds."
             )
+        elif th.all((objs_min - objs_max) == 0):
+            return th.zeros_like(objs_array)
         return (objs_array - objs_min) / (objs_max - objs_min)
 
 
@@ -101,11 +106,13 @@ class WeightedSum(MOSolver):
         ws_pairs: np.ndarray,
         so_solver: SOSolver,
         allow_cache: bool = False,
+        normalize: bool = True,
     ):
         super().__init__()
         self.so_solver = so_solver
         self.ws_pairs = ws_pairs
         self.allow_cache = allow_cache
+        self.normalize = normalize
         if self.allow_cache and isinstance(so_solver, MOGD):
             raise NotImplementedError(
                 "MOGD does not support caching." "Please set allow_cache=False."
@@ -130,7 +137,9 @@ class WeightedSum(MOSolver):
             Pareto solutions and corresponding variables.
         """
         candidate_points: List[Point] = []
-        objective = WeightedSumObjective(problem, self.ws_pairs[0], self.allow_cache)
+        objective = WeightedSumObjective(
+            problem, self.ws_pairs[0], self.allow_cache, self.normalize
+        )
         so_problem = problem.derive_SO_problem(objective)
         for i, ws in enumerate(self.ws_pairs):
             objective.ws = ws
