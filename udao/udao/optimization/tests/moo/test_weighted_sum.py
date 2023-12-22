@@ -9,6 +9,7 @@ from ...concepts.problem import MOProblem
 from ...concepts.utils import InputParameters, InputVariables
 from ...moo.weighted_sum import WeightedSum
 from ...soo.grid_search_solver import GridSearchSolver
+from ...soo.mogd import MOGD
 from ...soo.random_sampler_solver import RandomSamplerSolver
 from ...soo.so_solver import SOSolver
 from ...utils.exceptions import NoSolutionError
@@ -99,6 +100,76 @@ class TestWeightedSum:
 
         np.testing.assert_almost_equal(po_objs, np.array([[1, 1.3]]))
         np.testing.assert_equal(po_vars, np.array([{"v1": 0, "v2": 3}]))
+
+    @pytest.mark.parametrize(
+        "inner_solver",
+        [
+            GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7])),
+            RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=1000)),
+            MOGD(
+                MOGD.Params(
+                    learning_rate=0.1,
+                    max_iters=100,
+                    patience=20,
+                    multistart=5,
+                    batch_size=10,
+                )
+            ),
+        ],
+    )
+    def test_solver_with_two_obj_problem(
+        self, inner_solver: SOSolver, two_obj_problem: MOProblem
+    ) -> None:
+        ws_pairs = np.array(
+            [
+                [0.3, 0.7],
+                [0.6, 0.4],
+                [0.1, 0.9],
+                [0.2, 0.8],
+                [0.4, 0.6],
+                [0.5, 0.5],
+            ]
+        )
+
+        ws_algo = WeightedSum(
+            so_solver=inner_solver,
+            ws_pairs=ws_pairs,
+        )
+        po_objs, po_vars = ws_algo.solve(problem=two_obj_problem, seed=0)
+
+        np.testing.assert_almost_equal(po_objs, np.array([[0, 0]]), decimal=5)
+        np.testing.assert_almost_equal(po_vars[0]["v1"], 0.0, decimal=3)
+        assert po_vars[0]["v2"] == 1.0
+
+    @pytest.mark.parametrize(
+        "inner_solver",
+        [
+            GridSearchSolver(GridSearchSolver.Params(n_grids_per_var=[2, 7])),
+            RandomSamplerSolver(RandomSamplerSolver.Params(n_samples_per_param=1000)),
+        ],
+    )
+    def test_solver_with_two_obj_problem_with_cache(
+        self, inner_solver: SOSolver, two_obj_problem: MOProblem
+    ) -> None:
+        ws_pairs = np.array(
+            [
+                [0.3, 0.7],
+                [0.6, 0.4],
+                [0.1, 0.9],
+                [0.2, 0.8],
+                [0.4, 0.6],
+                [0.5, 0.5],
+            ]
+        )
+
+        ws_algo = WeightedSum(
+            so_solver=inner_solver, ws_pairs=ws_pairs, allow_cache=True
+        )
+        po_objs, po_vars = ws_algo.solve(problem=two_obj_problem, seed=0)
+
+        np.testing.assert_almost_equal(po_objs, np.array([[0, 0]]), decimal=3)
+        np.testing.assert_almost_equal(po_vars[0]["v1"], 0.0, decimal=2)
+        assert po_vars[0]["v2"] == 1.0
 
     @pytest.mark.parametrize(
         "inner_solver",

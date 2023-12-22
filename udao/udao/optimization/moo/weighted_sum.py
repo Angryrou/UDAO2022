@@ -1,12 +1,12 @@
 import json
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch as th
 
 from ..concepts import Objective
 from ..concepts.problem import MOProblem
-from ..concepts.utils import InputParameters, InputVariables
+from ..soo.mogd import MOGD
 from ..soo.so_solver import SOSolver
 from ..utils import moo_utils as moo_ut
 from ..utils.exceptions import NoSolutionError
@@ -26,38 +26,32 @@ class WeightedSumObjective(Objective):
         self.problem = problem
         self.ws = ws
         super().__init__(name="weighted_sum", function=self.function, minimize=True)
-        self._cache: Dict[str, np.ndarray] = {}
+        self._cache: Dict[str, th.Tensor] = {}
         self.allow_cache = allow_cache
 
-    def _function(self, input_variables: InputVariables) -> np.ndarray:
+    def _function(self, *args: Any, **kwargs: Any) -> th.Tensor:
         hash_var = ""
         if self.allow_cache:
-            hash_var = json.dumps(vars)
+            hash_var = json.dumps(str(args) + str(kwargs))
             if hash_var in self._cache:
                 return self._cache[hash_var]
-        objs: List[np.ndarray] = []
+        objs: List[th.Tensor] = []
         for objective in self.problem.objectives:
-            obj = (
-                self.problem.apply_function(objective, input_variables)
-                * objective.direction
-            )
-            objs.append(obj.numpy().squeeze())
-
+            obj = objective(*args, **kwargs) * objective.direction
+            objs.append(obj.squeeze())
+        objs_tensor = th.vstack(objs).T
         # shape (n_feasible_samples/grids, n_objs)
-        objs_array = np.array(objs).T
         if self.allow_cache:
-            self._cache[hash_var] = objs_array
-        return objs_array
+            self._cache[hash_var] = objs_tensor
+        return objs_tensor
 
-    def function(
-        self, input_variables: InputVariables, input_parameters: InputParameters = None
-    ) -> th.Tensor:
+    def function(self, *args: Any, **kwargs: Any) -> th.Tensor:
         """Sum of weighted normalized objectives"""
-        objs_array = self._function(input_variables)
-        objs_norm = self._normalize_objective(objs_array)
-        return th.tensor(np.sum(objs_norm * self.ws, axis=1))
+        objs_tensor = self._function(*args, **kwargs)
+        objs_norm = self._normalize_objective(objs_tensor)
+        return th.sum(objs_norm * th.tensor(self.ws), dim=1)
 
-    def _normalize_objective(self, objs_array: np.ndarray) -> np.ndarray:
+    def _normalize_objective(self, objs_array: th.Tensor) -> th.Tensor:
         """Normalize objective values to [0, 1]
 
         Parameters
@@ -76,10 +70,8 @@ class WeightedSumObjective(Objective):
             if lower bounds of objective values are
             higher than their upper bounds
         """
-        objs_array = objs_array
-        objs_min, objs_max = objs_array.min(0), objs_array.max(0)
-
-        if any((objs_min - objs_max) > 0):
+        objs_min, objs_max = th.min(objs_array, 0).values, th.max(objs_array, 0).values
+        if th.any((objs_min - objs_max) > 0):
             raise NoSolutionError(
                 "Cannot do normalization! Lower bounds of "
                 "objective values are higher than their upper bounds."
@@ -114,6 +106,10 @@ class WeightedSum(MOSolver):
         self.so_solver = so_solver
         self.ws_pairs = ws_pairs
         self.allow_cache = allow_cache
+        if self.allow_cache and isinstance(so_solver, MOGD):
+            raise NotImplementedError(
+                "MOGD does not support caching." "Please set allow_cache=False."
+            )
 
     def solve(
         self, problem: MOProblem, seed: Optional[int] = None
@@ -135,14 +131,20 @@ class WeightedSum(MOSolver):
         """
         candidate_points: List[Point] = []
         objective = WeightedSumObjective(problem, self.ws_pairs[0], self.allow_cache)
+        so_problem = problem.derive_SO_problem(objective)
         for i, ws in enumerate(self.ws_pairs):
             objective.ws = ws
             _, soo_vars = self.so_solver.solve(
-                problem.derive_SO_problem(objective),
-                seed=seed + i if seed is not None else None,
+                so_problem,
+                seed=seed + i * (not self.allow_cache) if seed is not None else None,
             )
 
-            objective_values = objective._function(soo_vars)
+            objective_values = np.array(
+                [
+                    problem.apply_function(obj, soo_vars).cpu().numpy()
+                    for obj in problem.objectives
+                ]
+            ).T.squeeze()
 
             candidate_points.append(Point(objective_values, soo_vars))
 
