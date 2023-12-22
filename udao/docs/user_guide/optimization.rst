@@ -10,27 +10,27 @@ Concepts
 
 Variable
 ~~~~~~~~
-A :py:class:`~udao.optimization.concepts.variable.Variable` is a parameter that we want to optimize.
+A :py:class:`~udao.optimization.Variable` is a parameter that we want to optimize.
 It can be either a numerical variable (e.g. an integer for the number of cores, a float for the RAM size, etc.) or a categorical variable (e.g. the type of processor, the type of RAM, etc.).
 
 Constraint
 ~~~~~~~~~~
-A :py:class:`~udao.optimization.concepts.optimization_element.Constraint` is a condition that must be satisfied by the solution.
+A :py:class:`~udao.optimization.Constraint` is a condition that must be satisfied by the solution.
 It is a function that takes the variables as input and returns a value that needs to be lower or higher than a threshold.
 
 Objective
 ~~~~~~~~~
-The :py:class:`~udao.optimization.concepts.objective.Objective` holds a function that we want to optimize, and the direction in which we want to optimize it.
-It inherits ``Constraint`` as it can be bounded, and can be used as a constraint in a multi-objective problem.
+The :py:class:`~udao.optimization.Objective` holds a function that we want to optimize, and the direction in which we want to optimize it.
+It inherits :py:class:`~udao.optimization.Constraint` as it can be bounded, and can be used as a constraint in a multi-objective problem.
 
 Defining a problem
 ------------------
 You can define either a single objective problem or a multi-objective problem, using :py:class:`~udao.optimization.concepts.problem.SOProblem` or :py:class:`~udao.optimization.concepts.problem.MOProblem` respectively.
 In both cases, you need to define the following:
 
-* The objective function(s) to optimize, a list of :py:class:`~udao.optimization.concepts.objective.Objective`
-* The constraints, a list of :py:class:`~udao.optimization.concepts.optimization_element.Constraint`
-* The variables to optimize, a dictionary of :py:class:`~udao.optimization.concepts.variable.Variable`
+* The objective function(s) to optimize, a list of :py:class:`~udao.optimization.Objective`
+* The constraints, a list of :py:class:`~udao.optimization.Constraint`
+* The variables to optimize, a dictionary of :py:class:`~udao.optimization.Variable`
 * The fixed input parameters: a dictionary of values for the non-variable inputs of the objective function(s)
 * an optional :py:class:`~udao.data.handler.data_processor.DataProcessor` to process the input parameters.
 
@@ -38,12 +38,12 @@ The DataProcessor is an important element of the problem definition, when a mode
 
 Single objective problem
 ~~~~~~~~~~~~~~~~~~~~~~~~
-For a single objective problem, you can use an :py:class:`~udao.optimization.soo.base_solver.SOSolver` to optimize the objective function.
+For a single objective problem, you can use an :py:class:`~udao.optimization.soo.so_solver.SOSolver` to optimize the objective function.
 The solver will return the optimal value of the objective function and the optimal values of the variables.
 
 Multi-objective problem
 ~~~~~~~~~~~~~~~~~~~~~~~
-For a multi-objective problem, you can use an :py:class:`~udao.optimization.moo.base_moo.MOSolver` to optimize the objective function.
+For a multi-objective problem, you can use an :py:class:`~udao.optimization.moo.mo_solver.MOSolver` to optimize the objective function.
 
 In both cases, you can define the solver and its parameters, and then call solver.solve() to solve the problem.
 
@@ -60,7 +60,7 @@ Multi-objective solver
 ~~~~~~~~~~~~~~~~~~~~~~
 Several MO (multi-objective) solvers are available in the :py:mod:`~udao.optimization.moo` module.
 They all inherit from :py:class:`~udao.optimization.moo.mo_solver.MOSolver`.
-You can define your own solver by inheriting from :py:class:`~udao.optimization.moo.mo_solver.MOSolver` and implementing the :py:meth:`~udao.optimization.moo.base_moo.MOSolver.solve` method.
+You can define your own solver by inheriting from :py:class:`~udao.optimization.moo.mo_solver.MOSolver` and implementing the :py:meth:`~udao.optimization.moo.mo_solver.MOSolver.solve` method.
 Some multi-objective solvers need to be provided with a SO solver. You can use any single objective solver that inherits from :py:class:`~udao.optimization.moo.mo_solver.MOSolver`.
 
 Putting it all together

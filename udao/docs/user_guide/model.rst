@@ -15,7 +15,7 @@ To model a latency function from a query plan graph and features, we provide two
 
 Embedders
 ~~~~~~~~~
-Several embedders are available in the :py:mod:`~udao.model.embedders` module. They all inherit from the :py:class:`~udao.model.embedders.base_graph_embedder.BaseGraphEmbedder` class.
+Several embedders are available in the embedders module. They all inherit from the :py:class:`~udao.model.embedders.base_graph_embedder.BaseGraphEmbedder` class.
 
 Regressors
 ~~~~~~~~~~
@@ -24,13 +24,13 @@ The MLP regressor then takes the concatenation of the query plan embedding and t
 The UdaoModel
 ~~~~~~~~~~~~~
 
-The :py:class:`~udao.model.UdaoModel` class is a wrapper around the embedder and regressor.
+The :py:class:`~udao.model.model.UdaoModel` class is a wrapper around the embedder and regressor.
 It is used to train the model and predict the latency of a query plan.
 
 Putting it all together
 ~~~~~~~~~~~~~~~~~~~~~~~~
-To train a UdaoModel, we use the :py:class:`~udao.module.UdaoModule` inheriting LightningModel from Pytorch Lightning.
-You can find the full code in :py:mod:`~udao.model.module`.
+To train a UdaoModel, we use the :py:class:`~udao.model.module.UdaoModule` inheriting LightningModel from Pytorch Lightning to set up the training parameters.
+We then use Pytorch Lightning's Trainer to train the model.
 
 Here is a minimal example of how to train a UdaoModel::
 

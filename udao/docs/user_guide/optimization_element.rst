@@ -2,7 +2,7 @@
 Defining an optimization element
 =================================
 
-In the :py:mod:`~udao.optimization` module, the objectives and constraints are both optimization elements (:py:class:`~udao.optimization.concepts.objective.Objective` inherits from :py:class:`~udao.optimization.concepts.constraint.Constraint`).
+In the optimization module, the objectives and constraints are both optimization elements (:py:class:`~udao.optimization.concepts.objective.Objective` inherits from :py:class:`~udao.optimization.concepts.constraint.Constraint`).
 They are both callable and have a `function` attribute which defines the function to be optimized or to comply with.
 
 There are two ways to go from a raw variable provided by the user to an objective value:
