@@ -7,3 +7,4 @@ Model API
 
    embedders
    regressors
+   udao_model

@@ -14,21 +14,36 @@ InputParameters = Optional[Dict[str, Any]]
 
 
 class UdaoFunction(Protocol):
-    """A function that can be used for a constraint or an objective. called with:
-    - input_variables: the variables inputs
-    - input_parameters: the non-decision inputs
-    """
+    """A function that can be used for a constraint or an objective."""
 
     def __call__(
         self,
         input_variables: InputVariables,
         input_parameters: InputParameters = None,
     ) -> th.Tensor:
+        """Call the function using the input variables and parameters
+
+        Parameters
+        ----------
+        input_variables : InputVariables
+            a dictionary of the variables inputs
+            (one or several values for several variables samples)
+        input_parameters : InputParameters, optional
+            a dictionary of the non-decision inputs
+            (one value per parameter as the value is fixed),
+            by default None
+
+        Returns
+        -------
+        th.Tensor
+            the output of the function
+        """
         ...
 
 
 class ModelComponent:
-    """A wrapper class for model and data_processor, to make the model callable"""
+    """A wrapper class for a model paired with
+    a DataProcessor, that complies with the UdaoFunction protocol."""
 
     def __init__(self, data_processor: DataProcessor, model: th.nn.Module) -> None:
         self.data_processor = data_processor
@@ -61,9 +76,24 @@ class ModelComponent:
 
 
 class InaccurateModel(th.nn.Module):
+    """A helper class to define an inaccurate model
+    as a function of a model and a standard deviation function.
+
+    Parameters
+    ----------
+    model : th.nn.Module
+        The model to be used
+    std_func : th.nn.Module
+        The standard deviation function associated to the model
+    alpha : float
+        The factor to multiply the standard deviation
+        by before adding it to the model output
+    """
+
     def __init__(
         self, model: th.nn.Module, std_func: th.nn.Module, alpha: float
     ) -> None:
+        """ """
         self.model = model
         self.std_func = std_func
         self.alpha = alpha
@@ -78,23 +108,26 @@ def derive_unprocessed_input(
     input_parameters: InputParameters = None,
     device: Optional[th.device] = None,
 ) -> Tuple[Dict[str, th.Tensor], Dict[str, Any]]:
-    """Derive the input data from the input values
+    """Derive the input data from the input values,
+    in the case where the input is not processed by a DataProcessor
 
     Parameters
     ----------
     input_variables : InputVariables
-        _description_
+        a dictionary of the variables inputs
+        (one or several values for several variables samples)
     input_parameters : InputParameters, optional
-        _description_, by default None
+        a dictionary of the non-decision inputs
+        (one value per parameter as the value is fixed),
+        by default None
     device : th.device, optional
-        _description_, by default th.device("cpu")
-    dtype : th.dtype, optional
-        _description_, by default th.float32
+        device on which to put the resulting tensors, by default th.device("cpu")
 
     Returns
     -------
     Tuple[Dict[str, th.Tensor], Dict[str, Any]]
-        _description_
+        the input data for the model,
+        with the variables inputs as tensors and the non-decision inputs as values
     """
     variable_sample = input_variables[list(input_variables.keys())[0]]
     if isinstance(variable_sample, np.ndarray):
@@ -116,8 +149,8 @@ def derive_processed_input(
     input_variables: InputVariables,
     input_parameters: InputParameters = None,
     device: Optional[th.device] = None,
-) -> Tuple[UdaoInput, BaseIterator]:
-    """Derive the batch input from the input dict
+) -> Tuple[UdaoInput, UdaoIterator]:
+    """Derive the batch input from the input dict using a DataProcessor
 
     Parameters
     ----------
@@ -131,8 +164,9 @@ def derive_processed_input(
 
     Returns
     -------
-    Any
-        The batch input for the model
+    Tuple[UdaoInput, BaseIterator]
+        - The batch input for the model
+        - The iterator used to generate the batch input
     """
     variable_sample = input_variables[list(input_variables.keys())[0]]
     if isinstance(variable_sample, np.ndarray):
