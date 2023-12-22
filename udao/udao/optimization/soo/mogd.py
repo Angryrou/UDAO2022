@@ -500,7 +500,7 @@ class MOGD(SOSolver):
         }
         raw_vars = {
             name: (
-                round(val)
+                int(round(val))
                 if isinstance(problem.variables[name], co.IntegerVariable)
                 else val
             )
