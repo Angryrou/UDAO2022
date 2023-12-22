@@ -10,7 +10,7 @@ problem given the user-defined optimization problem and datasets.
 The diagram of the UDAO pipeline is as follows.
 
 .. image:: ../images/udao-io3.png
-  :width: 400
+  :width: 800
   :alt: Diagram of the UDAO pipeline
 
 

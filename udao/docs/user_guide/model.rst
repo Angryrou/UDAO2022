@@ -29,7 +29,7 @@ It is used to train the model and predict the latency of a query plan.
 
 Putting it all together
 ~~~~~~~~~~~~~~~~~~~~~~~~
-To train a UdaoModel, we use the :py:class:`~udao.module.UdaoModule` inheriting LigthningModel from Pytorch Lightning.
+To train a UdaoModel, we use the :py:class:`~udao.module.UdaoModule` inheriting LightningModel from Pytorch Lightning.
 You can find the full code in :py:mod:`~udao.model.module`.
 
 Here is a minimal example of how to train a UdaoModel::
