@@ -52,13 +52,13 @@ Defining a solver
 
 Single objective solver
 ~~~~~~~~~~~~~~~~~~~~~~~
-Several SO (single objective) solvers are available in the :py:mod:`~udao.optimization.soo` module.
+Several SO (single objective) solvers are available in the soo module.
 They all inherit from :py:class:`~udao.optimization.soo.so_solver.SOSolver`.
 You can define your own solver by inheriting from :py:class:`~udao.optimization.soo.so_solver.SOSolver` and implementing the :py:meth:`~udao.optimization.soo.so_solver.SOSolver.solve` method.
 
 Multi-objective solver
 ~~~~~~~~~~~~~~~~~~~~~~
-Several MO (multi-objective) solvers are available in the :py:mod:`~udao.optimization.moo` module.
+Several MO (multi-objective) solvers are available in the moo module.
 They all inherit from :py:class:`~udao.optimization.moo.mo_solver.MOSolver`.
 You can define your own solver by inheriting from :py:class:`~udao.optimization.moo.mo_solver.MOSolver` and implementing the :py:meth:`~udao.optimization.moo.mo_solver.MOSolver.solve` method.
 Some multi-objective solvers need to be provided with a SO solver. You can use any single objective solver that inherits from :py:class:`~udao.optimization.moo.mo_solver.MOSolver`.
