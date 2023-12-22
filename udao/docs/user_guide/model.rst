@@ -30,7 +30,7 @@ It is used to train the model and predict the latency of a query plan.
 Putting it all together
 ~~~~~~~~~~~~~~~~~~~~~~~~
 To train a UdaoModel, we use the :py:class:`~udao.model.module.UdaoModule` inheriting LightningModel from Pytorch Lightning to set up the training parameters.
-We then use Pytorch Lightning's Trainer to train the model.
+We then use Pytorch Lightning's `Trainer <https://lightning.ai/docs/pytorch/stable/common/trainer.html>`_ to train the model.
 
 Here is a minimal example of how to train a UdaoModel::
 
