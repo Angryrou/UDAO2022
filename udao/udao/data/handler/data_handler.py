@@ -12,38 +12,6 @@ from ..utils.utils import DatasetType, train_test_val_split_on_column
 from .data_processor import DataProcessor
 
 
-@dataclass
-class DataHandlerParams:
-    index_column: str
-    """Column that should be used as index (unique identifier)"""
-
-    data_processor: DataProcessor
-    """DataProcessor object to extract features from the data and create the
-        iterator."""
-
-    stratify_on: Optional[str] = None
-    """Column on which to stratify the split, by default None.
-    If None, no stratification is performed."""
-
-    val_frac: float = 0.2
-    """Column on which to stratify the split
-        (keeping proportions for each split)
-        If None, no stratification is performed"""
-
-    test_frac: float = 0.1
-    """Fraction allotted to the validation set, by default 0.2"""
-
-    dryrun: bool = False
-    """Dry run mode for fast computation on a large dataset (sampling of a
-        small portion), by default False"""
-
-    random_state: Optional[int] = None
-    """Random state for reproducibility, by default None"""
-
-    tensors_dtype: Optional[th.dtype] = None
-    """Data type of the tensors, by default None"""
-
-
 class DataHandler:
     """
     DataHandler class to handle data loading, splitting, feature extraction and
@@ -53,15 +21,46 @@ class DataHandler:
     ----------
     data : pd.DataFrame
         Dataframe containing the data.
-    params : DataHandlerParams
-        DataHandlerParams object containing the parameters of the DataHandler.
+    params : DataHandler.Params
+        DataHandler.Params object containing the parameters of the DataHandler.
     """
+
+    @dataclass
+    class Params:
+        index_column: str
+        """Column that should be used as index (unique identifier)"""
+
+        data_processor: DataProcessor
+        """DataProcessor object to extract features from the data and create the
+            iterator."""
+
+        stratify_on: Optional[str] = None
+        """Column on which to stratify the split, by default None.
+        If None, no stratification is performed."""
+
+        val_frac: float = 0.2
+        """Column on which to stratify the split
+            (keeping proportions for each split)
+            If None, no stratification is performed"""
+
+        test_frac: float = 0.1
+        """Fraction allotted to the validation set, by default 0.2"""
+
+        dryrun: bool = False
+        """Dry run mode for fast computation on a large dataset (sampling of a
+            small portion), by default False"""
+
+        random_state: Optional[int] = None
+        """Random state for reproducibility, by default None"""
+
+        tensors_dtype: Optional[th.dtype] = None
+        """Data type of the tensors, by default None"""
 
     @classmethod
     def from_csv(
         cls,
         csv_path: str,
-        params: DataHandlerParams,
+        params: Params,
     ) -> "DataHandler":
         """Initialize DataHandler from csv.
 
@@ -69,7 +68,7 @@ class DataHandler:
         ----------
         csv_path : str
             Path to the data file.
-        params : DataHandlerParams
+        params : Params
         Returns
         -------
         DataHandler
@@ -83,7 +82,7 @@ class DataHandler:
     def __init__(
         self,
         data: pd.DataFrame,
-        params: DataHandlerParams,
+        params: Params,
     ) -> None:
         self.dryrun = params.dryrun
         self.index_column = params.index_column

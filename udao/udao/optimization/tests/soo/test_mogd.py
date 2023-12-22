@@ -8,7 +8,7 @@ import torch.nn as nn
 from ....data.containers.tabular_container import TabularContainer
 from ....data.extractors.tabular_extractor import TabularFeatureExtractor
 from ....data.handler.data_processor import DataProcessor
-from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
+from ....data.preprocessors.base_preprocessor import StaticPreprocessor
 from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....model.utils.utils import set_deterministic_torch
 from ....utils.interfaces import UdaoInput
@@ -29,7 +29,7 @@ class SimpleModel2(nn.Module):
 
 @pytest.fixture()
 def data_processor() -> DataProcessor:
-    class TabularFeaturePreprocessor(StaticFeaturePreprocessor):
+    class TabularFeaturePreprocessor(StaticPreprocessor):
         def preprocess(self, tabular_feature: TabularContainer) -> TabularContainer:
             tabular_feature.data.loc[:, "v1"] = tabular_feature.data["v1"] / 1
             tabular_feature.data.loc[:, "v2"] = tabular_feature.data["v2"] - 2

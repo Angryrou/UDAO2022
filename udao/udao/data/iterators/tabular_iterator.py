@@ -1,4 +1,4 @@
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, List, Sequence
 
 import torch as th
 
@@ -36,3 +36,7 @@ class TabularIterator(BaseIterator[th.Tensor, Dict[str, Any]]):
     def shape(self) -> Any:
         sample_input = self._get_sample()
         return {"input_shape": sample_input.shape}
+
+    @staticmethod
+    def collate(items: List[th.Tensor]) -> th.Tensor:
+        return th.stack(items, dim=0)

@@ -9,7 +9,7 @@ from ...data.utils.utils import DatasetType
 T = TypeVar("T", bound=BaseContainer)
 
 
-class TrainedFeatureExtractor(ABC, Generic[T]):
+class TrainedExtractor(ABC, Generic[T]):
     trained: bool = True
 
     def __init__(self) -> None:
@@ -20,7 +20,7 @@ class TrainedFeatureExtractor(ABC, Generic[T]):
         pass
 
 
-class StaticFeatureExtractor(ABC, Generic[T]):
+class StaticExtractor(ABC, Generic[T]):
     trained: bool = False
 
     def __init__(self) -> None:
@@ -31,4 +31,4 @@ class StaticFeatureExtractor(ABC, Generic[T]):
         pass
 
 
-FeatureExtractor = Union[TrainedFeatureExtractor, StaticFeatureExtractor]
+FeatureExtractor = Union[TrainedExtractor, StaticExtractor]

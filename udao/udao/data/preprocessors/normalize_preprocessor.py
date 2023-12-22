@@ -4,7 +4,7 @@ import pandas as pd
 
 from ..containers.base_container import BaseContainer
 from ..utils.utils import DatasetType
-from .base_preprocessor import TrainedFeaturePreprocessor
+from .base_preprocessor import TrainedPreprocessor
 
 
 # Define a protocol for objects that have fit and transform methods
@@ -22,7 +22,7 @@ class FitTransformProtocol(Protocol):
 T = TypeVar("T", bound=BaseContainer)
 
 
-class NormalizePreprocessor(TrainedFeaturePreprocessor[T]):
+class NormalizePreprocessor(TrainedPreprocessor[T]):
     """Normalize the data using a normalizer that
     implements the fit and transform methods, e.g. MinMaxScaler.
 

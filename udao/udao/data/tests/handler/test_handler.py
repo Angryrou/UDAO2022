@@ -9,8 +9,7 @@ import pytest
 import torch as th
 
 from ...extractors import TabularFeatureExtractor
-from ...handler import DataHandler
-from ...handler.data_handler import DataHandlerParams
+from ...handler.data_handler import DataHandler
 from ...handler.data_processor import DataProcessor
 from ...iterators import TabularIterator
 
@@ -20,7 +19,7 @@ def random_string(length: int) -> str:
 
 
 @pytest.fixture
-def df_fixture() -> Tuple[pd.DataFrame, DataHandlerParams]:
+def df_fixture() -> Tuple[pd.DataFrame, DataHandler.Params]:
     n = 1000
     ids = list(range(1, n + 1))
     tids = [1 for _ in range(n - 10)] + [2 for _ in range(10)]
@@ -32,7 +31,7 @@ def df_fixture() -> Tuple[pd.DataFrame, DataHandlerParams]:
         iterator_cls=TabularIterator,
         feature_extractors={"tabular_feature": TabularFeatureExtractor(["feature"])},
     )
-    params = DataHandlerParams(
+    params = DataHandler.Params(
         index_column="id",
         data_processor=data_processor,
         stratify_on=None,
@@ -45,7 +44,7 @@ def df_fixture() -> Tuple[pd.DataFrame, DataHandlerParams]:
 
 class TestDataHandler:
     def test_split_applies_stratification(
-        self, df_fixture: Tuple[pd.DataFrame, DataHandlerParams]
+        self, df_fixture: Tuple[pd.DataFrame, DataHandler.Params]
     ) -> None:
         df, params = df_fixture
         params.stratify_on = "tid"
@@ -58,7 +57,7 @@ class TestDataHandler:
             )
 
     def test_split_no_stratification(
-        self, df_fixture: Tuple[pd.DataFrame, DataHandlerParams]
+        self, df_fixture: Tuple[pd.DataFrame, DataHandler.Params]
     ) -> None:
         """Check that the split is done correctly
         when no stratification is applied.
@@ -85,7 +84,7 @@ class TestDataHandler:
         assert len(df_split[df_split["tid"] == 2]) == 2
 
     def test_get_iterators_calls_split_data(
-        self, df_fixture: Tuple[pd.DataFrame, DataHandlerParams]
+        self, df_fixture: Tuple[pd.DataFrame, DataHandler.Params]
     ) -> None:
         df, params = df_fixture
         dh = DataHandler(df, params)
@@ -94,7 +93,7 @@ class TestDataHandler:
             mock_split_data.assert_called_once()
 
     def test_get_iterators(
-        self, df_fixture: Tuple[pd.DataFrame, DataHandlerParams]
+        self, df_fixture: Tuple[pd.DataFrame, DataHandler.Params]
     ) -> None:
         np.random.seed(1)
         df, params = df_fixture

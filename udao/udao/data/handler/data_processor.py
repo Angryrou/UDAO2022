@@ -48,10 +48,10 @@ class DataProcessor(Generic[IT]):
         to be passed at initialization.
         N.B.: Feature names must match the iterator's parameters.
 
-        If Extractor is a StaticFeatureExtractor, the features are extracted
+        If Extractor is a StaticExtractor, the features are extracted
         independently of the split.
 
-        If Extractor is a TrainedFeatureExtractor, the extractor is first fitted
+        If Extractor is a TrainedExtractor, the extractor is first fitted
         on the train split and then applied to the other splits.
 
     feature_preprocessors: Optional[Mapping[str, List[FeaturePreprocessor]]]
@@ -61,10 +61,10 @@ class DataProcessor(Generic[IT]):
         This allows to apply a series of processors to different features, e.g.
         to normalize the features.
         N.B.: Feature names must match the iterator's parameters.
-        If Processor is a StaticFeatureprocessor, the features are processed
+        If Processor is a StaticExtractor, the features are processed
         independently of the split.
 
-        If Extractor is a TrainedFeatureProcessor, the processor is first fitted
+        If Extractor is a TrainedExtractor, the processor is first fitted
         on the train split and then applied to the other splits
         (typically for normalization).
 
@@ -178,8 +178,8 @@ def create_data_processor(
     iterator_cls: Type[IT], *args: str
 ) -> Callable[..., DataProcessor[IT]]:
     """
-    Creates a DataHandlerParams class dynamically based on
-    provided iterator class and additional arguments.
+    Creates a function dynamically to instatiate DataProcessor
+    based on provided iterator class and additional arguments.
 
     Parameters
     ----------
@@ -190,8 +190,8 @@ def create_data_processor(
 
     Returns
     -------
-    params_getter: Type[DataHandlerParams]
-        A dynamically generated DataHandlerParams class
+    create_data_processor: Callable[..., DataProcessor]
+        A dynamically generated function
         with arguments derived from the provided iterator class,
         in addition to other specified arguments.
 

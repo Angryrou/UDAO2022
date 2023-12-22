@@ -5,10 +5,10 @@ import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 
 from ..utils.utils import DatasetType
-from .base_preprocessor import T, TrainedFeaturePreprocessor
+from .base_preprocessor import T, TrainedPreprocessor
 
 
-class OneHotPreprocessor(TrainedFeaturePreprocessor):
+class OneHotPreprocessor(TrainedPreprocessor):
     """One-hot encode the specified categorical features.
 
     Parameters

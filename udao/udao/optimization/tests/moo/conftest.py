@@ -7,7 +7,7 @@ from torch import nn
 from ....data.containers.tabular_container import TabularContainer
 from ....data.extractors.tabular_extractor import TabularFeatureExtractor
 from ....data.handler.data_processor import DataProcessor
-from ....data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
+from ....data.preprocessors.base_preprocessor import StaticPreprocessor
 from ....data.tests.iterators.dummy_udao_iterator import DummyUdaoIterator
 from ....utils.interfaces import UdaoEmbedInput
 from ...concepts import Constraint, FloatVariable, IntegerVariable, Objective, Variable
@@ -35,7 +35,7 @@ class ComplexObj2(nn.Module):
         return th.reshape(x.features[:, 0] ** 2 + x.features[:, 1] ** 2, (-1, 1))
 
 
-class TabularFeaturePreprocessor(StaticFeaturePreprocessor):
+class TabularFeaturePreprocessor(StaticPreprocessor):
     def preprocess(self, tabular_feature: TabularContainer) -> TabularContainer:
         tabular_feature.data.loc[:, "v1"] = tabular_feature.data["v1"] / 1
         tabular_feature.data.loc[:, "v2"] = (tabular_feature.data["v2"] - 1) / 6

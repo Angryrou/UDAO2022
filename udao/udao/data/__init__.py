@@ -3,18 +3,18 @@ from .extractors import (
     FeatureExtractor,
     PredicateEmbeddingExtractor,
     QueryStructureExtractor,
-    StaticFeatureExtractor,
+    StaticExtractor,
     TabularFeatureExtractor,
-    TrainedFeatureExtractor,
+    TrainedExtractor,
 )
-from .handler import DataHandler
+from .handler.data_handler import DataHandler
 from .handler.data_processor import DataProcessor
 from .iterators import BaseIterator, QueryPlanIterator, TabularIterator, UdaoIterator
 from .preprocessors import (
     NormalizePreprocessor,
     OneHotPreprocessor,
-    StaticFeaturePreprocessor,
-    TrainedFeaturePreprocessor,
+    StaticPreprocessor,
+    TrainedPreprocessor,
 )
 
 __all__ = [
@@ -26,8 +26,8 @@ __all__ = [
     "BaseIterator",
     "TabularFeatureExtractor",
     "QueryStructureExtractor",
-    "StaticFeatureExtractor",
-    "TrainedFeatureExtractor",
+    "StaticExtractor",
+    "TrainedExtractor",
     "PredicateEmbeddingExtractor",
     "FeatureExtractor",
     "TabularContainer",
@@ -35,6 +35,6 @@ __all__ = [
     "BaseContainer",
     "NormalizePreprocessor",
     "OneHotPreprocessor",
-    "StaticFeaturePreprocessor",
-    "TrainedFeaturePreprocessor",
+    "StaticPreprocessor",
+    "TrainedPreprocessor",
 ]
