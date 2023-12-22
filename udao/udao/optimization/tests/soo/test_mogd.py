@@ -159,18 +159,21 @@ class TestMOGD:
         assert optimal_vars == expected_vars
 
     @pytest.mark.parametrize(
-        "variable, expected_variable",
+        "variable, expected_obj, expected_variable, batch_size",
         [
-            (co.FloatVariable(0, 24), {"cores": 16}),
-            (co.IntegerVariable(0, 24), {"cores": 16}),
+            (co.FloatVariable(0, 24), 148.17662, {"cores": 16.2}, 1),
+            (co.FloatVariable(0, 24), 148.17662, {"cores": 16.2}, 16),
+            (co.IntegerVariable(0, 24), 150, {"cores": 16}, 1),
+            (co.IntegerVariable(0, 24), 150, {"cores": 16}, 16),
         ],
     )
     def test_solve_paper(
         self,
         paper_mogd: MOGD,
         variable: co.Variable,
+        expected_obj: float,
         expected_variable: Dict[str, float],
-        data_processor_paper: DataProcessor,
+        batch_size: int,
     ) -> None:
         problem = co.SOProblem(
             objective=co.Objective(
@@ -185,16 +188,17 @@ class TestMOGD:
                 co.Objective(
                     name="obj2",
                     lower=8,
-                    upper=16,
+                    upper=16.2,
                     function=PaperModel2(),
                     minimize=False,
                 )
             ],
         )
+        paper_mogd.batch_size = batch_size
         optimal_obj, optimal_vars = paper_mogd.solve(problem, seed=0)
         logger.debug(f"optimal_obj: {optimal_obj}, optimal_vars: {optimal_vars}")
         assert optimal_obj is not None
-        np.testing.assert_allclose([optimal_obj], [150], rtol=1e-3)
+        np.testing.assert_allclose([optimal_obj], [expected_obj], rtol=1e-3)
         assert optimal_vars is not None
         assert len(optimal_vars) == 1
         np.testing.assert_allclose(

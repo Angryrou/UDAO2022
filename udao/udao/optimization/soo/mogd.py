@@ -325,7 +325,9 @@ class MOGD(SOSolver):
                 if min_loss < best_loss:
                     raw_vars = self._compute_raw_variables_from_unprocessed_input(
                         problem=problem,
-                        input_variable_values=input_variable_values,
+                        input_variable_values={
+                            k: v[min_loss_id] for k, v in input_variable_values.items()
+                        },
                     )
                     obj_value = problem.apply_function(problem.objective, raw_vars)
                     is_within_objective_bounds = self.within_objective_bounds(
