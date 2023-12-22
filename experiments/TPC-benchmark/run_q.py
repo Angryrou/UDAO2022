@@ -13,11 +13,11 @@ from torchmetrics import WeightedMeanAbsolutePercentageError
 from udao.data.containers import TabularContainer
 from udao.data.extractors import PredicateEmbeddingExtractor, QueryStructureExtractor
 from udao.data.extractors.tabular_extractor import TabularFeatureExtractor
-from udao.data.handler.data_handler import DataHandler, DataHandlerParams
+from udao.data.handler.data_handler import DataHandler
 from udao.data.handler.data_processor import FeaturePipeline, create_data_processor
 from udao.data.iterators.query_plan_iterator import QueryPlanIterator
 from udao.data.predicate_embedders import Word2VecEmbedder, Word2VecParams
-from udao.data.preprocessors.base_preprocessor import StaticFeaturePreprocessor
+from udao.data.preprocessors.base_preprocessor import StaticPreprocessor
 from udao.data.preprocessors.normalize_preprocessor import NormalizePreprocessor
 from udao.model.embedders.graph_averager import GraphAverager
 from udao.model.model import UdaoModel
@@ -32,7 +32,7 @@ from udao.utils.logging import logger
 
 from utils import *
 
-class SparkConfPreprocessor(StaticFeaturePreprocessor):
+class SparkConfPreprocessor(StaticPreprocessor):
     def preprocess(self, container: TabularContainer) -> TabularContainer:
         return container
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     data_handler = DataHandler(
         df,
-        DataHandlerParams(
+        DataHandler.Params(
             index_column="appid",
             stratify_on="tid",
             dryrun=False,
