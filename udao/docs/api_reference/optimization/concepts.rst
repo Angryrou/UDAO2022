@@ -4,30 +4,45 @@ Concepts
 
 Variable
 =========
-.. automodule:: udao.optimization.concepts.variable
-   :members:
-   :show-inheritance:
+.. autoclass:: udao.optimization.Variable
+
+.. autoclass:: udao.optimization.EnumVariable
+      :show-inheritance:
+
+.. autoclass:: udao.optimization.NumericVariable
+      :show-inheritance:
+
+.. autoclass:: udao.optimization.FloatVariable
+      :show-inheritance:
+
+.. autoclass:: udao.optimization.IntegerVariable
+      :show-inheritance:
+
+.. autoclass:: udao.optimization.BoolVariable
+      :show-inheritance:
+
 
 Constraint
 ===================
-.. automodule:: udao.optimization.concepts.optimization_element
-   :members:
-   :show-inheritance:
+.. autoclass:: udao.optimization.Constraint
 
 Objective
 ===================
-.. automodule:: udao.optimization.concepts.objective
-   :members:
+.. autoclass:: udao.optimization.Objective
    :show-inheritance:
 
 Problem
 ===================
-.. automodule:: udao.optimization.concepts.problem
-   :members:
+.. autoclass:: udao.optimization.concepts.problem.BaseProblem
+
+.. autoclass:: udao.optimization.SOProblem
+   :show-inheritance:
+
+.. autoclass:: udao.optimization.MOProblem
    :show-inheritance:
 
 Utils
 ===================
-.. automodule:: udao.optimization.utils
+.. automodule:: udao.optimization.concepts.utils
    :members:
    :show-inheritance:

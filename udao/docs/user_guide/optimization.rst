@@ -32,7 +32,9 @@ In both cases, you need to define the following:
 * The constraints, a list of :py:class:`~udao.optimization.concepts.optimization_element.Constraint`
 * The variables to optimize, a dictionary of :py:class:`~udao.optimization.concepts.variable.Variable`
 * The fixed input parameters: a dictionary of values for the non-variable inputs of the objective function(s)
-* an optional :py:class:`~udao.data.handler.data_processor.DataProcessor` to process the input parameters
+* an optional :py:class:`~udao.data.handler.data_processor.DataProcessor` to process the input parameters.
+
+The DataProcessor is an important element of the problem definition, when a model was trained with the UdaoPipeline. See :doc:`optimization_element` for more details.
 
 Single objective problem
 ~~~~~~~~~~~~~~~~~~~~~~~~
