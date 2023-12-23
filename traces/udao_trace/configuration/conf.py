@@ -48,11 +48,21 @@ class Conf(ABC):
             k_value = math.pow(k_meta.base, k_denorm) * k_meta.factor
         else:
             raise Exception(f"unknown scale type {k_meta.scale}")
-
         if k_meta.ctype in (VarTypes.INT, VarTypes.CATEGORY, VarTypes.BOOL):
             k_value = int(round(k_value))
-
         return k_value
+
+    @staticmethod
+    def _deconstruct_knob(k_value: Union[int, float], k_meta: KnobMeta) -> float:
+        if k_meta.scale == ScaleTypes.LINEAR:
+            k_denorm = k_value / k_meta.factor
+        elif k_meta.scale == ScaleTypes.LOG:
+            k_denorm = math.log(k_value / k_meta.factor, k_meta.base)
+        else:
+            raise Exception(f"unknown scale type {k_meta.scale}")
+        if k_meta.ktype in (VarTypes.INT, VarTypes.CATEGORY, VarTypes.BOOL):
+            k_denorm = int(round(k_denorm))
+        return k_denorm
 
     @staticmethod
     def _add_unit(k_value, k_meta: KnobMeta) -> str:
@@ -60,6 +70,19 @@ class Conf(ABC):
             assert k_value in (0, 1), f"bool value {k_value} is not 0 or 1"
             return "true" if k_value == 1 else "false"
         return f"{k_value:g}" if k_meta.unit is None else f"{k_value:g}{k_meta.unit}"
+
+    @staticmethod
+    def _drop_unit(k_with_unit: str, k_meta: KnobMeta) -> float:
+        if k_meta.ctype == VarTypes.BOOL:
+            assert k_with_unit in ("true", "false"), f"bool value {k_with_unit} is not true or false"
+            return 1. if k_with_unit == "true" else 0.
+        if k_meta.unit is not None:
+            assert k_with_unit.endswith(k_meta.unit), f"unit {k_meta.unit} not found in {k_with_unit}"
+            k_with_unit = k_with_unit[:-len(k_meta.unit)]
+        if k_meta.ctype in (VarTypes.INT, VarTypes.CATEGORY, VarTypes.FLOAT):
+            return float(k_with_unit)
+        else:
+            raise Exception(f"unknown ctype {k_meta.ctype}")
 
     def get_default_conf(self, to_dict: bool = True) -> Union[List, Dict]:
         if to_dict:
