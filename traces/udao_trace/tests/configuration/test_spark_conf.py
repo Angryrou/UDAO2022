@@ -85,8 +85,8 @@ class TestSparkConf:
     def test_construct_configuration(
         self,
         sc,
-        conf_denorm: Union[List, pd.DataFrame],
-        expected_conf: Union[List, pd.DataFrame]
+        conf_denorm: Union[List, Iterable],
+        expected_conf: Union[List, Iterable]
     ) -> None:
         if isinstance(conf_denorm, List):
             assert(sc.construct_configuration(conf_denorm) == expected_conf)
@@ -97,6 +97,39 @@ class TestSparkConf:
             pd.testing.assert_frame_equal(conf, expected_conf)
         else:
             raise Exception(f"unsupported type {type(conf_denorm)}")
+
+    @pytest.mark.parametrize(
+        "conf, expected_conf_denorm",
+        [
+            (CONF1, CONF_DENORM1),
+            (CONF2, CONF_DENORM2),
+            (CONF3, CONF_DENORM3),
+            (
+                np.array([CONF1, CONF2, CONF3]).astype(str),
+                np.array([CONF_DENORM1, CONF_DENORM2, CONF_DENORM3]).astype(float)
+            ),
+            (
+                pd.DataFrame([CONF1, CONF2, CONF3], columns=HEADER).astype(str),
+                pd.DataFrame([CONF_DENORM1, CONF_DENORM2, CONF_DENORM3], columns=HEADER).astype(float)
+            )
+        ]
+    )
+    def test_deconstruct_configuration(
+        self,
+        sc,
+        conf: Union[List, Iterable],
+        expected_conf_denorm: Union[List, Iterable]
+    ) -> None:
+        if isinstance(conf, List):
+            assert (sc.deconstruct_configuration(conf) == expected_conf_denorm)
+        elif isinstance(conf, np.ndarray):
+            conf_denorm = sc.deconstruct_configuration(conf)
+            assert (np.array_equal(conf_denorm, expected_conf_denorm))
+        elif isinstance(conf, pd.DataFrame):
+            conf_denorm = sc.deconstruct_configuration(conf)
+            pd.testing.assert_frame_equal(conf_denorm, expected_conf_denorm)
+        else:
+            raise Exception(f"unsupported type {type(conf)}")
 
     def test_knob_sign_with_default(self, sc) -> None:
         knob_sign_default = ",".join([str(k.default) for k in sc.knob_list])
