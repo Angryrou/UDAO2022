@@ -1,4 +1,4 @@
-files: ^udao/
+files: ^udao/|^traces/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0 # Update this to point to a specific version you want
@@ -11,7 +11,7 @@ repos:
     rev: 23.9.1
     hooks:
       - id: black
-        language_version: python3.11
+        language_version: python3.9
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.0.292
     hooks:
