@@ -18,11 +18,15 @@ class JsonHandler:
                 raise e
 
     @staticmethod
-    def dump_to_string(obj: dict, indent: Optional[int] = None) -> str:
+    def load_json_from_str(s: str) -> Dict:
+        return json.loads(s)
+
+    @staticmethod
+    def dump_to_string(obj: Dict, indent: Optional[int] = None) -> str:
         return json.dumps(obj, indent=indent)
 
     @staticmethod
-    def dump_to_file(obj: dict, file: str, indent: Optional[int] = None) -> None:
+    def dump_to_file(obj: Dict, file: str, indent: Optional[int] = None) -> None:
         with open(file, "w") as f:
             json.dump(obj, f, indent=indent)
 
