@@ -2,22 +2,20 @@ import json
 import os
 import pickle
 import traceback
+from typing import Dict, Optional
 
-from typing import List, Optional
-
-from . import ClusterName
+from .logging import logger
 
 
 class JsonHandler:
-
     @staticmethod
-    def load_json(file):
+    def load_json(file: str) -> Dict:
         assert os.path.exists(file), FileNotFoundError(file)
         with open(file) as f:
             try:
                 return json.load(f)
-            except:
-                raise Exception(f"{f} cannot be parsed as a JSON file")
+            except Exception as e:
+                raise e
 
     @staticmethod
     def dump_to_string(obj: dict, indent: Optional[int] = None) -> str:
@@ -28,19 +26,20 @@ class JsonHandler:
         with open(file, "w") as f:
             json.dump(obj, f, indent=indent)
 
-class PickleHandler(object):
 
+class PickleHandler(object):
     @staticmethod
-    def save(obj, header, file_name, overwrite=False):
+    def save(obj: object, header: str, file_name: str, overwrite: bool = False) -> None:
         path = f"{header}/{file_name}"
         if os.path.exists(path) and not overwrite:
-            return f"{path} already exists"
-        os.makedirs(header, exist_ok=True)
-        with open(path, "wb") as f:
-            pickle.dump(obj, f)
+            logger.warning(f"{path} already exists")
+        else:
+            os.makedirs(header, exist_ok=True)
+            with open(path, "wb") as f:
+                pickle.dump(obj, f)
 
     @staticmethod
-    def load(header, file_name):
+    def load(header: str, file_name: str) -> object:
         path = f"{header}/{file_name}"
         if not os.path.exists(path):
             raise FileNotFoundError(path)
@@ -49,24 +48,22 @@ class PickleHandler(object):
 
 
 class FileHandler:
-
     @staticmethod
-    def create_script(header, file, content):
+    def create_script(header: str, file: str, content: str) -> None:
         os.makedirs(header, exist_ok=True)
         with open(f"{header}/{file}", "w") as f:
             f.write(content)
 
 
-def error_handler(e):
-    def error_handler(e):
-        print('An error occurred:')
+def error_handler(e: BaseException) -> None:
+    print("An error occurred:")
 
-        # Print the exception type
-        print(f"Exception Type: {type(e).__name__}")
+    # Print the exception type
+    print(f"Exception Type: {type(e).__name__}")
 
-        # Print the exception message
-        print(f"Exception Message: {str(e)}")
+    # Print the exception message
+    print(f"Exception Message: {str(e)}")
 
-        # Print the traceback information
-        print("Traceback:")
-        traceback.print_exc()
+    # Print the traceback information
+    print("Traceback:")
+    traceback.print_exc()
