@@ -1,15 +1,16 @@
-from ..utils import ClusterName, JsonHandler
+from typing import List
+
+from ..utils import ClusterName
 
 
 class Cluster:
-
     def __init__(
         self,
         name: ClusterName,
     ):
         self.workers = self._get_workers(name)
 
-    def _get_workers(self, name: ClusterName):
+    def _get_workers(self, name: ClusterName) -> List[str]:
         if name == ClusterName.HEX1:
             return ["node2", "node3", "node4", "node5", "node6"]
         elif name == ClusterName.HEX2:
