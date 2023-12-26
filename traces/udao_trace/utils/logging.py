@@ -1,12 +1,15 @@
-"""Provides a logger object for the udao library."""
+"""Provides a logger object for the udao_trace library."""
 import logging
 import sys
+from typing import Optional
 
 
-def _get_logger(name: str = "udao_trace",
-                std_level: int = logging.INFO,
-                file_level: int = logging.DEBUG,
-                log_file_path: str = None) -> logging.Logger:
+def _get_logger(
+    name: str = "udao_trace",
+    std_level: int = logging.INFO,
+    file_level: int = logging.DEBUG,
+    log_file_path: Optional[str] = None,
+) -> logging.Logger:
     """Generates a logger object for the UDAO library.
 
     Parameters
@@ -37,7 +40,9 @@ def _get_logger(name: str = "udao_trace",
         _logger.addHandler(handler)
 
     # FileHandler to log to a file if log_file_path is provided
-    if log_file_path and not any(isinstance(handler, logging.FileHandler) for handler in _logger.handlers):
+    if log_file_path is not None and not any(
+        isinstance(handler, logging.FileHandler) for handler in _logger.handlers
+    ):
         file_handler = logging.FileHandler(log_file_path)
         file_handler.setLevel(file_level)
         file_handler.setFormatter(formatter)
