@@ -197,8 +197,8 @@ class SparkParser:
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         trace_header, csv_header = self.prepare_headers(header)
         logger = self.logger
-        tq2path = {
-            f"{template}-{qid}": ""
+        tq2path: Dict[str, Optional[str]] = {
+            f"{template}-{qid}": None
             for template in templates
             for qid in range(1, upto + 1)
         }
