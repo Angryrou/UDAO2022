@@ -41,7 +41,8 @@ Most parameters have a default value according to Spark. For the resource parame
    export PYTHONPATH="UDAO2022/traces:$PYTHONPATH"
 
    # tpch
-   python spark_trace_parser.py --benchmark_type TPCH --scale_factor 100 --n_data_per_template 2273 --n_processes 16 --upto 2273
+   python spark_trace_parser.py --header ./spark_collector/tpch100/lhs_22x2273 --benchmark_type TPCH --scale_factor 100 --n_processes 16 --upto 2273
+   python spark_trace_parser.py --header ./spark_collector/tpch100/lhs_22x2273 --benchmark_type TPCH --scale_factor 100 --n_processes 16 --upto 20
    # tpcds
-   python spark_trace_parser.py --benchmark_type TPCDS --scale_factor 100 --n_data_per_template 490 --n_processes 16 --upto 490
+   python spark_trace_parser.py --header ./spark_collector/tpcds100/lhs_102x490 --benchmark_type TPCDS --scale_factor 100 --n_processes 16 --upto 490
    ```
