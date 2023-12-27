@@ -15,7 +15,7 @@ class JsonHandler:
             try:
                 return json.load(f)
             except Exception as e:
-                raise e
+                raise Exception(f"failed to load {file} with error: {e}")
 
     @staticmethod
     def load_json_from_str(s: str) -> Dict:

@@ -144,46 +144,48 @@ class SparkParser:
         obj_dict = self._parse_qs_objectives(d["Objectives"])
         return {**meta, **local, **base, **theta_c, **conf, **obj_dict}
 
-    def parse_one_file(self, file: str) -> Tuple[List, List]:
-        appid = "application_" + file.split("_application_")[-1][:-5]
-        tq = file.split("/")[-1].split("_")[1]
-        tid, qid = tq.split("-")
-        meta = {"appid": appid, "tid": tid, "qid": qid}
+    def parse_one_file(self, file: str) -> Tuple[Optional[List], Optional[List]]:
+        try:
+            appid = "application_" + file.split("_application_")[-1][:-5]
+            tq = file.split("/")[-1].split("_")[1]
+            tid, qid = tq.split("-")
+            meta = {"appid": appid, "tid": tid, "qid": qid}
 
-        d = JsonHandler.load_json(file)
+            d = JsonHandler.load_json(file)
 
-        # work on compile_time LQP
-        q_dict_list = []
-        compile_time_lqp_dict = self._parse_lqp(
-            d["CompileTimeLQP"], d["Objectives"], {**meta, **{"lqp_id": 0}}, None
-        )
-        theta_c = {
-            k: v for k, v in compile_time_lqp_dict.items() if k.startswith("theta_c")
-        }
-        q_dict_list.append(compile_time_lqp_dict)
-        # work on runtime LQP
-        for lqp_id, runtime_lqp in d["RuntimeLQPs"].items():
-            runtime_lqp_dict = self._parse_lqp(
-                runtime_lqp,
-                runtime_lqp["Objectives"],
-                {**meta, **{"lqp_id": lqp_id}},
-                theta_c,
+            # work on compile_time LQP
+            q_dict_list = []
+            compile_time_lqp_dict = self._parse_lqp(
+                d["CompileTimeLQP"], d["Objectives"], {**meta, **{"lqp_id": 0}}, None
             )
-            runtime_lqp_dict = {**runtime_lqp_dict, **theta_c}
-            q_dict_list.append(runtime_lqp_dict)
-        # q_lens = [len(d) for d in q_dict_list]
-        # assert (np.std(q_lens) == 0, f"inconsistent number q_dict_list: {q_lens}")
+            theta_c = {
+                k: v
+                for k, v in compile_time_lqp_dict.items()
+                if k.startswith("theta_c")
+            }
+            q_dict_list.append(compile_time_lqp_dict)
+            # work on runtime LQP
+            for lqp_id, runtime_lqp in d["RuntimeLQPs"].items():
+                runtime_lqp_dict = self._parse_lqp(
+                    runtime_lqp,
+                    runtime_lqp["Objectives"],
+                    {**meta, **{"lqp_id": lqp_id}},
+                    theta_c,
+                )
+                runtime_lqp_dict = {**runtime_lqp_dict, **theta_c}
+                q_dict_list.append(runtime_lqp_dict)
 
-        # work on QSs
-        qs_dict_list = []
-        for qs_id, qs in d["RuntimeQSs"].items():
-            qs_dict = self._parse_qs(qs, {**meta, **{"qs_id": qs_id}}, theta_c)
-            qs_dict = {**qs_dict, **theta_c}
-            qs_dict_list.append(qs_dict)
-        # qs_lens = [len(d) for d in qs_dict_list]
-        # assert (np.std(qs_lens) == 0, f"inconsistent number qs_dict_list: {qs_lens}")
+            # work on QSs
+            qs_dict_list = []
+            for qs_id, qs in d["RuntimeQSs"].items():
+                qs_dict = self._parse_qs(qs, {**meta, **{"qs_id": qs_id}}, theta_c)
+                qs_dict = {**qs_dict, **theta_c}
+                qs_dict_list.append(qs_dict)
 
-        return q_dict_list, qs_dict_list
+            return q_dict_list, qs_dict_list
+        except Exception as e:
+            self.logger.error(f"failed to parse {file} with error: {e}")
+            return None, None
 
     def prepare_headers(self, header: str) -> Tuple[str, str]:
         trace_header = f"{header}/trace"
@@ -229,8 +231,17 @@ class SparkParser:
             results = [self.parse_one_file(path) for path in valid_paths]
 
         logger.info("start flat join the results...")
-        q_dict_list = list(chain.from_iterable(item[0] for item in results))
-        qs_dict_list = list(chain.from_iterable(item[1] for item in results))
+        failed = len([item for item in results if item[0] is None])
+        logger.info(
+            f"parsed queries succeed|failed|total: "
+            f"{tq_parsed - failed}|{failed}|{tq_parsed}"
+        )
+        q_dict_list = list(
+            chain.from_iterable(item[0] for item in results if item[0] is not None)
+        )
+        qs_dict_list = list(
+            chain.from_iterable(item[1] for item in results if item[1] is not None)
+        )
         df_q = pd.DataFrame(q_dict_list)
         df_qs = pd.DataFrame(qs_dict_list)
         logger.info(f"get df_q {df_q.shape}")
