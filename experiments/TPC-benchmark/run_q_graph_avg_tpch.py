@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     #### Data definition ####
     base_dir = Path(__file__).parent
-    df = pd.read_csv(str(base_dir / "data" / benchmark / "q_22x10.csv"))
+    df = pd.read_csv(str(base_dir / "data" / benchmark / "q_22x2273.csv"))
     logger.info(f"Data shape: {df.shape}")
     df, variable_names = prepare(
         df,
@@ -101,18 +101,18 @@ if __name__ == "__main__":
         regressor_cls=MLP,
         iterator_shape=split_iterators["train"].shape,
         embedder_params={
-            "output_size": 32,
+            "output_size": 128,
             "op_groups": ["type", "cbo", "op_enc"],
             "type_embedding_dim": 8,
             "embedding_normalizer": None,
         },
-        regressor_params={"n_layers": 2, "hidden_dim": 32, "dropout": 0.1},
+        regressor_params={"n_layers": 3, "hidden_dim": 512, "dropout": 0.1},
     )
     module = UdaoModule(
         model,
         objectives,
         loss=WMAPELoss(),
-        learning_params=LearningParams(init_lr=1e-1, min_lr=1e-5, weight_decay=1e-2),
+        learning_params=LearningParams(init_lr=1e-3, min_lr=1e-5, weight_decay=1e-2),
         metrics=[WeightedMeanAbsolutePercentageError],
     )
     tb_logger = TensorBoardLogger("tb_logs")
@@ -120,23 +120,24 @@ if __name__ == "__main__":
         dirpath="checkpoints",
         filename="{benchmark}-{model_sign}-{epoch}"
                  "-val_obj1_WMAPE={val_latency_s_WeightedMeanAbsolutePercentageError:.3f}"
-                 "-val_obj2_WMAPE={val_io_mb_WeightedMeanAbsolutePercentageError:.3f}", auto_insert_metric_name=False,
+                 "-val_obj2_WMAPE={val_io_mb_WeightedMeanAbsolutePercentageError:.3f}",
+        auto_insert_metric_name=False,
     )
     train_iterator = cast(QueryPlanIterator, split_iterators["train"])
     scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
     trainer = pl.Trainer(
         accelerator=device,
-        max_epochs=2,
+        max_epochs=100,
         logger=tb_logger,
         callbacks=[scheduler, checkpoint_callback],
     )
     trainer.fit(
         model=module,
-        train_dataloaders=split_iterators["train"].get_dataloader(batch_size, shuffle=True),
-        val_dataloaders=split_iterators["val"].get_dataloader(batch_size, shuffle=False),
+        train_dataloaders=split_iterators["train"].get_dataloader(batch_size, num_workers=15, shuffle=True),
+        val_dataloaders=split_iterators["val"].get_dataloader(batch_size, num_workers=15, shuffle=False),
     )
 
     print(trainer.test(
         model=module,
-        dataloaders=split_iterators["test"].get_dataloader(batch_size, shuffle=False)
+        dataloaders=split_iterators["test"].get_dataloader(batch_size, num_workers=15, shuffle=False)
     ))
