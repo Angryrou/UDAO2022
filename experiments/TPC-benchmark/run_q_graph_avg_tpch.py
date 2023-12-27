@@ -70,7 +70,7 @@ if __name__ == "__main__":
             extractor=TabularFeatureExtractor(columns=objectives),
         ),
         query_structure=FeaturePipeline(
-            extractor=LQPExtractor(positional_encoding_size=10),
+            extractor=LQPExtractor(positional_encoding_size=8),
             preprocessors=[
                 NormalizePreprocessor(MinMaxScaler(), "graph_features")
             ]
