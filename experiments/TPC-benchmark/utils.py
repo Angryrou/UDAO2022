@@ -5,10 +5,19 @@ from udao.data.predicate_embedders.utils import build_unique_operations
 from udao.data.utils.query_plan import QueryPlanStructure, QueryPlanOperationFeatures
 from udao.data.utils.utils import DatasetType
 
+import numpy as np
 import pandas as pd
 
 from udao_trace.configuration import SparkConf
-from udao_trace.utils import JsonHandler
+from udao_trace.utils import JsonHandler, BenchmarkType
+from udao_trace.workload import Benchmark
+
+ALPHA_LQP_RAW = [
+    'IM-inputSizeInBytes',
+    'IM-inputRowCount',
+]
+ALPHA_QS_RAW = ["InitialPartitionNum"] + ALPHA_LQP_RAW
+BETA_RAW = ['PD']
 
 THETA = [
     'theta_c-spark.executor.cores',
@@ -31,25 +40,21 @@ THETA = [
     'theta_s-spark.sql.adaptive.rebalancePartitionsSmallPartitionFactor',
     'theta_s-spark.sql.adaptive.coalescePartitions.minPartitionSize'
 ]
-
 ALPHA_LQP = [
-    'IM-inputSizeInBytes',
-    'IM-inputRowCount',
+    "IM-sizeInMB",
+    "IM-rowCount",
+    "IM-sizeInMB-log",
+    "IM-rowCount-log",
 ]
-
 ALPHA_QS = [
-    'InitialPartitionNum',
-    'IM-inputSizeInBytes',
-    'IM-inputRowCount',
-]
-
-BETA_RAW = ['PD']
+    "IM-init-part-num",
+    "IM-init-part-num-log"
+] + ALPHA_LQP
 BETA = [
     'PD-std-avg',
     'PD-skewness-ratio',
     'PD-range-avg-ratio'
 ]
-
 GAMMA = [
     'SS-RunningTasksNum',
     'SS-FinishedTasksNum',
@@ -61,19 +66,56 @@ GAMMA = [
     'SS-FinishedTasksDistributionInMs-100tile',
 ]
 
-def prepare(df: pd.DataFrame, knob_meta_file: str, alpha: List[str]) -> [pd.DataFrame, List[str]]:
+EPS=1e-3
+
+class NoBenchmarkError(ValueError):
+    """raise when no valid benchmark is found"""
+
+class NoQTypeError(ValueError):
+    """raise when no valid mode is found (only q and qs)"""
+
+def _im_process(df: pd.DataFrame) -> pd.DataFrame:
+    df["IM-sizeInMB"] = df["IM-inputSizeInBytes"] / 1024 / 1024
+    df["IM-sizeInMB-log"] = np.log(df["IM-sizeInMB"].values.clip(min=EPS))
+    df["IM-rowCount"] = df["IM-inputRowCount"]
+    df["IM-rowCount-log"] = np.log(df["IM-rowCount"].values.clip(min=EPS))
+    for c in ALPHA_LQP_RAW:
+        del df[c]
+    return df
+
+def prepare(df: pd.DataFrame, benchmark: str, knob_meta_file: str, mode: str) -> [pd.DataFrame, List[str]]:
+    bm = Benchmark(benchmark_type = BenchmarkType[benchmark.upper()])
     sc = SparkConf(knob_meta_file)
     df.rename(columns={p: kid for p, kid in zip(THETA, sc.knob_ids)}, inplace=True)
     df.rename(columns={"appid": "id"}, inplace=True)
+    df["tid"] = df["template"].apply(lambda x: bm.get_template_id(str(x)))
     variable_names = sc.knob_ids
     df[variable_names] = sc.deconstruct_configuration(df[variable_names].astype(str).values)
+
+    # extract alpha
+    if mode == "q":
+        df[ALPHA_LQP_RAW] = df[ALPHA_LQP_RAW].astype(float)
+        df = _im_process(df)
+    elif mode == "qs":
+        df[ALPHA_QS_RAW] = df[ALPHA_QS_RAW].astype(float)
+        df = _im_process(df)
+        df["IM-init-part-num"] = df["InitialPartitionNum"].astype(float)
+        df["IM-init-part-num-log"] = np.log(df["IM-init-part-num"].values.clip(min=EPS))
+        del df["InitialPartitionNum"]
+    else:
+        raise NoQTypeError
+
+    # extract beta
     df[BETA] = [
         sc.extract_partition_distribution(pd_raw)
         for pd_raw in df[BETA_RAW].values.squeeze()
     ]
     for c in BETA_RAW:
         del df[c]
-    df[alpha] = df[alpha].astype(float)
+
+    # extract gamma:
+    df[GAMMA] = df[GAMMA].astype(float)
+
     return df, variable_names
 
 def extract_operations_from_seralized_json(
@@ -109,8 +151,12 @@ def extract_query_plan_features_from_seralized_json(lqp_str: str) -> Tuple[Query
         outgoing_ids.append(to_id)
     assert(len(id2name) == len(set(incoming_ids) | set(outgoing_ids)))
     node_names = [id2name[i] for i in range(num_operators)]
-    sizes = [operators[str(i)]["sizeInBytes"] for i in range(num_operators)]
-    rows_counts = [operators[str(i)]["rowCount"] for i in range(num_operators)]
+    try:
+        sizes = [np.log(np.clip(operators[str(i)]["sizeInBytes"] / 1024. / 1024., a_min=EPS, a_max=None)) for i in range(num_operators)]
+        rows_counts = [np.log(np.clip(operators[str(i)]["rowCount"] * 1.0, a_min=EPS, a_max=None)) for i in range(num_operators)]
+    except:
+        print([np.clip(operators[str(i)]["sizeInBytes"], a_min=EPS, a_max=None) for i in range(num_operators)])
+        raise Exception()
     op_features = QueryPlanOperationFeatures(rows_count=rows_counts, size=sizes)
     structure = QueryPlanStructure(
         node_names=node_names, incoming_ids=incoming_ids, outgoing_ids=outgoing_ids
