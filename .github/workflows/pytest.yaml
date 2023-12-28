@@ -36,4 +36,5 @@ jobs:
 
       - name: Run Pytest
         run: |
-          pytest udao
+          pytest traces
+#          pytest udao
