@@ -1,4 +1,4 @@
-files: ^udao/|^traces/|^experiments/
+files: ^udao/|^traces/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0 # Update this to point to a specific version you want
