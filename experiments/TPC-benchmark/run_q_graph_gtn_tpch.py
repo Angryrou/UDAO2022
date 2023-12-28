@@ -103,17 +103,17 @@ if __name__ == "__main__":
         regressor_cls=MLP,
         iterator_shape=split_iterators["train"].shape,
         embedder_params={
-            "output_size": 64,
+            "output_size": 128,
             "pos_encoding_dim": 8,
             "n_layers": 2,
-            "n_heads": 1,
-            "hidden_dim": 64,
+            "n_heads": 2,
+            "hidden_dim": 128,
             "readout": "mean",
             "op_groups": ["type", "cbo", "op_enc"],
             "type_embedding_dim": 8,
             "embedding_normalizer": None,
         },
-        regressor_params={"n_layers": 2, "hidden_dim": 128, "dropout": 0.1},
+        regressor_params={"n_layers": 3, "hidden_dim": 512, "dropout": 0.1},
     )
     module = UdaoModule(
         model,
