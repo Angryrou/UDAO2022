@@ -148,8 +148,8 @@ class SparkParser:
         try:
             appid = "application_" + file.split("_application_")[-1][:-5]
             tq = file.split("/")[-1].split("_")[1]
-            tid, qid = tq.split("-")
-            meta = {"appid": appid, "tid": tid, "qid": qid}
+            template, qid = tq.split("-")
+            meta = {"appid": appid, "template": template, "qid": qid}
 
             d = JsonHandler.load_json(file)
 
