@@ -4,7 +4,9 @@ import pickle
 import traceback
 from typing import Dict, Optional
 
-from .logging import logger
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 
 class JsonHandler:
@@ -36,11 +38,10 @@ class PickleHandler(object):
     def save(obj: object, header: str, file_name: str, overwrite: bool = False) -> None:
         path = f"{header}/{file_name}"
         if os.path.exists(path) and not overwrite:
-            logger.warning(f"{path} already exists")
-        else:
-            os.makedirs(header, exist_ok=True)
-            with open(path, "wb") as f:
-                pickle.dump(obj, f)
+            raise FileExistsError(f"{path} already exists")
+        os.makedirs(header, exist_ok=True)
+        with open(path, "wb") as f:
+            pickle.dump(obj, f)
 
     @staticmethod
     def load(header: str, file_name: str) -> object:
@@ -57,6 +58,26 @@ class FileHandler:
         os.makedirs(header, exist_ok=True)
         with open(f"{header}/{file}", "w") as f:
             f.write(content)
+
+
+class ParquetHandler(object):
+    @staticmethod
+    def save(
+        df: pd.DataFrame, header: str, file_name: str, overwrite: bool = False
+    ) -> None:
+        path = f"{header}/{file_name}"
+        if os.path.exists(path) and not overwrite:
+            raise FileExistsError(f"{path} already exists")
+        os.makedirs(header, exist_ok=True)
+        table = pa.Table.from_pandas(df)
+        pq.write_table(table, path)
+
+    @staticmethod
+    def load(header: str, file_name: str) -> pd.DataFrame:
+        path = f"{header}/{file_name}"
+        if not os.path.exists(path):
+            raise FileNotFoundError(path)
+        return pq.read_table(path).to_pandas()
 
 
 def error_handler(e: BaseException) -> None:

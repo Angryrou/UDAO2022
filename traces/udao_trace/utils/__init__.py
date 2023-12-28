@@ -1,5 +1,5 @@
-from .interface import VarTypes, ScaleTypes, BenchmarkType, ClusterName
-from .handler import JsonHandler, PickleHandler, FileHandler
+from .handler import FileHandler, JsonHandler, ParquetHandler, PickleHandler
+from .interface import BenchmarkType, ClusterName, ScaleTypes, VarTypes
 
 __all__ = [
     "VarTypes",
@@ -8,5 +8,6 @@ __all__ = [
     "ClusterName",
     "JsonHandler",
     "PickleHandler",
-    "FileHandler"
+    "ParquetHandler",
+    "FileHandler",
 ]
