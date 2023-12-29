@@ -27,20 +27,43 @@ def _get_base_parser() -> ArgumentParser:
                         help="Random seed")
     parser.add_argument("--debug", action="store_true",
                         help="Enable debug mode")
+    parser.add_argument("--op_groups", nargs="+", default=["type", "cbo", "op_enc"],
+                        help="List of operation groups")
     # fmt: on
     return parser
 
 
-def get_graph_avg_args() -> Namespace:
+def get_graph_avg_params() -> Namespace:
+    parser = _get_base_parser()
+    # fmt: off
+    # Embedder parameters
+    parser.add_argument("--output_size", type=int, default=32,
+                        help="Embedder output size")
+    parser.add_argument("--type_embedding_dim", type=int, default=8,
+                        help="Type embedding dimension")
+    parser.add_argument("--vec_size", type=int, default=16,
+                        help="Word2Vec embedding size")
+    parser.add_argument("--embedding_normalizer", type=str, default=None,
+                        help="Embedding normalizer")
+    # Regressor parameters
+    parser.add_argument("--n_layers", type=int, default=2,
+                        help="Number of layers in the regressor")
+    parser.add_argument("--hidden_dim", type=int, default=32,
+                        help="Hidden dimension of the regressor")
+    parser.add_argument("--dropout", type=float, default=0.1,
+                        help="Dropout rate")
+    # fmt: on
+    return parser.parse_args()
+
+
+def get_graph_gtn_params() -> Namespace:
     parser = _get_base_parser()
     # fmt: off
     # Embedder parameters
     parser.add_argument("--lpe_size", type=int, default=8,
-                        help="Laplacian Positional encoding size - for GTN only")
+                        help="Laplacian Positional encoding size")
     parser.add_argument("--output_size", type=int, default=32,
                         help="Embedder output size")
-    parser.add_argument("--op_groups", nargs="+", default=["type", "cbo", "op_enc"],
-                        help="List of operation groups")
     parser.add_argument("--type_embedding_dim", type=int, default=8,
                         help="Type embedding dimension")
     parser.add_argument("--vec_size", type=int, default=16,

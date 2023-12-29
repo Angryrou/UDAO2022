@@ -1,15 +1,23 @@
+from argparse import Namespace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
+import pytorch_warmup as warmup
 import torch as th
+from lightning import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
+from torchmetrics import WeightedMeanAbsolutePercentageError
 from udao_trace.configuration import SparkConf
 from udao_trace.utils import BenchmarkType, JsonHandler, ParquetHandler, PickleHandler
 from udao_trace.workload import Benchmark
 
 from udao.data import (
+    BaseIterator,
     DataProcessor,
     NormalizePreprocessor,
     PredicateEmbeddingExtractor,
@@ -23,6 +31,10 @@ from udao.data.predicate_embedders import Word2VecEmbedder, Word2VecParams
 from udao.data.predicate_embedders.utils import build_unique_operations
 from udao.data.utils.query_plan import QueryPlanOperationFeatures, QueryPlanStructure
 from udao.data.utils.utils import DatasetType, train_test_val_split_on_column
+from udao.model import UdaoModel, UdaoModule
+from udao.model.module import LearningParams
+from udao.model.utils.losses import WMAPELoss
+from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 from udao.utils.logging import logger
 
 tensor_dtypes = th.float32
@@ -302,6 +314,8 @@ def magic_setup(
 def magic_extract(
     benchmark: str, debug: bool, seed: int, q_type: str, **kwargs: Any
 ) -> Tuple[DataProcessor, pd.DataFrame, Dict]:
+    th.set_default_dtype(tensor_dtypes)  # type: ignore
+
     # Read data
     base_dir = Path(__file__).parent
     if benchmark == "tpch":
@@ -460,3 +474,57 @@ class LQPExtractor(QueryStructureExtractor):
             graph_meta_features=None,
             operation_types=df_operation_types,
         )
+
+
+# Model
+
+
+def get_tuned_trainer(
+    model: UdaoModel,
+    split_iterators: Dict[DatasetType, BaseIterator],
+    objectives: List[str],
+    params: Namespace,
+    model_sign: str,
+    device: str,
+) -> Tuple[Trainer, UdaoModule]:
+    module = UdaoModule(
+        model,
+        objectives,
+        loss=WMAPELoss(),
+        learning_params=LearningParams(
+            init_lr=params.init_lr,  # 1e-3
+            min_lr=params.min_lr,  # 1e-5
+            weight_decay=params.weight_decay,  # 1e-2
+        ),
+        metrics=[WeightedMeanAbsolutePercentageError],
+    )
+    tb_logger = TensorBoardLogger("tb_logs")
+
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=f"checkpoints/{params.benchmark}_{params.q_type}_{model_sign}",
+        filename="{epoch}"
+        "-val_lat_WMAPE={val_latency_s_WeightedMeanAbsolutePercentageError:.3f}"
+        "-val_io_WMAPE={val_io_mb_WeightedMeanAbsolutePercentageError:.3f}",
+        auto_insert_metric_name=False,
+    )
+    scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
+    trainer = pl.Trainer(
+        accelerator=device,
+        max_epochs=params.epochs,
+        logger=tb_logger,
+        callbacks=[scheduler, checkpoint_callback],
+    )
+    trainer.fit(
+        model=module,
+        train_dataloaders=split_iterators["train"].get_dataloader(
+            params.batch_size,
+            num_workers=0 if params.debug else params.num_workers,
+            shuffle=True,
+        ),
+        val_dataloaders=split_iterators["val"].get_dataloader(
+            params.batch_size,
+            num_workers=0 if params.debug else params.num_workers,
+            shuffle=False,
+        ),
+    )
+    return trainer, module
