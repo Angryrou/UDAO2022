@@ -1,17 +1,11 @@
-from argparse import Namespace
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
-import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
-import pytorch_warmup as warmup
 import torch as th
-from lightning import Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.loggers import TensorBoardLogger
+from params import MySplitIteratorParams
 from sklearn.preprocessing import MinMaxScaler
-from torchmetrics import WeightedMeanAbsolutePercentageError
 from udao_trace.configuration import SparkConf
 from udao_trace.utils import BenchmarkType, JsonHandler, ParquetHandler, PickleHandler
 from udao_trace.workload import Benchmark
@@ -32,10 +26,6 @@ from udao.data.predicate_embedders import Word2VecEmbedder, Word2VecParams
 from udao.data.predicate_embedders.utils import build_unique_operations
 from udao.data.utils.query_plan import QueryPlanOperationFeatures, QueryPlanStructure
 from udao.data.utils.utils import DatasetType, train_test_val_split_on_column
-from udao.model import UdaoModel, UdaoModule
-from udao.model.module import LearningParams
-from udao.model.utils.losses import WMAPELoss
-from udao.model.utils.schedulers import UdaoLRScheduler, setup_cosine_annealing_lr
 from udao.utils.logging import logger
 
 tensor_dtypes = th.float32
@@ -124,6 +114,32 @@ class OperatorMisMatchError(BaseException):
     """raise when the operator names from `operator` and `link` do not match"""
 
 
+class PathWatcher:
+    def __init__(self, benchmark: str, debug: bool, extract_hash: str):
+        base_dir = Path(__file__).parent
+        self.benchmark = benchmark
+        self.debug = debug
+        data_sign = self._get_data_sign()
+        data_prefix = f"{str(base_dir)}/data/{benchmark}"
+        cc_prefix = f"{str(base_dir)}/cache_and_ckp/{benchmark}_{data_sign}"
+        cc_extract_prefix = f"{cc_prefix}/{extract_hash}"
+        self.data_sign = data_sign
+        self.data_prefix = data_prefix
+        self.cc_prefix = cc_prefix
+        self.cc_extract_prefix = cc_extract_prefix
+
+    def _get_data_sign(self) -> str:
+        # Read data
+        if self.benchmark == "tpch":
+            return f"22x{10 if self.debug else 2273}"
+        if self.benchmark == "tpcds":
+            return f"102x{10 if self.debug else 490}"
+        raise NoBenchmarkError
+
+    def get_data_header(self, q_type: str) -> str:
+        return f"{self.data_prefix}/{q_type}_{self.data_sign}.csv"
+
+
 # Data Processing
 def _im_process(df: pd.DataFrame) -> pd.DataFrame:
     df["IM-sizeInMB"] = df["IM-inputSizeInBytes"] / 1024 / 1024
@@ -135,7 +151,7 @@ def _im_process(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def prepare(
+def prepare_data(
     df: pd.DataFrame, sc: SparkConf, benchmark: str, q_type: str
 ) -> pd.DataFrame:
     bm = Benchmark(benchmark_type=BenchmarkType[benchmark.upper()])
@@ -177,31 +193,19 @@ def prepare(
     return df
 
 
-def define_index_with_columns(df: pd.DataFrame, columns: List[str]) -> None:
+def define_index_with_columns(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
     if "id" in df.columns:
         raise Exception("id column already exists!")
-    df["id"] = df[columns].astype(str).apply("-".join, axis=1)
+    df["id"] = df[columns].astype(str).apply("-".join, axis=1).to_list()
     df.set_index("id", inplace=True)
+    return df
 
 
-def save_and_log_index(
-    index_splits: Dict,
-    tabular_columns: List,
-    cache_header: str,
-    name: str,
-    debug: bool = False,
-) -> None:
+def save_and_log_index(index_splits: Dict, pw: PathWatcher, name: str) -> None:
     try:
-        PickleHandler.save(
-            {
-                "index_splits": index_splits,
-                "tabular_columns": tabular_columns,
-            },
-            cache_header,
-            name,
-        )
+        PickleHandler.save(index_splits, pw.cc_prefix, name)
     except FileExistsError as e:
-        if not debug:
+        if not pw.debug:
             raise e
         logger.warning(f"skip saving {name}")
     lengths = [str(len(index_splits[split])) for split in ["train", "val", "test"]]
@@ -211,61 +215,49 @@ def save_and_log_index(
 def save_and_log_df(
     df: pd.DataFrame,
     index_columns: List[str],
-    cache_header: str,
+    pw: PathWatcher,
     name: str,
-    debug: bool,
 ) -> None:
-    define_index_with_columns(df, columns=index_columns)
+    df = define_index_with_columns(df, columns=index_columns)
     try:
-        ParquetHandler.save(df, cache_header, f"{name}.parquet")
+        ParquetHandler.save(df, pw.cc_prefix, f"{name}.parquet")
     except FileExistsError as e:
-        if not debug:
+        if not pw.debug:
             raise e
         logger.warning(f"skip saving {name}.parquet")
     logger.info(f"prepared {name} shape: {df.shape}")
 
 
-def magic_setup(
-    cache_header: str,
-    benchmark: str,
-    debug: bool,
-    seed: int,
-) -> None:
+def magic_setup(pw: PathWatcher, seed: int) -> None:
     """magic set to make sure
     1. data has been properly processed and effectively saved.
     2. data split to make sure q_compile/q/qs share the same appid for tr/val/te.
     """
-
-    base_dir = Path(__file__).parent
-    if benchmark == "tpch":
-        df_q_path = str(base_dir / f"data/tpch/q_22x{10 if debug else 2273}.csv")
-        df_qs_path = str(base_dir / f"data/tpch/qs_22x{10 if debug else 2273}.csv")
-    elif benchmark == "tpcds":
-        df_q_path = str(base_dir / f"data/tpcds/q_102x{10 if debug else 490}.csv")
-        df_qs_path = str(base_dir / f"data/tpcds/qs_102x{10 if debug else 490}.csv")
-    else:
-        raise NoBenchmarkError
-    df_q_raw = pd.read_csv(df_q_path)
-    df_qs_raw = pd.read_csv(df_qs_path)
+    df_q_raw = pd.read_csv(pw.get_data_header("q"))
+    df_qs_raw = pd.read_csv(pw.get_data_header("qs"))
     logger.info(f"raw df_q shape: {df_q_raw.shape}")
     logger.info(f"raw df_qs shape: {df_qs_raw.shape}")
 
+    benchmark = pw.benchmark
+    debug = pw.debug
+
     # Prepare data
-    sc = SparkConf(str(base_dir / "assets/spark_configuration_aqe_on.json"))
-    df_q = prepare(df_q_raw, benchmark=benchmark, sc=sc, q_type="q")
-    df_qs = prepare(df_qs_raw, benchmark=benchmark, sc=sc, q_type="qs")
-    df_q_compile = df_q[df_q["lqp_id"] == 0]  # for compile-time df
+    sc = SparkConf(
+        str(Path(__file__).parent / "assets/spark_configuration_aqe_on.json")
+    )
+    df_q = prepare_data(df_q_raw, benchmark=benchmark, sc=sc, q_type="q")
+    df_qs = prepare_data(df_qs_raw, benchmark=benchmark, sc=sc, q_type="qs")
+    df_q_compile = df_q[df_q["lqp_id"] == 0].copy()  # for compile-time df
     df_rare = df_q_compile.groupby("tid").filter(lambda x: len(x) < 5)
     if df_rare.shape[0] > 0:
         logger.warning(f"Drop rare templates: {df_rare['tid'].unique()}")
         df_q_compile = df_q_compile.groupby("tid").filter(lambda x: len(x) >= 5)
     else:
         logger.info("No rare templates")
-
     # Compute the index for df_q_compile, df_q and df_qs
-    save_and_log_df(df_q_compile, ["appid"], cache_header, "df_q_compile", debug)
-    save_and_log_df(df_q, ["appid", "lqp_id"], cache_header, "df_q", debug)
-    save_and_log_df(df_qs, ["appid", "qs_id"], cache_header, "df_qs", debug)
+    save_and_log_df(df_q_compile, ["appid"], pw, "df_q_compile")
+    save_and_log_df(df_q, ["appid", "lqp_id"], pw, "df_q")
+    save_and_log_df(df_qs, ["appid", "qs_id"], pw, "df_qs")
 
     # Split data for df_q_compile
     df_splits_q_compile = train_test_val_split_on_column(
@@ -278,140 +270,160 @@ def magic_setup(
     index_splits_q_compile = {
         split: df.index.to_list() for split, df in df_splits_q_compile.items()
     }
-    save_and_log_index(
-        index_splits_q_compile,
-        tabular_columns=TABULAR_LQP,
-        cache_header=cache_header,
-        name="misc_q_compile.pkl",
-        debug=debug,
-    )
-
-    index_splits_q = {
-        split: df_q[df_q.appid.isin(appid_list)].index.to_list()
-        for split, appid_list in index_splits_q_compile.items()
-    }
-    save_and_log_index(
-        index_splits_q,
-        tabular_columns=TABULAR_LQP,
-        cache_header=cache_header,
-        name="misc_q.pkl",
-        debug=debug,
-    )
-
     index_splits_qs = {
         split: df_qs[df_qs.appid.isin(appid_list)].index.to_list()
         for split, appid_list in index_splits_q_compile.items()
     }
-    save_and_log_index(
-        index_splits_qs,
-        tabular_columns=TABULAR_QS,
-        cache_header=cache_header,
-        name="misc_qs.pkl",
-        debug=debug,
-    )
+    index_splits_q = {
+        split: df_q[df_q.appid.isin(appid_list)].index.to_list()
+        for split, appid_list in index_splits_q_compile.items()
+    }
+    # Save the index_splits
+    save_and_log_index(index_splits_q_compile, pw, "index_splits_q_compile.pkl")
+    save_and_log_index(index_splits_q, pw, "index_splits_q.pkl")
+    save_and_log_index(index_splits_qs, pw, "index_splits_qs.pkl")
 
 
-# Data Split Index
-def magic_extract_splits(
-    benchmark: str, debug: bool, seed: int, q_type: str, **kwargs: Any
-) -> Tuple[DataProcessor, pd.DataFrame, Dict]:
-    th.set_default_dtype(tensor_dtypes)  # type: ignore
-
-    # Read data
-    base_dir = Path(__file__).parent
-    if benchmark == "tpch":
-        cache_header = str(base_dir / f"data/tpch/cache_22x{10 if debug else 2273}")
-    elif benchmark == "tpcds":
-        cache_header = str(base_dir / f"data/tpcds/cache_22x{10 if debug else 490}")
-    else:
-        raise NoBenchmarkError
-    if not Path(cache_header).exists():
-        magic_setup(cache_header, benchmark, debug, seed)
-
-    if not Path(f"{cache_header}/misc_{q_type}.pkl").exists():
-        raise FileNotFoundError(f"{cache_header}/misc_{q_type}.pkl not found")
-    if not Path(f"{cache_header}/df_{q_type}.parquet").exists():
-        raise FileNotFoundError(f"{cache_header}/df_{q_type}.parquet not found")
-
-    df = ParquetHandler.load(cache_header, f"df_{q_type}.parquet")
-    misc = PickleHandler.load(cache_header, f"misc_{q_type}.pkl")
-    if not isinstance(misc, Dict):
-        raise TypeError(f"misc is not a dict: {misc}")
-    index_splits = misc["index_splits"]
-    if not isinstance(index_splits, Dict):
-        raise TypeError(f"index_splits is not a dict: {index_splits}")
-    tabular_columns = misc["tabular_columns"]
-
-    if "op_enc" in kwargs["op_groups"]:
+def define_data_processor(
+    op_groups: List[str],
+    tabular_columns: List[str],
+    objectives: List[str],
+    lpe_size: int,
+    vec_size: int,
+) -> DataProcessor:
+    if "op_enc" in op_groups:
         data_processor_getter = create_data_processor(QueryPlanIterator, "op_enc")
-        data_processor = data_processor_getter(
+        return data_processor_getter(
             tensor_dtypes=tensor_dtypes,
             tabular_features=FeaturePipeline(
                 extractor=TabularFeatureExtractor(columns=tabular_columns),
                 preprocessors=[NormalizePreprocessor(MinMaxScaler())],
             ),
             objectives=FeaturePipeline(
-                extractor=TabularFeatureExtractor(columns=kwargs["objectives"]),
+                extractor=TabularFeatureExtractor(columns=objectives),
             ),
             query_structure=FeaturePipeline(
-                extractor=LQPExtractor(positional_encoding_size=None),
+                extractor=LQPExtractor(positional_encoding_size=lpe_size),
                 preprocessors=[NormalizePreprocessor(MinMaxScaler(), "graph_features")],
             ),
             op_enc=FeaturePipeline(
                 extractor=PredicateEmbeddingExtractor(
-                    Word2VecEmbedder(Word2VecParams(vec_size=kwargs["vec_size"])),
+                    Word2VecEmbedder(Word2VecParams(vec_size=vec_size)),
                     extract_operations=extract_operations_from_serialized_json,
                 ),
             ),
         )
-    else:
-        data_processor_getter = create_data_processor(QueryPlanIterator)
-        data_processor = data_processor_getter(
-            tensor_dtypes=tensor_dtypes,
-            tabular_features=FeaturePipeline(
-                extractor=TabularFeatureExtractor(columns=tabular_columns),
-                preprocessors=[NormalizePreprocessor(MinMaxScaler())],
-            ),
-            objectives=FeaturePipeline(
-                extractor=TabularFeatureExtractor(columns=kwargs["objectives"]),
-            ),
-            query_structure=FeaturePipeline(
-                extractor=LQPExtractor(positional_encoding_size=None),
-                preprocessors=[NormalizePreprocessor(MinMaxScaler(), "graph_features")],
-            ),
-        )
-
-    return data_processor, df, index_splits
-
-
-def magic_extract_iterators(
-    params: Namespace, objectives: List[str]
-) -> Dict[DatasetType, BaseIterator]:
-    data_processor, df, index_splits = magic_extract_splits(
-        benchmark=params.benchmark,
-        debug=params.debug,
-        seed=params.seed,
-        q_type=params.q_type,
-        op_groups=params.op_groups,
-        objectives=objectives,
-        vec_size=params.vec_size,
-    )
-
-    data_handler = DataHandler(
-        df.reset_index(),
-        DataHandler.Params(
-            index_column="id",
-            stratify_on="tid",
-            val_frac=0.2 if params.debug else 0.1,
-            test_frac=0.2 if params.debug else 0.1,
-            dryrun=False,
-            data_processor=data_processor,
-            random_state=params.seed,
+    data_processor_getter = create_data_processor(QueryPlanIterator)
+    return data_processor_getter(
+        tensor_dtypes=tensor_dtypes,
+        tabular_features=FeaturePipeline(
+            extractor=TabularFeatureExtractor(columns=tabular_columns),
+            preprocessors=[NormalizePreprocessor(MinMaxScaler())],
+        ),
+        objectives=FeaturePipeline(
+            extractor=TabularFeatureExtractor(columns=objectives),
+        ),
+        query_structure=FeaturePipeline(
+            extractor=LQPExtractor(positional_encoding_size=lpe_size),
+            preprocessors=[NormalizePreprocessor(MinMaxScaler(), "graph_features")],
         ),
     )
-    data_handler.index_splits = index_splits
+
+
+# Data Split Index
+def extract_index_splits(
+    pw: PathWatcher, seed: int, q_type: str
+) -> Tuple[pd.DataFrame, Dict]:
+    if (
+        not Path(f"{pw.cc_prefix}/index_splits_{q_type}.pkl").exists()
+        or not Path(f"{pw.cc_prefix}/df_{q_type}.pkl").exists()
+    ):
+        magic_setup(pw, seed)
+    else:
+        logger.info(f"found {pw.cc_prefix}/df_{q_type}.pkl, loading...")
+        logger.info(f"found {pw.cc_prefix}/index_splits_{q_type}.pkl, loading...")
+
+    if not Path(f"{pw.cc_prefix}/index_splits_{q_type}.pkl").exists():
+        raise FileNotFoundError(f"{pw.cc_prefix}/index_splits_{q_type}.pkl not found")
+    if not Path(f"{pw.cc_prefix}/df_{q_type}.parquet").exists():
+        raise FileNotFoundError(f"{pw.cc_prefix}/df_{q_type}.parquet not found")
+
+    df = ParquetHandler.load(pw.cc_prefix, f"df_{q_type}.parquet")
+    index_splits = PickleHandler.load(pw.cc_prefix, f"index_splits_{q_type}.pkl")
+    if not isinstance(index_splits, Dict):
+        raise TypeError(f"index_splits is not a dict: {index_splits}")
+    return df, index_splits
+
+
+def extract_and_save_iterators(
+    pw: PathWatcher, params: MySplitIteratorParams, cache_file: str = "iterators.pkl"
+) -> Dict[DatasetType, BaseIterator]:
+    if Path(f"{pw.cc_extract_prefix}/{cache_file}").exists():
+        raise FileExistsError(f"{pw.cc_extract_prefix}/{cache_file} already exists.")
+    logger.info("start extracting iterators")
+    cache_file_dh = "data_handler.pkl"
+    if Path(f"{pw.cc_extract_prefix}/{cache_file_dh}").exists():
+        logger.info(f"found {pw.cc_extract_prefix}/{cache_file_dh}, loading...")
+        data_handler = PickleHandler.load(pw.cc_extract_prefix, cache_file_dh)
+    else:
+        logger.info(f"not found {pw.cc_extract_prefix}/{cache_file_dh}, extracting...")
+        df, index_splits = extract_index_splits(
+            pw=pw, seed=params.seed, q_type=params.q_type
+        )
+        data_processor = define_data_processor(
+            op_groups=params.op_groups,
+            tabular_columns=params.tabular_columns,
+            objectives=params.objectives,
+            lpe_size=params.lpe_size,
+            vec_size=params.vec_size,
+        )
+        data_handler = DataHandler(
+            df.reset_index(),
+            DataHandler.Params(
+                index_column="id",
+                stratify_on="tid",
+                val_frac=0.2 if params.debug else 0.1,
+                test_frac=0.2 if params.debug else 0.1,
+                dryrun=False,
+                data_processor=data_processor,
+                random_state=params.seed,
+            ),
+        )
+        data_handler.index_splits = index_splits
+        PickleHandler.save(data_handler, pw.cc_extract_prefix, cache_file_dh)
+        logger.info(f"saved {pw.cc_extract_prefix}/{cache_file_dh}")
+    logger.info("extracting split_iterators...")
     split_iterators = data_handler.get_iterators()
+    PickleHandler.save(
+        {"desc": params.__dict__, "split_iterators": split_iterators},
+        pw.cc_extract_prefix,
+        cache_file,
+    )
+    logger.info(f"saved {pw.cc_extract_prefix}/{cache_file}")
     return split_iterators
+
+
+def get_split_iterators(
+    pw: PathWatcher, params: MySplitIteratorParams
+) -> Dict[DatasetType, BaseIterator]:
+    cache_file = "iterators.pkl"
+    if not Path(f"{pw.cc_extract_prefix}/{cache_file}").exists():
+        split_iterators = extract_and_save_iterators(
+            pw=pw,
+            params=params,
+            cache_file=cache_file,
+        )
+        return split_iterators
+    split_meta = PickleHandler.load(pw.cc_extract_prefix, cache_file)
+    if (
+        not isinstance(split_meta, Dict)
+        or "split_iterators" not in split_meta
+        or "desc" not in split_meta
+        or not isinstance(split_meta["split_iterators"], Dict)
+    ):
+        raise TypeError("split_iterators not found or not a desired type")
+    logger.info(split_meta["desc"])
+    return split_meta["split_iterators"]
 
 
 def extract_operations_from_serialized_json(
@@ -505,55 +517,3 @@ class LQPExtractor(QueryStructureExtractor):
             graph_meta_features=None,
             operation_types=df_operation_types,
         )
-
-
-# Model training
-def get_tuned_trainer(
-    model: UdaoModel,
-    split_iterators: Dict[DatasetType, BaseIterator],
-    objectives: List[str],
-    params: Namespace,
-    model_sign: str,
-    device: str,
-) -> Tuple[Trainer, UdaoModule]:
-    module = UdaoModule(
-        model,
-        objectives,
-        loss=WMAPELoss(),
-        learning_params=LearningParams(
-            init_lr=params.init_lr,  # 1e-3
-            min_lr=params.min_lr,  # 1e-5
-            weight_decay=params.weight_decay,  # 1e-2
-        ),
-        metrics=[WeightedMeanAbsolutePercentageError],
-    )
-    tb_logger = TensorBoardLogger("tb_logs")
-
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=f"checkpoints/{params.benchmark}_{params.q_type}_{model_sign}",
-        filename="{epoch}"
-        "-val_lat_WMAPE={val_latency_s_WeightedMeanAbsolutePercentageError:.3f}"
-        "-val_io_WMAPE={val_io_mb_WeightedMeanAbsolutePercentageError:.3f}",
-        auto_insert_metric_name=False,
-    )
-    scheduler = UdaoLRScheduler(setup_cosine_annealing_lr, warmup.UntunedLinearWarmup)
-    trainer = pl.Trainer(
-        accelerator=device,
-        max_epochs=params.epochs,
-        logger=tb_logger,
-        callbacks=[scheduler, checkpoint_callback],
-    )
-    trainer.fit(
-        model=module,
-        train_dataloaders=split_iterators["train"].get_dataloader(
-            params.batch_size,
-            num_workers=0 if params.debug else params.num_workers,
-            shuffle=True,
-        ),
-        val_dataloaders=split_iterators["val"].get_dataloader(
-            params.batch_size,
-            num_workers=0 if params.debug else params.num_workers,
-            shuffle=False,
-        ),
-    )
-    return trainer, module

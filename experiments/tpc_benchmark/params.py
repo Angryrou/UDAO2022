@@ -1,4 +1,38 @@
+import hashlib
 from argparse import ArgumentParser, Namespace
+from dataclasses import dataclass
+from typing import List, Literal
+
+QType = Literal["q_compile", "q", "qs-logical", "qs-physical"]
+
+
+@dataclass
+class MySplitIteratorParams:
+    op_groups: List[str]
+    tabular_columns: List[str]
+    objectives: List[str]
+    lpe_size: int
+    vec_size: int
+    seed: int
+    q_type: QType
+    debug: bool = False
+
+    def hash(self) -> str:
+        attributes_tuple = str(
+            (
+                tuple(self.op_groups),
+                tuple(self.tabular_columns),
+                tuple(self.objectives),
+                self.lpe_size,
+                self.vec_size,
+                self.seed,
+            )
+        ).encode("utf-8")
+        sha256_hash = hashlib.sha256(attributes_tuple)
+        hex12 = self.q_type + "_" + sha256_hash.hexdigest()[:12]
+        if self.debug:
+            return hex12 + "_debug"
+        return hex12
 
 
 def _get_base_parser() -> ArgumentParser:
@@ -37,6 +71,8 @@ def get_graph_avg_params() -> Namespace:
     parser = _get_base_parser()
     # fmt: off
     # Embedder parameters
+    parser.add_argument("--lpe_size", type=int, default=8,
+                        help="Laplacian Positional encoding size (not used)")
     parser.add_argument("--output_size", type=int, default=32,
                         help="Embedder output size")
     parser.add_argument("--type_embedding_dim", type=int, default=8,
