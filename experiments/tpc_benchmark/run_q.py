@@ -87,7 +87,7 @@ if __name__ == "__main__":
     device = "gpu" if th.cuda.is_available() else "cpu"
     model_sign = "graph_avg"
     objectives = ["latency_s", "io_mb"]
-    th.set_default_dtype(tensor_dtypes)
+    th.set_default_dtype(tensor_dtypes)  # type: ignore
 
     # Data-related arguments
     benchmark = args.benchmark

@@ -114,9 +114,9 @@ class OperatorMisMatchError(BaseException):
 # Data Processing
 def _im_process(df: pd.DataFrame) -> pd.DataFrame:
     df["IM-sizeInMB"] = df["IM-inputSizeInBytes"] / 1024 / 1024
-    df["IM-sizeInMB-log"] = np.log(df["IM-sizeInMB"].values.clip(min=EPS))
+    df["IM-sizeInMB-log"] = np.log(df["IM-sizeInMB"].to_numpy().clip(min=EPS))
     df["IM-rowCount"] = df["IM-inputRowCount"]
-    df["IM-rowCount-log"] = np.log(df["IM-rowCount"].values.clip(min=EPS))
+    df["IM-rowCount-log"] = np.log(df["IM-rowCount"].to_numpy().clip(min=EPS))
     for c in ALPHA_LQP_RAW:
         del df[c]
     return df
@@ -124,7 +124,7 @@ def _im_process(df: pd.DataFrame) -> pd.DataFrame:
 
 def prepare(
     df: pd.DataFrame, sc: SparkConf, benchmark: str, q_type: str
-) -> [pd.DataFrame, List[str]]:
+) -> pd.DataFrame:
     bm = Benchmark(benchmark_type=BenchmarkType[benchmark.upper()])
     df.rename(columns={p: kid for p, kid in zip(THETA_RAW, sc.knob_ids)}, inplace=True)
     df["tid"] = df["template"].apply(lambda x: bm.get_template_id(str(x)))
@@ -143,7 +143,9 @@ def prepare(
         df[ALPHA_QS_RAW] = df[ALPHA_QS_RAW].astype(float)
         df = _im_process(df)
         df["IM-init-part-num"] = df["InitialPartitionNum"].astype(float)
-        df["IM-init-part-num-log"] = np.log(df["IM-init-part-num"].values.clip(min=EPS))
+        df["IM-init-part-num-log"] = np.log(
+            df["IM-init-part-num"].to_numpy().clip(min=EPS)
+        )
         del df["InitialPartitionNum"]
     else:
         raise NoQTypeError
@@ -175,7 +177,7 @@ def save_and_log_index(
     cache_header: str,
     name: str,
     debug: bool = False,
-):
+) -> None:
     try:
         PickleHandler.save(
             {
@@ -199,7 +201,7 @@ def save_and_log_df(
     cache_header: str,
     name: str,
     debug: bool,
-):
+) -> None:
     define_index_with_columns(df, columns=index_columns)
     try:
         ParquetHandler.save(df, cache_header, f"{name}.parquet")
@@ -318,6 +320,8 @@ def magic_extract(
 
     df = ParquetHandler.load(cache_header, f"df_{q_type}.parquet")
     misc = PickleHandler.load(cache_header, f"misc_{q_type}.pkl")
+    if not isinstance(misc, Dict):
+        raise TypeError(f"misc is not a dict: {misc}")
     index_splits = misc["index_splits"]
     if not isinstance(index_splits, Dict):
         raise TypeError(f"index_splits is not a dict: {index_splits}")
@@ -341,7 +345,7 @@ def magic_extract(
             op_enc=FeaturePipeline(
                 extractor=PredicateEmbeddingExtractor(
                     Word2VecEmbedder(Word2VecParams(vec_size=kwargs["vec_size"])),
-                    extract_operations=extract_operations_from_seralized_json,
+                    extract_operations=extract_operations_from_serialized_json,
                 ),
             ),
         )
@@ -365,7 +369,7 @@ def magic_extract(
     return data_processor, df, index_splits
 
 
-def extract_operations_from_seralized_json(
+def extract_operations_from_serialized_json(
     plan_df: pd.DataFrame, operation_processing: Callable[[str], str] = lambda x: x
 ) -> Tuple[Dict[int, List[int]], List[str]]:
     df = plan_df[["id", "lqp"]].copy()
@@ -382,7 +386,7 @@ def extract_operations_from_seralized_json(
     return build_unique_operations(df)
 
 
-def extract_query_plan_features_from_seralized_json(
+def extract_query_plan_features_from_serialized_json(
     lqp_str: str,
 ) -> Tuple[QueryPlanStructure, QueryPlanOperationFeatures]:
     lqp = JsonHandler.load_json_from_str(lqp_str)
@@ -428,7 +432,7 @@ class LQPExtractor(QueryStructureExtractor):
     def _extract_structure_and_features(
         self, idx: str, lqp: str, split: DatasetType
     ) -> Dict:
-        structure, op_features = extract_query_plan_features_from_seralized_json(lqp)
+        structure, op_features = extract_query_plan_features_from_serialized_json(lqp)
         operation_gids = self._extract_operation_types(structure, split)
         self.id_template_dict[idx] = self._extract_structure_template(structure, split)
         return {
