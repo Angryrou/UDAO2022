@@ -279,7 +279,7 @@ def magic_setup(
     }
     save_and_log_index(
         index_splits_q,
-        tabular_columns=TABULAR_QS,
+        tabular_columns=TABULAR_LQP,
         cache_header=cache_header,
         name="misc_q.pkl",
         debug=debug,
@@ -291,7 +291,7 @@ def magic_setup(
     }
     save_and_log_index(
         index_splits_qs,
-        tabular_columns=THETA + ALPHA_QS + BETA + GAMMA,
+        tabular_columns=TABULAR_QS,
         cache_header=cache_header,
         name="misc_qs.pkl",
         debug=debug,
