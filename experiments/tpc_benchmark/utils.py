@@ -26,6 +26,7 @@ from udao.data import (
     QueryStructureExtractor,
     TabularFeatureExtractor,
 )
+from udao.data.handler.data_handler import DataHandler
 from udao.data.handler.data_processor import FeaturePipeline, create_data_processor
 from udao.data.predicate_embedders import Word2VecEmbedder, Word2VecParams
 from udao.data.predicate_embedders.utils import build_unique_operations
@@ -311,7 +312,7 @@ def magic_setup(
 
 
 # Data Split Index
-def magic_extract(
+def magic_extract_splits(
     benchmark: str, debug: bool, seed: int, q_type: str, **kwargs: Any
 ) -> Tuple[DataProcessor, pd.DataFrame, Dict]:
     th.set_default_dtype(tensor_dtypes)  # type: ignore
@@ -381,6 +382,36 @@ def magic_extract(
         )
 
     return data_processor, df, index_splits
+
+
+def magic_extract_iterators(
+    params: Namespace, objectives: List[str]
+) -> Dict[DatasetType, BaseIterator]:
+    data_processor, df, index_splits = magic_extract_splits(
+        benchmark=params.benchmark,
+        debug=params.debug,
+        seed=params.seed,
+        q_type=params.q_type,
+        op_groups=params.op_groups,
+        objectives=objectives,
+        vec_size=params.vec_size,
+    )
+
+    data_handler = DataHandler(
+        df.reset_index(),
+        DataHandler.Params(
+            index_column="id",
+            stratify_on="tid",
+            val_frac=0.2 if params.debug else 0.1,
+            test_frac=0.2 if params.debug else 0.1,
+            dryrun=False,
+            data_processor=data_processor,
+            random_state=params.seed,
+        ),
+    )
+    data_handler.index_splits = index_splits
+    split_iterators = data_handler.get_iterators()
+    return split_iterators
 
 
 def extract_operations_from_serialized_json(
@@ -476,9 +507,7 @@ class LQPExtractor(QueryStructureExtractor):
         )
 
 
-# Model
-
-
+# Model training
 def get_tuned_trainer(
     model: UdaoModel,
     split_iterators: Dict[DatasetType, BaseIterator],

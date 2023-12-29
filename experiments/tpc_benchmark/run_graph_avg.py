@@ -1,12 +1,11 @@
 import torch as th
 from params import get_graph_avg_params
 
-from udao.data import DataHandler
 from udao.model.embedders.graph_averager import GraphAverager
 from udao.model.model import UdaoModel
 from udao.model.regressors.mlp import MLP
 from udao.utils.logging import logger
-from utils import get_tuned_trainer, magic_extract
+from utils import get_tuned_trainer, magic_extract_iterators
 
 logger.setLevel("INFO")
 if __name__ == "__main__":
@@ -16,30 +15,7 @@ if __name__ == "__main__":
     objectives = ["latency_s", "io_mb"]
 
     # Data definition
-    data_processor, df, index_splits = magic_extract(
-        benchmark=params.benchmark,
-        debug=params.debug,
-        seed=params.seed,
-        q_type=params.q_type,
-        op_groups=params.op_groups,
-        objectives=objectives,
-        vec_size=params.vec_size,
-    )
-
-    data_handler = DataHandler(
-        df.reset_index(),
-        DataHandler.Params(
-            index_column="id",
-            stratify_on="tid",
-            val_frac=0.2 if params.debug else 0.1,
-            test_frac=0.2 if params.debug else 0.1,
-            dryrun=False,
-            data_processor=data_processor,
-            random_state=params.seed,
-        ),
-    )
-    data_handler.index_splits = index_splits
-    split_iterators = data_handler.get_iterators()
+    split_iterators = magic_extract_iterators(params, objectives)
 
     # Model definition and training
     model = UdaoModel.from_config(
