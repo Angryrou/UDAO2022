@@ -10,7 +10,7 @@ from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from torchmetrics import WeightedMeanAbsolutePercentageError
-from udao_trace.utils import PickleHandler
+from udao_trace.utils import JsonHandler, PickleHandler
 
 from udao.data import BaseIterator
 from udao.data.utils.utils import DatasetType
@@ -33,6 +33,12 @@ class GraphAverageMLPParams:
     n_layers: int = 2
     hidden_dim: int = 32
     dropout: float = 0.1
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            k: v if not isinstance(v, UdaoEmbedItemShape) else v.__dict__
+            for k, v in self.__dict__.items()
+        }
 
     def hash(self) -> str:
         attributes_tuple = str(
@@ -110,11 +116,17 @@ def checkpoint_learning_params(
 ) -> None:
     ckp_header += f"/{learning_params.hash()}"
     name = "hparams.pkl"
+    json_name = "hparams.json"
     if not Path(f"{ckp_header}/{name}").exists():
         PickleHandler.save(learning_params, ckp_header, name)
+        JsonHandler.dump_to_file(
+            learning_params.__dict__,
+            f"{ckp_header}/{json_name}",
+            indent=2,
+        )
         logger.info(f"saved learning params to {ckp_header}/{name}")
     else:
-        raise FileNotFoundError(f"{ckp_header}/{name} already exists")
+        raise FileExistsError(f"{ckp_header}/{name} already exists")
 
 
 def checkpoint_model_structure(
@@ -123,9 +135,15 @@ def checkpoint_model_structure(
     model_struct_hash = model_params.hash()
     ckp_header = f"{pw.cc_extract_prefix}/{model_struct_hash}"
     name = "model_struct_params.pkl"
+    json_name = "model_struct_params.json"
     if not Path(f"{ckp_header}/{name}").exists():
         Path(ckp_header).mkdir(parents=True, exist_ok=True)
         PickleHandler.save(model_params, ckp_header, name)
+        JsonHandler.dump_to_file(
+            model_params.to_dict(),
+            f"{ckp_header}/{json_name}",
+            indent=2,
+        )
         logger.info(f"saved model structure params to {ckp_header}")
     else:
         logger.info(f"found {ckp_header}/{name}")

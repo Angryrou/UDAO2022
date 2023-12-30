@@ -29,6 +29,7 @@ class JsonHandler:
 
     @staticmethod
     def dump_to_file(obj: Dict, file: str, indent: Optional[int] = None) -> None:
+        os.makedirs(os.path.dirname(file), exist_ok=True)
         with open(file, "w") as f:
             json.dump(obj, f, indent=indent)
 

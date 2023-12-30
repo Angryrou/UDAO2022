@@ -1,16 +1,13 @@
 import hashlib
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
-from typing import List, Literal
+from typing import Literal
 
 QType = Literal["q_compile", "q", "qs-logical", "qs-physical"]
 
 
 @dataclass
-class MySplitIteratorParams:
-    op_groups: List[str]
-    tabular_columns: List[str]
-    objectives: List[str]
+class ExtractParams:
     lpe_size: int
     vec_size: int
     seed: int
@@ -20,16 +17,13 @@ class MySplitIteratorParams:
     def hash(self) -> str:
         attributes_tuple = str(
             (
-                tuple(self.op_groups),
-                tuple(self.tabular_columns),
-                tuple(self.objectives),
                 self.lpe_size,
                 self.vec_size,
                 self.seed,
             )
         ).encode("utf-8")
         sha256_hash = hashlib.sha256(attributes_tuple)
-        hex12 = self.q_type + "_" + sha256_hash.hexdigest()[:12]
+        hex12 = self.q_type + "/" + sha256_hash.hexdigest()[:12]
         if self.debug:
             return hex12 + "_debug"
         return hex12

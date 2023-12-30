@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import torch as th
-from params import MySplitIteratorParams
+from params import ExtractParams
 from sklearn.preprocessing import MinMaxScaler
 from udao_trace.configuration import SparkConf
 from udao_trace.utils import BenchmarkType, JsonHandler, ParquetHandler, PickleHandler
@@ -115,18 +115,32 @@ class OperatorMisMatchError(BaseException):
 
 
 class PathWatcher:
-    def __init__(self, benchmark: str, debug: bool, extract_hash: str):
+    def __init__(self, benchmark: str, debug: bool, extract_params: ExtractParams):
         base_dir = Path(__file__).parent
         self.benchmark = benchmark
         self.debug = debug
         data_sign = self._get_data_sign()
         data_prefix = f"{str(base_dir)}/data/{benchmark}"
         cc_prefix = f"{str(base_dir)}/cache_and_ckp/{benchmark}_{data_sign}"
-        cc_extract_prefix = f"{cc_prefix}/{extract_hash}"
+        cc_extract_prefix = f"{cc_prefix}/{extract_params.hash()}"
         self.data_sign = data_sign
         self.data_prefix = data_prefix
         self.cc_prefix = cc_prefix
         self.cc_extract_prefix = cc_extract_prefix
+        self.extract_params = extract_params
+        self._checkpoint_split()
+
+    def _checkpoint_split(self) -> None:
+        json_name = "extract_param.json"
+        if not Path(f"{self.cc_extract_prefix}/{json_name}").exists():
+            JsonHandler.dump_to_file(
+                self.extract_params.__dict__,
+                f"{self.cc_extract_prefix}/{json_name}",
+                indent=2,
+            )
+            logger.info(f"saved split params to {self.cc_extract_prefix}/{json_name}")
+        else:
+            logger.info(f"found {self.cc_extract_prefix}/{json_name}")
 
     def _get_data_sign(self) -> str:
         # Read data
@@ -285,35 +299,12 @@ def magic_setup(pw: PathWatcher, seed: int) -> None:
 
 
 def define_data_processor(
-    op_groups: List[str],
-    tabular_columns: List[str],
-    objectives: List[str],
     lpe_size: int,
     vec_size: int,
+    tabular_columns: List[str],
+    objectives: List[str],
 ) -> DataProcessor:
-    if "op_enc" in op_groups:
-        data_processor_getter = create_data_processor(QueryPlanIterator, "op_enc")
-        return data_processor_getter(
-            tensor_dtypes=tensor_dtypes,
-            tabular_features=FeaturePipeline(
-                extractor=TabularFeatureExtractor(columns=tabular_columns),
-                preprocessors=[NormalizePreprocessor(MinMaxScaler())],
-            ),
-            objectives=FeaturePipeline(
-                extractor=TabularFeatureExtractor(columns=objectives),
-            ),
-            query_structure=FeaturePipeline(
-                extractor=LQPExtractor(positional_encoding_size=lpe_size),
-                preprocessors=[NormalizePreprocessor(MinMaxScaler(), "graph_features")],
-            ),
-            op_enc=FeaturePipeline(
-                extractor=PredicateEmbeddingExtractor(
-                    Word2VecEmbedder(Word2VecParams(vec_size=vec_size)),
-                    extract_operations=extract_operations_from_serialized_json,
-                ),
-            ),
-        )
-    data_processor_getter = create_data_processor(QueryPlanIterator)
+    data_processor_getter = create_data_processor(QueryPlanIterator, "op_enc")
     return data_processor_getter(
         tensor_dtypes=tensor_dtypes,
         tabular_features=FeaturePipeline(
@@ -327,13 +318,19 @@ def define_data_processor(
             extractor=LQPExtractor(positional_encoding_size=lpe_size),
             preprocessors=[NormalizePreprocessor(MinMaxScaler(), "graph_features")],
         ),
+        op_enc=FeaturePipeline(
+            extractor=PredicateEmbeddingExtractor(
+                Word2VecEmbedder(Word2VecParams(vec_size=vec_size)),
+                extract_operations=extract_operations_from_serialized_json,
+            ),
+        ),
     )
 
 
 # Data Split Index
 def extract_index_splits(
     pw: PathWatcher, seed: int, q_type: str
-) -> Tuple[pd.DataFrame, Dict]:
+) -> Tuple[pd.DataFrame, Dict[DatasetType, List[str]]]:
     if (
         not Path(f"{pw.cc_prefix}/index_splits_{q_type}.pkl").exists()
         or not Path(f"{pw.cc_prefix}/df_{q_type}.pkl").exists()
@@ -356,7 +353,11 @@ def extract_index_splits(
 
 
 def extract_and_save_iterators(
-    pw: PathWatcher, params: MySplitIteratorParams, cache_file: str = "iterators.pkl"
+    pw: PathWatcher,
+    params: ExtractParams,
+    tabular_columns: List[str],
+    objectives: List[str],
+    cache_file: str = "iterators.pkl",
 ) -> Dict[DatasetType, BaseIterator]:
     if Path(f"{pw.cc_extract_prefix}/{cache_file}").exists():
         raise FileExistsError(f"{pw.cc_extract_prefix}/{cache_file} already exists.")
@@ -365,17 +366,18 @@ def extract_and_save_iterators(
     if Path(f"{pw.cc_extract_prefix}/{cache_file_dh}").exists():
         logger.info(f"found {pw.cc_extract_prefix}/{cache_file_dh}, loading...")
         data_handler = PickleHandler.load(pw.cc_extract_prefix, cache_file_dh)
+        if not isinstance(data_handler, DataHandler):
+            raise TypeError(f"data_handler is not a DataHandler: {data_handler}")
     else:
         logger.info(f"not found {pw.cc_extract_prefix}/{cache_file_dh}, extracting...")
         df, index_splits = extract_index_splits(
             pw=pw, seed=params.seed, q_type=params.q_type
         )
         data_processor = define_data_processor(
-            op_groups=params.op_groups,
-            tabular_columns=params.tabular_columns,
-            objectives=params.objectives,
             lpe_size=params.lpe_size,
             vec_size=params.vec_size,
+            tabular_columns=tabular_columns,
+            objectives=objectives,
         )
         data_handler = DataHandler(
             df.reset_index(),
@@ -389,6 +391,8 @@ def extract_and_save_iterators(
                 random_state=params.seed,
             ),
         )
+        if not isinstance(data_handler, DataHandler):
+            raise TypeError(f"data_handler is not a DataHandler: {data_handler}")
         data_handler.index_splits = index_splits
         PickleHandler.save(data_handler, pw.cc_extract_prefix, cache_file_dh)
         logger.info(f"saved {pw.cc_extract_prefix}/{cache_file_dh}")
@@ -404,13 +408,18 @@ def extract_and_save_iterators(
 
 
 def get_split_iterators(
-    pw: PathWatcher, params: MySplitIteratorParams
+    pw: PathWatcher,
+    params: ExtractParams,
+    tabular_columns: List[str],
+    objectives: List[str],
 ) -> Dict[DatasetType, BaseIterator]:
     cache_file = "iterators.pkl"
     if not Path(f"{pw.cc_extract_prefix}/{cache_file}").exists():
         split_iterators = extract_and_save_iterators(
             pw=pw,
             params=params,
+            tabular_columns=tabular_columns,
+            objectives=objectives,
             cache_file=cache_file,
         )
         return split_iterators

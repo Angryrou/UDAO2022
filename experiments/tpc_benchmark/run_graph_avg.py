@@ -1,5 +1,5 @@
 import torch as th
-from params import MySplitIteratorParams, get_graph_avg_params
+from params import ExtractParams, get_graph_avg_params
 
 from model import (
     GraphAverageMLPParams,
@@ -21,23 +21,29 @@ logger.setLevel("INFO")
 if __name__ == "__main__":
     params = get_graph_avg_params()
     device = "gpu" if th.cuda.is_available() else "cpu"
-    objectives = ["latency_s", "io_mb"]
     th.set_default_dtype(tensor_dtypes)  # type: ignore
 
     # Data definition
     tabular_columns = TABULAR_LQP if params.q_type in ["q_compile", "q"] else TABULAR_QS
-    split_params = MySplitIteratorParams(
-        op_groups=params.op_groups,
-        tabular_columns=tabular_columns,
-        objectives=objectives,
+    objectives = (
+        ["latency_s", "io_mb"]
+        if params.q_type in ["q_compile", "q"]
+        else ["latency_s", "io_mb", "ana_latency_s"]
+    )
+    extract_params = ExtractParams(
         lpe_size=params.lpe_size,
         vec_size=params.vec_size,
         seed=params.seed,
         q_type=params.q_type,
         debug=params.debug,
     )
-    pw = PathWatcher(params.benchmark, params.debug, split_params.hash())
-    split_iterators = get_split_iterators(pw=pw, params=split_params)
+    pw = PathWatcher(params.benchmark, params.debug, extract_params)
+    split_iterators = get_split_iterators(
+        pw=pw,
+        params=extract_params,
+        tabular_columns=tabular_columns,
+        objectives=objectives,
+    )
     # Model definition and training
     model_params = GraphAverageMLPParams(
         iterator_shape=split_iterators["train"].shape,
